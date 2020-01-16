@@ -1,0 +1,6 @@
+[submodule "Externals/Delphi.Mock"]
+	path = Externals/Delphi.Mock
+	url = https://github.com/henriquewerlang/Delphi.Mock.git
+[submodule "Externals/DUnitX"]
+	path = Externals/DUnitX
+	url = https://github.com/VSoftTechnologies/DUnitX.git
