@@ -5,6 +5,7 @@ program Delphi.ORM.Tests;
 {$ENDIF}
 {$STRONGLINKTYPES ON}
 uses
+  FastMM5 in '..\Externals\FastMM5\FastMM5.pas',
   System.SysUtils,
   {$IFDEF TESTINSIGHT}
   TestInsight.DUnitX,
@@ -12,9 +13,14 @@ uses
   DUnitX.Loggers.Console,
   {$ENDIF }
   DUnitX.TestFramework,
+  DUnitX.MemoryLeakMonitor.FastMM4,
   Delphi.ORM in '..\Delphi.ORM.pas',
-  Delphi.ORM.Test in 'Delphi.ORM.Test.pas';
+  Delphi.ORM.Test in 'Delphi.ORM.Test.pas',
+  Delphi.ORM.DataSet.Test in 'Delphi.ORM.DataSet.Test.pas',
+  Delphi.ORM.DataSet in '..\Delphi.ORM.DataSet.pas';
 
+// Para não remover o valor abaixo
+{$IFNDEF TESTINSIGHT}
 var
   runner: ITestRunner;
   results: IRunResults;
@@ -22,6 +28,12 @@ var
   nunitLogger : ITestLogger;
 {$ENDIF}
 begin
+  FastMM_EnterDebugMode;
+
+  FastMM_LogToFileEvents := FastMM_LogToFileEvents + [mmetUnexpectedMemoryLeakDetail, mmetUnexpectedMemoryLeakSummary];
+
+  ReportMemoryLeaksOnShutdown := True;
+
 {$IFDEF TESTINSIGHT}
   TestInsight.DUnitX.RunRegisteredTests;
 {$ELSE}
