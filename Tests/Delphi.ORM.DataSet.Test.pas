@@ -43,10 +43,25 @@ type
     procedure WhenNavigateByDataSetMustHaveToShowTheValuesFromTheList;
     [Test]
     procedure WhenNavigatingBackHaveToLoadTheListValuesAsExpected;
+    [Test]
+    procedure WhenHaveFieldDefDefinedCantLoadFieldsFromTheClass;
+    [Test]
+    procedure WhenTheFieldDefNameNotExistsInPropertyListMustRaiseAException;
+    [Test]
+    procedure WhenTheFieldAndPropertyTypeAreDifferentItHasToRaiseAnException;
+    [Test]
+    procedure WhenAFieldIsSeparatedByAPointItHasToLoadTheSubPropertiesOfTheObject;
   end;
 
   TAnotherObject = class
-
+  private
+    FAnotherObject: TAnotherObject;
+    FAnotherName: String;
+  public
+    destructor Destroy; override;
+  published
+    property AnotherName: String read FAnotherName write FAnotherName;
+    property AnotherObject: TAnotherObject read FAnotherObject write FAnotherObject;
   end;
 
   TMyTestClass = class
@@ -55,6 +70,8 @@ type
     FName: String;
     FValue: Double;
     FAnotherObject: TAnotherObject;
+  public
+    destructor Destroy; override;
   published
     property Id: Integer read FId write FId;
     property Name: String read FName write FName;
@@ -107,7 +124,7 @@ type
 
 implementation
 
-uses System.Generics.Collections, System.SysUtils, Delphi.ORM.DataSet;
+uses System.Generics.Collections, System.SysUtils, System.Classes, Delphi.ORM.DataSet;
 
 { TORMDataSetTest }
 
@@ -121,9 +138,9 @@ begin
 
   DataSet.OpenObject(MyObject);
 
-  Assert.AreEqual(DataSet.FieldByName('Id').AsInteger, 123456);
-  Assert.AreEqual(DataSet.FieldByName('Name').AsString, 'MyName');
-  Assert.AreEqual<Double>(DataSet.FieldByName('Value').AsFloat, 5477.555);
+  Assert.AreEqual(123456, DataSet.FieldByName('Id').AsInteger);
+  Assert.AreEqual('MyName', DataSet.FieldByName('Name').AsString);
+  Assert.AreEqual<Double>(5477.555, DataSet.FieldByName('Value').AsFloat);
 
   DataSet.Free;
 
@@ -155,6 +172,43 @@ begin
   Assert.AreEqual('Name', DataSet.Fields[1].FieldName);
   Assert.AreEqual('Value', DataSet.Fields[2].FieldName);
   Assert.AreEqual('AnotherObject', DataSet.Fields[3].FieldName);
+
+  DataSet.Free;
+
+  MyObject.Free;
+end;
+
+procedure TORMDataSetTest.WhenAFieldIsSeparatedByAPointItHasToLoadTheSubPropertiesOfTheObject;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyObject := TMyTestClass.Create;
+  MyObject.AnotherObject := TAnotherObject.Create;
+  MyObject.AnotherObject.AnotherObject := TAnotherObject.Create;
+  MyObject.AnotherObject.AnotherObject.AnotherName := 'MyName';
+
+  DataSet.FieldDefs.Add('AnotherObject.AnotherObject.AnotherName', ftString, 50);
+
+  DataSet.OpenObject(MyObject);
+
+  Assert.AreEqual('MyName', DataSet.FieldByName('AnotherObject.AnotherObject.AnotherName').AsString);
+
+  DataSet.Free;
+
+  MyObject.Free;
+end;
+
+procedure TORMDataSetTest.WhenHaveFieldDefDefinedCantLoadFieldsFromTheClass;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyObject := TMyTestClass.Create;
+
+  DataSet.FieldDefs.Add('Id', ftInteger);
+  DataSet.FieldDefs.Add('Name', ftString, 20);
+  DataSet.FieldDefs.Add('Value', ftFloat);
+
+  DataSet.OpenObject(MyObject);
+
+  Assert.AreEqual(3, DataSet.FieldDefs.Count);
 
   DataSet.Free;
 
@@ -287,6 +341,60 @@ begin
   DataSet.Free;
 
   MyObject.Free;
+end;
+
+procedure TORMDataSetTest.WhenTheFieldAndPropertyTypeAreDifferentItHasToRaiseAnException;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyObject := TMyTestClass.Create;
+
+  DataSet.FieldDefs.Add('Name', ftInteger);
+
+  Assert.WillRaise(
+    procedure
+    begin
+      DataSet.OpenObject(MyObject);
+    end, EPropertyWithDifferentType);
+
+  DataSet.Free;
+
+  MyObject.Free;
+end;
+
+procedure TORMDataSetTest.WhenTheFieldDefNameNotExistsInPropertyListMustRaiseAException;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyObject := TMyTestClass.Create;
+
+  DataSet.FieldDefs.Add('InvalidPropertyName', ftInteger);
+
+  Assert.WillRaise(
+    procedure
+    begin
+      DataSet.OpenObject(MyObject);
+    end, EPropertyNameDoesNotExist);
+
+  DataSet.Free;
+
+  MyObject.Free;
+end;
+
+{ TMyTestClass }
+
+destructor TMyTestClass.Destroy;
+begin
+  FAnotherObject.Free;
+
+  inherited;
+end;
+
+{ TAnotherObject }
+
+destructor TAnotherObject.Destroy;
+begin
+  FAnotherObject.Free;
+
+  inherited;
 end;
 
 end.

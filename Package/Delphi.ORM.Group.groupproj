@@ -1,0 +1,60 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{8D1E7946-7658-4DCF-B759-ADBF9390627A}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="Delphi.ORM.Runtime.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Delphi.ORM.Design.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\Tests\Delphi.ORM.Tests.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="Delphi_ORM_Runtime">
+        <MSBuild Projects="Delphi.ORM.Runtime.dproj"/>
+    </Target>
+    <Target Name="Delphi_ORM_Runtime:Clean">
+        <MSBuild Projects="Delphi.ORM.Runtime.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Delphi_ORM_Runtime:Make">
+        <MSBuild Projects="Delphi.ORM.Runtime.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Delphi_ORM_Design">
+        <MSBuild Projects="Delphi.ORM.Design.dproj"/>
+    </Target>
+    <Target Name="Delphi_ORM_Design:Clean">
+        <MSBuild Projects="Delphi.ORM.Design.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Delphi_ORM_Design:Make">
+        <MSBuild Projects="Delphi.ORM.Design.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Delphi_ORM_Tests">
+        <MSBuild Projects="..\Tests\Delphi.ORM.Tests.dproj"/>
+    </Target>
+    <Target Name="Delphi_ORM_Tests:Clean">
+        <MSBuild Projects="..\Tests\Delphi.ORM.Tests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Delphi_ORM_Tests:Make">
+        <MSBuild Projects="..\Tests\Delphi.ORM.Tests.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="Delphi_ORM_Runtime;Delphi_ORM_Design;Delphi_ORM_Tests"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="Delphi_ORM_Runtime:Clean;Delphi_ORM_Design:Clean;Delphi_ORM_Tests:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="Delphi_ORM_Runtime:Make;Delphi_ORM_Design:Make;Delphi_ORM_Tests:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
