@@ -51,6 +51,8 @@ type
     procedure WhenTheFieldAndPropertyTypeAreDifferentItHasToRaiseAnException;
     [Test]
     procedure WhenAFieldIsSeparatedByAPointItHasToLoadTheSubPropertiesOfTheObject;
+    [Test]
+    procedure WhenTheDataSetHasOnlyFieldsAddedItHasToLoadTheFieldDefs;
   end;
 
   TAnotherObject = class
@@ -337,6 +339,24 @@ begin
   DataSet.OpenObject(MyObject);
 
   Assert.AreEqual(1, DataSet.RecordCount);
+
+  DataSet.Free;
+
+  MyObject.Free;
+end;
+
+procedure TORMDataSetTest.WhenTheDataSetHasOnlyFieldsAddedItHasToLoadTheFieldDefs;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var Field := TStringField.Create(DataSet);
+  Field.FieldName := 'Name';
+  var MyObject := TMyTestClass.Create;
+
+  DataSet.Fields.Add(Field);
+
+  DataSet.Open;
+
+  Assert.AreEqual(1, DataSet.FieldDefs.Count);
 
   DataSet.Free;
 

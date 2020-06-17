@@ -31,7 +31,7 @@ type
     property InternalList: TList<TObject> read GetInternalList;
   protected
     function AllocRecordBuffer: TRecordBuffer; override;
-    function GetFieldClass(FieldDef: TFieldDef): TFieldClass; override;
+    function GetFieldClass(FieldType: TFieldType): TFieldClass; override;
     function GetNextRecord: Boolean; override;
     function GetPriorRecord: Boolean; override;
     function GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
@@ -54,6 +54,33 @@ type
 
     procedure OpenList<T: class>(List: TList<T>);
     procedure OpenObject<T: class>(&Object: T);
+  published
+    property Active;
+    property AfterCancel;
+    property AfterClose;
+    property AfterDelete;
+    property AfterEdit;
+    property AfterInsert;
+    property AfterOpen;
+    property AfterPost;
+    property AfterRefresh;
+    property AfterScroll;
+    property BeforeCancel;
+    property BeforeClose;
+    property BeforeDelete;
+    property BeforeEdit;
+    property BeforeInsert;
+    property BeforeOpen;
+    property BeforePost;
+    property BeforeRefresh;
+    property BeforeScroll;
+    property FieldDefs;
+    property OnCalcFields;
+    property OnDeleteError;
+    property OnEditError;
+    property OnFilterRecord;
+    property OnNewRecord;
+    property OnPostError;
   end;
 
 implementation
@@ -84,12 +111,12 @@ begin
   Result := FObjectList[FRecordIndex] as T;
 end;
 
-function TORMDataSet.GetFieldClass(FieldDef: TFieldDef): TFieldClass;
+function TORMDataSet.GetFieldClass(FieldType: TFieldType): TFieldClass;
 begin
-  if FieldDef.DataType = ftObject then
+  if FieldType = ftObject then
     Result := TORMObjectField
   else
-    Result := inherited GetFieldClass(FieldDef);
+    Result := inherited GetFieldClass(FieldType);
 end;
 
 function TORMDataSet.GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean;
