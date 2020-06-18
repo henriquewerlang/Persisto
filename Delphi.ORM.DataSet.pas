@@ -5,6 +5,10 @@ interface
 uses System.Classes, Data.DB, System.Rtti, System.Generics.Collections, System.SysUtils;
 
 type
+  EDataSetWithoutObjectDefinition = class(Exception)
+  public
+    constructor Create;
+  end;
   EPropertyNameDoesNotExist = class(Exception);
   EPropertyWithDifferentType = class(Exception);
 
@@ -22,14 +26,16 @@ type
     FPropertyMappingList: TArray<TArray<TRttiInstanceProperty>>;
     FObjectClassName: String;
 
-    function GetFieldTypeFromProperty(&Property: TRttiProperty): TFieldType;
     function GetInternalList: TList<TObject>;
+    function GetFieldTypeFromProperty(&Property: TRttiProperty): TFieldType;
+    function GetObjectList: TList<TObject>;
     function GetPropertyValueFromCurrentObject(Field: TField): TValue;
 
-    procedure LoadFieldDefsFromClass<T: class>;
+    procedure LoadFieldDefsFromClass;
     procedure LoadObjectType<T: class>;
+    procedure SetObjectClassName(const Value: String);
 
-    property InternalList: TList<TObject> read GetInternalList;
+    property ObjectList: TList<TObject> read GetObjectList;
   protected
     function AllocRecordBuffer: TRecordBuffer; override;
     function GetFieldClass(FieldType: TFieldType): TFieldClass; override;
@@ -45,7 +51,7 @@ type
     procedure InternalInitFieldDefs; override;
     procedure InternalLast; override;
     procedure InternalOpen; override;
-    procedure LoadPropertiesFromFieldDefs;
+    procedure LoadPropertiesFromFields;
     procedure SetFieldData(Field: TField; Buffer: TValueBuffer); override;
   public
     destructor Destroy; override;
@@ -75,8 +81,7 @@ type
     property BeforePost;
     property BeforeRefresh;
     property BeforeScroll;
-    property FieldDefs;
-    property ObjectClassName: String read FObjectClassName write FObjectClassName;
+    property ObjectClassName: String read FObjectClassName write SetObjectClassName;
     property OnCalcFields;
     property OnDeleteError;
     property OnEditError;
@@ -110,7 +115,7 @@ end;
 
 function TORMDataSet.GetCurrentObject<T>: T;
 begin
-  Result := FObjectList[FRecordIndex] as T;
+  Result := ObjectList[FRecordIndex] as T;
 end;
 
 function TORMDataSet.GetFieldClass(FieldType: TFieldType): TFieldClass;
@@ -197,6 +202,14 @@ begin
   Result := inherited GetNextRecord;
 end;
 
+function TORMDataSet.GetObjectList: TList<TObject>;
+begin
+  if not Assigned(FObjectList) then
+    FObjectList := GetInternalList;
+
+  Result := FObjectList;
+end;
+
 function TORMDataSet.GetPriorRecord: Boolean;
 begin
   Dec(FRecordIndex);
@@ -229,7 +242,7 @@ end;
 
 function TORMDataSet.GetRecordCount: Integer;
 begin
-  Result := FObjectList.Count;
+  Result := ObjectList.Count;
 end;
 
 procedure TORMDataSet.InternalClose;
@@ -248,28 +261,39 @@ procedure TORMDataSet.InternalInitFieldDefs;
 begin
   inherited;
 
+  FieldDefs.Clear;
+
+  LoadFieldDefsFromClass;
 end;
 
 procedure TORMDataSet.InternalLast;
 begin
-  FRecordIndex := FObjectList.Count;
+  FRecordIndex := ObjectList.Count;
 end;
 
 procedure TORMDataSet.InternalOpen;
 begin
   FRecordIndex := -1;
 
+  if not Assigned(FObjectType) then
+    raise EDataSetWithoutObjectDefinition.Create;
+
+  if FieldDefs.Count = 0 then
+    LoadFieldDefsFromClass;
+
   CreateFields;
+
+  LoadPropertiesFromFields;
 
   BindFields(True);
 end;
 
 function TORMDataSet.IsCursorOpen: Boolean;
 begin
-  Result := Assigned(FObjectList) and (FObjectList.Count > 0);
+  Result := Assigned(FObjectList) and (ObjectList.Count > 0);
 end;
 
-procedure TORMDataSet.LoadFieldDefsFromClass<T>;
+procedure TORMDataSet.LoadFieldDefsFromClass;
 begin
   FPropertyMappingList := nil;
 
@@ -289,19 +313,19 @@ begin
   FObjectType := Context.GetType(T) as TRttiInstanceType;
 end;
 
-procedure TORMDataSet.LoadPropertiesFromFieldDefs;
+procedure TORMDataSet.LoadPropertiesFromFields;
 begin
   FPropertyMappingList := nil;
 
-  for var A := 0 to Pred(FieldDefs.Count) do
+  for var A := 0 to Pred(Fields.Count) do
   begin
-    var FieldDef := FieldDefs[A];
+    var Field := Fields[A];
     var ObjectType := FObjectType;
     var &Property: TRttiInstanceProperty := nil;
     var PropertyList: TArray<TRttiInstanceProperty> := nil;
     var PropertyName := EmptyStr;
 
-    for PropertyName in FieldDef.Name.Split(['.']) do
+    for PropertyName in Field.FieldName.Split(['.']) do
     begin
       &Property := ObjectType.GetProperty(PropertyName) as TRttiInstanceProperty;
 
@@ -314,9 +338,9 @@ begin
         ObjectType := &Property.PropertyType as TRttiInstanceType;
     end;
 
-    if GetFieldTypeFromProperty(&Property) <> FieldDef.DataType then
+    if GetFieldTypeFromProperty(&Property) <> Field.DataType then
       raise EPropertyWithDifferentType.CreateFmt('The property type is not equal to the type of the added field, expected value %s found %s',
-        [TRttiEnumerationType.GetName(GetFieldTypeFromProperty(&Property)), TRttiEnumerationType.GetName(FieldDef.DataType)]);
+        [TRttiEnumerationType.GetName(GetFieldTypeFromProperty(&Property)), TRttiEnumerationType.GetName(Field.DataType)]);
 
     FPropertyMappingList := FPropertyMappingList + [PropertyList];
   end;
@@ -328,26 +352,29 @@ begin
 
   LoadObjectType<T>;
 
-  if FieldDefs.Count = 0 then
-    LoadFieldDefsFromClass<T>
-  else
-    LoadPropertiesFromFieldDefs;
-
   Open;
 end;
 
 procedure TORMDataSet.OpenObject<T>(&Object: T);
 begin
-  FObjectList := InternalList;
+  ObjectList.Add(&Object);
 
-  InternalList.Add(&Object);
-
-  OpenList<T>(TList<T>(InternalList));
+  OpenList<T>(TList<T>(ObjectList));
 end;
 
 procedure TORMDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer);
 begin
 
+end;
+
+procedure TORMDataSet.SetObjectClassName(const Value: String);
+begin
+  var Context := TRttiContext.Create;
+  FObjectClassName := Value;
+
+  for var &Type in Context.GetTypes do
+    if (&Type.Name = Value) or (&Type.QualifiedName = Value) then
+      FObjectType := &Type as TRttiInstanceType;
 end;
 
 { TORMObjectField }
@@ -357,6 +384,13 @@ begin
   inherited;
 
   SetDataType(ftObject);
+end;
+
+{ EDataSetWithoutObjectDefinition }
+
+constructor EDataSetWithoutObjectDefinition.Create;
+begin
+  inherited Create('To open the DataSet, you must use the especialized procedures ou fill de ObjectClassName property!');
 end;
 
 end.

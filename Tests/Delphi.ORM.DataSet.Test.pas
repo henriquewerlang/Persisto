@@ -52,7 +52,11 @@ type
     [Test]
     procedure WhenAFieldIsSeparatedByAPointItHasToLoadTheSubPropertiesOfTheObject;
     [Test]
-    procedure WhenTheDataSetHasOnlyFieldsAddedItHasToLoadTheFieldDefs;
+    procedure WhenTryOpenADataSetWithoutAObjectDefinitionMustRaiseAnError;
+    [Test]
+    procedure WhenFilledTheObjectClassNameHasToLoadTheDataSetWithoutErrors;
+    [Test]
+    procedure WhenUseQualifiedClassNameHasToLoadTheDataSetWithoutErrors;
   end;
 
   TAnotherObject = class
@@ -197,6 +201,17 @@ begin
   DataSet.Free;
 
   MyObject.Free;
+end;
+
+procedure TORMDataSetTest.WhenFilledTheObjectClassNameHasToLoadTheDataSetWithoutErrors;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.ObjectClassName := 'TMyTestClass';
+
+  Assert.WillNotRaise(DataSet.Open);
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenHaveFieldDefDefinedCantLoadFieldsFromTheClass;
@@ -345,24 +360,6 @@ begin
   MyObject.Free;
 end;
 
-procedure TORMDataSetTest.WhenTheDataSetHasOnlyFieldsAddedItHasToLoadTheFieldDefs;
-begin
-  var DataSet := TORMDataSet.Create(nil);
-  var Field := TStringField.Create(DataSet);
-  Field.FieldName := 'Name';
-  var MyObject := TMyTestClass.Create;
-
-  DataSet.Fields.Add(Field);
-
-  DataSet.Open;
-
-  Assert.AreEqual(1, DataSet.FieldDefs.Count);
-
-  DataSet.Free;
-
-  MyObject.Free;
-end;
-
 procedure TORMDataSetTest.WhenTheFieldAndPropertyTypeAreDifferentItHasToRaiseAnException;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -397,6 +394,30 @@ begin
   DataSet.Free;
 
   MyObject.Free;
+end;
+
+procedure TORMDataSetTest.WhenTryOpenADataSetWithoutAObjectDefinitionMustRaiseAnError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  Assert.WillRaise(
+    procedure
+    begin
+      DataSet.Open;
+    end, EDataSetWithoutObjectDefinition);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenUseQualifiedClassNameHasToLoadTheDataSetWithoutErrors;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.ObjectClassName := 'Delphi.ORM.DataSet.Test.TMyTestClass';
+
+  Assert.WillNotRaise(DataSet.Open);
+
+  DataSet.Free;
 end;
 
 { TMyTestClass }
