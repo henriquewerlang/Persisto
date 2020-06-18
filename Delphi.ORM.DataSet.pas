@@ -22,6 +22,7 @@ type
     FInternalList: TList<TObject>;
     FObjectList: TList<TObject>;
     FRecordIndex: Integer;
+    FContext: TRttiContext;
     FObjectType: TRttiInstanceType;
     FPropertyMappingList: TArray<TArray<TRttiInstanceProperty>>;
     FObjectClassName: String;
@@ -54,6 +55,7 @@ type
     procedure LoadPropertiesFromFields;
     procedure SetFieldData(Field: TField; Buffer: TValueBuffer); override;
   public
+    constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
     function GetCurrentObject<T: class>: T;
@@ -101,6 +103,13 @@ begin
   Result := TRecordBuffer(1);
 end;
 
+constructor TORMDataSet.Create(AOwner: TComponent);
+begin
+  inherited;
+
+  FContext := TRttiContext.Create;
+end;
+
 destructor TORMDataSet.Destroy;
 begin
   FInternalList.Free;
@@ -130,19 +139,20 @@ function TORMDataSet.GetFieldData(Field: TField; var Buffer: TValueBuffer): Bool
 begin
   var Value := GetPropertyValueFromCurrentObject(Field);
 
-  if Field is TStringField then
-  begin
-    var StringData := Value.AsType<AnsiString>;
-    var StringSize := Length(StringData);
+  Result := not Value.IsEmpty;
 
-    Move(PAnsiChar(@StringData[1])^, PAnsiChar(@Buffer[0])^, StringSize);
+  if Result and Assigned(Buffer) then
+    if Field is TStringField then
+    begin
+      var StringData := Value.AsType<AnsiString>;
+      var StringSize := Length(StringData);
 
-    Buffer[StringSize] := 0;
-  end
-  else
-    Value.ExtractRawData(@Buffer[0]);
+      Move(PAnsiChar(@StringData[1])^, PAnsiChar(@Buffer[0])^, StringSize);
 
-  Result := True;
+      Buffer[StringSize] := 0;
+    end
+    else
+      Value.ExtractRawData(@Buffer[0])
 end;
 
 function TORMDataSet.GetFieldTypeFromProperty(&Property: TRttiProperty): TFieldType;
@@ -308,9 +318,7 @@ end;
 
 procedure TORMDataSet.LoadObjectType<T>;
 begin
-  var Context := TRttiContext.Create;
-
-  FObjectType := Context.GetType(T) as TRttiInstanceType;
+  FObjectType := FContext.GetType(T) as TRttiInstanceType;
 end;
 
 procedure TORMDataSet.LoadPropertiesFromFields;
@@ -369,10 +377,9 @@ end;
 
 procedure TORMDataSet.SetObjectClassName(const Value: String);
 begin
-  var Context := TRttiContext.Create;
   FObjectClassName := Value;
 
-  for var &Type in Context.GetTypes do
+  for var &Type in FContext.GetTypes do
     if (&Type.Name = Value) or (&Type.QualifiedName = Value) then
       FObjectType := &Type as TRttiInstanceType;
 end;

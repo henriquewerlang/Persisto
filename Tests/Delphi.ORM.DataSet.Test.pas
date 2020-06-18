@@ -57,6 +57,8 @@ type
     procedure WhenFilledTheObjectClassNameHasToLoadTheDataSetWithoutErrors;
     [Test]
     procedure WhenUseQualifiedClassNameHasToLoadTheDataSetWithoutErrors;
+    [Test]
+    procedure WhnCheckingIfTheFieldIsNullCantRaiseAnError;
   end;
 
   TAnotherObject = class
@@ -418,6 +420,24 @@ begin
   Assert.WillNotRaise(DataSet.Open);
 
   DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhnCheckingIfTheFieldIsNullCantRaiseAnError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyObject := TMyTestClass.Create;
+
+  DataSet.OpenObject(MyObject);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.FieldByName('Id').IsNull;
+    end);
+
+  DataSet.Free;
+
+  MyObject.Free;
 end;
 
 { TMyTestClass }
