@@ -48,6 +48,8 @@ type
 
     procedure FreeRecordBuffer(var Buffer: TRecordBuffer); override;
     procedure InternalClose; override;
+    procedure InternalFirst; override;
+    procedure InternalGotoBookmark(Bookmark: TBookmark); override;
     procedure InternalHandleException; override;
     procedure InternalInitFieldDefs; override;
     procedure InternalLast; override;
@@ -58,6 +60,7 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
+    function GetBookmark: TBookmark; override;
     function GetCurrentObject<T: class>: T;
     function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean; override;
 
@@ -120,6 +123,13 @@ end;
 procedure TORMDataSet.FreeRecordBuffer(var Buffer: TRecordBuffer);
 begin
   Buffer := nil;
+end;
+
+function TORMDataSet.GetBookmark: TBookmark;
+begin
+  SetLength(Result, SizeOf(Integer));
+
+  PInteger(Result)^ := FRecordIndex;
 end;
 
 function TORMDataSet.GetCurrentObject<T>: T;
@@ -261,6 +271,16 @@ begin
 
 end;
 
+procedure TORMDataSet.InternalFirst;
+begin
+  FRecordIndex := -1;
+end;
+
+procedure TORMDataSet.InternalGotoBookmark(Bookmark: TBookmark);
+begin
+  FRecordIndex := PInteger(Bookmark)^;
+end;
+
 procedure TORMDataSet.InternalHandleException;
 begin
   inherited;
@@ -283,8 +303,6 @@ end;
 
 procedure TORMDataSet.InternalOpen;
 begin
-  FRecordIndex := -1;
-
   if not Assigned(FObjectType) then
     raise EDataSetWithoutObjectDefinition.Create;
 
@@ -296,6 +314,8 @@ begin
   LoadPropertiesFromFields;
 
   BindFields(True);
+
+  InternalFirst;
 end;
 
 function TORMDataSet.IsCursorOpen: Boolean;

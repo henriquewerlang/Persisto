@@ -59,6 +59,10 @@ type
     procedure WhenUseQualifiedClassNameHasToLoadTheDataSetWithoutErrors;
     [Test]
     procedure WhnCheckingIfTheFieldIsNullCantRaiseAnError;
+    [Test]
+    procedure WhenCallFirstHaveToGoToTheFirstRecord;
+    [Test]
+    procedure UsingBookmarkHaveToWorkLikeSpected;
   end;
 
   TAnotherObject = class
@@ -186,6 +190,39 @@ begin
   MyObject.Free;
 end;
 
+procedure TORMDataSetTest.UsingBookmarkHaveToWorkLikeSpected;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyList := TObjectList<TMyTestClass>.Create;
+
+  for var A := 1 to 10 do
+  begin
+    var MyObject := TMyTestClass.Create;
+    MyObject.Id := A;
+    MyObject.Name := Format('Name%d', [A]);
+    MyObject.Value := A + A;
+
+    MyList.Add(MyObject);
+  end;
+
+  DataSet.OpenList<TMyTestClass>(MyList);
+
+  for var A := 1 to 4 do
+    DataSet.Next;
+
+  var Bookmark := DataSet.Bookmark;
+
+  DataSet.First;
+
+  DataSet.Bookmark := Bookmark;
+
+  Assert.AreEqual('Name5', DataSet.FieldByName('Name').AsString);
+
+  DataSet.Free;
+
+  MyList.Free;
+end;
+
 procedure TORMDataSetTest.WhenAFieldIsSeparatedByAPointItHasToLoadTheSubPropertiesOfTheObject;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -203,6 +240,35 @@ begin
   DataSet.Free;
 
   MyObject.Free;
+end;
+
+procedure TORMDataSetTest.WhenCallFirstHaveToGoToTheFirstRecord;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyList := TObjectList<TMyTestClass>.Create;
+
+  for var A := 1 to 10 do
+  begin
+    var MyObject := TMyTestClass.Create;
+    MyObject.Id := A;
+    MyObject.Name := Format('Name%d', [A]);
+    MyObject.Value := A + A;
+
+    MyList.Add(MyObject);
+  end;
+
+  DataSet.OpenList<TMyTestClass>(MyList);
+
+  while not DataSet.Eof do
+    DataSet.Next;
+
+  DataSet.First;
+
+  Assert.AreEqual('Name1', DataSet.FieldByName('Name').AsString);
+
+  DataSet.Free;
+
+  MyList.Free;
 end;
 
 procedure TORMDataSetTest.WhenFilledTheObjectClassNameHasToLoadTheDataSetWithoutErrors;
