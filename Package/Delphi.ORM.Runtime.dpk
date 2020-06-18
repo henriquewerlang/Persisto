@@ -33,6 +33,7 @@ requires
   dbrtl;
 
 contains
-  Delphi.ORM.DataSet in '..\Delphi.ORM.DataSet.pas';
+  Delphi.ORM.DataSet in '..\Delphi.ORM.DataSet.pas',
+  Delphi.ORM.Attributes in '..\Delphi.ORM.Attributes.pas';
 
 end.

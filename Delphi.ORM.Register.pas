@@ -6,11 +6,13 @@ procedure Register;
 
 implementation
 
-uses System.Classes, Delphi.ORM.DataSet;
+uses DesignIntf, System.Classes, Delphi.ORM.DataSet, Delphi.ORM.Editors;
 
 procedure Register;
 begin
   RegisterComponents('Delphi ORM', [TORMDataSet]);
+
+  RegisterPropertyEditor(TypeInfo(String), TORMDataSet, 'ObjectClassName', TObjectClassNameProperty);
 end;
 
 end.

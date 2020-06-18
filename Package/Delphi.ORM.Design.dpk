@@ -30,9 +30,11 @@
 
 requires
   rtl,
+  designide,
   Delphi.ORM.Runtime;
 
 contains
-  Delphi.ORM.Register in '..\Delphi.ORM.Register.pas';
+  Delphi.ORM.Register in '..\Delphi.ORM.Register.pas',
+  Delphi.ORM.Editors in '..\Delphi.ORM.Editors.pas';
 
 end.

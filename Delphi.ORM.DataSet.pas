@@ -20,6 +20,7 @@ type
     FRecordIndex: Integer;
     FObjectType: TRttiInstanceType;
     FPropertyMappingList: TArray<TArray<TRttiInstanceProperty>>;
+    FObjectClassName: String;
 
     function GetFieldTypeFromProperty(&Property: TRttiProperty): TFieldType;
     function GetInternalList: TList<TObject>;
@@ -75,6 +76,7 @@ type
     property BeforeRefresh;
     property BeforeScroll;
     property FieldDefs;
+    property ObjectClassName: String read FObjectClassName write FObjectClassName;
     property OnCalcFields;
     property OnDeleteError;
     property OnEditError;
