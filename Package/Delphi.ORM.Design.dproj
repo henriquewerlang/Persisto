@@ -132,7 +132,7 @@
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <Debugger_HostApplication>$(BDS)\bin\bds.exe</Debugger_HostApplication>
-        <Debugger_RunParams>-pDelphi</Debugger_RunParams>
+        <Debugger_RunParams>-pDelphi -np</Debugger_RunParams>
         <Debugger_CWD>$(BDS)\bin</Debugger_CWD>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
