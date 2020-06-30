@@ -34,6 +34,8 @@ requires
 
 contains
   Delphi.ORM.DataSet in '..\Delphi.ORM.DataSet.pas',
-  Delphi.ORM.Attributes in '..\Delphi.ORM.Attributes.pas';
+  Delphi.ORM.Attributes in '..\Delphi.ORM.Attributes.pas',
+  Delphi.ORM.Connection in '..\Delphi.ORM.Connection.pas',
+  Delphi.ORM.Connection.FireDAC in '..\Delphi.ORM.Connection.FireDAC.pas';
 
 end.

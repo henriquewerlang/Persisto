@@ -17,7 +17,9 @@ uses
   Delphi.ORM in '..\Delphi.ORM.pas',
   Delphi.ORM.Test in 'Delphi.ORM.Test.pas',
   Delphi.ORM.DataSet.Test in 'Delphi.ORM.DataSet.Test.pas',
-  Delphi.ORM.DataSet in '..\Delphi.ORM.DataSet.pas';
+  Delphi.ORM.DataSet in '..\Delphi.ORM.DataSet.pas',
+  Delphi.ORM.Connection in '..\Delphi.ORM.Connection.pas',
+  Delphi.ORM.Connection.FireDAC in '..\Delphi.ORM.Connection.FireDAC.pas';
 
 // Para não remover o valor abaixo
 {$IFNDEF TESTINSIGHT}
