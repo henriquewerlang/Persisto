@@ -3,7 +3,7 @@
         <ProjectGuid>{836DC1B5-6BB8-42D8-A321-2CB611CDC783}</ProjectGuid>
         <MainSource>Delphi.ORM.Runtime.dpk</MainSource>
         <ProjectVersion>19.0</ProjectVersion>
-        <FrameworkType>None</FrameworkType>
+        <FrameworkType>FMX</FrameworkType>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
@@ -115,6 +115,10 @@
         </DelphiCompile>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="dbrtl.dcp"/>
+        <DCCReference Include="FireDAC.dcp"/>
+        <DCCReference Include="FireDACCommonDriver.dcp"/>
+        <DCCReference Include="FireDACCommon.dcp"/>
+        <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="..\Delphi.ORM.DataSet.pas"/>
         <DCCReference Include="..\Delphi.ORM.Attributes.pas"/>
         <DCCReference Include="..\Delphi.ORM.Connection.pas"/>

@@ -3,7 +3,7 @@
         <ProjectGuid>{1C5BAB8A-4071-42FF-B821-12A5A85B1E59}</ProjectGuid>
         <MainSource>Delphi.ORM.Design.dpk</MainSource>
         <ProjectVersion>19.0</ProjectVersion>
-        <FrameworkType>None</FrameworkType>
+        <FrameworkType>FMX</FrameworkType>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>

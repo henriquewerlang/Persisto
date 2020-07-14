@@ -30,7 +30,11 @@
 
 requires
   rtl,
-  dbrtl;
+  dbrtl,
+  FireDAC,
+  FireDACCommonDriver,
+  FireDACCommon,
+  vcl;
 
 contains
   Delphi.ORM.DataSet in '..\Delphi.ORM.DataSet.pas',

@@ -17,6 +17,7 @@ type
     constructor Create(AOwner: TComponent); override;
   end;
 
+  [ComponentPlatforms(pidAllPlatforms)]
   TORMDataSet = class(TDataSet)
   private
     FInternalList: TList<TObject>;
