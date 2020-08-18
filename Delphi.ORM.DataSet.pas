@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Classes, Data.DB, System.Rtti, System.Generics.Collections, System.SysUtils;
+uses System.Classes, Data.DB, System.Rtti, System.Generics.Collections, System.SysUtils, System.TypInfo;
 
 type
   EDataSetWithoutObjectDefinition = class(Exception)
@@ -12,46 +12,55 @@ type
   EPropertyNameDoesNotExist = class(Exception);
   EPropertyWithDifferentType = class(Exception);
 
+{$IFDEF PAS2JS}
+  TRecordBuffer = TDataRecord;
+  TValueBuffer = JSValue;
+{$ENDIF}
+
   TORMObjectField = class(TField)
   public
     constructor Create(AOwner: TComponent); override;
   end;
 
-  [ComponentPlatforms(pidAllPlatforms)]
   TORMDataSet = class(TDataSet)
   private
     FInternalList: TList<TObject>;
     FObjectList: TList<TObject>;
-    FRecordIndex: Integer;
     FContext: TRttiContext;
     FObjectType: TRttiInstanceType;
-    FPropertyMappingList: TArray<TArray<TRttiInstanceProperty>>;
+    FPropertyMappingList: TArray<TArray<TRttiProperty>>;
     FObjectClassName: String;
+    FCurrentRecord: Integer;
 
+    function GetCurrentRecordFromBuffer(const Buffer: TRecordBuffer): Integer;
+    function GetActiveCurrentRecord: Integer;
     function GetInternalList: TList<TObject>;
     function GetFieldTypeFromProperty(&Property: TRttiProperty): TFieldType;
     function GetObjectList: TList<TObject>;
     function GetPropertyValueFromCurrentObject(Field: TField): TValue;
 
     procedure LoadFieldDefsFromClass;
-    procedure LoadObjectType<T: class>;
+    procedure ResetCurrentRecord;
     procedure SetObjectClassName(const Value: String);
 
     property ObjectList: TList<TObject> read GetObjectList;
   protected
     function AllocRecordBuffer: TRecordBuffer; override;
     function GetFieldClass(FieldType: TFieldType): TFieldClass; override;
-    function GetNextRecord: Boolean; override;
-    function GetPriorRecord: Boolean; override;
-    function GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
+    function GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function GetRecordCount: Integer; override;
     function IsCursorOpen: Boolean; override;
 
+    {$IFDEF PAS2JS}
+    procedure GetBookmarkData(Buffer: TDataRecord; var Data: TBookmark); override;
+    {$ELSE}
+    procedure GetBookmarkData(Buffer: TRecBuf; Data: TBookmark); override;
+    {$ENDIF}
     procedure FreeRecordBuffer(var Buffer: TRecordBuffer); override;
     procedure InternalClose; override;
     procedure InternalFirst; override;
     procedure InternalGotoBookmark(Bookmark: TBookmark); override;
-    procedure InternalHandleException; override;
+    procedure InternalHandleException{$IFDEF PAS2JS}(E: Exception){$ENDIF}; override;
     procedure InternalInitFieldDefs; override;
     procedure InternalLast; override;
     procedure InternalOpen; override;
@@ -61,11 +70,14 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
-    function GetBookmark: TBookmark; override;
     function GetCurrentObject<T: class>: T;
+    {$IFDEF PAS2JS}
+    function GetFieldData(Field: TField; Buffer: TDatarecord): JSValue; override;
+    {$ELSE}
     function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean; override;
+    {$ENDIF}
 
-    procedure OpenList<T: class>(List: TList<T>);
+    procedure OpenList<T: class>(List: {$IFDEF PAS2JS}TObject{$ELSE}TList<T>{$ENDIF});
     procedure OpenObject<T: class>(&Object: T);
   published
     property Active;
@@ -98,20 +110,26 @@ type
 
 implementation
 
-uses System.TypInfo, System.Variants;
-
 { TORMDataSet }
 
 function TORMDataSet.AllocRecordBuffer: TRecordBuffer;
 begin
-  Result := TRecordBuffer(1);
+{$IFDEF DCC}
+  Result := GetMemory(SizeOf(Integer));
+{$ENDIF}
 end;
 
 constructor TORMDataSet.Create(AOwner: TComponent);
 begin
   inherited;
 
+{$IFDEF DCC}
+  BookmarkSize := SizeOf(Integer);
+{$ENDIF}
+
   FContext := TRttiContext.Create;
+
+  ResetCurrentRecord;
 end;
 
 destructor TORMDataSet.Destroy;
@@ -123,29 +141,60 @@ end;
 
 procedure TORMDataSet.FreeRecordBuffer(var Buffer: TRecordBuffer);
 begin
-  Buffer := nil;
+{$IFDEF DCC}
+  FreeMem(Buffer);
+{$ENDIF}
 end;
 
-function TORMDataSet.GetBookmark: TBookmark;
+{$IFDEF PAS2JS}
+procedure TORMDataSet.GetBookmarkData(Buffer: TDataRecord; var Data: TBookmark);
 begin
-  SetLength(Result, SizeOf(Integer));
+end;
+{$ELSE}
+procedure TORMDataSet.GetBookmarkData(Buffer: TRecBuf; Data: TBookmark);
+begin
+  PInteger(Data)^ := GetCurrentRecordFromBuffer(TRecordBuffer(Buffer));
+end;
+{$ENDIF}
 
-  PInteger(Result)^ := FRecordIndex;
+function TORMDataSet.GetActiveCurrentRecord: Integer;
+begin
+  Result := GetCurrentRecordFromBuffer(TRecordBuffer(ActiveBuffer));
 end;
 
 function TORMDataSet.GetCurrentObject<T>: T;
 begin
-  Result := ObjectList[FRecordIndex] as T;
+  Result := ObjectList[GetActiveCurrentRecord] as T;
+end;
+
+function TORMDataSet.GetCurrentRecordFromBuffer(const Buffer: TRecordBuffer): Integer;
+{$IFDEF DCC}
+var
+  RecordIndex: PInteger absolute Buffer;
+{$ENDIF}
+
+begin
+{$IFDEF PAS2JS}
+  Result := Integer(Buffer.Data);
+{$ELSE}
+  Result := RecordIndex^;
+{$ENDIF}
 end;
 
 function TORMDataSet.GetFieldClass(FieldType: TFieldType): TFieldClass;
 begin
-  if FieldType = ftObject then
+  if FieldType = {$IFDEF PAS2JS}ftVariant{$ELSE}ftObject{$ENDIF} then
     Result := TORMObjectField
   else
     Result := inherited GetFieldClass(FieldType);
 end;
 
+{$IFDEF PAS2JS}
+function TORMDataSet.GetFieldData(Field: TField; Buffer: TDatarecord): JSValue;
+begin
+  Result := GetPropertyValueFromCurrentObject(Field).AsJSValue;
+end;
+{$ELSE}
 function TORMDataSet.GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean;
 begin
   var Value := GetPropertyValueFromCurrentObject(Field);
@@ -165,18 +214,20 @@ begin
     else
       Value.ExtractRawData(@Buffer[0])
 end;
+{$ENDIF}
 
 function TORMDataSet.GetFieldTypeFromProperty(&Property: TRttiProperty): TFieldType;
 begin
   Result := ftUnknown;
 
   case &Property.PropertyType.TypeKind of
-    tkChar,
-    tkString,
+{$IFDEF DCC}
     tkLString,
     tkUString,
-    tkWChar: Result := ftString;
-    tkClass: Result := ftObject;
+    tkWChar,
+{$ENDIF}
+    tkChar,
+    tkString: Result := ftString;
     tkEnumeration:
       if &Property.PropertyType.Handle = TypeInfo(Boolean) then
         Result := ftBoolean;
@@ -188,13 +239,18 @@ begin
       else if &Property.PropertyType.Handle = TypeInfo(TTime) then
         Result := ftTime
       else
+{$IFDEF DCC}
         case TRttiInstanceProperty(&Property).PropInfo.PropType^.TypeData.FloatType of
           ftCurr: Result := TFieldType.ftCurrency;
           ftDouble: Result := TFieldType.ftFloat;
           ftExtended: Result := TFieldType.ftExtended;
           ftSingle: Result := TFieldType.ftSingle;
         end;
+{$ELSE}
+        Result := TFieldType.ftFloat;
+{$ENDIF}
     tkInteger:
+{$IFDEF DCC}
       case &Property.PropertyType.AsOrdinal.OrdType of
         otSByte,
         otUByte: Result := ftByte;
@@ -203,8 +259,14 @@ begin
         otSLong: Result := ftInteger;
         otULong: Result := ftLongWord;
       end;
+{$ELSE}
+      Result := ftInteger;
+{$ENDIF}
+{$IFDEF DCC}
+    tkClass: Result := ftObject;
     tkInt64: Result := ftLargeint;
     tkWString: Result := ftWideString;
+{$ENDIF}
   end;
 end;
 
@@ -216,13 +278,6 @@ begin
   Result := FInternalList;
 end;
 
-function TORMDataSet.GetNextRecord: Boolean;
-begin
-  Inc(FRecordIndex);
-
-  Result := inherited GetNextRecord;
-end;
-
 function TORMDataSet.GetObjectList: TList<TObject>;
 begin
   if not Assigned(FObjectList) then
@@ -231,18 +286,16 @@ begin
   Result := FObjectList;
 end;
 
-function TORMDataSet.GetPriorRecord: Boolean;
-begin
-  Dec(FRecordIndex);
-
-  Result := inherited GetPriorRecord;
-end;
-
 function TORMDataSet.GetPropertyValueFromCurrentObject(Field: TField): TValue;
-begin
-  var &Object := GetCurrentObject<TObject>;
+var
+  &Object: TObject;
 
-  for var &Property in FPropertyMappingList[Pred(Field.FieldNo)] do
+  &Property: TRttiProperty;
+
+begin
+  &Object := GetCurrentObject<TObject>;
+
+  for &Property in FPropertyMappingList[Pred(Field.FieldNo)] do
   begin
     Result := &Property.GetValue(&Object);
 
@@ -251,14 +304,36 @@ begin
   end;
 end;
 
-function TORMDataSet.GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
+function TORMDataSet.GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
+var
+{$IFDEF DCC}
+  RecordIndex: PInteger absolute Buffer;
+{$ENDIF}
+
 begin
-  if FRecordIndex < 0 then
-    Result := grBOF
-  else if FRecordIndex < RecordCount then
-    Result := grOK
-  else
-    Result := grEOF;
+  Result := grOK;
+  case GetMode of
+    gmCurrent:
+      if (FCurrentRecord >= RecordCount) or (FCurrentRecord < 0) then
+        Result := grError;
+    gmNext:
+      if FCurrentRecord < Pred(RecordCount) then
+        Inc(FCurrentRecord)
+      else
+        Result := grEOF;
+    gmPrior:
+      if FCurrentRecord > 0 then
+        Dec(FCurrentRecord)
+      else
+        Result := grBOF;
+  end;
+
+  if Result = grOK then
+{$IFDEF PAS2JS}
+    Buffer.Data := FCurrentRecord;
+{$ELSE}
+    RecordIndex^ := FCurrentRecord;
+{$ENDIF}
 end;
 
 function TORMDataSet.GetRecordCount: Integer;
@@ -268,30 +343,26 @@ end;
 
 procedure TORMDataSet.InternalClose;
 begin
-  inherited;
-
 end;
 
 procedure TORMDataSet.InternalFirst;
 begin
-  FRecordIndex := -1;
+  ResetCurrentRecord;
 end;
 
 procedure TORMDataSet.InternalGotoBookmark(Bookmark: TBookmark);
 begin
-  FRecordIndex := PInteger(Bookmark)^;
+{$IFDEF DCC}
+  FCurrentRecord := GetCurrentRecordFromBuffer(TRecordBuffer(Bookmark));
+{$ENDIF}
 end;
 
-procedure TORMDataSet.InternalHandleException;
+procedure TORMDataSet.InternalHandleException{$IFDEF PAS2JS}(E: Exception){$ENDIF};
 begin
-  inherited;
-
 end;
 
 procedure TORMDataSet.InternalInitFieldDefs;
 begin
-  inherited;
-
   FieldDefs.Clear;
 
   LoadFieldDefsFromClass;
@@ -299,7 +370,7 @@ end;
 
 procedure TORMDataSet.InternalLast;
 begin
-  FRecordIndex := ObjectList.Count;
+  FCurrentRecord := RecordCount;
 end;
 
 procedure TORMDataSet.InternalOpen;
@@ -325,38 +396,48 @@ begin
 end;
 
 procedure TORMDataSet.LoadFieldDefsFromClass;
+var
+  &Property: TRttiProperty;
+
 begin
   FPropertyMappingList := nil;
 
-  for var &Property in FObjectType.GetProperties do
+  for &Property in FObjectType.GetDeclaredProperties do
     if &Property.Visibility = mvPublished then
     begin
       FieldDefs.Add(&Property.Name, GetFieldTypeFromProperty(&Property));
 
-      FPropertyMappingList := FPropertyMappingList + [[&Property as TRttiInstanceProperty]];
+      FPropertyMappingList := FPropertyMappingList + [[&Property]];
     end;
 end;
 
-procedure TORMDataSet.LoadObjectType<T>;
-begin
-  FObjectType := FContext.GetType(T) as TRttiInstanceType;
-end;
-
 procedure TORMDataSet.LoadPropertiesFromFields;
+var
+  A: Integer;
+
+  Field: TField;
+
+  ObjectType: TRttiInstanceType;
+
+  &Property: TRttiProperty;
+
+  PropertyList: TArray<TRttiProperty>;
+
+  PropertyName: String;
+
 begin
   FPropertyMappingList := nil;
 
-  for var A := 0 to Pred(Fields.Count) do
+  for A := 0 to Pred(Fields.Count) do
   begin
-    var Field := Fields[A];
-    var ObjectType := FObjectType;
-    var &Property: TRttiInstanceProperty := nil;
-    var PropertyList: TArray<TRttiInstanceProperty> := nil;
-    var PropertyName := EmptyStr;
+    Field := Fields[A];
+    ObjectType := FObjectType;
+    PropertyName := EmptyStr;
+    &Property := nil;
 
     for PropertyName in Field.FieldName.Split(['.']) do
     begin
-      &Property := ObjectType.GetProperty(PropertyName) as TRttiInstanceProperty;
+      &Property := ObjectType.GetProperty(PropertyName);
 
       if not Assigned(&Property) then
         raise EPropertyNameDoesNotExist.CreateFmt('The property %s not found in the current object!', [PropertyName]);
@@ -369,17 +450,20 @@ begin
 
     if GetFieldTypeFromProperty(&Property) <> Field.DataType then
       raise EPropertyWithDifferentType.CreateFmt('The property type is not equal to the type of the added field, expected value %s found %s',
+{$IFDEF PAS2JS}
+        ['Fazer', 'Fazer']);
+{$ELSE}
         [TRttiEnumerationType.GetName(GetFieldTypeFromProperty(&Property)), TRttiEnumerationType.GetName(Field.DataType)]);
+{$ENDIF}
 
     FPropertyMappingList := FPropertyMappingList + [PropertyList];
   end;
 end;
 
-procedure TORMDataSet.OpenList<T>(List: TList<T>);
+procedure TORMDataSet.OpenList<T>(List: {$IFDEF PAS2JS}TObject{$ELSE}TList<T>{$ENDIF});
 begin
   FObjectList := TList<TObject>(List);
-
-  LoadObjectType<T>;
+  FObjectType := FContext.GetType(TypeInfo(T)) as TRttiInstanceType;
 
   Open;
 end;
@@ -391,18 +475,30 @@ begin
   OpenList<T>(TList<T>(ObjectList));
 end;
 
+procedure TORMDataSet.ResetCurrentRecord;
+begin
+  FCurrentRecord := -1;
+end;
+
 procedure TORMDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer);
 begin
 
 end;
 
 procedure TORMDataSet.SetObjectClassName(const Value: String);
+{$IFDEF DCC}
+var
+  &Type: TRttiType;
+
+{$ENDIF}
 begin
   FObjectClassName := Value;
 
-  for var &Type in FContext.GetTypes do
+{$IFDEF DCC}
+  for &Type in FContext.GetTypes do
     if (&Type.Name = Value) or (&Type.QualifiedName = Value) then
       FObjectType := &Type as TRttiInstanceType;
+{$ENDIF}
 end;
 
 { TORMObjectField }
@@ -411,7 +507,7 @@ constructor TORMObjectField.Create(AOwner: TComponent);
 begin
   inherited;
 
-  SetDataType(ftObject);
+  SetDataType({$IFDEF PAS2JS}ftVariant{$ELSE}ftObject{$ENDIF});
 end;
 
 { EDataSetWithoutObjectDefinition }
