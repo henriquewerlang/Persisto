@@ -30,7 +30,7 @@ type
     FObjectType: TRttiInstanceType;
     FPropertyMappingList: TArray<TArray<TRttiProperty>>;
     FObjectClassName: String;
-    FCurrentRecord: Integer;
+    FRecordNumber: Integer;
 
     function GetCurrentRecordFromBuffer(const Buffer: TRecordBuffer): Integer;
     function GetActiveCurrentRecord: Integer;
@@ -314,25 +314,25 @@ begin
   Result := grOK;
   case GetMode of
     gmCurrent:
-      if (FCurrentRecord >= RecordCount) or (FCurrentRecord < 0) then
+      if (FRecordNumber >= RecordCount) or (FRecordNumber < 0) then
         Result := grError;
     gmNext:
-      if FCurrentRecord < Pred(RecordCount) then
-        Inc(FCurrentRecord)
+      if FRecordNumber < Pred(RecordCount) then
+        Inc(FRecordNumber)
       else
         Result := grEOF;
     gmPrior:
-      if FCurrentRecord > 0 then
-        Dec(FCurrentRecord)
+      if FRecordNumber > 0 then
+        Dec(FRecordNumber)
       else
         Result := grBOF;
   end;
 
   if Result = grOK then
 {$IFDEF PAS2JS}
-    Buffer.Data := FCurrentRecord;
+    Buffer.Data := FRecordNumber;
 {$ELSE}
-    RecordIndex^ := FCurrentRecord;
+    RecordIndex^ := FRecordNumber;
 {$ENDIF}
 end;
 
@@ -353,7 +353,7 @@ end;
 procedure TORMDataSet.InternalGotoBookmark(Bookmark: TBookmark);
 begin
 {$IFDEF DCC}
-  FCurrentRecord := GetCurrentRecordFromBuffer(TRecordBuffer(Bookmark));
+  FRecordNumber := GetCurrentRecordFromBuffer(TRecordBuffer(Bookmark));
 {$ENDIF}
 end;
 
@@ -370,7 +370,7 @@ end;
 
 procedure TORMDataSet.InternalLast;
 begin
-  FCurrentRecord := RecordCount;
+  FRecordNumber := RecordCount;
 end;
 
 procedure TORMDataSet.InternalOpen;
@@ -465,7 +465,11 @@ begin
   FObjectList := TList<TObject>(List);
   FObjectType := FContext.GetType(TypeInfo(T)) as TRttiInstanceType;
 
+  SetUniDirectional(True);
+
   Open;
+
+  SetUniDirectional(False);
 end;
 
 procedure TORMDataSet.OpenObject<T>(&Object: T);
@@ -477,7 +481,7 @@ end;
 
 procedure TORMDataSet.ResetCurrentRecord;
 begin
-  FCurrentRecord := -1;
+  FRecordNumber := -1;
 end;
 
 procedure TORMDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer);
