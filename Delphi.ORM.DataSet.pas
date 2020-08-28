@@ -228,6 +228,9 @@ begin
 {$ENDIF}
     tkChar,
     tkString: Result := ftString;
+{$IFDEF PAS2JS}
+    tkBool,
+{$ENDIF}
     tkEnumeration:
       if &Property.PropertyType.Handle = TypeInfo(Boolean) then
         Result := ftBoolean;
