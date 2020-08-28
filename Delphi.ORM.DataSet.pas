@@ -433,7 +433,7 @@ begin
     Field := Fields[A];
     ObjectType := FObjectType;
     PropertyName := EmptyStr;
-    &Property := nil;
+    PropertyList := nil;
 
     for PropertyName in Field.FieldName.Split(['.']) do
     begin
