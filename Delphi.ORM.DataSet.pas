@@ -462,6 +462,11 @@ end;
 
 procedure TORMDataSet.OpenList<T>(List: {$IFDEF PAS2JS}TObject{$ELSE}TList<T>{$ENDIF});
 begin
+  {$IFDEF PAS2JS}
+  // It's necessary, to optimazer don't remove the "GetItem" of the param list!
+  TList<T>(List).First;
+  {$ENDIF}
+
   FObjectList := TList<TObject>(List);
   FObjectType := FContext.GetType(TypeInfo(T)) as TRttiInstanceType;
 
