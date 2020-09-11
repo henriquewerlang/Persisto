@@ -29,19 +29,20 @@ type
     FContext: TRttiContext;
     FObjectType: TRttiInstanceType;
     FPropertyMappingList: TArray<TArray<TRttiProperty>>;
-    FObjectClassName: String;
     FRecordNumber: Integer;
 
     function GetCurrentRecordFromBuffer(const Buffer: TRecordBuffer): Integer;
     function GetActiveCurrentRecord: Integer;
     function GetInternalList: TList<TObject>;
     function GetFieldTypeFromProperty(&Property: TRttiProperty): TFieldType;
+    function GetObjectClassName: String;
     function GetObjectList: TList<TObject>;
     function GetPropertyValueFromCurrentObject(Field: TField): TValue;
 
     procedure LoadFieldDefsFromClass;
     procedure ResetCurrentRecord;
     procedure SetObjectClassName(const Value: String);
+    procedure SetObjectType(TypeInfo: PTypeInfo);
 
     property ObjectList: TList<TObject> read GetObjectList;
   protected
@@ -71,12 +72,14 @@ type
     destructor Destroy; override;
 
     function GetCurrentObject<T: class>: T;
-    {$IFDEF PAS2JS}
-    function GetFieldData(Field: TField; Buffer: TDatarecord): JSValue; override;
-    {$ELSE}
-    function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean; override;
-    {$ENDIF}
+    function GetFieldData(Field: TField;
+        {$IFDEF PAS2JS}
+          Buffer: TDatarecord): JSValue;
+        {$ELSE}
+          var Buffer: TValueBuffer): Boolean;
+        {$ENDIF} override;
 
+    procedure OpenClass<T: class>; 
     procedure OpenList<T: class>(List: {$IFDEF PAS2JS}TObject{$ELSE}TList<T>{$ENDIF});
     procedure OpenObject<T: class>(&Object: T);
   published
@@ -99,7 +102,7 @@ type
     property BeforePost;
     property BeforeRefresh;
     property BeforeScroll;
-    property ObjectClassName: String read FObjectClassName write SetObjectClassName;
+    property ObjectClassName: String read GetObjectClassName write SetObjectClassName;
     property OnCalcFields;
     property OnDeleteError;
     property OnEditError;
@@ -279,6 +282,14 @@ begin
     FInternalList := TList<TObject>.Create;
 
   Result := FInternalList;
+end;
+
+function TORMDataSet.GetObjectClassName: String;
+begin
+  Result := EmptyStr;
+
+  if Assigned(FObjectType) then
+    Result := FObjectType.Name;
 end;
 
 function TORMDataSet.GetObjectList: TList<TObject>;
@@ -463,6 +474,13 @@ begin
   end;
 end;
 
+procedure TORMDataSet.OpenClass<T>;
+begin
+  SetObjectType(TypeInfo(T));
+
+  Open;
+end;
+
 procedure TORMDataSet.OpenList<T>(List: {$IFDEF PAS2JS}TObject{$ELSE}TList<T>{$ENDIF});
 begin
   {$IFDEF PAS2JS}
@@ -472,7 +490,8 @@ begin
   {$ENDIF}
 
   FObjectList := TList<TObject>(List);
-  FObjectType := FContext.GetType(TypeInfo(T)) as TRttiInstanceType;
+
+  SetObjectType(TypeInfo(T));
 
   SetUniDirectional(True);
 
@@ -505,13 +524,16 @@ var
 
 {$ENDIF}
 begin
-  FObjectClassName := Value;
-
 {$IFDEF DCC}
   for &Type in FContext.GetTypes do
     if (&Type.Name = Value) or (&Type.QualifiedName = Value) then
       FObjectType := &Type as TRttiInstanceType;
 {$ENDIF}
+end;
+
+procedure TORMDataSet.SetObjectType(TypeInfo: PTypeInfo);
+begin
+  FObjectType := FContext.GetType(TypeInfo) as TRttiInstanceType;
 end;
 
 { TORMObjectField }
