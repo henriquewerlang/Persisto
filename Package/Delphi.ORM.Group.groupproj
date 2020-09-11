@@ -7,7 +7,7 @@
             <Dependencies/>
         </Projects>
         <Projects Include="Delphi.ORM.Design.dproj">
-            <Dependencies/>
+            <Dependencies>Delphi.ORM.Runtime.dproj</Dependencies>
         </Projects>
         <Projects Include="..\Tests\Delphi.ORM.Tests.dproj">
             <Dependencies/>
@@ -29,13 +29,13 @@
     <Target Name="Delphi_ORM_Runtime:Make">
         <MSBuild Projects="Delphi.ORM.Runtime.dproj" Targets="Make"/>
     </Target>
-    <Target Name="Delphi_ORM_Design">
+    <Target Name="Delphi_ORM_Design" DependsOnTargets="Delphi.ORM.Runtime">
         <MSBuild Projects="Delphi.ORM.Design.dproj"/>
     </Target>
-    <Target Name="Delphi_ORM_Design:Clean">
+    <Target Name="Delphi_ORM_Design:Clean" DependsOnTargets="Delphi.ORM.Runtime:Clean">
         <MSBuild Projects="Delphi.ORM.Design.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="Delphi_ORM_Design:Make">
+    <Target Name="Delphi_ORM_Design:Make" DependsOnTargets="Delphi.ORM.Runtime:Make">
         <MSBuild Projects="Delphi.ORM.Design.dproj" Targets="Make"/>
     </Target>
     <Target Name="Delphi_ORM_Tests">
