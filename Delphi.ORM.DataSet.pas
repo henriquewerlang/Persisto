@@ -467,7 +467,8 @@ procedure TORMDataSet.OpenList<T>(List: {$IFDEF PAS2JS}TObject{$ELSE}TList<T>{$E
 begin
   {$IFDEF PAS2JS}
   // It's necessary, to optimazer don't remove the "GetItem" of the param list!
-  TList<T>(List).First;
+  if False then
+    TList<T>(List).First;
   {$ENDIF}
 
   FObjectList := TList<TObject>(List);
