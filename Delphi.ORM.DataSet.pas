@@ -398,7 +398,10 @@ begin
     else
       InitFieldDefsFromFields;
 
-  CreateFields;
+{$IFDEF PAS2JS}
+  if FieldCount = 0 then
+{$ENDIF}
+    CreateFields;
 
   BindFields(True);
 
