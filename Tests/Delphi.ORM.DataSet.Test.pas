@@ -63,6 +63,10 @@ type
     procedure WhenCallFirstHaveToGoToTheFirstRecord;
     [Test]
     procedure UsingBookmarkHaveToWorkLikeSpected;
+    [Test]
+    procedure WhenUseTheOpenClassMustLoadFieldFromTheClass;
+    [Test]
+    procedure WhenExistsAFieldInDataSetMustFillTheFieldDefFromThisField;
   end;
 
   TAnotherObject = class
@@ -148,7 +152,7 @@ begin
   MyObject.Name := 'MyName';
   MyObject.Value := 5477.555;
 
-  DataSet.OpenObject(MyObject);
+  DataSet.Open(MyObject);
 
   Assert.AreEqual(123456, DataSet.FieldByName('Id').AsInteger);
   Assert.AreEqual('MyName', DataSet.FieldByName('Name').AsString);
@@ -164,7 +168,7 @@ begin
   var DataSet := TORMDataSet.Create(nil);
   var MyObject := TMyTestClassTypes.Create;
 
-  DataSet.OpenObject(MyObject);
+  DataSet.Open(MyObject);
 
   Assert.AreEqual(TypeToCompare, DataSet.FieldByName(FieldName).DataType);
 
@@ -178,7 +182,7 @@ begin
   var DataSet := TORMDataSet.Create(nil);
   var MyObject := TMyTestClass.Create;
 
-  DataSet.OpenObject(MyObject);
+  DataSet.Open(MyObject);
 
   Assert.AreEqual('Id', DataSet.Fields[0].FieldName);
   Assert.AreEqual('Name', DataSet.Fields[1].FieldName);
@@ -205,7 +209,7 @@ begin
     MyList.Add(MyObject);
   end;
 
-  DataSet.OpenList<TMyTestClass>(MyList);
+  DataSet.Open<TMyTestClass>(MyList);
 
   for var A := 1 to 4 do
     DataSet.Next;
@@ -233,7 +237,7 @@ begin
 
   DataSet.FieldDefs.Add('AnotherObject.AnotherObject.AnotherName', ftString, 50);
 
-  DataSet.OpenObject(MyObject);
+  DataSet.Open(MyObject);
 
   Assert.AreEqual('MyName', DataSet.FieldByName('AnotherObject.AnotherObject.AnotherName').AsString);
 
@@ -257,7 +261,7 @@ begin
     MyList.Add(MyObject);
   end;
 
-  DataSet.OpenList<TMyTestClass>(MyList);
+  DataSet.Open<TMyTestClass>(MyList);
 
   while not DataSet.Eof do
     DataSet.Next;
@@ -269,6 +273,21 @@ begin
   DataSet.Free;
 
   MyList.Free;
+end;
+
+procedure TORMDataSetTest.WhenExistsAFieldInDataSetMustFillTheFieldDefFromThisField;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var Field := TStringField.Create(DataSet);
+  Field.FieldName := 'Name';
+
+  Field.SetParentComponent(DataSet);
+
+  DataSet.Open<TMyTestClass>;
+
+  Assert.AreEqual(1, DataSet.FieldDefs.Count);
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenFilledTheObjectClassNameHasToLoadTheDataSetWithoutErrors;
@@ -291,7 +310,7 @@ begin
   DataSet.FieldDefs.Add('Name', ftString, 20);
   DataSet.FieldDefs.Add('Value', ftFloat);
 
-  DataSet.OpenObject(MyObject);
+  DataSet.Open(MyObject);
 
   Assert.AreEqual(3, DataSet.FieldDefs.Count);
 
@@ -315,7 +334,7 @@ begin
     MyList.Add(MyObject);
   end;
 
-  DataSet.OpenList<TMyTestClass>(MyList);
+  DataSet.Open<TMyTestClass>(MyList);
 
   for var B := 1 to 10 do
   begin
@@ -346,7 +365,7 @@ begin
     MyList.Add(MyObject);
   end;
 
-  DataSet.OpenList<TMyTestClass>(MyList);
+  DataSet.Open<TMyTestClass>(MyList);
 
   DataSet.Last;
 
@@ -369,7 +388,7 @@ begin
   var DataSet := TORMDataSet.Create(nil);
   var MyObject := TObjectList<TMyTestClass>.Create;
 
-  DataSet.OpenList<TMyTestClass>(MyObject);
+  DataSet.Open<TMyTestClass>(MyObject);
 
   Assert.AreEqual(4, DataSet.FieldCount);
 
@@ -383,7 +402,7 @@ begin
   var DataSet := TORMDataSet.Create(nil);
   var MyObject := TMyTestClass.Create;
 
-  DataSet.OpenObject(MyObject);
+  DataSet.Open(MyObject);
 
   Assert.AreEqual(4, DataSet.FieldCount);
 
@@ -405,7 +424,7 @@ begin
 
   MyList.Add(TMyTestClass.Create);
 
-  DataSet.OpenList<TMyTestClass>(MyList);
+  DataSet.Open<TMyTestClass>(MyList);
 
   Assert.AreEqual(4, DataSet.RecordCount);
 
@@ -419,7 +438,7 @@ begin
   var DataSet := TORMDataSet.Create(nil);
   var MyObject := TMyTestClass.Create;
 
-  DataSet.OpenObject(MyObject);
+  DataSet.Open(MyObject);
 
   Assert.AreEqual(1, DataSet.RecordCount);
 
@@ -438,7 +457,7 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      DataSet.OpenObject(MyObject);
+      DataSet.Open(MyObject);
     end, EPropertyWithDifferentType);
 
   DataSet.Free;
@@ -456,7 +475,7 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      DataSet.OpenObject(MyObject);
+      DataSet.Open(MyObject);
     end, EPropertyNameDoesNotExist);
 
   DataSet.Free;
@@ -488,12 +507,23 @@ begin
   DataSet.Free;
 end;
 
+procedure TORMDataSetTest.WhenUseTheOpenClassMustLoadFieldFromTheClass;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.Open<TMyTestClass>;
+
+  Assert.AreEqual(4, DataSet.FieldCount);
+
+  DataSet.Free;
+end;
+
 procedure TORMDataSetTest.WhnCheckingIfTheFieldIsNullCantRaiseAnError;
 begin
   var DataSet := TORMDataSet.Create(nil);
   var MyObject := TMyTestClass.Create;
 
-  DataSet.OpenObject(MyObject);
+  DataSet.Open(MyObject);
 
   Assert.WillNotRaise(
     procedure

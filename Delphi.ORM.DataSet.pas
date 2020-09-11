@@ -382,13 +382,16 @@ begin
     raise EDataSetWithoutObjectDefinition.Create;
 
   if FieldDefs.Count = 0 then
-    LoadFieldDefsFromClass;
+    if FieldCount = 0 then
+      LoadFieldDefsFromClass
+    else
+      InitFieldDefsFromFields;
 
   CreateFields;
 
-  LoadPropertiesFromFields;
-
   BindFields(True);
+
+  LoadPropertiesFromFields;
 
   InternalFirst;
 end;
