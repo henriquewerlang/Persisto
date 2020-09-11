@@ -265,8 +265,8 @@ begin
 {$ELSE}
       Result := ftInteger;
 {$ENDIF}
+    tkClass: Result := {$IFDEF DCC}ftObject{$ELSE}ftVariant{$ENDIF};
 {$IFDEF DCC}
-    tkClass: Result := ftObject;
     tkInt64: Result := ftLargeint;
     tkWString: Result := ftWideString;
 {$ENDIF}
@@ -436,6 +436,7 @@ begin
     Field := Fields[A];
     ObjectType := FObjectType;
     PropertyName := EmptyStr;
+    &Property := nil;
     PropertyList := nil;
 
     for PropertyName in Field.FieldName.Split(['.']) do
@@ -453,11 +454,7 @@ begin
 
     if GetFieldTypeFromProperty(&Property) <> Field.DataType then
       raise EPropertyWithDifferentType.CreateFmt('The property type is not equal to the type of the added field, expected value %s found %s',
-{$IFDEF PAS2JS}
-        ['Fazer', 'Fazer']);
-{$ELSE}
         [TRttiEnumerationType.GetName(GetFieldTypeFromProperty(&Property)), TRttiEnumerationType.GetName(Field.DataType)]);
-{$ENDIF}
 
     FPropertyMappingList := FPropertyMappingList + [PropertyList];
   end;
