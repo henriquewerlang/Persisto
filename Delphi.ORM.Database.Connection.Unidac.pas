@@ -11,29 +11,36 @@ type
 
     function GetFieldValue(const FieldName: String): TValue;
   public
-    constructor Create(SQL: String);
+    constructor Create(Connection: TUniConnection; SQL: String);
 
     destructor Destroy; override;
   end;
 
-  TDatabaseConnectionFiredac = class(TInterfacedObject, IDatabaseConnection)
+  TDatabaseConnectionUnidac = class(TInterfacedObject, IDatabaseConnection)
   private
     FConnection: TUniConnection;
 
     function OpenCursor(SQL: String): IDatabaseCursor;
   public
+    constructor Create;
+
     destructor Destroy; override;
+
+    property Connection: TUniConnection read FConnection;
   end;
 
 implementation
 
+uses SQLServerUniProvider;
+
 { TDatabaseCursorUnidac }
 
-constructor TDatabaseCursorUnidac.Create(SQL: String);
+constructor TDatabaseCursorUnidac.Create(Connection: TUniConnection; SQL: String);
 begin
   inherited Create;
 
   FQuery := TUniQuery.Create(nil);
+  FQuery.Connection := Connection;
   FQuery.SQL.Text := SQL;
 
   FQuery.Open;
@@ -51,18 +58,25 @@ begin
   Result := TValue.FromVariant(FQuery.FieldByName(FieldName).AsVariant);
 end;
 
-{ TDatabaseConnectionFiredac }
+{ TDatabaseConnectionUnidac }
 
-destructor TDatabaseConnectionFiredac.Destroy;
+constructor TDatabaseConnectionUnidac.Create;
+begin
+  inherited;
+
+  FConnection := TUniConnection.Create(nil);
+end;
+
+destructor TDatabaseConnectionUnidac.Destroy;
 begin
   FConnection.Free;
 
   inherited;
 end;
 
-function TDatabaseConnectionFiredac.OpenCursor(SQL: String): IDatabaseCursor;
+function TDatabaseConnectionUnidac.OpenCursor(SQL: String): IDatabaseCursor;
 begin
-  Result := TDatabaseCursorUnidac.Create(SQL);
+  Result := TDatabaseCursorUnidac.Create(Connection, SQL);
 end;
 
 end.
