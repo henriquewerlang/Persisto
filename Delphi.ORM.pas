@@ -2,14 +2,12 @@ unit Delphi.ORM;
 
 interface
 
-uses System.Rtti, Delphi.ORM.Connection;
+uses System.Rtti, Delphi.ORM.Database.Connection, Delphi.ORM.Query.Builder;
 
 type
   TDelphiORM = class
-  private
-    FConnection: IDelphiORMConnection;
   public
-    constructor Create(Connection: IDelphiORMConnection);
+    constructor Create(Connection: IDatabaseConnection);
 
     function FindOne<T: class, constructor>(Id: TValue): T;
   end;
@@ -18,16 +16,15 @@ implementation
 
 { TDelphiORM }
 
-constructor TDelphiORM.Create(Connection: IDelphiORMConnection);
+constructor TDelphiORM.Create(Connection: IDatabaseConnection);
 begin
   inherited Create;
 
-  FConnection := Connection;
 end;
 
 function TDelphiORM.FindOne<T>(Id: TValue): T;
 begin
-  Result := T.Create;
 end;
 
 end.
+

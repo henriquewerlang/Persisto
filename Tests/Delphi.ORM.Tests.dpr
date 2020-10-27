@@ -13,13 +13,16 @@ uses
   DUnitX.Loggers.Console,
   {$ENDIF }
   DUnitX.TestFramework,
-  DUnitX.MemoryLeakMonitor.FastMM4,
+  DUnitX.MemoryLeakMonitor.FastMM5,
   Delphi.ORM in '..\Delphi.ORM.pas',
   Delphi.ORM.Test in 'Delphi.ORM.Test.pas',
   Delphi.ORM.DataSet.Test in 'Delphi.ORM.DataSet.Test.pas',
   Delphi.ORM.DataSet in '..\Delphi.ORM.DataSet.pas',
-  Delphi.ORM.Connection in '..\Delphi.ORM.Connection.pas',
-  Delphi.ORM.Connection.FireDAC in '..\Delphi.ORM.Connection.FireDAC.pas';
+  Delphi.ORM.Database.Connection in '..\Delphi.ORM.Database.Connection.pas',
+  Delphi.ORM.Query.Builder.Test in 'Delphi.ORM.Query.Builder.Test.pas',
+  Delphi.ORM.Query.Builder in '..\Delphi.ORM.Query.Builder.pas',
+  Delphi.ORM.Classes.Loader.Test in 'Delphi.ORM.Classes.Loader.Test.pas',
+  Delphi.ORM.Classes.Loader in '..\Delphi.ORM.Classes.Loader.pas';
 
 // Para não remover o valor abaixo
 {$IFNDEF TESTINSIGHT}
@@ -30,12 +33,6 @@ var
   nunitLogger : ITestLogger;
 {$ENDIF}
 begin
-  FastMM_EnterDebugMode;
-
-  FastMM_LogToFileEvents := FastMM_LogToFileEvents + [mmetUnexpectedMemoryLeakDetail, mmetUnexpectedMemoryLeakSummary];
-
-  ReportMemoryLeaksOnShutdown := True;
-
 {$IFDEF TESTINSIGHT}
   TestInsight.DUnitX.RunRegisteredTests;
 {$ELSE}
