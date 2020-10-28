@@ -13,29 +13,39 @@ type
   end;
 
   TClassLoader = class
+  private
+    function LoadClass<T: class, constructor>(Cursor: IDatabaseCursor; const Mapper: IFieldXPropertyMapping): T;
   public
-    function Load<T: class, constructor>(Cursor: IDatabaseCursor; Mapper: IFieldXPropertyMapping): T;
-    function LoadAll<T: class, constructor>(Cursor: IDatabaseCursor; Mapper: IFieldXPropertyMapping): TArray<T>;
+    function Load<T: class, constructor>(Cursor: IDatabaseCursor; const Mapper: IFieldXPropertyMapping): T;
+    function LoadAll<T: class, constructor>(Cursor: IDatabaseCursor; const Mapper: IFieldXPropertyMapping): TArray<T>;
   end;
 
 implementation
 
 { TClassLoader }
 
-function TClassLoader.Load<T>(Cursor: IDatabaseCursor; Mapper: IFieldXPropertyMapping): T;
+function TClassLoader.Load<T>(Cursor: IDatabaseCursor; const Mapper: IFieldXPropertyMapping): T;
 begin
   if Cursor.Next then
-  begin
-    Result := T.Create;
-
-    for var Map in Mapper.GetProperties do
-      Map.Key.SetValue(TObject(Result), Cursor.GetFieldValue(Map.Value));
-  end;
+    Result := LoadClass<T>(Cursor, Mapper)
+  else
+    Result := nil;
 end;
 
-function TClassLoader.LoadAll<T>(Cursor: IDatabaseCursor; Mapper: IFieldXPropertyMapping): TArray<T>;
+function TClassLoader.LoadAll<T>(Cursor: IDatabaseCursor; const Mapper: IFieldXPropertyMapping): TArray<T>;
 begin
+  Result := nil;
 
+  while Cursor.Next do
+    Result := Result + [LoadClass<T>(Cursor, Mapper)];
+end;
+
+function TClassLoader.LoadClass<T>(Cursor: IDatabaseCursor; const Mapper: IFieldXPropertyMapping): T;
+begin
+  Result := T.Create;
+
+  for var Map in Mapper.GetProperties do
+    Map.Key.SetValue(TObject(Result), Cursor.GetFieldValue(Map.Value));
 end;
 
 end.
