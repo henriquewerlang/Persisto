@@ -24,10 +24,13 @@ implementation
 
 function TClassLoader.Load<T>(Cursor: IDatabaseCursor; Mapper: IFieldXPropertyMapping): T;
 begin
-  Result := T.Create;
+  if Cursor.Next then
+  begin
+    Result := T.Create;
 
-  for var Map in Mapper.GetProperties do
-    Map.Key.SetValue(TObject(Result), Cursor.GetFieldValue(Map.Value));
+    for var Map in Mapper.GetProperties do
+      Map.Key.SetValue(TObject(Result), Cursor.GetFieldValue(Map.Value));
+  end;
 end;
 
 function TClassLoader.LoadAll<T>(Cursor: IDatabaseCursor; Mapper: IFieldXPropertyMapping): TArray<T>;

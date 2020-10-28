@@ -12,6 +12,8 @@ type
     // Carregar uma class simples, sem as depedências
     [Test]
     procedure MustLoadThePropertiesOfTheClassWithTheValuesOfCursor;
+    [Test]
+    procedure WhenThereIsNoExistingRecordInCursorMustReturnNilToClassReference;
   end;
 
   TMyClass = class
@@ -40,6 +42,8 @@ begin
     [TValue.From(TFieldMapPair.Create(MyClassType.GetProperty('Name'), 'Name')),
       TValue.From(TFieldMapPair.Create(MyClassType.GetProperty('Value'), 'Value'))])).When.GetProperties;
 
+  Cursor.Setup.WillReturn(True).When.Next;
+
   Cursor.Setup.WillReturn('abc').When.GetFieldValue(It.IsEqualTo('Name'));
   Cursor.Setup.WillReturn(123).When.GetFieldValue(It.IsEqualTo('Value'));
 
@@ -49,6 +53,21 @@ begin
   Assert.AreEqual(123, MyClass.Value);
 
   MyClass.Free;
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenThereIsNoExistingRecordInCursorMustReturnNilToClassReference;
+begin
+  var Cursor := TMock.CreateInterface<IDatabaseCursor>;
+  var Loader := TClassLoader.Create;
+  var Mapper := TMock.CreateInterface<IFieldXPropertyMapping>;
+
+  Cursor.Setup.WillReturn(False).When.Next;
+
+  var MyClass := Loader.Load<TMyClass>(Cursor.Instance, Mapper.Instance);
+
+  Assert.IsNull(MyClass);
 
   Loader.Free;
 end;

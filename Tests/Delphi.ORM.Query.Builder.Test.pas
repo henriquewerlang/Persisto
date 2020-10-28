@@ -180,6 +180,8 @@ begin
 
   Cursor.Setup.WillReturn(123.456).When.GetFieldValue(It.IsEqualTo('F3'));
 
+  Cursor.Setup.WillReturn(True).When.Next;
+
   var Result := Query.Select.All.From<TMyTestClass>.Open.One;
 
   Assert.AreEqual(123, Result.Id);
