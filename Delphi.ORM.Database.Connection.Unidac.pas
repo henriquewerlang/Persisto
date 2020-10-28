@@ -10,6 +10,7 @@ type
     FQuery: TUniQuery;
 
     function GetFieldValue(const FieldName: String): TValue;
+    function Next: Boolean;
   public
     constructor Create(Connection: TUniConnection; SQL: String);
 
@@ -42,8 +43,6 @@ begin
   FQuery := TUniQuery.Create(nil);
   FQuery.Connection := Connection;
   FQuery.SQL.Text := SQL;
-
-  FQuery.Open;
 end;
 
 destructor TDatabaseCursorUnidac.Destroy;
@@ -56,6 +55,16 @@ end;
 function TDatabaseCursorUnidac.GetFieldValue(const FieldName: String): TValue;
 begin
   Result := TValue.FromVariant(FQuery.FieldByName(FieldName).AsVariant);
+end;
+
+function TDatabaseCursorUnidac.Next: Boolean;
+begin
+  if FQuery.Active then
+    FQuery.Next
+  else
+    FQuery.Open;
+
+  Result := not FQuery.Eof;
 end;
 
 { TDatabaseConnectionUnidac }
