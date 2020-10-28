@@ -22,6 +22,7 @@ type
   end;
 
   IQueryBuilderOpen<T: class, constructor> = interface
+    function All: TArray<T>;
     function One: T;
   end;
 
@@ -71,10 +72,17 @@ type
   private
     FCursor: IDatabaseCursor;
     FBuilder: TQueryBuilder;
+    FLoader: TClassLoader;
 
+    function All: TArray<T>;
     function One: T;
+    function GetLoader: TClassLoader;
+
+    property Loader: TClassLoader read GetLoader;
   public
     constructor Create(Cursor: IDatabaseCursor; Builder: TQueryBuilder);
+
+    destructor Destroy; override;
   end;
 
   TQueryBuilderAllFields = class(TInterfacedObject, IFieldXPropertyMapping)
@@ -304,6 +312,11 @@ end;
 
 { TQueryBuilderOpen<T> }
 
+function TQueryBuilderOpen<T>.All: TArray<T>;
+begin
+  Result := Loader.LoadAll<T>(FCursor, FBuilder.FCommand.GetProperties);
+end;
+
 constructor TQueryBuilderOpen<T>.Create(Cursor: IDatabaseCursor; Builder: TQueryBuilder);
 begin
   inherited Create;
@@ -312,13 +325,24 @@ begin
   FCursor := Cursor;
 end;
 
+destructor TQueryBuilderOpen<T>.Destroy;
+begin
+  FLoader.Free;
+
+  inherited;
+end;
+
+function TQueryBuilderOpen<T>.GetLoader: TClassLoader;
+begin
+  if not Assigned(FLoader) then
+    FLoader := TClassLoader.Create;
+
+  Result := FLoader;
+end;
+
 function TQueryBuilderOpen<T>.One: T;
 begin
-  var Loader := TClassLoader.Create;
-
   Result := Loader.Load<T>(FCursor, FBuilder.FCommand.GetProperties);
-
-  Loader.Free;
 end;
 
 { TQueryBuilderAllFields }
