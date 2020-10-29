@@ -16,9 +16,11 @@ type
   TFilterOperation = (Equal);
 
   IQueryBuilderCommand = interface
-    ['{48BC9540-52B3-478C-A44C-0658205B0BE0}']
-    function GetProperties: IFieldXPropertyMapping;
     function GetSQL: String;
+  end;
+
+  IQueryBuilderCommandManipulation = interface(IQueryBuilderCommand)
+    function GetProperties: IFieldXPropertyMapping;
   end;
 
   IQueryBuilderOpen<T: class, constructor> = interface
@@ -29,7 +31,7 @@ type
   TQueryBuilder = class
   private
     FConnection: IDatabaseConnection;
-    FCommand: IQueryBuilderCommand;
+    FCommand: IQueryBuilderCommandManipulation;
   public
     constructor Create(Connection: IDatabaseConnection);
 
@@ -40,29 +42,27 @@ type
     function Update: TQueryBuilderUpdate;
   end;
 
-  TQueryBuilderDelete = class(TInterfacedObject, IQueryBuilderCommand)
+  TQueryBuilderDelete = class(TInterfacedObject, IQueryBuilderCommandManipulation)
   private
     function GetProperties: IFieldXPropertyMapping;
     function GetSQL: String;
   end;
 
-  TQueryBuilderFrom = class(TInterfacedObject)
+  TQueryBuilderFrom = class
   private
     FBuilder: TQueryBuilder;
     FConnection: IDatabaseConnection;
     FFromType: TRttiStructuredType;
-    FWhere: TObject;
+    FWhere: IQueryBuilderCommand;
 
     function GetSQL: String;
   public
     constructor Create(Connection: IDatabaseConnection; Builder: TQueryBuilder);
 
-    destructor Destroy; override;
-
     function From<T: class, constructor>: TQueryBuilderWhere<T>;
   end;
 
-  TQueryBuilderInsert = class(TInterfacedObject, IQueryBuilderCommand)
+  TQueryBuilderInsert = class(TInterfacedObject, IQueryBuilderCommandManipulation)
   private
     function GetProperties: IFieldXPropertyMapping;
     function GetSQL: String;
@@ -94,7 +94,7 @@ type
     constructor Create(From: TQueryBuilderFrom);
   end;
 
-  TQueryBuilderSelect = class(TInterfacedObject, IQueryBuilderCommand)
+  TQueryBuilderSelect = class(TInterfacedObject, IQueryBuilderCommandManipulation)
   private
     FConnection: IDatabaseConnection;
     FBuilder: TQueryBuilder;
@@ -112,25 +112,67 @@ type
     function All: TQueryBuilderFrom;
   end;
 
-  TQueryBuilderUpdate = class(TInterfacedObject, IQueryBuilderCommand)
+  TQueryBuilderUpdate = class(TInterfacedObject, IQueryBuilderCommandManipulation)
   private
     function GetProperties: IFieldXPropertyMapping;
     function GetSQL: String;
   end;
 
-  TQueryBuilderWhere<T: class, constructor> = class
+  TQueryBuilderOperator = (qboEqual, qboNotEqual, qboGreaterThan, qboGreaterThanOrEqual, qboLessThan, qboLessThanOrEqual, qboAnd, qboOr);
+
+  TQueryBuilderCondition = record
+  private
+    class function GenerateCondition(const Condition: TQueryBuilderCondition; const Operator: TQueryBuilderOperator; const Value: String): String; static;
+  public
+    Condition: String;
+
+    class operator BitwiseAnd(const Left, Right: TQueryBuilderCondition): TQueryBuilderCondition;
+    class operator BitwiseOr(const Left, Right: TQueryBuilderCondition): TQueryBuilderCondition;
+    class operator Equal(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
+    class operator Equal(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
+    class operator Equal(const Condition: TQueryBuilderCondition; const Value: TValue): TQueryBuilderCondition;
+    class operator Equal(const Condition: TQueryBuilderCondition; const Value: Variant): TQueryBuilderCondition;
+    class operator GreaterThan(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
+    class operator GreaterThan(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
+    class operator GreaterThanOrEqual(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
+    class operator GreaterThanOrEqual(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
+    class operator LessThan(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
+    class operator LessThan(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
+    class operator LessThanOrEqual(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
+    class operator LessThanOrEqual(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
+    class operator NotEqual(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
+    class operator NotEqual(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
+    class operator NotEqual(const Condition: TQueryBuilderCondition; const Value: Variant): TQueryBuilderCondition;
+    class operator NotEqual(const Condition: TQueryBuilderCondition; const Value: TValue): TQueryBuilderCondition;
+  end;
+
+  TQueryBuilderWhere<T: class, constructor> = class(TInterfacedObject, IQueryBuilderCommand)
   private
     FConnection: IDatabaseConnection;
     FBuilder: TQueryBuilder;
+    FFilter: String;
+
+    function GetSQL: String;
   public
     constructor Create(Connection: IDatabaseConnection; Builder: TQueryBuilder);
 
     function Open: IQueryBuilderOpen<T>;
+    function Where(const Condition: TQueryBuilderCondition): TQueryBuilderWhere<T>;
   end;
+
+function Field(const Name: String): TQueryBuilderCondition;
+
+const
+  OPERATOR_CHAR: array[TQueryBuilderOperator] of String = ('=', '<>', '>', '>=', '<', '<=', ' and ', ' or ');
 
 implementation
 
-uses System.SysUtils, System.TypInfo;
+uses System.SysUtils, System.TypInfo, System.Variants;
+
+function Field(const Name: String): TQueryBuilderCondition;
+begin
+  Result.Condition := Name;
+end;
 
 { TQueryBuilder }
 
@@ -187,13 +229,6 @@ begin
   FConnection := Connection;
 end;
 
-destructor TQueryBuilderFrom.Destroy;
-begin
-  FWhere.Free;
-
-  inherited;
-end;
-
 function TQueryBuilderFrom.From<T>: TQueryBuilderWhere<T>;
 begin
   var Context := TRttiContext.Create;
@@ -206,6 +241,9 @@ end;
 function TQueryBuilderFrom.GetSQL: String;
 begin
   Result := Format(' from %s', [FFromType.Name.Substring(1)]);
+
+  if Assigned(FWhere) then
+    Result := Result + FWhere.GetSQL;
 end;
 
 { TQueryBuilderSelect }
@@ -305,9 +343,23 @@ begin
   FConnection := Connection;
 end;
 
+function TQueryBuilderWhere<T>.GetSQL: String;
+begin
+  Result := EmptyStr;
+
+  if not FFilter.IsEmpty then
+    Result := ' where ' + FFilter;
+end;
+
 function TQueryBuilderWhere<T>.Open: IQueryBuilderOpen<T>;
 begin
   Result := TQueryBuilderOpen<T>.Create(FConnection.OpenCursor(FBuilder.Build), FBuilder);
+end;
+
+function TQueryBuilderWhere<T>.Where(const Condition: TQueryBuilderCondition): TQueryBuilderWhere<T>;
+begin
+  FFilter := Condition.Condition;
+  Result := Self;
 end;
 
 { TQueryBuilderOpen<T> }
@@ -369,6 +421,109 @@ begin
 
       Inc(A);
     end;
+end;
+
+{ TQueryBuilderCondition }
+
+class operator TQueryBuilderCondition.Equal(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboEqual, QuotedStr(Value));
+end;
+
+class operator TQueryBuilderCondition.BitwiseAnd(const Left, Right: TQueryBuilderCondition): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Left, qboAnd, Right.Condition);
+end;
+
+class operator TQueryBuilderCondition.BitwiseOr(const Left, Right: TQueryBuilderCondition): TQueryBuilderCondition;
+begin
+  Result.Condition := Format('(%s)', [GenerateCondition(Left, qboOr, Right.Condition)]);
+end;
+
+class operator TQueryBuilderCondition.Equal(const Condition: TQueryBuilderCondition; const Value: TValue): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboEqual, Value.ToString);
+end;
+
+class function TQueryBuilderCondition.GenerateCondition(const Condition: TQueryBuilderCondition; const &Operator: TQueryBuilderOperator; const Value: String): String;
+begin
+  Result := Format('%s%s%s', [Condition.Condition, OPERATOR_CHAR[&Operator], Value]);
+end;
+
+class operator TQueryBuilderCondition.GreaterThan(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboGreaterThan, QuotedStr(Value));
+end;
+
+class operator TQueryBuilderCondition.GreaterThanOrEqual(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboGreaterThanOrEqual, QuotedStr(Value));
+end;
+
+class operator TQueryBuilderCondition.LessThan(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboLessThan, QuotedStr(Value));
+end;
+
+class operator TQueryBuilderCondition.LessThanOrEqual(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboLessThanOrEqual, QuotedStr(Value));
+end;
+
+class operator TQueryBuilderCondition.NotEqual(const Condition: TQueryBuilderCondition; const Value: TValue): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboNotEqual, Value.ToString);
+end;
+
+class operator TQueryBuilderCondition.NotEqual(const Condition: TQueryBuilderCondition; const Value: Variant): TQueryBuilderCondition;
+begin
+  if Value = NULL then
+    Result.Condition := Condition.Condition + ' is not null'
+  else
+    Result := Condition <> TValue.FromVariant(Value);
+end;
+
+class operator TQueryBuilderCondition.NotEqual(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboNotEqual, QuotedStr(Value));
+end;
+
+class operator TQueryBuilderCondition.Equal(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboEqual, FloatToStr(Value, TFormatSettings.Invariant));
+end;
+
+class operator TQueryBuilderCondition.GreaterThan(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboGreaterThan, FloatToStr(Value, TFormatSettings.Invariant));
+end;
+
+class operator TQueryBuilderCondition.GreaterThanOrEqual(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboGreaterThanOrEqual, FloatToStr(Value, TFormatSettings.Invariant));
+end;
+
+class operator TQueryBuilderCondition.LessThan(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboLessThan, FloatToStr(Value, TFormatSettings.Invariant));
+end;
+
+class operator TQueryBuilderCondition.LessThanOrEqual(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboLessThanOrEqual, FloatToStr(Value, TFormatSettings.Invariant));
+end;
+
+class operator TQueryBuilderCondition.NotEqual(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboNotEqual, FloatToStr(Value, TFormatSettings.Invariant));
+end;
+
+class operator TQueryBuilderCondition.Equal(const Condition: TQueryBuilderCondition; const Value: Variant): TQueryBuilderCondition;
+begin
+  if Value = NULL then
+    Result.Condition := Condition.Condition + ' is null'
+  else
+    Result := Condition = TValue.FromVariant(Value);
 end;
 
 end.
