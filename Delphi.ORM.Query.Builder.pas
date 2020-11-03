@@ -30,6 +30,7 @@ type
     FConnection: IDatabaseConnection;
     FCommand: IQueryBuilderCommandManipulation;
 
+    function GetAttribute<T: TCustomAttribute>(TypeInfo: TRttiType): T;
     function GetValueString(const Value: TValue): String;
   public
     constructor Create(Connection: IDatabaseConnection);
@@ -148,7 +149,7 @@ const
 
 implementation
 
-uses System.SysUtils, System.TypInfo, System.Variants;
+uses System.SysUtils, System.TypInfo, System.Variants, System.Classes, Delphi.ORM.Attributes;
 
 function Field(const Name: String): TQueryBuilderCondition;
 begin
@@ -162,6 +163,13 @@ begin
   inherited Create;
 
   FConnection := Connection;
+end;
+
+function TQueryBuilder.GetAttribute<T>(TypeInfo: TRttiType): T;
+begin
+  for var Attrib in TypeInfo.GetAttributes do
+    if Attrib.ClassType = T then
+      Exit(T(Attrib));
 end;
 
 function TQueryBuilder.GetValueString(const Value: TValue): String;
@@ -230,12 +238,17 @@ end;
 procedure TQueryBuilder.Update<T>(const AObject: T);
 begin
   var Context := TRttiContext.Create;
-  var ClassInfo := Context.GetType(AObject.ClassType) as TRttiStructuredType;
-
   var SQL := EmptyStr;
 
+  var ClassInfo := Context.GetType(AObject.ClassType) as TRttiStructuredType;
+
+  var Attrib := GetAttribute<PrimaryKeyAttribute>(ClassInfo);
+  var KeyFields := TStringList.Create;
+
+  KeyFields.AddStrings(Attrib.Fields);
+
   for var Prop in ClassInfo.GetProperties do
-    if Prop.Visibility = mvPublished then
+    if (Prop.Visibility = mvPublished) and (KeyFields.IndexOf(Prop.Name) = -1) then
     begin
       if not SQL.IsEmpty then
         SQL := SQL + ',';
@@ -246,6 +259,8 @@ begin
   SQL := Format('update %s set %s', [ClassInfo.Name.Substring(1), SQL]);
 
   FConnection.ExecuteDirect(SQL);
+
+  KeyFields.Free;
 end;
 
 { TQueryBuilderFrom }

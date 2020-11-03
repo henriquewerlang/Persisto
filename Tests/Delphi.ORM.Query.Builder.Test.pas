@@ -36,6 +36,10 @@ type
     procedure OnlyPublishedPropertiesMustAppearInUpdateSQL;
     [Test]
     procedure WhenCallUpdateMustBuildTheSQLWithAllPropertiesInTheObjectParameter;
+    [Test]
+    procedure WhenTheClassHaveThePrimaryKeyAttributeMustBuildTheWhereWithTheValuesOfFieldInTheKeyList;
+    [Test]
+    procedure TheKeyFieldCantBeUpdatedInTheUpdateProcedure;
   end;
 
   TOperationTest = (EqualOperation);
@@ -110,9 +114,11 @@ type
   private
     FId: Integer;
     FId2: Integer;
+    FValue: Integer;
   published
     property Id: Integer read FId write FId;
     property Id2: Integer read FId2 write FId2;
+    property Value: Integer read FValue write FValue;
   end;
 
   TDatabase = class(TInterfacedObject, IDatabaseConnection)
@@ -210,6 +216,26 @@ begin
 
   var MyClass := TClassOnlyPublic.Create;
   MyClass.Name := 'My name';
+  MyClass.Value := 222;
+
+  Query.Update(MyClass);
+
+  Assert.AreEqual(SQL, Database.SQL.Substring(0, SQL.Length));
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.TheKeyFieldCantBeUpdatedInTheUpdateProcedure;
+begin
+  var Database := TDatabase.Create(nil);
+  var Query := TQueryBuilder.Create(Database);
+  var SQL := 'update ClassWithPrimaryKey set Value=222';
+
+  var MyClass := TClassWithPrimaryKey.Create;
+  MyClass.Id := 123;
+  MyClass.Id2 := 456;
   MyClass.Value := 222;
 
   Query.Update(MyClass);
@@ -339,6 +365,25 @@ begin
   Query.Select.All.From<TMyTestClass>;
 
   Assert.AreEqual('select Id F1,Name F2,Value F3 from MyTestClass', Query.Build);
+
+  Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenTheClassHaveThePrimaryKeyAttributeMustBuildTheWhereWithTheValuesOfFieldInTheKeyList;
+begin
+  var Database := TDatabase.Create(nil);
+  var Query := TQueryBuilder.Create(Database);
+
+  var MyClass := TClassWithPrimaryKey.Create;
+  MyClass.Id := 123;
+  MyClass.Id2 := 456;
+  MyClass.Value := 222;
+
+  Query.Update(MyClass);
+
+  Assert.AreEqual('update MyTestClass set Value=222 where Id=123 and Id2=456', Database.SQL);
+
+  MyClass.Free;
 
   Query.Free;
 end;
