@@ -6,11 +6,8 @@ uses System.Rtti, Delphi.ORM.Database.Connection, Delphi.ORM.Classes.Loader;
 
 type
   TQueryBuilder = class;
-  TQueryBuilderDelete = class;
   TQueryBuilderFrom = class;
-  TQueryBuilderInsert = class;
   TQueryBuilderSelect = class;
-  TQueryBuilderUpdate = class;
   TQueryBuilderWhere<T: class, constructor> = class;
 
   TFilterOperation = (Equal);
@@ -32,20 +29,16 @@ type
   private
     FConnection: IDatabaseConnection;
     FCommand: IQueryBuilderCommandManipulation;
+
+    function GetValueString(const Value: TValue): String;
   public
     constructor Create(Connection: IDatabaseConnection);
 
     function Build: String;
-    function Delete: TQueryBuilderDelete;
-    function Insert: TQueryBuilderInsert;
     function Select: TQueryBuilderSelect;
-    function Update: TQueryBuilderUpdate;
-  end;
 
-  TQueryBuilderDelete = class(TInterfacedObject, IQueryBuilderCommandManipulation)
-  private
-    function GetProperties: IFieldXPropertyMapping;
-    function GetSQL: String;
+    procedure Insert<T: class>(const AObject: T);
+    procedure Update<T: class>(const AObject: T);
   end;
 
   TQueryBuilderFrom = class
@@ -60,12 +53,6 @@ type
     constructor Create(Connection: IDatabaseConnection; Builder: TQueryBuilder);
 
     function From<T: class, constructor>: TQueryBuilderWhere<T>;
-  end;
-
-  TQueryBuilderInsert = class(TInterfacedObject, IQueryBuilderCommandManipulation)
-  private
-    function GetProperties: IFieldXPropertyMapping;
-    function GetSQL: String;
   end;
 
   TQueryBuilderOpen<T: class, constructor> = class(TInterfacedObject, IQueryBuilderOpen<T>)
@@ -110,12 +97,6 @@ type
     destructor Destroy; override;
 
     function All: TQueryBuilderFrom;
-  end;
-
-  TQueryBuilderUpdate = class(TInterfacedObject, IQueryBuilderCommandManipulation)
-  private
-    function GetProperties: IFieldXPropertyMapping;
-    function GetSQL: String;
   end;
 
   TQueryBuilderOperator = (qboEqual, qboNotEqual, qboGreaterThan, qboGreaterThanOrEqual, qboLessThan, qboLessThanOrEqual, qboAnd, qboOr);
@@ -183,11 +164,52 @@ begin
   FConnection := Connection;
 end;
 
-function TQueryBuilder.Delete: TQueryBuilderDelete;
+function TQueryBuilder.GetValueString(const Value: TValue): String;
 begin
-  Result := TQueryBuilderDelete.Create;
+  case Value.Kind of
+    tkEnumeration,
+    tkInteger,
+    tkInt64: Result := Value.ToString;
 
-  FCommand := Result;
+    tkFloat: Result := FloatToStr(Value.AsExtended, TFormatSettings.Invariant);
+
+    tkChar,
+    tkString,
+    tkWChar,
+    tkLString,
+    tkWString,
+    tkUString: Result := QuotedStr(Value.AsString);
+
+    tkUnknown,
+    tkSet,
+    tkClass,
+    tkMethod,
+    tkVariant,
+    tkArray,
+    tkRecord,
+    tkInterface,
+    tkDynArray,
+    tkClassRef,
+    tkPointer,
+    tkProcedure,
+    tkMRecord: raise Exception.Create('Invalid value!');
+  end;
+end;
+
+procedure TQueryBuilder.Insert<T>(const AObject: T);
+begin
+  var Context := TRttiContext.Create;
+  var ClassInfo := Context.GetType(AObject.ClassType) as TRttiStructuredType;
+
+  var SQL := '(%s)values(%s)';
+
+  for var Prop in ClassInfo.GetProperties do
+    if Prop.Visibility = mvPublished then
+      SQL := Format(SQL, [Prop.Name + '%2:s%0:s', GetValueString(Prop.GetValue(TObject(AObject))) + '%2:s%1:s', ',']);
+
+  SQL := 'insert into ' + ClassInfo.Name.Substring(1) + Format(SQL, ['', '', '', '']);
+
+  FConnection.ExecuteDirect(SQL);
 end;
 
 function TQueryBuilder.Build: String;
@@ -198,13 +220,6 @@ begin
     Result := EmptyStr;
 end;
 
-function TQueryBuilder.Insert: TQueryBuilderInsert;
-begin
-  Result := TQueryBuilderInsert.Create;
-
-  FCommand := Result;
-end;
-
 function TQueryBuilder.Select: TQueryBuilderSelect;
 begin
   Result := TQueryBuilderSelect.Create(FConnection, Self);
@@ -212,11 +227,25 @@ begin
   FCommand := Result;
 end;
 
-function TQueryBuilder.Update: TQueryBuilderUpdate;
+procedure TQueryBuilder.Update<T>(const AObject: T);
 begin
-  Result := TQueryBuilderUpdate.Create;
+  var Context := TRttiContext.Create;
+  var ClassInfo := Context.GetType(AObject.ClassType) as TRttiStructuredType;
 
-  FCommand := Result;
+  var SQL := EmptyStr;
+
+  for var Prop in ClassInfo.GetProperties do
+    if Prop.Visibility = mvPublished then
+    begin
+      if not SQL.IsEmpty then
+        SQL := SQL + ',';
+
+      SQL := SQL + Format('%s=%s', [Prop.Name, GetValueString(Prop.GetValue(TObject(AObject)))]);
+    end;
+
+  SQL := Format('update %s set %s', [ClassInfo.Name.Substring(1), SQL]);
+
+  FConnection.ExecuteDirect(SQL);
 end;
 
 { TQueryBuilderFrom }
@@ -295,42 +324,6 @@ begin
 
   if Assigned(FFrom) then
     Result := Result + GetAllFields + FFrom.GetSQL;
-end;
-
-{ TQueryBuilderUpdate }
-
-function TQueryBuilderUpdate.GetProperties: IFieldXPropertyMapping;
-begin
-  Result := nil;
-end;
-
-function TQueryBuilderUpdate.GetSQL: String;
-begin
-  Result := 'update ';
-end;
-
-{ TQueryBuilderInsert }
-
-function TQueryBuilderInsert.GetProperties: IFieldXPropertyMapping;
-begin
-  Result := nil;
-end;
-
-function TQueryBuilderInsert.GetSQL: String;
-begin
-  Result := 'insert ';
-end;
-
-{ TQueryBuilderDelete }
-
-function TQueryBuilderDelete.GetProperties: IFieldXPropertyMapping;
-begin
-  Result := nil;
-end;
-
-function TQueryBuilderDelete.GetSQL: String;
-begin
-  Result := 'delete ';
 end;
 
 { TQueryBuilderWhere<T> }

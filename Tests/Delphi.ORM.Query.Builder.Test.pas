@@ -2,7 +2,7 @@ unit Delphi.ORM.Query.Builder.Test;
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Query.Builder, Delphi.ORM.Database.Connection;
+uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Query.Builder, Delphi.ORM.Database.Connection, Delphi.ORM.Attributes;
 
 type
   [TestFixture]
@@ -14,12 +14,6 @@ type
     procedure WhenCallSelectCommandTheSQLMustReturnTheWordSelect;
     [Test]
     procedure IfNoCommandIsCalledCantRaiseAnExceptionOfAccessViolation;
-    [Test]
-    procedure WhenCallUpdateCommandMustReturnTheUpdateCommandSQL;
-    [Test]
-    procedure WhenCallInsertCommandMustReturnTheInsertCommandSQL;
-    [Test]
-    procedure WhenCallDeleteCommandMustReturnTheDeleteCommandSQL;
     [Test]
     procedure WhenSelectAllFieldsFromAClassMustPutAllThenInTheResultingSQL;
     [Test]
@@ -34,6 +28,14 @@ type
     procedure WhenAFilterConditionMustBuildTheSQLAsExpected;
     [Test]
     procedure IfNotExistsAFilterInWhereMustReturnTheQueryWithoutWhereCommand;
+    [Test]
+    procedure WhenCallInsertProcedureMustBuildTheSQLWithAllFieldsAndValuesFromTheClassParamter;
+    [Test]
+    procedure OnlyPublishedPropertiesMustAppearInInsertSQL;
+    [Test]
+    procedure OnlyPublishedPropertiesMustAppearInUpdateSQL;
+    [Test]
+    procedure WhenCallUpdateMustBuildTheSQLWithAllPropertiesInTheObjectParameter;
   end;
 
   TOperationTest = (EqualOperation);
@@ -94,16 +96,37 @@ type
     property Value: Double read FValue write FValue;
   end;
 
+  TClassOnlyPublic = class
+  private
+    FName: String;
+    FValue: Integer;
+  public
+    property Name: String read FName write FName;
+    property Value: Integer read FValue write FValue;
+  end;
+
+  [PrimaryKey('Id,Id2')]
+  TClassWithPrimaryKey = class
+  private
+    FId: Integer;
+    FId2: Integer;
+  published
+    property Id: Integer read FId write FId;
+    property Id2: Integer read FId2 write FId2;
+  end;
+
   TDatabase = class(TInterfacedObject, IDatabaseConnection)
   private
     FCursor: IDatabaseCursor;
-    FCursorSQL: String;
+    FSQL: String;
 
     function OpenCursor(SQL: String): IDatabaseCursor;
+
+    procedure ExecuteDirect(SQL: String);
   public
     constructor Create(Cursor: IDatabaseCursor);
 
-    property CursorSQL: String read FCursorSQL write FCursorSQL;
+    property SQL: String read FSQL write FSQL;
   end;
 
 implementation
@@ -141,7 +164,7 @@ begin
 
   Query.Select.All.From<TMyTestClass>.Open;
 
-  Assert.AreEqual('select Id F1,Name F2,Value F3 from MyTestClass', Database.CursorSQL);
+  Assert.AreEqual('select Id F1,Name F2,Value F3 from MyTestClass', Database.SQL);
 
   Query.Free;
 end;
@@ -157,6 +180,43 @@ begin
     begin
       Query.Build;
     end, EAccessViolation);
+
+  Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.OnlyPublishedPropertiesMustAppearInInsertSQL;
+begin
+  var Database := TDatabase.Create(nil);
+  var Query := TQueryBuilder.Create(Database);
+
+  var MyClass := TClassOnlyPublic.Create;
+  MyClass.Name := 'My name';
+  MyClass.Value := 222;
+
+  Query.Insert(MyClass);
+
+  Assert.AreEqual('insert into ClassOnlyPublic()values()', Database.SQL);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.OnlyPublishedPropertiesMustAppearInUpdateSQL;
+begin
+  var Database := TDatabase.Create(nil);
+  var Query := TQueryBuilder.Create(Database);
+  var SQL := 'update ClassOnlyPublic set ';
+
+  var MyClass := TClassOnlyPublic.Create;
+  MyClass.Name := 'My name';
+  MyClass.Value := 222;
+
+  Query.Update(MyClass);
+
+  Assert.AreEqual(SQL, Database.SQL.Substring(0, SQL.Length));
+
+  MyClass.Free;
 
   Query.Free;
 end;
@@ -179,29 +239,26 @@ begin
 
   Query.Select.All.From<TMyTestClass>.Where(Field('MyField') = 1234).Open;
 
-  Assert.AreEqual('select Id F1,Name F2,Value F3 from MyTestClass where MyField=1234', Database.CursorSQL);
+  Assert.AreEqual('select Id F1,Name F2,Value F3 from MyTestClass where MyField=1234', Database.SQL);
 
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenCallDeleteCommandMustReturnTheDeleteCommandSQL;
+procedure TDelphiORMQueryBuilderTest.WhenCallInsertProcedureMustBuildTheSQLWithAllFieldsAndValuesFromTheClassParamter;
 begin
-  var Query := TQueryBuilder.Create(nil);
+  var Database := TDatabase.Create(nil);
+  var Query := TQueryBuilder.Create(Database);
 
-  Query.Delete;
+  var MyClass := TMyTestClass.Create;
+  MyClass.Id := 123;
+  MyClass.Name := 'My name';
+  MyClass.Value := 222.333;
 
-  Assert.AreEqual('delete ', Query.Build);
+  Query.Insert(MyClass);
 
-  Query.Free;
-end;
+  Assert.AreEqual('insert into MyTestClass(Id,Name,Value)values(123,''My name'',222.333)', Database.SQL);
 
-procedure TDelphiORMQueryBuilderTest.WhenCallInsertCommandMustReturnTheInsertCommandSQL;
-begin
-  var Query := TQueryBuilder.Create(nil);
-
-  Query.Insert;
-
-  Assert.AreEqual('insert ', Query.Build);
+  MyClass.Free;
 
   Query.Free;
 end;
@@ -213,7 +270,7 @@ begin
 
   Query.Select.All.From<TMyTestClass>.Open;
 
-  Assert.AreEqual('select Id F1,Name F2,Value F3 from MyTestClass', Database.CursorSQL);
+  Assert.AreEqual('select Id F1,Name F2,Value F3 from MyTestClass', Database.SQL);
 
   Query.Free;
 end;
@@ -229,13 +286,21 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenCallUpdateCommandMustReturnTheUpdateCommandSQL;
+procedure TDelphiORMQueryBuilderTest.WhenCallUpdateMustBuildTheSQLWithAllPropertiesInTheObjectParameter;
 begin
-  var Query := TQueryBuilder.Create(nil);
+  var Database := TDatabase.Create(nil);
+  var Query := TQueryBuilder.Create(Database);
 
-  Query.Update;
+  var MyClass := TMyTestClass.Create;
+  MyClass.Id := 123;
+  MyClass.Name := 'My name';
+  MyClass.Value := 222.333;
 
-  Assert.AreEqual('update ', Query.Build);
+  Query.Update(MyClass);
+
+  Assert.AreEqual('update MyTestClass set Id=123,Name=''My name'',Value=222.333', Database.SQL);
+
+  MyClass.Free;
 
   Query.Free;
 end;
@@ -287,9 +352,14 @@ begin
   FCursor := Cursor;
 end;
 
+procedure TDatabase.ExecuteDirect(SQL: String);
+begin
+  FSQL := SQL;
+end;
+
 function TDatabase.OpenCursor(SQL: String): IDatabaseCursor;
 begin
-  CursorSQL := SQL;
+  FSQL := SQL;
   Result := FCursor;
 end;
 

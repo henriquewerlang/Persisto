@@ -14,6 +14,8 @@ type
   IDatabaseConnection = interface
     ['{7FF2A2F4-0440-447D-9E64-C61A92E94800}']
     function OpenCursor(SQL: String): IDatabaseCursor;
+
+    procedure ExecuteDirect(SQL: String);
   end;
 
 implementation

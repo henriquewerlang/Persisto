@@ -22,7 +22,9 @@ uses
   Delphi.ORM.Query.Builder.Test in 'Delphi.ORM.Query.Builder.Test.pas',
   Delphi.ORM.Query.Builder in '..\Delphi.ORM.Query.Builder.pas',
   Delphi.ORM.Classes.Loader.Test in 'Delphi.ORM.Classes.Loader.Test.pas',
-  Delphi.ORM.Classes.Loader in '..\Delphi.ORM.Classes.Loader.pas';
+  Delphi.ORM.Classes.Loader in '..\Delphi.ORM.Classes.Loader.pas',
+  Delphi.ORM.Attributes in '..\Delphi.ORM.Attributes.pas',
+  Delphi.ORM.Attributes.Test in 'Delphi.ORM.Attributes.Test.pas';
 
 // Para não remover o valor abaixo
 {$IFNDEF TESTINSIGHT}
