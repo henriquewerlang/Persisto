@@ -40,6 +40,8 @@ type
     procedure WhenTheClassHaveThePrimaryKeyAttributeMustBuildTheWhereWithTheValuesOfFieldInTheKeyList;
     [Test]
     procedure TheKeyFieldCantBeUpdatedInTheUpdateProcedure;
+    [Test]
+    procedure WhenTheClassDontHaveThePrimaryKeyAttributeCantRaiseAException;
   end;
 
   TOperationTest = (EqualOperation);
@@ -369,6 +371,23 @@ begin
   Query.Free;
 end;
 
+procedure TDelphiORMQueryBuilderTest.WhenTheClassDontHaveThePrimaryKeyAttributeCantRaiseAException;
+begin
+  var Database := TDatabase.Create(nil);
+  var MyClass := TClassOnlyPublic.Create;
+  var Query := TQueryBuilder.Create(Database);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Query.Update(MyClass);
+    end, EAccessViolation);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
 procedure TDelphiORMQueryBuilderTest.WhenTheClassHaveThePrimaryKeyAttributeMustBuildTheWhereWithTheValuesOfFieldInTheKeyList;
 begin
   var Database := TDatabase.Create(nil);
@@ -381,7 +400,7 @@ begin
 
   Query.Update(MyClass);
 
-  Assert.AreEqual('update MyTestClass set Value=222 where Id=123 and Id2=456', Database.SQL);
+  Assert.AreEqual('update ClassWithPrimaryKey set Value=222 where Id=123 and Id2=456', Database.SQL);
 
   MyClass.Free;
 

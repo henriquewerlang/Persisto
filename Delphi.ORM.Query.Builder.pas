@@ -2,7 +2,7 @@ unit Delphi.ORM.Query.Builder;
 
 interface
 
-uses System.Rtti, Delphi.ORM.Database.Connection, Delphi.ORM.Classes.Loader;
+uses System.Rtti, System.Classes, Delphi.ORM.Database.Connection, Delphi.ORM.Classes.Loader;
 
 type
   TQueryBuilder = class;
@@ -31,6 +31,7 @@ type
     FCommand: IQueryBuilderCommandManipulation;
 
     function GetAttribute<T: TCustomAttribute>(TypeInfo: TRttiType): T;
+    function GetKeyFields(TypeInfo: TRttiType): TStringList;
     function GetValueString(const Value: TValue): String;
   public
     constructor Create(Connection: IDatabaseConnection);
@@ -39,7 +40,7 @@ type
     function Select: TQueryBuilderSelect;
 
     procedure Insert<T: class>(const AObject: T);
-    procedure Update<T: class>(const AObject: T);
+    procedure Update<T: class, constructor>(const AObject: T);
   end;
 
   TQueryBuilderFrom = class
@@ -149,7 +150,7 @@ const
 
 implementation
 
-uses System.SysUtils, System.TypInfo, System.Variants, System.Classes, Delphi.ORM.Attributes;
+uses System.SysUtils, System.TypInfo, System.Variants, Delphi.ORM.Attributes;
 
 function Field(const Name: String): TQueryBuilderCondition;
 begin
@@ -170,6 +171,16 @@ begin
   for var Attrib in TypeInfo.GetAttributes do
     if Attrib.ClassType = T then
       Exit(T(Attrib));
+end;
+
+function TQueryBuilder.GetKeyFields(TypeInfo: TRttiType): TStringList;
+begin
+  Result := TStringList.Create;
+
+  var Attrib := GetAttribute<PrimaryKeyAttribute>(TypeInfo);
+
+  if Assigned(Attrib) then
+    Result.AddStrings(Attrib.Fields);
 end;
 
 function TQueryBuilder.GetValueString(const Value: TValue): String;
@@ -237,30 +248,41 @@ end;
 
 procedure TQueryBuilder.Update<T>(const AObject: T);
 begin
+  var Condition: TQueryBuilderCondition;
   var Context := TRttiContext.Create;
   var SQL := EmptyStr;
+  var Where := TQueryBuilderWhere<T>.Create(nil, nil);
 
   var ClassInfo := Context.GetType(AObject.ClassType) as TRttiStructuredType;
 
-  var Attrib := GetAttribute<PrimaryKeyAttribute>(ClassInfo);
-  var KeyFields := TStringList.Create;
-
-  KeyFields.AddStrings(Attrib.Fields);
+  var KeyFields := GetKeyFields(ClassInfo);
 
   for var Prop in ClassInfo.GetProperties do
-    if (Prop.Visibility = mvPublished) and (KeyFields.IndexOf(Prop.Name) = -1) then
-    begin
-      if not SQL.IsEmpty then
-        SQL := SQL + ',';
+    if Prop.Visibility = mvPublished then
+      if KeyFields.IndexOf(Prop.Name) = -1 then
+      begin
+        if not SQL.IsEmpty then
+          SQL := SQL + ',';
 
-      SQL := SQL + Format('%s=%s', [Prop.Name, GetValueString(Prop.GetValue(TObject(AObject)))]);
-    end;
+        SQL := SQL + Format('%s=%s', [Prop.Name, GetValueString(Prop.GetValue(TObject(AObject)))]);
+      end
+      else
+      begin
+        var Comparision := Field(Prop.Name) = Prop.GetValue(TObject(AObject));
 
-  SQL := Format('update %s set %s', [ClassInfo.Name.Substring(1), SQL]);
+        if Condition.Condition.IsEmpty then
+          Condition := Comparision
+        else
+          Condition := Condition and Comparision;
+      end;
+
+  SQL := Format('update %s set %s', [ClassInfo.Name.Substring(1), SQL]) + Where.Where(Condition).GetSQL;
 
   FConnection.ExecuteDirect(SQL);
 
   KeyFields.Free;
+
+  Where.Free;
 end;
 
 { TQueryBuilderFrom }
