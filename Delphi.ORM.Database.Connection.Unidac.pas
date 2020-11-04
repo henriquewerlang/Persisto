@@ -22,6 +22,8 @@ type
     FConnection: TUniConnection;
 
     function OpenCursor(SQL: String): IDatabaseCursor;
+
+    procedure ExecuteDirect(SQL: String);
   public
     constructor Create;
 
@@ -81,6 +83,11 @@ begin
   FConnection.Free;
 
   inherited;
+end;
+
+procedure TDatabaseConnectionUnidac.ExecuteDirect(SQL: String);
+begin
+  FConnection.ExecSQL(SQL);
 end;
 
 function TDatabaseConnectionUnidac.OpenCursor(SQL: String): IDatabaseCursor;
