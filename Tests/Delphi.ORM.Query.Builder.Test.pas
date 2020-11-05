@@ -42,6 +42,8 @@ type
     procedure TheKeyFieldCantBeUpdatedInTheUpdateProcedure;
     [Test]
     procedure WhenTheClassDontHaveThePrimaryKeyAttributeCantRaiseAException;
+    [Test]
+    procedure WhenCallTheDeleteProcedureMustBuildTheSQLWithTheValuesOfKeysOfClass;
   end;
 
   TOperationTest = (EqualOperation);
@@ -310,6 +312,24 @@ begin
   Query.Select;
 
   Assert.AreEqual('select ', Query.Build);
+
+  Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenCallTheDeleteProcedureMustBuildTheSQLWithTheValuesOfKeysOfClass;
+begin
+  var Database := TDatabase.Create(nil);
+  var Query := TQueryBuilder.Create(Database);
+
+  var MyClass := TClassWithPrimaryKey.Create;
+  MyClass.Id := 123;
+  MyClass.Id2 := 456;
+
+  Query.Delete(MyClass);
+
+  Assert.AreEqual('delete from ClassWithPrimaryKey where Id=123 and Id2=456', Database.SQL);
+
+  MyClass.Free;
 
   Query.Free;
 end;

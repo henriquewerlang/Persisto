@@ -39,6 +39,7 @@ type
     function Build: String;
     function Select: TQueryBuilderSelect;
 
+    procedure Delete<T: class, constructor>(const AObject: T);
     procedure Insert<T: class>(const AObject: T);
     procedure Update<T: class, constructor>(const AObject: T);
   end;
@@ -164,6 +165,34 @@ begin
   inherited Create;
 
   FConnection := Connection;
+end;
+
+procedure TQueryBuilder.Delete<T>(const AObject: T);
+begin
+  var Condition: TQueryBuilderCondition;
+  var Context := TRttiContext.Create;
+  var Where := TQueryBuilderWhere<T>.Create(nil, nil);
+
+  var ClassInfo := Context.GetType(AObject.ClassType) as TRttiStructuredType;
+
+  var KeyFields := GetKeyFields(ClassInfo);
+
+  for var Prop in ClassInfo.GetProperties do
+    if KeyFields.IndexOf(Prop.Name) > -1 then
+    begin
+      var Comparision := Field(Prop.Name) = Prop.GetValue(TObject(AObject));
+
+      if Condition.Condition.IsEmpty then
+        Condition := Comparision
+      else
+        Condition := Condition and Comparision;
+    end;
+
+  FConnection.ExecuteDirect(Format('delete from %s%s', [ClassInfo.Name.Substring(1), Where.Where(Condition).GetSQL]));
+
+  KeyFields.Free;
+
+  Where.Free;
 end;
 
 function TQueryBuilder.GetAttribute<T>(TypeInfo: TRttiType): T;
