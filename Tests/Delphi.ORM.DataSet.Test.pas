@@ -8,6 +8,8 @@ type
   [TestFixture]
   TORMDataSetTest = class
   public
+    [SetupFixture]
+    procedure Setup;
     [Test]
     procedure WhenOpenDataSetHaveToLoadFieldListWithPropertiesOfMappedObject;
     [Test]
@@ -162,6 +164,18 @@ begin
   MyObject.Free;
 end;
 
+procedure TORMDataSetTest.Setup;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenClass<TMyTestClassTypes>;
+
+  DataSet.Free;
+
+  for var &Type in TRttiContext.Create.GetTypes do
+    &Type.QualifiedName;
+end;
+
 procedure TORMDataSetTest.TheFieldTypeMustMatchWithPropertyType(FieldName: String; TypeToCompare: TFieldType);
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -169,8 +183,7 @@ begin
 
   DataSet.OpenObject(MyObject);
 
-//  Assert.AreEqual(TypeToCompare, DataSet.FieldByName(FieldName).DataType);
-  Assert.IsTrue(True);
+  Assert.AreEqual(TypeToCompare, DataSet.FieldByName(FieldName).DataType);
 
   DataSet.Free;
 
@@ -295,10 +308,8 @@ begin
   var DataSet := TORMDataSet.Create(nil);
 
   DataSet.ObjectClassName := 'TMyTestClass';
-//
-//  Assert.WillNotRaise(DataSet.Open);
 
-  Assert.IsTrue(True);
+  Assert.WillNotRaise(DataSet.Open);
 
   DataSet.Free;
 end;
@@ -555,11 +566,6 @@ begin
 
   inherited;
 end;
-
-initialization
-  // Avoid memory leak registration.
-  for var Package in TRttiContext.Create.GetPackages do
-    Package.FindType(EmptyStr);
 
 end.
 
