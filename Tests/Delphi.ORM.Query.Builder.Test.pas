@@ -46,8 +46,6 @@ type
     procedure WhenCallTheDeleteProcedureMustBuildTheSQLWithTheValuesOfKeysOfClass;
   end;
 
-  TOperationTest = (EqualOperation);
-
   [TestFixture]
   TDelphiORMQueryBuilderConditionTest = class
   public

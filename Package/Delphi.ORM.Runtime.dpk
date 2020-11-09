@@ -28,16 +28,20 @@
 {$RUNONLY}
 {$IMPLICITBUILD ON}
 
+rcontains
+  Unit1 in 'Unit1.pas';
+
 requires
   rtl,
   dbrtl,
   vcl;
 
-contains
+ocontains
   Delphi.ORM.DataSet in '..\Delphi.ORM.DataSet.pas',
   Delphi.ORM.Attributes in '..\Delphi.ORM.Attributes.pas',
   Delphi.ORM.Database.Connection in '..\Delphi.ORM.Database.Connection.pas',
   Delphi.ORM.Query.Builder in '..\Delphi.ORM.Query.Builder.pas',
-  Delphi.ORM.Classes.Loader in '..\Delphi.ORM.Classes.Loader.pas';
+  Delphi.ORM.Classes.Loader in '..\Delphi.ORM.Classes.Loader.pas',
+  Unit1 in 'Unit1.pas';
 
-end.
+d.
