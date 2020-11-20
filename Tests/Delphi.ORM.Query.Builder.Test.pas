@@ -8,6 +8,8 @@ type
   [TestFixture]
   TDelphiORMQueryBuilderTest = class
   public
+    [SetupFixture]
+    procedure Setup;
     [Test]
     procedure IfNoCommandCalledTheSQLMustReturnEmpty;
     [Test]
@@ -88,20 +90,22 @@ type
     procedure WhenComparingNotEqualWithTValueMustBuildTheConditionAsExpected;
   end;
 
+  [Entity]
   TMyTestClass = class
   private
-    FId: Integer;
+    FField: Integer;
     FName: String;
     FValue: Double;
     FPublicField: String;
   public
     property PublicField: String read FPublicField write FPublicField;
   published
-    property Id: Integer read FId write FId;
+    property Field: Integer read FField write FField;
     property Name: String read FName write FName;
     property Value: Double read FValue write FValue;
   end;
 
+  [Entity]
   TClassOnlyPublic = class
   private
     FName: String;
@@ -111,6 +115,7 @@ type
     property Value: Integer read FValue write FValue;
   end;
 
+  [Entity]
   [PrimaryKey('Id,Id2')]
   TClassWithPrimaryKey = class
   private
@@ -139,7 +144,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.Variants, Delphi.Mock;
+uses System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Mapper;
 
 { TDelphiORMQueryBuilderTest }
 
@@ -172,7 +177,7 @@ begin
 
   Query.Select.All.From<TMyTestClass>.Open;
 
-  Assert.AreEqual('select Id F1,Name F2,Value F3 from MyTestClass', Database.SQL);
+  Assert.AreEqual('select Field F1,Name F2,Value F3 from MyTestClass', Database.SQL);
 
   Query.Free;
 end;
@@ -229,6 +234,11 @@ begin
   Query.Free;
 end;
 
+procedure TDelphiORMQueryBuilderTest.Setup;
+begin
+  TMapper.Default.LoadAll;
+end;
+
 procedure TDelphiORMQueryBuilderTest.TheKeyFieldCantBeUpdatedInTheUpdateProcedure;
 begin
   var Database := TDatabase.Create(nil);
@@ -255,7 +265,7 @@ begin
 
   Query.Select.All.From<TMyTestClass>;
 
-  Assert.AreEqual('select Id F1,Name F2,Value F3 from MyTestClass', Query.Build);
+  Assert.AreEqual('select Field F1,Name F2,Value F3 from MyTestClass', Query.Build);
 
   Query.Free;
 end;
@@ -267,7 +277,7 @@ begin
 
   Query.Select.All.From<TMyTestClass>.Where(Field('MyField') = 1234).Open;
 
-  Assert.AreEqual('select Id F1,Name F2,Value F3 from MyTestClass where MyField=1234', Database.SQL);
+  Assert.AreEqual('select Field F1,Name F2,Value F3 from MyTestClass where MyField=1234', Database.SQL);
 
   Query.Free;
 end;
@@ -278,13 +288,13 @@ begin
   var Query := TQueryBuilder.Create(Database);
 
   var MyClass := TMyTestClass.Create;
-  MyClass.Id := 123;
+  MyClass.Field := 123;
   MyClass.Name := 'My name';
   MyClass.Value := 222.333;
 
   Query.Insert(MyClass);
 
-  Assert.AreEqual('insert into MyTestClass(Id,Name,Value)values(123,''My name'',222.333)', Database.SQL);
+  Assert.AreEqual('insert into MyTestClass(Field,Name,Value)values(123,''My name'',222.333)', Database.SQL);
 
   MyClass.Free;
 
@@ -298,7 +308,7 @@ begin
 
   Query.Select.All.From<TMyTestClass>.Open;
 
-  Assert.AreEqual('select Id F1,Name F2,Value F3 from MyTestClass', Database.SQL);
+  Assert.AreEqual('select Field F1,Name F2,Value F3 from MyTestClass', Database.SQL);
 
   Query.Free;
 end;
@@ -338,13 +348,13 @@ begin
   var Query := TQueryBuilder.Create(Database);
 
   var MyClass := TMyTestClass.Create;
-  MyClass.Id := 123;
+  MyClass.Field := 123;
   MyClass.Name := 'My name';
   MyClass.Value := 222.333;
 
   Query.Update(MyClass);
 
-  Assert.AreEqual('update MyTestClass set Id=123,Name=''My name'',Value=222.333', Database.SQL);
+  Assert.AreEqual('update MyTestClass set Field=123,Name=''My name'',Value=222.333', Database.SQL);
 
   MyClass.Free;
 
@@ -367,7 +377,7 @@ begin
 
   var Result := Query.Select.All.From<TMyTestClass>.Open.One;
 
-  Assert.AreEqual(123, Result.Id);
+  Assert.AreEqual(123, Result.Field);
 
   Assert.AreEqual('My name', Result.Name);
 
@@ -384,7 +394,7 @@ begin
 
   Query.Select.All.From<TMyTestClass>;
 
-  Assert.AreEqual('select Id F1,Name F2,Value F3 from MyTestClass', Query.Build);
+  Assert.AreEqual('select Field F1,Name F2,Value F3 from MyTestClass', Query.Build);
 
   Query.Free;
 end;

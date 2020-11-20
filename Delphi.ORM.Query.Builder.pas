@@ -30,8 +30,6 @@ type
     FConnection: IDatabaseConnection;
     FCommand: IQueryBuilderCommandManipulation;
 
-    function GetAttribute<T: TCustomAttribute>(TypeInfo: TRttiType): T;
-    function GetKeyFields(TypeInfo: TRttiType): TStringList;
     function GetValueString(const Value: TValue): String;
   public
     constructor Create(Connection: IDatabaseConnection);
@@ -151,7 +149,7 @@ const
 
 implementation
 
-uses System.SysUtils, System.TypInfo, System.Variants, Delphi.ORM.Attributes;
+uses System.SysUtils, System.TypInfo, System.Variants, Delphi.ORM.Attributes, Delphi.ORM.Mapper;
 
 function Field(const Name: String): TQueryBuilderCondition;
 begin
@@ -170,46 +168,22 @@ end;
 procedure TQueryBuilder.Delete<T>(const AObject: T);
 begin
   var Condition: TQueryBuilderCondition;
-  var Context := TRttiContext.Create;
+  var Table := TMapper.Default.FindTable(AObject.ClassType);
   var Where := TQueryBuilderWhere<T>.Create(nil, nil);
 
-  var ClassInfo := Context.GetType(AObject.ClassType) as TRttiStructuredType;
+  for var TableField in Table.PrimaryKey do
+  begin
+    var Comparision := Field(TableField.DatabaseName) = TableField.TypeInfo.GetValue(TObject(AObject));
 
-  var KeyFields := GetKeyFields(ClassInfo);
+    if Condition.Condition.IsEmpty then
+      Condition := Comparision
+    else
+      Condition := Condition and Comparision;
+  end;
 
-  for var Prop in ClassInfo.GetProperties do
-    if KeyFields.IndexOf(Prop.Name) > -1 then
-    begin
-      var Comparision := Field(Prop.Name) = Prop.GetValue(TObject(AObject));
-
-      if Condition.Condition.IsEmpty then
-        Condition := Comparision
-      else
-        Condition := Condition and Comparision;
-    end;
-
-  FConnection.ExecuteDirect(Format('delete from %s%s', [ClassInfo.Name.Substring(1), Where.Where(Condition).GetSQL]));
-
-  KeyFields.Free;
+  FConnection.ExecuteDirect(Format('delete from %s%s', [Table.DatabaseName, Where.Where(Condition).GetSQL]));
 
   Where.Free;
-end;
-
-function TQueryBuilder.GetAttribute<T>(TypeInfo: TRttiType): T;
-begin
-  for var Attrib in TypeInfo.GetAttributes do
-    if Attrib.ClassType = T then
-      Exit(T(Attrib));
-end;
-
-function TQueryBuilder.GetKeyFields(TypeInfo: TRttiType): TStringList;
-begin
-  Result := TStringList.Create;
-
-  var Attrib := GetAttribute<PrimaryKeyAttribute>(TypeInfo);
-
-  if Assigned(Attrib) then
-    Result.AddStrings(Attrib.Fields);
 end;
 
 function TQueryBuilder.GetValueString(const Value: TValue): String;
@@ -246,16 +220,14 @@ end;
 
 procedure TQueryBuilder.Insert<T>(const AObject: T);
 begin
-  var Context := TRttiContext.Create;
-  var ClassInfo := Context.GetType(AObject.ClassType) as TRttiStructuredType;
+  var Table := TMapper.Default.FindTable(AObject.ClassType);
 
   var SQL := '(%s)values(%s)';
 
-  for var Prop in ClassInfo.GetProperties do
-    if Prop.Visibility = mvPublished then
-      SQL := Format(SQL, [Prop.Name + '%2:s%0:s', GetValueString(Prop.GetValue(TObject(AObject))) + '%2:s%1:s', ',']);
+  for var Field in Table.Fields do
+    SQL := Format(SQL, [Field.DatabaseName + '%2:s%0:s', GetValueString(Field.TypeInfo.GetValue(TObject(AObject))) + '%2:s%1:s', ',']);
 
-  SQL := 'insert into ' + ClassInfo.Name.Substring(1) + Format(SQL, ['', '', '', '']);
+  SQL := 'insert into ' + Table.DatabaseName + Format(SQL, ['', '', '', '']);
 
   FConnection.ExecuteDirect(SQL);
 end;
@@ -278,38 +250,31 @@ end;
 procedure TQueryBuilder.Update<T>(const AObject: T);
 begin
   var Condition: TQueryBuilderCondition;
-  var Context := TRttiContext.Create;
   var SQL := EmptyStr;
+  var Table := TMapper.Default.FindTable(AObject.ClassType);
   var Where := TQueryBuilderWhere<T>.Create(nil, nil);
 
-  var ClassInfo := Context.GetType(AObject.ClassType) as TRttiStructuredType;
+  for var TableField in Table.Fields do
+    if TableField.InPrimaryKey then
+    begin
+      var Comparision := Field(TableField.DatabaseName) = TableField.TypeInfo.GetValue(TObject(AObject));
 
-  var KeyFields := GetKeyFields(ClassInfo);
-
-  for var Prop in ClassInfo.GetProperties do
-    if Prop.Visibility = mvPublished then
-      if KeyFields.IndexOf(Prop.Name) = -1 then
-      begin
-        if not SQL.IsEmpty then
-          SQL := SQL + ',';
-
-        SQL := SQL + Format('%s=%s', [Prop.Name, GetValueString(Prop.GetValue(TObject(AObject)))]);
-      end
+      if Condition.Condition.IsEmpty then
+        Condition := Comparision
       else
-      begin
-        var Comparision := Field(Prop.Name) = Prop.GetValue(TObject(AObject));
+        Condition := Condition and Comparision;
+    end
+    else
+    begin
+      if not SQL.IsEmpty then
+        SQL := SQL + ',';
 
-        if Condition.Condition.IsEmpty then
-          Condition := Comparision
-        else
-          Condition := Condition and Comparision;
-      end;
+      SQL := SQL + Format('%s=%s', [TableField.DatabaseName, GetValueString(TableField.TypeInfo.GetValue(TObject(AObject)))]);
+    end;
 
-  SQL := Format('update %s set %s', [ClassInfo.Name.Substring(1), SQL]) + Where.Where(Condition).GetSQL;
+  SQL := Format('update %s set %s', [Table.DatabaseName, SQL]) + Where.Where(Condition).GetSQL;
 
   FConnection.ExecuteDirect(SQL);
-
-  KeyFields.Free;
 
   Where.Free;
 end;
