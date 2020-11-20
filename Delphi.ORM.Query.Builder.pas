@@ -2,7 +2,7 @@ unit Delphi.ORM.Query.Builder;
 
 interface
 
-uses System.Rtti, System.Classes, Delphi.ORM.Database.Connection, Delphi.ORM.Classes.Loader;
+uses System.Rtti, System.Classes, Delphi.ORM.Database.Connection, Delphi.ORM.Classes.Loader, Delphi.ORM.Mapper;
 
 type
   TQueryBuilder = class;
@@ -16,8 +16,8 @@ type
     function GetSQL: String;
   end;
 
-  IQueryBuilderCommandManipulation = interface(IQueryBuilderCommand)
-    function GetProperties: IFieldXPropertyMapping;
+  IQueryBuilderFieldList = interface
+    function GetFields: TArray<TFieldAlias>;
   end;
 
   IQueryBuilderOpen<T: class, constructor> = interface
@@ -28,7 +28,8 @@ type
   TQueryBuilder = class
   private
     FConnection: IDatabaseConnection;
-    FCommand: IQueryBuilderCommandManipulation;
+    FCommand: IQueryBuilderCommand;
+    FFieldList: IQueryBuilderFieldList;
 
     function GetValueString(const Value: TValue): String;
   public
@@ -46,7 +47,7 @@ type
   private
     FBuilder: TQueryBuilder;
     FConnection: IDatabaseConnection;
-    FFromType: TRttiStructuredType;
+    FTable: TTable;
     FWhere: IQueryBuilderCommand;
 
     function GetSQL: String;
@@ -73,24 +74,22 @@ type
     destructor Destroy; override;
   end;
 
-  TQueryBuilderAllFields = class(TInterfacedObject, IFieldXPropertyMapping)
+  TQueryBuilderAllFields = class(TInterfacedObject, IQueryBuilderFieldList)
   private
     FFrom: TQueryBuilderFrom;
 
-    function GetProperties: TArray<TFieldMapPair>;
+    function GetFields: TArray<TFieldAlias>;
   public
     constructor Create(From: TQueryBuilderFrom);
   end;
 
-  TQueryBuilderSelect = class(TInterfacedObject, IQueryBuilderCommandManipulation)
+  TQueryBuilderSelect = class(TInterfacedObject, IQueryBuilderCommand)
   private
     FConnection: IDatabaseConnection;
     FBuilder: TQueryBuilder;
     FFrom: TQueryBuilderFrom;
-    FFields: IFieldXPropertyMapping;
 
-    function GetAllFields: String;
-    function GetProperties: IFieldXPropertyMapping;
+    function GetFields: String;
     function GetSQL: String;
   public
     constructor Create(Connection: IDatabaseConnection; Builder: TQueryBuilder);
@@ -149,7 +148,7 @@ const
 
 implementation
 
-uses System.SysUtils, System.TypInfo, System.Variants, Delphi.ORM.Attributes, Delphi.ORM.Mapper;
+uses System.SysUtils, System.TypInfo, System.Variants, Delphi.ORM.Attributes;
 
 function Field(const Name: String): TQueryBuilderCondition;
 begin
@@ -291,8 +290,7 @@ end;
 
 function TQueryBuilderFrom.From<T>: TQueryBuilderWhere<T>;
 begin
-  var Context := TRttiContext.Create;
-  FFromType := Context.GetType(TypeInfo(T)) as TRttiStructuredType;
+  FTable := TMapper.Default.FindTable(T);
   Result := TQueryBuilderWhere<T>.Create(FConnection, FBuilder);
 
   FWhere := Result;
@@ -300,7 +298,7 @@ end;
 
 function TQueryBuilderFrom.GetSQL: String;
 begin
-  Result := Format(' from %s', [FFromType.Name.Substring(1)]);
+  Result := Format(' from %s', [FTable.DatabaseName]);
 
   if Assigned(FWhere) then
     Result := Result + FWhere.GetSQL;
@@ -313,7 +311,7 @@ begin
   FFrom := TQueryBuilderFrom.Create(FConnection, FBuilder);
   Result := FFrom;
 
-  FFields := TQueryBuilderAllFields.Create(FFrom);
+  FBuilder.FFieldList := TQueryBuilderAllFields.Create(FFrom);
 end;
 
 constructor TQueryBuilderSelect.Create(Connection: IDatabaseConnection; Builder: TQueryBuilder);
@@ -331,22 +329,17 @@ begin
   inherited;
 end;
 
-function TQueryBuilderSelect.GetAllFields: String;
+function TQueryBuilderSelect.GetFields: String;
 begin
   Result := EmptyStr;
 
-  for var Pair in FFields.GetProperties do
+  for var Field in FBuilder.FFieldList.GetFields do
   begin
     if not Result.IsEmpty then
       Result := Result + ',';
 
-    Result := Result + Format('%s %s', [Pair.Key.Name, Pair.Value]);
+    Result := Result + Format('%s %s', [Field.Field.DatabaseName, Field.Alias]);
   end;
-end;
-
-function TQueryBuilderSelect.GetProperties: IFieldXPropertyMapping;
-begin
-  Result := FFields;
 end;
 
 function TQueryBuilderSelect.GetSQL: String;
@@ -354,7 +347,7 @@ begin
   Result := 'select ';
 
   if Assigned(FFrom) then
-    Result := Result + GetAllFields + FFrom.GetSQL;
+    Result := Result + GetFields + FFrom.GetSQL;
 end;
 
 { TQueryBuilderWhere<T> }
@@ -390,7 +383,7 @@ end;
 
 function TQueryBuilderOpen<T>.All: TArray<T>;
 begin
-  Result := Loader.LoadAll<T>(FCursor, FBuilder.FCommand.GetProperties);
+  Result := Loader.LoadAll<T>(FCursor, FBuilder.FFieldList.GetFields);
 end;
 
 constructor TQueryBuilderOpen<T>.Create(Cursor: IDatabaseCursor; Builder: TQueryBuilder);
@@ -418,7 +411,7 @@ end;
 
 function TQueryBuilderOpen<T>.One: T;
 begin
-  Result := Loader.Load<T>(FCursor, FBuilder.FCommand.GetProperties);
+  Result := Loader.Load<T>(FCursor, FBuilder.FFieldList.GetFields);
 end;
 
 { TQueryBuilderAllFields }
@@ -430,7 +423,7 @@ begin
   FFrom := From;
 end;
 
-function TQueryBuilderAllFields.GetProperties: TArray<TFieldMapPair>;
+function TQueryBuilderAllFields.GetFields: TArray<TFieldAlias>;
 var
   A: Cardinal;
 
@@ -438,13 +431,12 @@ begin
   A := 1;
   Result := nil;
 
-  for var &Property in FFrom.FFromType.GetProperties do
-    if &Property.Visibility = mvPublished then
-    begin
-      Result := Result + [TFieldMapPair.Create(&Property, Format('F%d', [A]))];
+  for var Field in FFrom.FTable.Fields do
+  begin
+    Result := Result + [TFieldAlias.Create(Field, Format('F%d', [A]))];
 
-      Inc(A);
-    end;
+    Inc(A);
+  end;
 end;
 
 { TQueryBuilderCondition }

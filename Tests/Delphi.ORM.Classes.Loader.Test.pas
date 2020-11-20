@@ -2,14 +2,16 @@ unit Delphi.ORM.Classes.Loader.Test;
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Classes.Loader, Delphi.ORM.Database.Connection;
+uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Classes.Loader, Delphi.ORM.Database.Connection, Delphi.ORM.Attributes, Delphi.ORM.Mapper;
 
 type
   [TestFixture]
   TClassLoaderTest = class
   private
-    function CreateMapper: IFieldXPropertyMapping;
+    function CreateFieldList: TArray<TFieldAlias>;
   public
+    [SetupFixture]
+    procedure Setup;
     [Test]
     procedure MustLoadThePropertiesOfTheClassWithTheValuesOfCursor;
     [Test]
@@ -22,6 +24,7 @@ type
     procedure WhenThereIsNoRecordsMustReturnAEmptyArray;
   end;
 
+  [Entity]
   TMyClass = class
   private
     FName: String;
@@ -49,23 +52,18 @@ uses System.Generics.Collections, Delphi.Mock;
 
 { TClassLoaderTest }
 
-function TClassLoaderTest.CreateMapper: IFieldXPropertyMapping;
+function TClassLoaderTest.CreateFieldList: TArray<TFieldAlias>;
 begin
-  var Mapper := TMock.CreateInterface<IFieldXPropertyMapping>;
-  var MyClassType := TRttiContext.Create.GetType(TMyClass);
+  var Table := TMapper.Default.FindTable(TMyClass);
 
-  Mapper.Setup.WillReturn(TValue.FromArray(TypeInfo(TArray<TFieldMapPair>),
-    [TValue.From(TFieldMapPair.Create(MyClassType.GetProperty('Name'), 'Name')),
-      TValue.From(TFieldMapPair.Create(MyClassType.GetProperty('Value'), 'Value'))])).When.GetProperties;
-
-  Result := Mapper.Instance;
+  Result := [TFieldAlias.Create(Table.Fields[0], Table.Fields[0].DatabaseName), TFieldAlias.Create(Table.Fields[1], Table.Fields[1].DatabaseName)];
 end;
 
 procedure TClassLoaderTest.MustLoadThePropertiesOfAllRecords;
 begin
   var Cursor := TCursorMock.Create(['Name', 'Value'], [['aaa', 111], ['bbb', 222]]);
   var Loader := TClassLoader.Create;
-  var Result := Loader.LoadAll<TMyClass>(Cursor, CreateMapper);
+  var Result := Loader.LoadAll<TMyClass>(Cursor, CreateFieldList);
 
   Assert.AreEqual('aaa', Result[0].Name);
 
@@ -85,7 +83,7 @@ procedure TClassLoaderTest.MustLoadThePropertiesOfTheClassWithTheValuesOfCursor;
 begin
   var Cursor := TCursorMock.Create(['Name', 'Value'], [['abc', 123]]);
   var Loader := TClassLoader.Create;
-  var MyClass := Loader.Load<TMyClass>(Cursor, CreateMapper);
+  var MyClass := Loader.Load<TMyClass>(Cursor, CreateFieldList);
 
   Assert.AreEqual('abc', MyClass.Name);
   Assert.AreEqual(123, MyClass.Value);
@@ -95,11 +93,16 @@ begin
   Loader.Free;
 end;
 
+procedure TClassLoaderTest.Setup;
+begin
+  TMapper.Default.LoadAll;
+end;
+
 procedure TClassLoaderTest.WhenHaveMoreThenOneRecordMustLoadAllThenWhenRequested;
 begin
   var Cursor := TCursorMock.Create(['Name', 'Value'], [['abc', 123], ['abc', 123]]);
   var Loader := TClassLoader.Create;
-  var Result := Loader.LoadAll<TMyClass>(Cursor, CreateMapper);
+  var Result := Loader.LoadAll<TMyClass>(Cursor, CreateFieldList);
 
   Assert.AreEqual<Integer>(2, Length(Result));
 
@@ -113,7 +116,7 @@ procedure TClassLoaderTest.WhenThereIsNoExistingRecordInCursorMustReturnNilToCla
 begin
   var Cursor := TCursorMock.Create(['Name', 'Value'], nil);
   var Loader := TClassLoader.Create;
-  var MyClass := Loader.Load<TMyClass>(Cursor, CreateMapper);
+  var MyClass := Loader.Load<TMyClass>(Cursor, CreateFieldList);
 
   Assert.IsNull(MyClass);
 
@@ -124,7 +127,7 @@ procedure TClassLoaderTest.WhenThereIsNoRecordsMustReturnAEmptyArray;
 begin
   var Cursor := TCursorMock.Create(['Name', 'Value'], nil);
   var Loader := TClassLoader.Create;
-  var Result := Loader.LoadAll<TMyClass>(Cursor, CreateMapper);
+  var Result := Loader.LoadAll<TMyClass>(Cursor, CreateFieldList);
 
   Assert.AreEqual<TArray<TMyClass>>(nil, Result);
 
@@ -167,7 +170,6 @@ initialization
   // Avoid leak reporting
   TRttiContext.Create.GetType(TMyClass).GetProperties;
   TMock.CreateInterface<IDatabaseCursor>;
-  TMock.CreateInterface<IFieldXPropertyMapping>;
 
 end.
 

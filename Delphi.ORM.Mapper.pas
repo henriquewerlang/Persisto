@@ -38,6 +38,17 @@ type
     property TypeInfo: TRttiInstanceProperty read FTypeInfo;
   end;
 
+  TFieldAlias = record
+  private
+    FField: TField;
+    FAlias: String;
+  public
+    constructor Create(Field: TField; Alias: String);
+
+    property Alias: String read FAlias write FAlias;
+    property Field: TField read FField write FField;
+  end;
+
   TJoin = class
 
   end;
@@ -216,6 +227,14 @@ begin
     Field.Free;
 
   inherited;
+end;
+
+{ TFieldAlias }
+
+constructor TFieldAlias.Create(Field: TField; Alias: String);
+begin
+  FAlias := Alias;
+  FField := Field;
 end;
 
 end.
