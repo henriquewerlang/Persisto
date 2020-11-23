@@ -5,7 +5,7 @@ interface
 uses System.Rtti;
 
 type
-  TRttiTypeHelper = class helper for TRttiType
+  TRttiTypeHelper = class helper for TRttiObject
   public
     function GetAttribute<T: TCustomAttribute>: T;
   end;

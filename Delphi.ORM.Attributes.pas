@@ -14,7 +14,7 @@ type
     property Fields: TArray<String> read FFields write FFields;
   end;
 
-  TableNameAttribute = class(TCustomAttribute)
+  TCustomNameAttribute = class(TCustomAttribute)
   private
     FName: String;
   public
@@ -22,6 +22,9 @@ type
 
     property Name: String read FName write FName;
   end;
+
+  FieldNameAttribute = class(TCustomNameAttribute);
+  TableNameAttribute = class(TCustomNameAttribute);
 
 implementation
 
@@ -42,9 +45,9 @@ begin
     FFields[A] := FFields[A].Trim;
 end;
 
-{ TableNameAttribute }
+{ TCustomNameAttribute }
 
-constructor TableNameAttribute.Create(Name: String);
+constructor TCustomNameAttribute.Create(Name: String);
 begin
   inherited Create;
 

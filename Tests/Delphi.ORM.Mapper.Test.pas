@@ -40,6 +40,8 @@ type
     procedure WhenTheClassHaveTheTableNameAttributeTheDatabaseNameMustBeLikeTheNameInAttribute;
     [Test]
     procedure OnlyPublishedFieldMutsBeLoadedInTheTable;
+    [Test]
+    procedure WhenTheFieldHaveTheFieldNameAttributeMustLoadThisNameInTheDatabaseName;
   end;
 
   [Entity]
@@ -111,6 +113,15 @@ type
     property Id: Integer read FId write FId;
     property Name: String read FName write FName;
     property Value: Double read FValue write FValue;
+  end;
+
+  [Entity]
+  TMyEntityWithFieldNameAttribute = class
+  private
+    FName: String;
+  published
+    [FieldName('AnotherFieldName')]
+    property Name: String read FName write FName;
   end;
 
 implementation
@@ -242,6 +253,19 @@ begin
   var Table := Mapper.LoadClass(TMyEntity2);
 
   Assert.AreEqual('AnotherTableName', Table.DatabaseName);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.WhenTheFieldHaveTheFieldNameAttributeMustLoadThisNameInTheDatabaseName;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithFieldNameAttribute);
+
+  Assert.AreEqual('AnotherFieldName', Table.Fields[0].DatabaseName);
 
   Mapper.Free;
 end;

@@ -6,12 +6,12 @@ uses System.Rtti, System.Generics.Collections, System.Generics.Defaults;
 
 type
   TField = class;
-  TJoin = class;
+  TForeignKey = class;
 
   TTable = class
   private
     FPrimaryKey: TArray<TField>;
-    FJoins: TArray<TJoin>;
+    FForeignKeys: TArray<TForeignKey>;
     FFields: TArray<TField>;
     FTypeInfo: TRttiInstanceType;
     FDatabaseName: String;
@@ -22,7 +22,7 @@ type
 
     property DatabaseName: String read FDatabaseName write FDatabaseName;
     property Fields: TArray<TField> read FFields;
-    property Joins: TArray<TJoin> read FJoins;
+    property ForeignKeys: TArray<TForeignKey> read FForeignKeys;
     property PrimaryKey: TArray<TField> read FPrimaryKey;
     property TypeInfo: TRttiInstanceType read FTypeInfo;
   end;
@@ -49,8 +49,13 @@ type
     property Field: TField read FField write FField;
   end;
 
-  TJoin = class
-
+  TForeignKey = class
+  private
+    FParentTable: TTable;
+    FFields: TArray<TField>;
+  public
+    property Fields: TArray<TField> read FFields write FFields;
+    property ParentTable: TTable read FParentTable write FParentTable;
   end;
 
   TMapper = class
@@ -65,6 +70,8 @@ type
 
     function CheckAttribute<T: TCustomAttribute>(TypeInfo: TRttiType): Boolean;
     function CreateComparer: IComparer<TTable>;
+    function GetFieldName(TypeInfo: TRttiInstanceProperty): String;
+    function GetNameAttribute(TypeInfo: TRttiNamedObject; var Name: String): Boolean;
     function GetPrimaryKey(TypeInfo: TRttiInstanceType): TArray<String>;
     function GetTableName(TypeInfo: TRttiInstanceType): String;
     function LoadTable(TypeInfo: TRttiInstanceType): TTable;
@@ -140,6 +147,21 @@ begin
   Find.Free;
 end;
 
+function TMapper.GetFieldName(TypeInfo: TRttiInstanceProperty): String;
+begin
+  if not GetNameAttribute(TypeInfo, Result) then
+    Result := TypeInfo.Name;
+end;
+
+function TMapper.GetNameAttribute(TypeInfo: TRttiNamedObject; var Name: String): Boolean;
+begin
+  var Attribute := TypeInfo.GetAttribute<TCustomNameAttribute>;
+  Result := Assigned(Attribute);
+
+  if Result then
+    Name := Attribute.Name;
+end;
+
 function TMapper.GetPrimaryKey(TypeInfo: TRttiInstanceType): TArray<String>;
 begin
   var Attribute := TypeInfo.GetAttribute<PrimaryKeyAttribute>;
@@ -152,11 +174,7 @@ end;
 
 function TMapper.GetTableName(TypeInfo: TRttiInstanceType): String;
 begin
-  var Attribute := TypeInfo.GetAttribute<TableNameAttribute>;
-
-  if Assigned(Attribute) then
-    Result := Attribute.Name
-  else
+  if not GetNameAttribute(TypeInfo, Result) then
     Result := TypeInfo.Name.Substring(1);
 end;
 
@@ -191,7 +209,7 @@ begin
     if Prop.Visibility = mvPublished then
     begin
       var Field := TField.Create;
-      Field.FDatabaseName := Prop.Name;
+      Field.FDatabaseName := GetFieldName(Prop as TRttiInstanceProperty);
       Field.FTypeInfo := Prop as TRttiInstanceProperty;
       Result.FFields := Result.FFields + [Field];
     end;
