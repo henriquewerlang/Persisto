@@ -69,19 +69,15 @@ type
     class destructor Destroy;
   private
     FContext: TRttiContext;
-    FTables: TArray<TTable>;
+    FTables: TDictionary<TRttiInstanceType, TTable>;
 
     function CheckAttribute<T: TCustomAttribute>(TypeInfo: TRttiType): Boolean;
-    function CreateComparer: IComparer<TTable>;
     function GetFieldName(TypeInfo: TRttiInstanceProperty): String;
     function GetNameAttribute(TypeInfo: TRttiNamedObject; var Name: String): Boolean;
     function GetPrimaryKey(TypeInfo: TRttiInstanceType): TArray<String>;
     function GetTableName(TypeInfo: TRttiInstanceType): String;
+    function GetTables: TArray<TTable>;
     function LoadTable(TypeInfo: TRttiInstanceType): TTable;
-
-    procedure FinishLoad;
-    procedure LoadForeignKeys;
-    procedure SortTables;
   public
     constructor Create;
 
@@ -92,7 +88,7 @@ type
 
     procedure LoadAll;
 
-    property Tables: TArray<TTable> read FTables;
+    property Tables: TArray<TTable> read GetTables;
 
     class property Default: TMapper read FDefault;
   end;
@@ -120,43 +116,20 @@ end;
 constructor TMapper.Create;
 begin
   FContext := TRttiContext.Create;
-end;
-
-function TMapper.CreateComparer: IComparer<TTable>;
-begin
-  Result := TDelegatedComparer<TTable>.Create(
-    function(const Left, Right: TTable): Integer
-    begin
-      Result := CompareStr(Left.TypeInfo.Name, Right.TypeInfo.Name);
-    end);
+  FTables := TObjectDictionary<TRttiInstanceType, TTable>.Create([doOwnsValues]);
 end;
 
 destructor TMapper.Destroy;
 begin
-  for var Table in Tables do
-    Table.Free;
+  FTables.Free;
 
   FContext.Free;
 end;
 
 function TMapper.FindTable(ClassInfo: TClass): TTable;
 begin
-  var Find := TTable.Create(FContext.GetType(ClassInfo) as TRttiInstanceType);
-  var Index := 0;
-
-  if TArray.BinarySearch<TTable>(FTables, Find, Index, CreateComparer) then
-    Result := Tables[Index]
-  else
+  if not FTables.TryGetValue(FContext.GetType(ClassInfo) as TRttiInstanceType, Result) then
     Result := nil;
-
-  Find.Free;
-end;
-
-procedure TMapper.FinishLoad;
-begin
-  SortTables;
-
-  LoadForeignKeys;
 end;
 
 function TMapper.GetFieldName(TypeInfo: TRttiInstanceProperty): String;
@@ -195,6 +168,11 @@ begin
     Result := TypeInfo.Name.Substring(1);
 end;
 
+function TMapper.GetTables: TArray<TTable>;
+begin
+  Result := FTables.Values.ToArray;
+end;
+
 class destructor TMapper.Destroy;
 begin
   FDefault.Free;
@@ -202,33 +180,16 @@ end;
 
 procedure TMapper.LoadAll;
 begin
+  FTables.Clear;
+
   for var TypeInfo in FContext.GetTypes do
     if CheckAttribute<EntityAttribute>(TypeInfo) then
       LoadTable(TypeInfo as TRttiInstanceType);
-
-  FinishLoad;
 end;
 
 function TMapper.LoadClass(ClassInfo: TClass): TTable;
 begin
   Result := LoadTable(FContext.GetType(ClassInfo) as TRttiInstanceType);
-
-  FinishLoad;
-end;
-
-procedure TMapper.LoadForeignKeys;
-begin
-  for var Table in FTables do
-    for var Field in Table.Fields do
-      if Field.TypeInfo.PropertyType.IsInstance then
-      begin
-        var ForeignTable := FindTable((Field.TypeInfo.PropertyType as TRttiInstanceType).MetaclassType);
-
-        if Length(ForeignTable.PrimaryKey) = 0 then
-          raise EClassWithoutPrimaryKeyDefined.CreateFmt('You must define a primary key for class %s!', [ForeignTable.TypeInfo.Name]);
-
-        Table.FForeignKeys := Table.FForeignKeys + [TForeignKey.Create(ForeignTable, Field)];
-      end;
 end;
 
 function TMapper.LoadTable(TypeInfo: TRttiInstanceType): TTable;
@@ -237,6 +198,8 @@ begin
   Result := TTable.Create(TypeInfo);
   Result.DatabaseName := GetTableName(TypeInfo);
 
+  FTables.Add(TypeInfo, Result);
+
   for var Prop in TypeInfo.GetDeclaredProperties do
     if Prop.Visibility = mvPublished then
     begin
@@ -244,6 +207,16 @@ begin
       Field.FDatabaseName := GetFieldName(Prop as TRttiInstanceProperty);
       Field.FTypeInfo := Prop as TRttiInstanceProperty;
       Result.FFields := Result.FFields + [Field];
+
+      if Field.TypeInfo.PropertyType.IsInstance then
+      begin
+        var ForeignTable := FindTable((Field.TypeInfo.PropertyType as TRttiInstanceType).MetaclassType);
+
+        if Length(ForeignTable.PrimaryKey) = 0 then
+          raise EClassWithoutPrimaryKeyDefined.CreateFmt('You must define a primary key for class %s!', [ForeignTable.TypeInfo.Name]);
+
+        Result.FForeignKeys := Result.FForeignKeys + [TForeignKey.Create(ForeignTable, Field)];
+      end;
     end;
 
   for var PropertyName in PrimaryKey do
@@ -253,13 +226,6 @@ begin
         Field.FInPrimaryKey := True;
         Result.FPrimaryKey := Result.FPrimaryKey + [Field];
       end;
-
-  FTables := FTables + [Result];
-end;
-
-procedure TMapper.SortTables;
-begin
-  TArray.Sort<TTable>(FTables, CreateComparer);
 end;
 
 { TTable }

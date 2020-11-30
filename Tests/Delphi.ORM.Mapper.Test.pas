@@ -56,6 +56,8 @@ type
     procedure TheLoadingOfForeingKeyMustBeAfterAllTablesAreLoadedToTheFindTableWorksPropertily;
     [Test]
     procedure WhenMapAForeignKeyIsToAClassWithoutAPrimaryKeyMustRaiseAnError;
+    [Test]
+    procedure WhenCallLoadAllMoreThemOneTimeCantRaiseAnError;
   end;
 
   [Entity]
@@ -295,6 +297,17 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTeste.WhenCallLoadAllMoreThemOneTimeCantRaiseAnError;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  Assert.WillNotRaise(Mapper.LoadAll);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTeste.WhenCallLoadAllMustLoadAllClassesWithTheEntityAttribute;
 begin
   var Mapper := TMapper.Create;
@@ -444,9 +457,6 @@ end;
 procedure TMapperTeste.WhenTryToFindATableMustReturnTheTableOfTheClass;
 begin
   var Mapper := TMapper.Create;
-
-  Mapper.LoadAll;
-
   var Table := Mapper.LoadClass(TMyEntity3);
 
   Assert.AreEqual(TMyEntity3, Table.TypeInfo.MetaclassType);
@@ -468,3 +478,4 @@ begin
 end;
 
 end.
+
