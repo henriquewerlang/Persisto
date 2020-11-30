@@ -41,18 +41,21 @@ type
     procedure Delete<T: class, constructor>(const AObject: T);
     procedure Insert<T: class>(const AObject: T);
     procedure Update<T: class, constructor>(const AObject: T);
+
+    property Connection: IDatabaseConnection read FConnection;
   end;
 
-  TQueryBuilderFrom = class
+  TQueryBuilderFrom = class(TInterfacedObject, IQueryBuilderCommand)
   private
     FBuilder: TQueryBuilder;
-    FConnection: IDatabaseConnection;
     FTable: TTable;
     FWhere: IQueryBuilderCommand;
 
+    function BuildJoin: String;
     function GetSQL: String;
+    function MakeJoin(ParentTable: TTable; var TableIndex: Integer): String;
   public
-    constructor Create(Connection: IDatabaseConnection; Builder: TQueryBuilder);
+    constructor Create(Builder: TQueryBuilder);
 
     function From<T: class, constructor>: TQueryBuilderWhere<T>;
   end;
@@ -113,6 +116,7 @@ type
     class operator Equal(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
     class operator Equal(const Condition: TQueryBuilderCondition; const Value: TValue): TQueryBuilderCondition;
     class operator Equal(const Condition: TQueryBuilderCondition; const Value: Variant): TQueryBuilderCondition;
+    class operator Equal(const Condition: TQueryBuilderCondition; const Value: TQueryBuilderCondition): TQueryBuilderCondition;
     class operator GreaterThan(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
     class operator GreaterThan(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
     class operator GreaterThanOrEqual(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
@@ -129,13 +133,12 @@ type
 
   TQueryBuilderWhere<T: class, constructor> = class(TInterfacedObject, IQueryBuilderCommand)
   private
-    FConnection: IDatabaseConnection;
     FBuilder: TQueryBuilder;
     FFilter: String;
 
     function GetSQL: String;
   public
-    constructor Create(Connection: IDatabaseConnection; Builder: TQueryBuilder);
+    constructor Create(Builder: TQueryBuilder);
 
     function Open: IQueryBuilderOpen<T>;
     function Where(const Condition: TQueryBuilderCondition): TQueryBuilderWhere<T>;
@@ -155,6 +158,21 @@ begin
   Result.Condition := Name;
 end;
 
+function MakeTableAlias(TableIndex: Integer): String;
+begin
+  Result := Format('T%d', [TableIndex]);
+end;
+
+function TableDeclaration(Table: TTable; TableIndex: Integer): String;
+begin
+  Result := Format('%s %s', [Table.DatabaseName, MakeTableAlias(TableIndex)]);
+end;
+
+function FieldDeclaration(Field: TField; TableIndex: Integer): String;
+begin
+  Result := Format('T%d.%s', [TableIndex, Field.DatabaseName]);
+end;
+
 { TQueryBuilder }
 
 constructor TQueryBuilder.Create(Connection: IDatabaseConnection);
@@ -168,7 +186,7 @@ procedure TQueryBuilder.Delete<T>(const AObject: T);
 begin
   var Condition: TQueryBuilderCondition;
   var Table := TMapper.Default.FindTable(AObject.ClassType);
-  var Where := TQueryBuilderWhere<T>.Create(nil, nil);
+  var Where := TQueryBuilderWhere<T>.Create(nil);
 
   for var TableField in Table.PrimaryKey do
   begin
@@ -251,7 +269,7 @@ begin
   var Condition: TQueryBuilderCondition;
   var SQL := EmptyStr;
   var Table := TMapper.Default.FindTable(AObject.ClassType);
-  var Where := TQueryBuilderWhere<T>.Create(nil, nil);
+  var Where := TQueryBuilderWhere<T>.Create(nil);
 
   for var TableField in Table.Fields do
     if TableField.InPrimaryKey then
@@ -280,35 +298,58 @@ end;
 
 { TQueryBuilderFrom }
 
-constructor TQueryBuilderFrom.Create(Connection: IDatabaseConnection; Builder: TQueryBuilder);
+function TQueryBuilderFrom.BuildJoin: String;
+begin
+  var TableIndex := 1;
+
+  Result := TableDeclaration(FTable, TableIndex) + MakeJoin(FTable, TableIndex);
+end;
+
+constructor TQueryBuilderFrom.Create(Builder: TQueryBuilder);
 begin
   inherited Create;
 
   FBuilder := Builder;
-  FConnection := Connection;
 end;
 
 function TQueryBuilderFrom.From<T>: TQueryBuilderWhere<T>;
 begin
   FTable := TMapper.Default.FindTable(T);
-  Result := TQueryBuilderWhere<T>.Create(FConnection, FBuilder);
+  Result := TQueryBuilderWhere<T>.Create(FBuilder);
 
   FWhere := Result;
 end;
 
 function TQueryBuilderFrom.GetSQL: String;
 begin
-  Result := Format(' from %s', [FTable.DatabaseName]);
+  Result := Format(' from %s', [BuildJoin]);
 
   if Assigned(FWhere) then
     Result := Result + FWhere.GetSQL;
+end;
+
+function TQueryBuilderFrom.MakeJoin(ParentTable: TTable; var TableIndex: Integer): String;
+begin
+  var ParentIndex := TableIndex;
+
+  for var ForeignKey in ParentTable.ForeignKeys do
+  begin
+    Inc(TableIndex);
+
+    var ChildTableIndex := TableIndex;
+
+    Result := Result + Format(' join %s on %s', [TableDeclaration(ForeignKey.ParentTable, ChildTableIndex),
+      (Field(FieldDeclaration(ForeignKey.Field, ParentIndex)) = Field(FieldDeclaration(ForeignKey.ParentTable.PrimaryKey[0], ChildTableIndex))).Condition]);
+
+    Result := Result + MakeJoin(ForeignKey.ParentTable, ChildTableIndex);
+  end;
 end;
 
 { TQueryBuilderSelect }
 
 function TQueryBuilderSelect.All: TQueryBuilderFrom;
 begin
-  FFrom := TQueryBuilderFrom.Create(FConnection, FBuilder);
+  FFrom := TQueryBuilderFrom.Create(FBuilder);
   Result := FFrom;
 
   FBuilder.FFieldList := TQueryBuilderAllFields.Create(FFrom);
@@ -338,7 +379,7 @@ begin
     if not Result.IsEmpty then
       Result := Result + ',';
 
-    Result := Result + Format('%s %s', [Field.Field.DatabaseName, Field.Alias]);
+    Result := Result + Format('%s.%s %s', ['T1', Field.Field.DatabaseName, Field.Alias]);
   end;
 end;
 
@@ -352,12 +393,11 @@ end;
 
 { TQueryBuilderWhere<T> }
 
-constructor TQueryBuilderWhere<T>.Create(Connection: IDatabaseConnection; Builder: TQueryBuilder);
+constructor TQueryBuilderWhere<T>.Create(Builder: TQueryBuilder);
 begin
   inherited Create;
 
   FBuilder := Builder;
-  FConnection := Connection;
 end;
 
 function TQueryBuilderWhere<T>.GetSQL: String;
@@ -370,7 +410,7 @@ end;
 
 function TQueryBuilderWhere<T>.Open: IQueryBuilderOpen<T>;
 begin
-  Result := TQueryBuilderOpen<T>.Create(FConnection.OpenCursor(FBuilder.Build), FBuilder);
+  Result := TQueryBuilderOpen<T>.Create(FBuilder.Connection.OpenCursor(FBuilder.Build), FBuilder);
 end;
 
 function TQueryBuilderWhere<T>.Where(const Condition: TQueryBuilderCondition): TQueryBuilderWhere<T>;
@@ -540,6 +580,11 @@ begin
     Result.Condition := Condition.Condition + ' is null'
   else
     Result := Condition = TValue.FromVariant(Value);
+end;
+
+class operator TQueryBuilderCondition.Equal(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboEqual, Value.Condition);
 end;
 
 end.

@@ -31,7 +31,7 @@ type
     [Test]
     procedure IfNotExistsAFilterInWhereMustReturnTheQueryWithoutWhereCommand;
     [Test]
-    procedure WhenCallInsertProcedureMustBuildTheSQLWithAllFieldsAndValuesFromTheClassParamter;
+    procedure WhenCallInsertProcedureMustBuildTheSQLWithAllFieldsAndValuesFromTheClassParameter;
     [Test]
     procedure OnlyPublishedPropertiesMustAppearInInsertSQL;
     [Test]
@@ -46,6 +46,18 @@ type
     procedure WhenTheClassDontHaveThePrimaryKeyAttributeCantRaiseAException;
     [Test]
     procedure WhenCallTheDeleteProcedureMustBuildTheSQLWithTheValuesOfKeysOfClass;
+    [Test]
+    procedure WhenTheClassDontHaveAnyPrimaryKeyTheDeleteMustBuildTheSQLWithoutWhereCondition;
+    [Test]
+    procedure TheClassBeingSelectedMustHaveTheAliasDefined;
+    [Test]
+    procedure TheFieldsHaveToBeGeneratedWithTheAliasOfTheRespectiveTables;
+    [Test]
+    procedure WhenClassHasOtherClassesLinkedToItYouHaveToGenerateTheJoinBetweenThem;
+    [Test]
+    procedure AllTheDirectForeignKeyMustBeGeneratedInTheResultingSQL;
+    [Test]
+    procedure TheForeignKeyMustBeLoadedRecursive;
   end;
 
   [TestFixture]
@@ -117,7 +129,7 @@ type
 
   [Entity]
   [PrimaryKey('Id,Id2')]
-  TClassWithPrimaryKey = class
+  TClassWithPrimaryKeyAttribute = class
   private
     FId: Integer;
     FId2: Integer;
@@ -126,6 +138,48 @@ type
     property Id: Integer read FId write FId;
     property Id2: Integer read FId2 write FId2;
     property Value: Integer read FValue write FValue;
+  end;
+
+  [Entity]
+  TClassWithPrimaryKey = class
+  private
+    FId: Integer;
+    FValue: Integer;
+  published
+    property Id: Integer read FId write FId;
+    property Value: Integer read FValue write FValue;
+  end;
+
+  [Entity]
+  TClassWithForeignKey = class
+  private
+    FAnotherClass: TClassWithPrimaryKey;
+    FId: Integer;
+  published
+    property AnotherClass: TClassWithPrimaryKey read FAnotherClass write FAnotherClass;
+    property Id: Integer read FId write FId;
+  end;
+
+  [Entity]
+  TClassWithTwoForeignKey = class
+  private
+    FAnotherClass: TClassWithPrimaryKey;
+    FAnotherClass2: TClassWithPrimaryKey;
+    FId: Integer;
+  published
+    property AnotherClass: TClassWithPrimaryKey read FAnotherClass write FAnotherClass;
+    property AnotherClass2: TClassWithPrimaryKey read FAnotherClass2 write FAnotherClass2;
+    property Id: Integer read FId write FId;
+  end;
+
+  [Entity]
+  TClassWithForeignKeyRecursive = class
+  private
+    FAnotherClass: TClassWithForeignKey;
+    FId: Integer;
+  published
+    property AnotherClass: TClassWithForeignKey read FAnotherClass write FAnotherClass;
+    property Id: Integer read FId write FId;
   end;
 
   TDatabase = class(TInterfacedObject, IDatabaseConnection)
@@ -147,6 +201,15 @@ implementation
 uses System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Mapper;
 
 { TDelphiORMQueryBuilderTest }
+
+procedure TDelphiORMQueryBuilderTest.AllTheDirectForeignKeyMustBeGeneratedInTheResultingSQL;
+begin
+  var Query := TQueryBuilderFrom.Create(nil);
+
+  Query.From<TClassWithTwoForeignKey>;
+
+  Assert.AreEqual(' from ClassWithTwoForeignKey T1 join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id join ClassWithPrimaryKey T3 on T1.IdAnotherClass2=T3.Id', (Query as IQueryBuilderCommand).GetSQL);
+end;
 
 procedure TDelphiORMQueryBuilderTest.IfNoCommandCalledTheSQLMustReturnEmpty;
 begin
@@ -177,7 +240,7 @@ begin
 
   Query.Select.All.From<TMyTestClass>.Open;
 
-  Assert.AreEqual('select Field F1,Name F2,Value F3 from MyTestClass', Database.SQL);
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Database.SQL);
 
   Query.Free;
 end;
@@ -239,13 +302,42 @@ begin
   TMapper.Default.LoadAll;
 end;
 
+procedure TDelphiORMQueryBuilderTest.TheClassBeingSelectedMustHaveTheAliasDefined;
+begin
+  var Query := TQueryBuilderFrom.Create(nil);
+
+  Query.From<TMyTestClass>;
+
+  Assert.AreEqual(' from MyTestClass T1', (Query as IQueryBuilderCommand).GetSQL);
+end;
+
+procedure TDelphiORMQueryBuilderTest.TheFieldsHaveToBeGeneratedWithTheAliasOfTheRespectiveTables;
+begin
+  var Query := TQueryBuilder.Create(nil);
+
+  Query.Select.All.From<TMyTestClass>;
+
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Query.Build);
+
+  Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.TheForeignKeyMustBeLoadedRecursive;
+begin
+  var Query := TQueryBuilderFrom.Create(nil);
+
+  Query.From<TClassWithForeignKeyRecursive>;
+
+  Assert.AreEqual(' from ClassWithForeignKeyRecursive T1 join ClassWithForeignKey T2 on T1.IdAnotherClass=T2.Id join ClassWithPrimaryKey T3 on T2.IdAnotherClass=T3.Id', (Query as IQueryBuilderCommand).GetSQL);
+end;
+
 procedure TDelphiORMQueryBuilderTest.TheKeyFieldCantBeUpdatedInTheUpdateProcedure;
 begin
   var Database := TDatabase.Create(nil);
   var Query := TQueryBuilder.Create(Database);
-  var SQL := 'update ClassWithPrimaryKey set Value=222';
+  var SQL := 'update ClassWithPrimaryKeyAttribute set Value=222';
 
-  var MyClass := TClassWithPrimaryKey.Create;
+  var MyClass := TClassWithPrimaryKeyAttribute.Create;
   MyClass.Id := 123;
   MyClass.Id2 := 456;
   MyClass.Value := 222;
@@ -265,7 +357,7 @@ begin
 
   Query.Select.All.From<TMyTestClass>;
 
-  Assert.AreEqual('select Field F1,Name F2,Value F3 from MyTestClass', Query.Build);
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Query.Build);
 
   Query.Free;
 end;
@@ -277,12 +369,12 @@ begin
 
   Query.Select.All.From<TMyTestClass>.Where(Field('MyField') = 1234).Open;
 
-  Assert.AreEqual('select Field F1,Name F2,Value F3 from MyTestClass where MyField=1234', Database.SQL);
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1 where MyField=1234', Database.SQL);
 
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenCallInsertProcedureMustBuildTheSQLWithAllFieldsAndValuesFromTheClassParamter;
+procedure TDelphiORMQueryBuilderTest.WhenCallInsertProcedureMustBuildTheSQLWithAllFieldsAndValuesFromTheClassParameter;
 begin
   var Database := TDatabase.Create(nil);
   var Query := TQueryBuilder.Create(Database);
@@ -308,7 +400,7 @@ begin
 
   Query.Select.All.From<TMyTestClass>.Open;
 
-  Assert.AreEqual('select Field F1,Name F2,Value F3 from MyTestClass', Database.SQL);
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Database.SQL);
 
   Query.Free;
 end;
@@ -329,13 +421,13 @@ begin
   var Database := TDatabase.Create(nil);
   var Query := TQueryBuilder.Create(Database);
 
-  var MyClass := TClassWithPrimaryKey.Create;
+  var MyClass := TClassWithPrimaryKeyAttribute.Create;
   MyClass.Id := 123;
   MyClass.Id2 := 456;
 
   Query.Delete(MyClass);
 
-  Assert.AreEqual('delete from ClassWithPrimaryKey where Id=123 and Id2=456', Database.SQL);
+  Assert.AreEqual('delete from ClassWithPrimaryKeyAttribute where Id=123 and Id2=456', Database.SQL);
 
   MyClass.Free;
 
@@ -359,6 +451,15 @@ begin
   MyClass.Free;
 
   Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenClassHasOtherClassesLinkedToItYouHaveToGenerateTheJoinBetweenThem;
+begin
+  var Query := TQueryBuilderFrom.Create(nil);
+
+  Query.From<TClassWithForeignKey>;
+
+  Assert.AreEqual(' from ClassWithForeignKey T1 join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', (Query as IQueryBuilderCommand).GetSQL);
 end;
 
 procedure TDelphiORMQueryBuilderTest.WhenOpenOneMustFillTheClassWithTheValuesOfCursor;
@@ -394,7 +495,23 @@ begin
 
   Query.Select.All.From<TMyTestClass>;
 
-  Assert.AreEqual('select Field F1,Name F2,Value F3 from MyTestClass', Query.Build);
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Query.Build);
+
+  Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenTheClassDontHaveAnyPrimaryKeyTheDeleteMustBuildTheSQLWithoutWhereCondition;
+begin
+  var Database := TDatabase.Create(nil);
+  var Query := TQueryBuilder.Create(Database);
+
+  var MyClass := TMyTestClass.Create;
+
+  Query.Delete(MyClass);
+
+  Assert.AreEqual('delete from MyTestClass', Database.SQL);
+
+  MyClass.Free;
 
   Query.Free;
 end;
@@ -421,14 +538,14 @@ begin
   var Database := TDatabase.Create(nil);
   var Query := TQueryBuilder.Create(Database);
 
-  var MyClass := TClassWithPrimaryKey.Create;
+  var MyClass := TClassWithPrimaryKeyAttribute.Create;
   MyClass.Id := 123;
   MyClass.Id2 := 456;
   MyClass.Value := 222;
 
   Query.Update(MyClass);
 
-  Assert.AreEqual('update ClassWithPrimaryKey set Value=222 where Id=123 and Id2=456', Database.SQL);
+  Assert.AreEqual('update ClassWithPrimaryKeyAttribute set Value=222 where Id=123 and Id2=456', Database.SQL);
 
   MyClass.Free;
 

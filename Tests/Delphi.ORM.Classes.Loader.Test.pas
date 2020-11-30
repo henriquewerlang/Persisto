@@ -48,7 +48,7 @@ type
 
 implementation
 
-uses System.Generics.Collections, Delphi.Mock;
+uses System.Generics.Collections, System.SysUtils, Delphi.Mock;
 
 { TClassLoaderTest }
 

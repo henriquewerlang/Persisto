@@ -42,6 +42,20 @@ type
     procedure OnlyPublishedFieldMutsBeLoadedInTheTable;
     [Test]
     procedure WhenTheFieldHaveTheFieldNameAttributeMustLoadThisNameInTheDatabaseName;
+    [Test]
+    procedure EveryPropertyThatIsAnObjectMustCreateAForeignKeyInTheListOfTheTable;
+    [Test]
+    procedure WhenTheForeignKeyIsCreatesMustLoadTheParentTable;
+    [Test]
+    procedure TheParentTableMustBeTheTableLinkedToTheField;
+    [Test]
+    procedure WhenTheFieldIsAClassMustFillTheDatabaseNameWithIdPlusPropertyName;
+    [Test]
+    procedure TheFieldOfAForeignKeyMustBeFilledWithTheFieldOfTheClassThatIsAForeignKey;
+    [Test]
+    procedure TheLoadingOfForeingKeyMustBeAfterAllTablesAreLoadedToTheFindTableWorksPropertily;
+    [Test]
+    procedure WhenMapAForeignKeyIsToAClassWithoutAPrimaryKeyMustRaiseAnError;
   end;
 
   [Entity]
@@ -104,6 +118,19 @@ type
     property Value: Double read FValue write FValue;
   end;
 
+  [Entity]
+  TMyEntityWithFieldNameAttribute = class
+  private
+    FName: String;
+    FMyForeignKey: TMyEntityWithPrimaryKey;
+    FMyForeignKey2: TMyEntity2;
+  published
+    [FieldName('AnotherFieldName')]
+    property Name: String read FName write FName;
+    property MyForeignKey: TMyEntityWithPrimaryKey read FMyForeignKey write FMyForeignKey;
+    property MyForeignKey2: TMyEntity2 read FMyForeignKey2 write FMyForeignKey2;
+  end;
+
   TMyEntityWithoutEntityAttribute = class
   private
     FId: Integer;
@@ -116,12 +143,42 @@ type
   end;
 
   [Entity]
-  TMyEntityWithFieldNameAttribute = class
+  TAAAA = class
   private
-    FName: String;
+    FId: Integer;
+    FValue: String;
   published
-    [FieldName('AnotherFieldName')]
-    property Name: String read FName write FName;
+    property Id: Integer read FId write FId;
+    property Value: String read FValue write FValue;
+  end;
+
+  [Entity]
+  TZZZZ = class
+  private
+    FId: Integer;
+    FAAAA: TAAAA;
+  published
+    property AAAA: TAAAA read FAAAA write FAAAA;
+    property Id: Integer read FId write FId;
+  end;
+
+  [Entity]
+  TMyEntityWithoutPrimaryKey = class
+  private
+    FValue: String;
+  published
+    property Value: String read FValue write FValue;
+  end;
+
+  TMyEntityForeignKeyToClassWithoutPrimaryKey = class
+  private
+    FValue: String;
+    FId: Integer;
+    FForerignKey: TMyEntityWithoutPrimaryKey;
+  published
+    property Id: Integer read FId write FId;
+    property ForerignKey: TMyEntityWithoutPrimaryKey read FForerignKey write FForerignKey;
+    property Value: String read FValue write FValue;
   end;
 
 implementation
@@ -129,6 +186,19 @@ implementation
 uses Delphi.ORM.Mapper;
 
 { TMapperTeste }
+
+procedure TMapperTeste.EveryPropertyThatIsAnObjectMustCreateAForeignKeyInTheListOfTheTable;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithFieldNameAttribute);
+
+  Assert.AreEqual<Integer>(2, Length(Table.ForeignKeys));
+
+  Mapper.Free;
+end;
 
 procedure TMapperTeste.OnlyPublishedFieldMutsBeLoadedInTheTable;
 begin
@@ -170,6 +240,46 @@ begin
   var Table := Mapper.LoadClass(TMyEntity);
 
   Assert.IsTrue(Table.PrimaryKey[0].InPrimaryKey);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.TheFieldOfAForeignKeyMustBeFilledWithTheFieldOfTheClassThatIsAForeignKey;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithFieldNameAttribute);
+
+  Assert.AreEqual(Table.Fields[1], Table.ForeignKeys[0].Field);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.TheLoadingOfForeingKeyMustBeAfterAllTablesAreLoadedToTheFindTableWorksPropertily;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TZZZZ);
+
+  Assert.IsNotNull(Table.ForeignKeys[0].ParentTable);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.TheParentTableMustBeTheTableLinkedToTheField;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var ParentTable := Mapper.FindTable(TMyEntityWithPrimaryKey);
+  var Table := Mapper.FindTable(TMyEntityWithFieldNameAttribute);
+
+  Assert.AreEqual(ParentTable, Table.ForeignKeys[0].ParentTable);
 
   Mapper.Free;
 end;
@@ -237,6 +347,21 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTeste.WhenMapAForeignKeyIsToAClassWithoutAPrimaryKeyMustRaiseAnError;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Mapper.LoadClass(TMyEntityForeignKeyToClassWithoutPrimaryKey);
+    end, EClassWithoutPrimaryKeyDefined);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTeste.WhenTheClassHaveThePrimaryKeyAttributeThePrimaryKeyWillBeTheFieldFilled;
 begin
   var Mapper := TMapper.Create;
@@ -270,12 +395,38 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTeste.WhenTheFieldIsAClassMustFillTheDatabaseNameWithIdPlusPropertyName;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithFieldNameAttribute);
+
+  Assert.AreEqual('IdMyForeignKey', Table.Fields[1].DatabaseName);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTeste.WhenTheFieldsAreLoadedMustFillTheNameWithTheNameOfPropertyOfTheClass;
 begin
   var Mapper := TMapper.Create;
   var Table := Mapper.LoadClass(TMyEntity3);
 
   Assert.AreEqual('Id', Table.Fields[0].DatabaseName);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.WhenTheForeignKeyIsCreatesMustLoadTheParentTable;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithFieldNameAttribute);
+
+  Assert.IsNotNull(Table.ForeignKeys[0].ParentTable);
 
   Mapper.Free;
 end;

@@ -2,9 +2,10 @@ unit Delphi.ORM.Mapper;
 
 interface
 
-uses System.Rtti, System.Generics.Collections, System.Generics.Defaults;
+uses System.Rtti, System.Generics.Collections, System.Generics.Defaults, System.SysUtils;
 
 type
+  EClassWithoutPrimaryKeyDefined = class(Exception);
   TField = class;
   TForeignKey = class;
 
@@ -40,22 +41,24 @@ type
 
   TFieldAlias = record
   private
-    FField: TField;
     FAlias: String;
+    FField: TField;
   public
     constructor Create(Field: TField; Alias: String);
 
-    property Alias: String read FAlias write FAlias;
-    property Field: TField read FField write FField;
+    property Alias: String read FAlias;
+    property Field: TField read FField;
   end;
 
   TForeignKey = class
   private
     FParentTable: TTable;
-    FFields: TArray<TField>;
+    FField: TField;
   public
-    property Fields: TArray<TField> read FFields write FFields;
-    property ParentTable: TTable read FParentTable write FParentTable;
+    constructor Create(ParentTable: TTable; Field: TField);
+
+    property Field: TField read FField;
+    property ParentTable: TTable read FParentTable;
   end;
 
   TMapper = class
@@ -76,6 +79,8 @@ type
     function GetTableName(TypeInfo: TRttiInstanceType): String;
     function LoadTable(TypeInfo: TRttiInstanceType): TTable;
 
+    procedure FinishLoad;
+    procedure LoadForeignKeys;
     procedure SortTables;
   public
     constructor Create;
@@ -94,7 +99,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.TypInfo, Delphi.ORM.Attributes, Delphi.ORM.Rtti.Helper;
+uses System.TypInfo, Delphi.ORM.Attributes, Delphi.ORM.Rtti.Helper;
 
 { TMapper }
 
@@ -147,10 +152,22 @@ begin
   Find.Free;
 end;
 
+procedure TMapper.FinishLoad;
+begin
+  SortTables;
+
+  LoadForeignKeys;
+end;
+
 function TMapper.GetFieldName(TypeInfo: TRttiInstanceProperty): String;
 begin
   if not GetNameAttribute(TypeInfo, Result) then
+  begin
     Result := TypeInfo.Name;
+
+    if TypeInfo.PropertyType.IsInstance then
+      Result := 'Id' + Result;
+  end;
 end;
 
 function TMapper.GetNameAttribute(TypeInfo: TRttiNamedObject; var Name: String): Boolean;
@@ -189,14 +206,29 @@ begin
     if CheckAttribute<EntityAttribute>(TypeInfo) then
       LoadTable(TypeInfo as TRttiInstanceType);
 
-  SortTables;
+  FinishLoad;
 end;
 
 function TMapper.LoadClass(ClassInfo: TClass): TTable;
 begin
   Result := LoadTable(FContext.GetType(ClassInfo) as TRttiInstanceType);
 
-  SortTables;
+  FinishLoad;
+end;
+
+procedure TMapper.LoadForeignKeys;
+begin
+  for var Table in FTables do
+    for var Field in Table.Fields do
+      if Field.TypeInfo.PropertyType.IsInstance then
+      begin
+        var ForeignTable := FindTable((Field.TypeInfo.PropertyType as TRttiInstanceType).MetaclassType);
+
+        if Length(ForeignTable.PrimaryKey) = 0 then
+          raise EClassWithoutPrimaryKeyDefined.CreateFmt('You must define a primary key for class %s!', [ForeignTable.TypeInfo.Name]);
+
+        Table.FForeignKeys := Table.FForeignKeys + [TForeignKey.Create(ForeignTable, Field)];
+      end;
 end;
 
 function TMapper.LoadTable(TypeInfo: TRttiInstanceType): TTable;
@@ -205,7 +237,7 @@ begin
   Result := TTable.Create(TypeInfo);
   Result.DatabaseName := GetTableName(TypeInfo);
 
-  for var Prop in TypeInfo.GetProperties do
+  for var Prop in TypeInfo.GetDeclaredProperties do
     if Prop.Visibility = mvPublished then
     begin
       var Field := TField.Create;
@@ -244,6 +276,9 @@ begin
   for var Field in Fields do
     Field.Free;
 
+  for var ForeignKey in ForeignKeys do
+    ForeignKey.Free;
+
   inherited;
 end;
 
@@ -252,6 +287,16 @@ end;
 constructor TFieldAlias.Create(Field: TField; Alias: String);
 begin
   FAlias := Alias;
+  FField := Field;
+end;
+
+{ TForeignKey }
+
+constructor TForeignKey.Create(ParentTable: TTable; Field: TField);
+begin
+  inherited Create;
+
+  FParentTable := ParentTable;
   FField := Field;
 end;
 
