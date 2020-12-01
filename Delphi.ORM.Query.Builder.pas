@@ -338,7 +338,7 @@ begin
 
     var ChildTableIndex := TableIndex;
 
-    Result := Result + Format(' join %s on %s', [TableDeclaration(ForeignKey.ParentTable, ChildTableIndex),
+    Result := Result + Format(' left join %s on %s', [TableDeclaration(ForeignKey.ParentTable, ChildTableIndex),
       (Field(FieldDeclaration(ForeignKey.Field, ParentIndex)) = Field(FieldDeclaration(ForeignKey.ParentTable.PrimaryKey[0], ChildTableIndex))).Condition]);
 
     Result := Result + MakeJoin(ForeignKey.ParentTable, ChildTableIndex);

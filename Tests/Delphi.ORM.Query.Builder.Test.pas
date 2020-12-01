@@ -208,7 +208,7 @@ begin
 
   Query.From<TClassWithTwoForeignKey>;
 
-  Assert.AreEqual(' from ClassWithTwoForeignKey T1 join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id join ClassWithPrimaryKey T3 on T1.IdAnotherClass2=T3.Id', (Query as IQueryBuilderCommand).GetSQL);
+  Assert.AreEqual(' from ClassWithTwoForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id left join ClassWithPrimaryKey T3 on T1.IdAnotherClass2=T3.Id', (Query as IQueryBuilderCommand).GetSQL);
 end;
 
 procedure TDelphiORMQueryBuilderTest.IfNoCommandCalledTheSQLMustReturnEmpty;
@@ -328,7 +328,7 @@ begin
 
   Query.From<TClassWithForeignKeyRecursive>;
 
-  Assert.AreEqual(' from ClassWithForeignKeyRecursive T1 join ClassWithForeignKey T2 on T1.IdAnotherClass=T2.Id join ClassWithPrimaryKey T3 on T2.IdAnotherClass=T3.Id', (Query as IQueryBuilderCommand).GetSQL);
+  Assert.AreEqual(' from ClassWithForeignKeyRecursive T1 left join ClassWithForeignKey T2 on T1.IdAnotherClass=T2.Id left join ClassWithPrimaryKey T3 on T2.IdAnotherClass=T3.Id', (Query as IQueryBuilderCommand).GetSQL);
 end;
 
 procedure TDelphiORMQueryBuilderTest.TheKeyFieldCantBeUpdatedInTheUpdateProcedure;
@@ -459,7 +459,7 @@ begin
 
   Query.From<TClassWithForeignKey>;
 
-  Assert.AreEqual(' from ClassWithForeignKey T1 join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', (Query as IQueryBuilderCommand).GetSQL);
+  Assert.AreEqual(' from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', (Query as IQueryBuilderCommand).GetSQL);
 end;
 
 procedure TDelphiORMQueryBuilderTest.WhenOpenOneMustFillTheClassWithTheValuesOfCursor;
