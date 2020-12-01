@@ -78,6 +78,10 @@ type
     procedure WhenTheClassIsInheritedMustLoadThePrimaryKeyFromBaseClass;
     [Test]
     procedure WhenTheClassIsInheritedMustShareTheSamePrimaryKeyFromTheBaseClass;
+    [Test]
+    procedure WhenCantFindTheClassHaveToLoadTheClass;
+    [Test]
+    procedure WhenTheForeignKeyIsAClassAliasMustLoadTheForeignClassAndLinkToForeignKey;
   end;
 
   [Entity]
@@ -228,6 +232,24 @@ type
     FSimpleProperty: Integer;
   published
     property SimpleProperty: Integer read FSimpleProperty write FSimpleProperty;
+  end;
+
+  TMyEntityAlias = class;
+
+  TMyEntityWithForeignKeyAlias = class
+  private
+    FId: Integer;
+    FForeignKey: TMyEntity;
+  published
+    property ForeignKey: TMyEntity read FForeignKey write FForeignKey;
+    property Id: Integer read FId write FId;
+  end;
+
+  TMyEntityAlias = class
+  private
+    FId: Integer;
+  published
+    property Id: Integer read FId write FId;
   end;
 
 implementation
@@ -408,6 +430,23 @@ begin
   Mapper.LoadAll;
 
   Assert.IsTrue(Length(Mapper.Tables) > 0, 'No entities loaded!');
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.WhenCantFindTheClassHaveToLoadTheClass;
+begin
+  var Mapper := TMapper.Create;
+
+  var Table := Mapper.FindTable(TMyEntity);
+
+  Assert.IsNull(Table);
+
+  Mapper.FindOrLoadTable(TMyEntity);
+
+  Table := Mapper.FindTable(TMyEntity);
+
+  Assert.IsNotNull(Table);
 
   Mapper.Free;
 end;
@@ -596,6 +635,17 @@ begin
   var Table := Mapper.LoadClass(TMyEntity3);
 
   Assert.AreEqual('Id', Table.Fields[0].DatabaseName);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.WhenTheForeignKeyIsAClassAliasMustLoadTheForeignClassAndLinkToForeignKey;
+begin
+  var Mapper := TMapper.Create;
+
+  var Table := Mapper.LoadClass(TMyEntityWithForeignKeyAlias);
+
+  Assert.AreEqual<Integer>(1, Length(Table.ForeignKeys));
 
   Mapper.Free;
 end;

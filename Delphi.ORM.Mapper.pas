@@ -86,6 +86,7 @@ type
 
     destructor Destroy; override;
 
+    function FindOrLoadTable(ClassInfo: TClass): TTable;
     function FindTable(ClassInfo: TClass): TTable;
     function LoadClass(ClassInfo: TClass): TTable;
 
@@ -127,6 +128,14 @@ begin
   FTables.Free;
 
   FContext.Free;
+end;
+
+function TMapper.FindOrLoadTable(ClassInfo: TClass): TTable;
+begin
+  Result := FindTable(ClassInfo);
+
+  if not Assigned(Result) then
+    Result := LoadClass(ClassInfo);
 end;
 
 function TMapper.FindTable(ClassInfo: TClass): TTable;
@@ -220,7 +229,7 @@ begin
 
       if Field.TypeInfo.PropertyType.IsInstance then
       begin
-        var ForeignTable := FindTable((Field.TypeInfo.PropertyType as TRttiInstanceType).MetaclassType);
+        var ForeignTable := FindOrLoadTable((Field.TypeInfo.PropertyType as TRttiInstanceType).MetaclassType);
 
         if Length(ForeignTable.PrimaryKey) = 0 then
           raise EClassWithoutPrimaryKeyDefined.CreateFmt('You must define a primary key for class %s!', [ForeignTable.TypeInfo.Name]);
