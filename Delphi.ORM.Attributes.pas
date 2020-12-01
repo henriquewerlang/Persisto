@@ -24,6 +24,7 @@ type
   end;
 
   FieldNameAttribute = class(TCustomNameAttribute);
+  SingleTableInheritanceAttribute = class(TCustomAttribute);
   TableNameAttribute = class(TCustomNameAttribute);
 
 implementation

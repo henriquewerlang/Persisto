@@ -78,6 +78,9 @@ type
     function GetTableName(TypeInfo: TRttiInstanceType): String;
     function GetTables: TArray<TTable>;
     function LoadTable(TypeInfo: TRttiInstanceType): TTable;
+
+    procedure LoadTableFields(TypeInfo: TRttiInstanceType; var Table: TTable);
+    procedure LoadTableInfo(TypeInfo: TRttiInstanceType; var Table: TTable);
   public
     constructor Create;
 
@@ -194,19 +197,26 @@ end;
 
 function TMapper.LoadTable(TypeInfo: TRttiInstanceType): TTable;
 begin
-  var PrimaryKey := GetPrimaryKey(TypeInfo);
-  Result := TTable.Create(TypeInfo);
-  Result.DatabaseName := GetTableName(TypeInfo);
+  if TypeInfo.GetAttribute<SingleTableInheritanceAttribute> = nil then
+  begin
+    Result := TTable.Create(TypeInfo);
+    Result.DatabaseName := GetTableName(TypeInfo);
 
-  FTables.Add(TypeInfo, Result);
+    FTables.Add(TypeInfo, Result);
 
+    LoadTableInfo(TypeInfo, Result);
+  end;
+end;
+
+procedure TMapper.LoadTableFields(TypeInfo: TRttiInstanceType; var Table: TTable);
+begin
   for var Prop in TypeInfo.GetDeclaredProperties do
     if Prop.Visibility = mvPublished then
     begin
       var Field := TField.Create;
       Field.FDatabaseName := GetFieldName(Prop as TRttiInstanceProperty);
       Field.FTypeInfo := Prop as TRttiInstanceProperty;
-      Result.FFields := Result.FFields + [Field];
+      Table.FFields := Table.FFields + [Field];
 
       if Field.TypeInfo.PropertyType.IsInstance then
       begin
@@ -215,17 +225,39 @@ begin
         if Length(ForeignTable.PrimaryKey) = 0 then
           raise EClassWithoutPrimaryKeyDefined.CreateFmt('You must define a primary key for class %s!', [ForeignTable.TypeInfo.Name]);
 
-        Result.FForeignKeys := Result.FForeignKeys + [TForeignKey.Create(ForeignTable, Field)];
+        Table.FForeignKeys := Table.FForeignKeys + [TForeignKey.Create(ForeignTable, Field)];
       end;
     end;
+end;
 
-  for var PropertyName in PrimaryKey do
-    for var Field in Result.Fields do
-      if Field.TypeInfo.Name = PropertyName then
-      begin
-        Field.FInPrimaryKey := True;
-        Result.FPrimaryKey := Result.FPrimaryKey + [Field];
-      end;
+procedure TMapper.LoadTableInfo(TypeInfo: TRttiInstanceType; var Table: TTable);
+begin
+  var BaseClass := TypeInfo.BaseType;
+  var IsSingleTable := BaseClass.GetAttribute<SingleTableInheritanceAttribute> <> nil;
+
+  if BaseClass.MetaclassType = TObject then
+    BaseClass := nil;
+
+  if IsSingleTable then
+    LoadTableFields(BaseClass, Table);
+
+  LoadTableFields(TypeInfo, Table);
+
+  if not IsSingleTable and Assigned(BaseClass) then
+  begin
+    var BaseTable := FindTable(BaseClass.MetaclassType);
+
+    Table.FForeignKeys := Table.FForeignKeys + [TForeignKey.Create(BaseTable, BaseTable.PrimaryKey[0])];
+    Table.FPrimaryKey := BaseTable.PrimaryKey;
+  end
+  else
+    for var PropertyName in GetPrimaryKey(TypeInfo) do
+      for var Field in Table.Fields do
+        if Field.TypeInfo.Name = PropertyName then
+        begin
+          Field.FInPrimaryKey := True;
+          Table.FPrimaryKey := Table.FPrimaryKey + [Field];
+        end;
 end;
 
 { TTable }

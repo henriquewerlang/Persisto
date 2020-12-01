@@ -58,6 +58,26 @@ type
     procedure WhenMapAForeignKeyIsToAClassWithoutAPrimaryKeyMustRaiseAnError;
     [Test]
     procedure WhenCallLoadAllMoreThemOneTimeCantRaiseAnError;
+    [Test]
+    procedure TheClassWithTheSingleTableInheritanceAttributeCantBeMappedInTheTableList;
+    [Test]
+    procedure WhenAClassIsInheritedFromAClassWithTheSingleTableInheritanceAttributeMustLoadAllFieldsInTheTable;
+    [Test]
+    procedure WhenAClassIsInheritedFromAClassWithTheSingleTableInheritanceAttributeCantGenerateAnyForeignKey;
+    [Test]
+    procedure WhenTheClassIsInheritedFromANormalClassCantLoadFieldsFormTheBaseClass;
+    [Test]
+    procedure WhenTheClassIsInheritedFromANormalClassMustCreateAForeignKeyForTheBaseClass;
+    [Test]
+    procedure WhenTheClassIsInheritedFromTObjectCantCreateAForeignKeyForThatClass;
+    [Test]
+    procedure WhenAClassIsInheritedFromAClassWithTheSingleTableInheritanceAttributeThePrimaryKeyMustBeLoadedFromTheTopClass;
+    [Test]
+    procedure WhenTheClassIsInheritedFromANormalClassMustCreateAForeignKeyForTheBaseClassWithThePrimaryKeyFields;
+    [Test]
+    procedure WhenTheClassIsInheritedMustLoadThePrimaryKeyFromBaseClass;
+    [Test]
+    procedure WhenTheClassIsInheritedMustShareTheSamePrimaryKeyFromTheBaseClass;
   end;
 
   [Entity]
@@ -183,6 +203,33 @@ type
     property Value: String read FValue write FValue;
   end;
 
+  [Entity]
+  [SingleTableInheritance]
+  TMyEntityWithSingleTableInheritanceAttribute = class
+  private
+    FId: Integer;
+    FBaseProperty: String;
+  published
+    property BaseProperty: String read FBaseProperty write FBaseProperty;
+    property Id: Integer read FId write FId;
+  end;
+
+  [Entity]
+  TMyEntityInheritedFromSingle = class(TMyEntityWithSingleTableInheritanceAttribute)
+  private
+    FAnotherProperty: String;
+  published
+    property AnotherProperty: String read FAnotherProperty write FAnotherProperty;
+  end;
+
+  [Entity]
+  TMyEntityInheritedFromSimpleClass = class(TMyEntityInheritedFromSingle)
+  private
+    FSimpleProperty: Integer;
+  published
+    property SimpleProperty: Integer read FSimpleProperty write FSimpleProperty;
+  end;
+
 implementation
 
 uses Delphi.ORM.Mapper;
@@ -222,6 +269,17 @@ begin
   Mapper.LoadAll;
 
   FContext.GetType(TMyEntity);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.TheClassWithTheSingleTableInheritanceAttributeCantBeMappedInTheTableList;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  Assert.IsNull(Mapper.FindTable(TMyEntityWithSingleTableInheritanceAttribute));
 
   Mapper.Free;
 end;
@@ -293,6 +351,41 @@ begin
 
   Assert.AreEqual<Integer>(1, Length(Table.PrimaryKey));
   Assert.AreEqual('Id', Table.PrimaryKey[0].DatabaseName);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.WhenAClassIsInheritedFromAClassWithTheSingleTableInheritanceAttributeCantGenerateAnyForeignKey;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  Assert.AreEqual<Integer>(0, Length(Mapper.FindTable(TMyEntityInheritedFromSingle).ForeignKeys));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.WhenAClassIsInheritedFromAClassWithTheSingleTableInheritanceAttributeMustLoadAllFieldsInTheTable;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  Assert.AreEqual<Integer>(3, Length(Mapper.FindTable(TMyEntityInheritedFromSingle).Fields));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.WhenAClassIsInheritedFromAClassWithTheSingleTableInheritanceAttributeThePrimaryKeyMustBeLoadedFromTheTopClass;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityInheritedFromSingle);
+
+  Assert.AreEqual<Integer>(1, Length(Table.PrimaryKey));
 
   Mapper.Free;
 end;
@@ -391,6 +484,82 @@ begin
   var Table := Mapper.LoadClass(TMyEntity2);
 
   Assert.AreEqual('AnotherTableName', Table.DatabaseName);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.WhenTheClassIsInheritedFromANormalClassCantLoadFieldsFormTheBaseClass;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  Assert.AreEqual<Integer>(1, Length(Mapper.FindTable(TMyEntityInheritedFromSimpleClass).Fields));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.WhenTheClassIsInheritedFromANormalClassMustCreateAForeignKeyForTheBaseClass;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  Assert.AreEqual<Integer>(1, Length(Mapper.FindTable(TMyEntityInheritedFromSimpleClass).ForeignKeys));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.WhenTheClassIsInheritedFromANormalClassMustCreateAForeignKeyForTheBaseClassWithThePrimaryKeyFields;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityInheritedFromSimpleClass);
+
+  var ForeignKey := Table.ForeignKeys[0];
+  var PrimaryKey := Table.PrimaryKey;
+
+  Assert.AreEqual(PrimaryKey[0], ForeignKey.Field);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.WhenTheClassIsInheritedFromTObjectCantCreateAForeignKeyForThatClass;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  Assert.AreEqual<Integer>(0, Length(Mapper.FindTable(TMyEntity).ForeignKeys));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.WhenTheClassIsInheritedMustLoadThePrimaryKeyFromBaseClass;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityInheritedFromSimpleClass);
+
+  Assert.AreEqual<Integer>(1, Length(Table.PrimaryKey));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.WhenTheClassIsInheritedMustShareTheSamePrimaryKeyFromTheBaseClass;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var BaseTable := Mapper.FindTable(TMyEntityInheritedFromSingle);
+  var Table := Mapper.FindTable(TMyEntityInheritedFromSimpleClass);
+
+  Assert.AreSame(BaseTable.PrimaryKey[0], Table.PrimaryKey[0]);
 
   Mapper.Free;
 end;
