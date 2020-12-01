@@ -233,9 +233,6 @@ begin
       begin
         var ForeignTable := FindOrLoadTable((Field.TypeInfo.PropertyType as TRttiInstanceType).MetaclassType);
 
-        if Length(ForeignTable.PrimaryKey) = 0 then
-          raise EClassWithoutPrimaryKeyDefined.CreateFmt('You must define a primary key for class %s!', [ForeignTable.TypeInfo.Name]);
-
         Table.FForeignKeys := Table.FForeignKeys + [TForeignKey.Create(ForeignTable, Field)];
       end;
     end;
@@ -269,6 +266,10 @@ begin
           Field.FInPrimaryKey := True;
           Table.FPrimaryKey := Table.FPrimaryKey + [Field];
         end;
+
+  for var ForeignKey in Table.ForeignKeys do
+    if Length(ForeignKey.ParentTable.PrimaryKey) = 0 then
+      raise EClassWithoutPrimaryKeyDefined.CreateFmt('You must define a primary key for class %s!', [ForeignKey.ParentTable.TypeInfo.Name]);
 end;
 
 { TTable }
