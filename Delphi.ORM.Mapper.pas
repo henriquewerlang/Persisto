@@ -206,7 +206,9 @@ end;
 
 function TMapper.LoadTable(TypeInfo: TRttiInstanceType): TTable;
 begin
-  if TypeInfo.GetAttribute<SingleTableInheritanceAttribute> = nil then
+  Result := FindTable(TypeInfo.MetaclassType);
+
+  if not Assigned(Result) and (TypeInfo.GetAttribute<SingleTableInheritanceAttribute> = nil) then
   begin
     Result := TTable.Create(TypeInfo);
     Result.DatabaseName := GetTableName(TypeInfo);

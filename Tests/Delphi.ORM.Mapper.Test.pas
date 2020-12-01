@@ -82,6 +82,8 @@ type
     procedure WhenCantFindTheClassHaveToLoadTheClass;
     [Test]
     procedure WhenTheForeignKeyIsAClassAliasMustLoadTheForeignClassAndLinkToForeignKey;
+    [Test]
+    procedure WhenLoadMoreThenOneTimeTheSameClassCantRaiseAnError;
   end;
 
   [Entity]
@@ -488,6 +490,21 @@ begin
   var Table := Mapper.FindTable(TMyEntity);
 
   Assert.AreEqual<Integer>(3, Length(Table.Fields));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTeste.WhenLoadMoreThenOneTimeTheSameClassCantRaiseAnError;
+begin
+  var Mapper := TMapper.Create;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Mapper.LoadClass(TMyEntity);
+
+      Mapper.LoadClass(TMyEntity);
+    end);
 
   Mapper.Free;
 end;
