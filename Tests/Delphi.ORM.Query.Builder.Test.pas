@@ -84,6 +84,13 @@ type
     [TestCase('Less Than.Float', 'qboLessThan')]
     [TestCase('Less Than Or Equal.Float', 'qboLessThanOrEqual')]
     procedure WhenCompareTheFieldWithAValueMustBuildTheConditionFloatAsExpected(Operation: TQueryBuilderOperator);
+    [TestCase('Equal.Condition', 'qboEqual')]
+    [TestCase('Not Equal.Condition', 'qboNotEqual')]
+    [TestCase('Greater Than.Condition', 'qboGreaterThan')]
+    [TestCase('Greater Than Or Equal.Condition', 'qboGreaterThanOrEqual')]
+    [TestCase('Less Than.Condition', 'qboLessThan')]
+    [TestCase('Less Than Or Equal.Condition', 'qboLessThanOrEqual')]
+    procedure WhenCompareTheFieldWithAnotherConditionMustBuildTheConditionAsExpected(Operation: TQueryBuilderOperator);
     [Test]
     procedure WhenUseTheAndOperatorMustBuildTheExpressionAsExpected;
     [Test]
@@ -593,6 +600,22 @@ begin
   var Condition := Field('MyField') <> Variant(123);
 
   Assert.AreEqual('MyField<>123', Condition.Condition);
+end;
+
+procedure TDelphiORMQueryBuilderConditionTest.WhenCompareTheFieldWithAnotherConditionMustBuildTheConditionAsExpected(Operation: TQueryBuilderOperator);
+begin
+  var Condition: TQueryBuilderCondition;
+
+  case Operation of
+    qboEqual: Condition := Field('MyField') = Field('AnotherField');
+    qboNotEqual: Condition := Field('MyField') <> Field('AnotherField');
+    qboGreaterThan: Condition := Field('MyField') > Field('AnotherField');
+    qboGreaterThanOrEqual: Condition := Field('MyField') >= Field('AnotherField');
+    qboLessThan: Condition := Field('MyField') < Field('AnotherField');
+    qboLessThanOrEqual: Condition := Field('MyField') <= Field('AnotherField');
+  end;
+
+  Assert.AreEqual(Format('MyField%sAnotherField', [OPERATOR_CHAR[Operation]]), Condition.Condition);
 end;
 
 procedure TDelphiORMQueryBuilderConditionTest.WhenCompareTheFieldWithAValueMustBuildTheConditionFloatAsExpected(Operation: TQueryBuilderOperator);

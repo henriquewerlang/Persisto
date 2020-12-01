@@ -119,16 +119,21 @@ type
     class operator Equal(const Condition: TQueryBuilderCondition; const Value: TQueryBuilderCondition): TQueryBuilderCondition;
     class operator GreaterThan(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
     class operator GreaterThan(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
+    class operator GreaterThan(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
     class operator GreaterThanOrEqual(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
     class operator GreaterThanOrEqual(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
+    class operator GreaterThanOrEqual(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
     class operator LessThan(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
     class operator LessThan(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
+    class operator LessThan(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
     class operator LessThanOrEqual(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
     class operator LessThanOrEqual(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
+    class operator LessThanOrEqual(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
     class operator NotEqual(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
     class operator NotEqual(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
     class operator NotEqual(const Condition: TQueryBuilderCondition; const Value: Variant): TQueryBuilderCondition;
     class operator NotEqual(const Condition: TQueryBuilderCondition; const Value: TValue): TQueryBuilderCondition;
+    class operator NotEqual(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
   end;
 
   TQueryBuilderWhere<T: class, constructor> = class(TInterfacedObject, IQueryBuilderCommand)
@@ -511,6 +516,16 @@ begin
   Result.Condition := GenerateCondition(Condition, qboGreaterThan, QuotedStr(Value));
 end;
 
+class operator TQueryBuilderCondition.GreaterThan(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboGreaterThan, Value.Condition);
+end;
+
+class operator TQueryBuilderCondition.GreaterThanOrEqual(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboGreaterThanOrEqual, Value.Condition);
+end;
+
 class operator TQueryBuilderCondition.GreaterThanOrEqual(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
 begin
   Result.Condition := GenerateCondition(Condition, qboGreaterThanOrEqual, QuotedStr(Value));
@@ -519,6 +534,16 @@ end;
 class operator TQueryBuilderCondition.LessThan(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
 begin
   Result.Condition := GenerateCondition(Condition, qboLessThan, QuotedStr(Value));
+end;
+
+class operator TQueryBuilderCondition.LessThan(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboLessThan, Value.Condition);
+end;
+
+class operator TQueryBuilderCondition.LessThanOrEqual(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboLessThanOrEqual, Value.Condition);
 end;
 
 class operator TQueryBuilderCondition.LessThanOrEqual(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
@@ -585,6 +610,11 @@ end;
 class operator TQueryBuilderCondition.Equal(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
 begin
   Result.Condition := GenerateCondition(Condition, qboEqual, Value.Condition);
+end;
+
+class operator TQueryBuilderCondition.NotEqual(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
+begin
+  Result.Condition := GenerateCondition(Condition, qboNotEqual, Value.Condition);
 end;
 
 end.
