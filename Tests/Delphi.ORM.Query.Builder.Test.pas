@@ -60,6 +60,8 @@ type
     procedure TheForeignKeyMustBeLoadedRecursive;
     [Test]
     procedure WhenTheClassHaveForeignKeysThatsLoadsRecursivelyCantRaiseAnError;
+    [Test]
+    procedure MustGenerateTheSQLFollowingTheHierarchyAsSpected;
   end;
 
   [TestFixture]
@@ -223,6 +225,43 @@ type
     property Recursive: TClassRecursiveSecond read FRecursive write FRecursive;
   end;
 
+  TClassHierarchy2 = class;
+  TClassHierarchy3 = class;
+
+  [Entity]
+  TClassHierarchy1 = class
+  private
+    FClass1: TClassHierarchy2;
+    FId: Integer;
+    FClass3: TClassHierarchy3;
+  published
+    property Class1: TClassHierarchy2 read FClass1 write FClass1;
+    property Class2: TClassHierarchy3 read FClass3 write FClass3;
+    property Id: Integer read FId write FId;
+  end;
+
+  [Entity]
+  TClassHierarchy2 = class
+  private
+    FId: Integer;
+    FClass2: TClassHierarchy1;
+    FClass3: TClassHierarchy1;
+  published
+    property Class2: TClassHierarchy1 read FClass2 write FClass2;
+    property Class3: TClassHierarchy1 read FClass3 write FClass3;
+    property Id: Integer read FId write FId;
+  end;
+
+  [Entity]
+  TClassHierarchy3 = class
+  private
+    FId: Integer;
+    FValue: String;
+  published
+    property Id: Integer read FId write FId;
+    property Value: String read FValue write FValue;
+  end;
+
   TDatabase = class(TInterfacedObject, IDatabaseConnection)
   private
     FCursor: IDatabaseCursor;
@@ -299,6 +338,32 @@ begin
     end, EAccessViolation);
 
   Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.MustGenerateTheSQLFollowingTheHierarchyAsSpected;
+begin
+  var Query := TQueryBuilderFrom.Create(nil);
+
+  Query.From<TClassHierarchy1>;
+
+  Assert.AreEqual(
+        ' from ClassHierarchy1 T1 ' +
+    'left join ClassHierarchy2 T2 ' +
+           'on T1.IdClass1=T2.Id ' +
+    'left join ClassHierarchy1 T3 ' +
+           'on T2.IdClass2=T3.Id ' +
+    'left join ClassHierarchy2 T4 ' +
+           'on T3.IdClass1=T4.Id ' +
+    'left join ClassHierarchy3 T5 ' +
+           'on T3.IdClass2=T5.Id ' +
+    'left join ClassHierarchy1 T6 ' +
+           'on T2.IdClass3=T6.Id ' +
+    'left join ClassHierarchy2 T7 ' +
+           'on T6.IdClass1=T7.Id ' +
+    'left join ClassHierarchy3 T8 ' +
+           'on T6.IdClass2=T8.Id ' +
+    'left join ClassHierarchy3 T9 ' +
+           'on T1.IdClass2=T9.Id', (Query as IQueryBuilderCommand).GetSQL);
 end;
 
 procedure TDelphiORMQueryBuilderTest.OnlyPublishedPropertiesMustAppearInInsertSQL;

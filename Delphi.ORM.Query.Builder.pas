@@ -339,21 +339,20 @@ end;
 function TQueryBuilderFrom.MakeJoin(ParentTable: TTable; var TableIndex: Integer; RecursionControl: TDictionary<TField, Integer>): String;
 begin
   var ParentIndex := TableIndex;
+  Result := EmptyStr;
 
   for var ForeignKey in ParentTable.ForeignKeys do
   begin
     Inc(TableIndex);
 
-    var ChildTableIndex := TableIndex;
-
-    Result := Result + Format(' left join %s on %s', [TableDeclaration(ForeignKey.ParentTable, ChildTableIndex),
-      (Field(FieldDeclaration(ForeignKey.Field, ParentIndex)) = Field(FieldDeclaration(ForeignKey.ParentTable.PrimaryKey[0], ChildTableIndex))).Condition]);
+    Result := Result + Format(' left join %s on %s', [TableDeclaration(ForeignKey.ParentTable, TableIndex),
+      (Field(FieldDeclaration(ForeignKey.Field, ParentIndex)) = Field(FieldDeclaration(ForeignKey.ParentTable.PrimaryKey[0], TableIndex))).Condition]);
 
     if not RecursionControl.ContainsKey(ForeignKey.Field) then
     begin
       RecursionControl.Add(ForeignKey.Field, 1);
 
-      Result := Result + MakeJoin(ForeignKey.ParentTable, ChildTableIndex, RecursionControl);
+      Result := Result + MakeJoin(ForeignKey.ParentTable, TableIndex, RecursionControl);
     end;
   end;
 end;
