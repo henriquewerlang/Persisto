@@ -58,6 +58,8 @@ type
     procedure AllTheDirectForeignKeyMustBeGeneratedInTheResultingSQL;
     [Test]
     procedure TheForeignKeyMustBeLoadedRecursive;
+    [Test]
+    procedure WhenTheClassHaveForeignKeysThatsLoadsRecursivelyCantRaiseAnError;
   end;
 
   [TestFixture]
@@ -187,6 +189,38 @@ type
   published
     property AnotherClass: TClassWithForeignKey read FAnotherClass write FAnotherClass;
     property Id: Integer read FId write FId;
+  end;
+
+  TClassRecursiveThrid = class;
+
+  [Entity]
+  TClassRecursiveFirst = class
+  private
+    FId: Integer;
+    FRecursive: TClassRecursiveThrid;
+  published
+    property Id: Integer read FId write FId;
+    property Recursive: TClassRecursiveThrid read FRecursive write FRecursive;
+  end;
+
+  [Entity]
+  TClassRecursiveSecond = class
+  private
+    FId: Integer;
+    FRecursive: TClassRecursiveFirst;
+  published
+    property Id: Integer read FId write FId;
+    property Recursive: TClassRecursiveFirst read FRecursive write FRecursive;
+  end;
+
+  [Entity]
+  TClassRecursiveThrid = class
+  private
+    FId: Integer;
+    FRecursive: TClassRecursiveSecond;
+  published
+    property Id: Integer read FId write FId;
+    property Recursive: TClassRecursiveSecond read FRecursive write FRecursive;
   end;
 
   TDatabase = class(TInterfacedObject, IDatabaseConnection)
@@ -538,6 +572,19 @@ begin
   MyClass.Free;
 
   Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenTheClassHaveForeignKeysThatsLoadsRecursivelyCantRaiseAnError;
+begin
+  var Query := TQueryBuilderFrom.Create(nil);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Query.From<TClassRecursiveFirst>;
+
+      (Query as IQueryBuilderCommand).GetSQL;
+    end);
 end;
 
 procedure TDelphiORMQueryBuilderTest.WhenTheClassHaveThePrimaryKeyAttributeMustBuildTheWhereWithTheValuesOfFieldInTheKeyList;

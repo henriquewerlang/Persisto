@@ -80,6 +80,7 @@ type
     function LoadTable(TypeInfo: TRttiInstanceType): TTable;
 
     procedure LoadTableFields(TypeInfo: TRttiInstanceType; var Table: TTable);
+    procedure LoadTableForeignKeys(var Table: TTable);
     procedure LoadTableInfo(TypeInfo: TRttiInstanceType; var Table: TTable);
   public
     constructor Create;
@@ -228,13 +229,20 @@ begin
       Field.FDatabaseName := GetFieldName(Prop as TRttiInstanceProperty);
       Field.FTypeInfo := Prop as TRttiInstanceProperty;
       Table.FFields := Table.FFields + [Field];
+    end;
+end;
 
-      if Field.TypeInfo.PropertyType.IsInstance then
-      begin
-        var ForeignTable := FindOrLoadTable((Field.TypeInfo.PropertyType as TRttiInstanceType).MetaclassType);
+procedure TMapper.LoadTableForeignKeys(var Table: TTable);
+begin
+  for var Field in Table.Fields do
+    if Field.TypeInfo.PropertyType.IsInstance then
+    begin
+      var ForeignTable := FindOrLoadTable((Field.TypeInfo.PropertyType as TRttiInstanceType).MetaclassType);
 
-        Table.FForeignKeys := Table.FForeignKeys + [TForeignKey.Create(ForeignTable, Field)];
-      end;
+      if Length(ForeignTable.PrimaryKey) = 0 then
+        raise EClassWithoutPrimaryKeyDefined.CreateFmt('You must define a primary key for class %s!', [ForeignTable.TypeInfo.Name]);
+
+      Table.FForeignKeys := Table.FForeignKeys + [TForeignKey.Create(ForeignTable, Field)];
     end;
 end;
 
@@ -267,9 +275,7 @@ begin
           Table.FPrimaryKey := Table.FPrimaryKey + [Field];
         end;
 
-  for var ForeignKey in Table.ForeignKeys do
-    if Length(ForeignKey.ParentTable.PrimaryKey) = 0 then
-      raise EClassWithoutPrimaryKeyDefined.CreateFmt('You must define a primary key for class %s!', [ForeignKey.ParentTable.TypeInfo.Name]);
+  LoadTableForeignKeys(Table);
 end;
 
 { TTable }

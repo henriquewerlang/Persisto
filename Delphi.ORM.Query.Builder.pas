@@ -2,7 +2,7 @@ unit Delphi.ORM.Query.Builder;
 
 interface
 
-uses System.Rtti, System.Classes, Delphi.ORM.Database.Connection, Delphi.ORM.Classes.Loader, Delphi.ORM.Mapper;
+uses System.Rtti, System.Classes, System.Generics.Collections, Delphi.ORM.Database.Connection, Delphi.ORM.Classes.Loader, Delphi.ORM.Mapper;
 
 type
   TQueryBuilder = class;
@@ -53,7 +53,7 @@ type
 
     function BuildJoin: String;
     function GetSQL: String;
-    function MakeJoin(ParentTable: TTable; var TableIndex: Integer): String;
+    function MakeJoin(ParentTable: TTable; var TableIndex: Integer; RecursionControl: TDictionary<TField, Integer>): String;
   public
     constructor Create(Builder: TQueryBuilder);
 
@@ -305,9 +305,12 @@ end;
 
 function TQueryBuilderFrom.BuildJoin: String;
 begin
+  var RecursionControl := TDictionary<TField, Integer>.Create;
   var TableIndex := 1;
 
-  Result := TableDeclaration(FTable, TableIndex) + MakeJoin(FTable, TableIndex);
+  Result := TableDeclaration(FTable, TableIndex) + MakeJoin(FTable, TableIndex, RecursionControl);
+
+  RecursionControl.Free;
 end;
 
 constructor TQueryBuilderFrom.Create(Builder: TQueryBuilder);
@@ -333,7 +336,7 @@ begin
     Result := Result + FWhere.GetSQL;
 end;
 
-function TQueryBuilderFrom.MakeJoin(ParentTable: TTable; var TableIndex: Integer): String;
+function TQueryBuilderFrom.MakeJoin(ParentTable: TTable; var TableIndex: Integer; RecursionControl: TDictionary<TField, Integer>): String;
 begin
   var ParentIndex := TableIndex;
 
@@ -346,7 +349,12 @@ begin
     Result := Result + Format(' left join %s on %s', [TableDeclaration(ForeignKey.ParentTable, ChildTableIndex),
       (Field(FieldDeclaration(ForeignKey.Field, ParentIndex)) = Field(FieldDeclaration(ForeignKey.ParentTable.PrimaryKey[0], ChildTableIndex))).Condition]);
 
-    Result := Result + MakeJoin(ForeignKey.ParentTable, ChildTableIndex);
+    if not RecursionControl.ContainsKey(ForeignKey.Field) then
+    begin
+      RecursionControl.Add(ForeignKey.Field, 1);
+
+      Result := Result + MakeJoin(ForeignKey.ParentTable, ChildTableIndex, RecursionControl);
+    end;
   end;
 end;
 
