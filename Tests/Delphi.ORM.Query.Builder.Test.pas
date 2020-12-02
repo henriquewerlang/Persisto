@@ -613,11 +613,11 @@ begin
   var Database := TDatabase.Create(Cursor.Instance);
   var Query := TQueryBuilder.Create(Database);
 
-  Cursor.Setup.WillReturn(123).When.GetFieldValue(It.IsEqualTo('F1'));
+  Cursor.Setup.WillReturn(123).When.GetFieldValue(It.IsEqualTo(0));
 
-  Cursor.Setup.WillReturn('My name').When.GetFieldValue(It.IsEqualTo('F2'));
+  Cursor.Setup.WillReturn('My name').When.GetFieldValue(It.IsEqualTo(1));
 
-  Cursor.Setup.WillReturn(123.456).When.GetFieldValue(It.IsEqualTo('F3'));
+  Cursor.Setup.WillReturn(123.456).When.GetFieldValue(It.IsEqualTo(2));
 
   Cursor.Setup.WillReturn(True).When.Next;
 

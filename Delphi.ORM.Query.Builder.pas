@@ -17,7 +17,7 @@ type
   end;
 
   IQueryBuilderFieldList = interface
-    function GetFields: TArray<TFieldAlias>;
+    function GetFields: TArray<TField>;
   end;
 
   IQueryBuilderOpen<T: class, constructor> = interface
@@ -82,7 +82,7 @@ type
   private
     FFrom: TQueryBuilderFrom;
 
-    function GetFields: TArray<TFieldAlias>;
+    function GetFields: TArray<TField>;
   public
     constructor Create(From: TQueryBuilderFrom);
   end;
@@ -384,14 +384,15 @@ end;
 
 function TQueryBuilderSelect.GetFields: String;
 begin
+  var FieldList := FBuilder.FFieldList.GetFields;
   Result := EmptyStr;
 
-  for var Field in FBuilder.FFieldList.GetFields do
+  for var A := Low(FieldList) to High(FieldList) do
   begin
     if not Result.IsEmpty then
       Result := Result + ',';
 
-    Result := Result + Format('%s.%s %s', ['T1', Field.Field.DatabaseName, Field.Alias]);
+    Result := Result + Format('%s.%s F%d', ['T1', FieldList[A].DatabaseName, Succ(A)]);
   end;
 end;
 
@@ -481,20 +482,9 @@ begin
   FFrom := From;
 end;
 
-function TQueryBuilderAllFields.GetFields: TArray<TFieldAlias>;
-var
-  A: Cardinal;
-
+function TQueryBuilderAllFields.GetFields: TArray<TField>;
 begin
-  A := 1;
-  Result := nil;
-
-  for var Field in FFrom.FTable.Fields do
-  begin
-    Result := Result + [TFieldAlias.Create(Field, Format('F%d', [A]))];
-
-    Inc(A);
-  end;
+  Result := FFrom.FTable.Fields;
 end;
 
 { TQueryBuilderCondition }
