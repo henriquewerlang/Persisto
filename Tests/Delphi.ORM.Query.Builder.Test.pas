@@ -62,6 +62,8 @@ type
     procedure WhenTheClassHaveForeignKeysThatsLoadsRecursivelyCantRaiseAnError;
     [Test]
     procedure MustGenerateTheSQLFollowingTheHierarchyAsSpected;
+    [Test]
+    procedure WhenConfiguredTheRecursivityLevelTheJoinsMustFollowTheConfiguration;
   end;
 
   [TestFixture]
@@ -284,7 +286,7 @@ uses System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Mapper;
 
 procedure TDelphiORMQueryBuilderTest.AllTheDirectForeignKeyMustBeGeneratedInTheResultingSQL;
 begin
-  var Query := TQueryBuilderFrom.Create(nil);
+  var Query := TQueryBuilderFrom.Create(nil, 1);
 
   Query.From<TClassWithTwoForeignKey>;
 
@@ -342,7 +344,7 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.MustGenerateTheSQLFollowingTheHierarchyAsSpected;
 begin
-  var Query := TQueryBuilderFrom.Create(nil);
+  var Query := TQueryBuilderFrom.Create(nil, 1);
 
   Query.From<TClassHierarchy1>;
 
@@ -410,7 +412,7 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.TheClassBeingSelectedMustHaveTheAliasDefined;
 begin
-  var Query := TQueryBuilderFrom.Create(nil);
+  var Query := TQueryBuilderFrom.Create(nil, 1);
 
   Query.From<TMyTestClass>;
 
@@ -430,7 +432,7 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.TheForeignKeyMustBeLoadedRecursive;
 begin
-  var Query := TQueryBuilderFrom.Create(nil);
+  var Query := TQueryBuilderFrom.Create(nil, 1);
 
   Query.From<TClassWithForeignKeyRecursive>;
 
@@ -561,11 +563,48 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.WhenClassHasOtherClassesLinkedToItYouHaveToGenerateTheJoinBetweenThem;
 begin
-  var Query := TQueryBuilderFrom.Create(nil);
+  var Query := TQueryBuilderFrom.Create(nil, 1);
 
   Query.From<TClassWithForeignKey>;
 
   Assert.AreEqual(' from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', (Query as IQueryBuilderCommand).GetSQL);
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenConfiguredTheRecursivityLevelTheJoinsMustFollowTheConfiguration;
+begin
+  var Query := TQueryBuilder.Create(nil);
+
+  var From := Query.Select.RecursivityLevel(3).All;
+
+  From.From<TClassRecursiveFirst>;
+
+  Assert.AreEqual(
+            ' from ClassRecursiveFirst T1 ' +
+        'left join ClassRecursiveThrid T2 ' +
+               'on T1.IdRecursive=T2.Id ' +
+        'left join ClassRecursiveSecond T3 ' +
+               'on T2.IdRecursive=T3.Id ' +
+        'left join ClassRecursiveFirst T4 ' +
+               'on T3.IdRecursive=T4.Id ' +
+        'left join ClassRecursiveThrid T5 ' +
+               'on T4.IdRecursive=T5.Id ' +
+        'left join ClassRecursiveSecond T6 ' +
+               'on T5.IdRecursive=T6.Id ' +
+        'left join ClassRecursiveFirst T7 ' +
+               'on T6.IdRecursive=T7.Id ' +
+        'left join ClassRecursiveThrid T8 ' +
+               'on T7.IdRecursive=T8.Id ' +
+        'left join ClassRecursiveSecond T9 ' +
+               'on T8.IdRecursive=T9.Id ' +
+        'left join ClassRecursiveFirst T10 ' +
+               'on T9.IdRecursive=T10.Id ' +
+        'left join ClassRecursiveThrid T11 ' +
+               'on T10.IdRecursive=T11.Id',
+    (From as IQueryBuilderCommand).GetSQL);
+
+  Query.Build;
+
+  Query.Free;
 end;
 
 procedure TDelphiORMQueryBuilderTest.WhenOpenOneMustFillTheClassWithTheValuesOfCursor;
@@ -641,7 +680,7 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.WhenTheClassHaveForeignKeysThatsLoadsRecursivelyCantRaiseAnError;
 begin
-  var Query := TQueryBuilderFrom.Create(nil);
+  var Query := TQueryBuilderFrom.Create(nil, 1);
 
   Assert.WillNotRaise(
     procedure

@@ -50,12 +50,13 @@ type
     FBuilder: TQueryBuilder;
     FTable: TTable;
     FWhere: IQueryBuilderCommand;
+    FRecursivityLevel: Word;
 
     function BuildJoin: String;
     function GetSQL: String;
-    function MakeJoin(ParentTable: TTable; var TableIndex: Integer; RecursionControl: TDictionary<TField, Integer>): String;
+    function MakeJoin(ParentTable: TTable; var TableIndex: Integer; RecursionControl: TDictionary<TField, Word>): String;
   public
-    constructor Create(Builder: TQueryBuilder);
+    constructor Create(Builder: TQueryBuilder; RecursivityLevel: Word);
 
     function From<T: class, constructor>: TQueryBuilderWhere<T>;
   end;
@@ -90,16 +91,16 @@ type
   private
     FConnection: IDatabaseConnection;
     FBuilder: TQueryBuilder;
-    FFrom: TQueryBuilderFrom;
+    FFrom: IQueryBuilderCommand;
+    FRecursivityLevel: Word;
 
     function GetFields: String;
     function GetSQL: String;
   public
     constructor Create(Connection: IDatabaseConnection; Builder: TQueryBuilder);
 
-    destructor Destroy; override;
-
     function All: TQueryBuilderFrom;
+    function RecursivityLevel(const Level: Word): TQueryBuilderSelect;
   end;
 
   TQueryBuilderOperator = (qboEqual, qboNotEqual, qboGreaterThan, qboGreaterThanOrEqual, qboLessThan, qboLessThanOrEqual, qboAnd, qboOr);
@@ -305,7 +306,7 @@ end;
 
 function TQueryBuilderFrom.BuildJoin: String;
 begin
-  var RecursionControl := TDictionary<TField, Integer>.Create;
+  var RecursionControl := TDictionary<TField, Word>.Create;
   var TableIndex := 1;
 
   Result := TableDeclaration(FTable, TableIndex) + MakeJoin(FTable, TableIndex, RecursionControl);
@@ -313,11 +314,12 @@ begin
   RecursionControl.Free;
 end;
 
-constructor TQueryBuilderFrom.Create(Builder: TQueryBuilder);
+constructor TQueryBuilderFrom.Create(Builder: TQueryBuilder; RecursivityLevel: Word);
 begin
   inherited Create;
 
   FBuilder := Builder;
+  FRecursivityLevel := RecursivityLevel;
 end;
 
 function TQueryBuilderFrom.From<T>: TQueryBuilderWhere<T>;
@@ -336,21 +338,26 @@ begin
     Result := Result + FWhere.GetSQL;
 end;
 
-function TQueryBuilderFrom.MakeJoin(ParentTable: TTable; var TableIndex: Integer; RecursionControl: TDictionary<TField, Integer>): String;
+function TQueryBuilderFrom.MakeJoin(ParentTable: TTable; var TableIndex: Integer; RecursionControl: TDictionary<TField, Word>): String;
 begin
   var ParentIndex := TableIndex;
   Result := EmptyStr;
 
   for var ForeignKey in ParentTable.ForeignKeys do
   begin
+    var CurrentField := ForeignKey.Field;
+
     Inc(TableIndex);
 
     Result := Result + Format(' left join %s on %s', [TableDeclaration(ForeignKey.ParentTable, TableIndex),
-      (Field(FieldDeclaration(ForeignKey.Field, ParentIndex)) = Field(FieldDeclaration(ForeignKey.ParentTable.PrimaryKey[0], TableIndex))).Condition]);
+      (Field(FieldDeclaration(CurrentField, ParentIndex)) = Field(FieldDeclaration(ForeignKey.ParentTable.PrimaryKey[0], TableIndex))).Condition]);
 
-    if not RecursionControl.ContainsKey(ForeignKey.Field) then
+    if not RecursionControl.ContainsKey(CurrentField) then
+      RecursionControl.Add(CurrentField, 0);
+
+    if RecursionControl[CurrentField] < FRecursivityLevel then
     begin
-      RecursionControl.Add(ForeignKey.Field, 1);
+      RecursionControl[CurrentField] := RecursionControl[CurrentField] + 1;
 
       Result := Result + MakeJoin(ForeignKey.ParentTable, TableIndex, RecursionControl);
     end;
@@ -361,10 +368,10 @@ end;
 
 function TQueryBuilderSelect.All: TQueryBuilderFrom;
 begin
-  FFrom := TQueryBuilderFrom.Create(FBuilder);
-  Result := FFrom;
+  Result := TQueryBuilderFrom.Create(FBuilder, FRecursivityLevel);
 
-  FBuilder.FFieldList := TQueryBuilderAllFields.Create(FFrom);
+  FBuilder.FFieldList := TQueryBuilderAllFields.Create(Result);
+  FFrom := Result;
 end;
 
 constructor TQueryBuilderSelect.Create(Connection: IDatabaseConnection; Builder: TQueryBuilder);
@@ -373,13 +380,6 @@ begin
 
   FBuilder := Builder;
   FConnection := Connection;
-end;
-
-destructor TQueryBuilderSelect.Destroy;
-begin
-  FFrom.Free;
-
-  inherited;
 end;
 
 function TQueryBuilderSelect.GetFields: String;
@@ -401,6 +401,12 @@ begin
 
   if Assigned(FFrom) then
     Result := Result + GetFields + FFrom.GetSQL;
+end;
+
+function TQueryBuilderSelect.RecursivityLevel(const Level: Word): TQueryBuilderSelect;
+begin
+  FRecursivityLevel := Level;
+  Result := Self;
 end;
 
 { TQueryBuilderWhere<T> }
