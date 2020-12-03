@@ -115,6 +115,25 @@ type
     procedure WhenComparingNotEqualWithTValueMustBuildTheConditionAsExpected;
   end;
 
+  [TestFixture]
+  TQueryBuilderAllFieldsTest = class
+  public
+    [SetupFixture]
+    procedure Setup;
+    [Test]
+    procedure InASingleClassMustLoadAllFieldsFromThatClass;
+    [Test]
+    procedure WhenTheClassHaveForeignKeyMustLoadAllFieldsOfAllClassesInvolved;
+    [Test]
+    procedure FieldsOfAnObjectCantBeLoadedInTheListOfFields;
+    [Test]
+    procedure TheFieldsMustBeLoadedRecursivelyInAllForeignKeys;
+    [Test]
+    procedure WhenTheClassIsRecursiveItselfCantRaiseAnErrorInTheExecution;
+    [Test]
+    procedure TheRecursivelyMustBeRespectedAndLoadAllFieldFromTheClasses;
+  end;
+
   [Entity]
   TMyTestClass = class
   private
@@ -850,6 +869,98 @@ begin
   var Condition := (Field('abc') = 123) or (Field('abc') = 123);
 
   Assert.AreEqual('(abc=123 or abc=123)', Condition.Condition);
+end;
+
+{ TQueryBuilderAllFieldsTest }
+
+procedure TQueryBuilderAllFieldsTest.FieldsOfAnObjectCantBeLoadedInTheListOfFields;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+
+  var FieldList: IQueryBuilderFieldList := TQueryBuilderAllFields.Create(From);
+
+  From.From<TClassWithTwoForeignKey>;
+
+  for var Field in FieldList.GetFields do
+    Assert.IsFalse(Field.TypeInfo.PropertyType.InheritsFrom(TRttiStructuredType));
+
+  From.Free;
+end;
+
+procedure TQueryBuilderAllFieldsTest.InASingleClassMustLoadAllFieldsFromThatClass;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+
+  var FieldList: IQueryBuilderFieldList := TQueryBuilderAllFields.Create(From);
+
+  From.From<TMyTestClass>;
+
+  Assert.AreEqual<Integer>(3, Length(FieldList.GetFields));
+
+  From.Free;
+end;
+
+procedure TQueryBuilderAllFieldsTest.Setup;
+begin
+  TMapper.Default.LoadAll;
+end;
+
+procedure TQueryBuilderAllFieldsTest.TheFieldsMustBeLoadedRecursivelyInAllForeignKeys;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+
+  var FieldList: IQueryBuilderFieldList := TQueryBuilderAllFields.Create(From);
+
+  From.From<TClassWithForeignKeyRecursive>;
+
+  Assert.AreEqual<Integer>(4, Length(FieldList.GetFields));
+
+  From.Free;
+end;
+
+procedure TQueryBuilderAllFieldsTest.TheRecursivelyMustBeRespectedAndLoadAllFieldFromTheClasses;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 3);
+
+  var FieldList: IQueryBuilderFieldList := TQueryBuilderAllFields.Create(From);
+
+  From.From<TClassRecursiveFirst>;
+
+  Assert.AreEqual<Integer>(10, Length(FieldList.GetFields));
+
+  From.Free;
+end;
+
+procedure TQueryBuilderAllFieldsTest.WhenTheClassHaveForeignKeyMustLoadAllFieldsOfAllClassesInvolved;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+
+  var FieldList: IQueryBuilderFieldList := TQueryBuilderAllFields.Create(From);
+
+  From.From<TClassWithTwoForeignKey>;
+
+  Assert.AreEqual<Integer>(5, Length(FieldList.GetFields));
+
+  From.Free;
+end;
+
+procedure TQueryBuilderAllFieldsTest.WhenTheClassIsRecursiveItselfCantRaiseAnErrorInTheExecution;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+
+  var FieldList: IQueryBuilderFieldList := TQueryBuilderAllFields.Create(From);
+
+  From.From<TClassRecursiveFirst>;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FieldList.GetFields;
+
+      FieldList := nil;
+    end);
+
+  From.Free;
 end;
 
 end.

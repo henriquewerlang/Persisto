@@ -82,6 +82,7 @@ type
   private
     FFrom: TQueryBuilderFrom;
 
+    function GetAllFields(Table: TTable; RecursionControl: TDictionary<TForeignKey, Word>): TArray<TField>;
     function GetFields: TArray<TField>;
   public
     constructor Create(From: TQueryBuilderFrom);
@@ -482,9 +483,34 @@ begin
   FFrom := From;
 end;
 
+function TQueryBuilderAllFields.GetAllFields(Table: TTable; RecursionControl: TDictionary<TForeignKey, Word>): TArray<TField>;
+begin
+  Result := nil;
+
+  for var Field in Table.Fields do
+    if not Field.TypeInfo.PropertyType.IsInstance then
+      Result := Result + [Field];
+
+  for var ForeignKey in Table.ForeignKeys do
+  begin
+    if not RecursionControl.ContainsKey(ForeignKey) then
+      RecursionControl.Add(ForeignKey, 0);
+
+    if RecursionControl[ForeignKey] < FFrom.FRecursivityLevel then
+    begin
+      RecursionControl[ForeignKey] := RecursionControl[ForeignKey] + 1;
+      Result := Result + GetAllFields(ForeignKey.ParentTable, RecursionControl);
+    end;
+  end;
+end;
+
 function TQueryBuilderAllFields.GetFields: TArray<TField>;
 begin
-  Result := FFrom.FTable.Fields;
+  var RecursionControl := TDictionary<TForeignKey, Word>.Create;
+
+  Result := GetAllFields(FFrom.FTable, RecursionControl);
+
+  RecursionControl.Free;
 end;
 
 { TQueryBuilderCondition }
