@@ -64,6 +64,8 @@ type
     procedure MustGenerateTheSQLFollowingTheHierarchyAsSpected;
     [Test]
     procedure WhenConfiguredTheRecursivityLevelTheJoinsMustFollowTheConfiguration;
+    [Test]
+    procedure WhenTheClassRecursivelyItselfMoreThenOneTimeMustBuildTheSQLAsEspected;
   end;
 
   [TestFixture]
@@ -268,8 +270,8 @@ type
     FClass2: TClassHierarchy1;
     FClass3: TClassHierarchy1;
   published
-    property Class2: TClassHierarchy1 read FClass2 write FClass2;
-    property Class3: TClassHierarchy1 read FClass3 write FClass3;
+    property Class3: TClassHierarchy1 read FClass2 write FClass2;
+    property Class4: TClassHierarchy1 read FClass3 write FClass3;
     property Id: Integer read FId write FId;
   end;
 
@@ -281,6 +283,18 @@ type
   published
     property Id: Integer read FId write FId;
     property Value: String read FValue write FValue;
+  end;
+
+  [Entity]
+  TClassRecursiveItself = class
+  private
+    FId: Integer;
+    FRecursive1: TClassRecursiveItself;
+    FRecursive2: TClassRecursiveItself;
+  published
+    property Id: Integer read FId write FId;
+    property Recursive1: TClassRecursiveItself read FRecursive1 write FRecursive1;
+    property Recursive2: TClassRecursiveItself read FRecursive2 write FRecursive2;
   end;
 
   TDatabase = class(TInterfacedObject, IDatabaseConnection)
@@ -372,19 +386,15 @@ begin
     'left join ClassHierarchy2 T2 ' +
            'on T1.IdClass1=T2.Id ' +
     'left join ClassHierarchy1 T3 ' +
-           'on T2.IdClass2=T3.Id ' +
-    'left join ClassHierarchy2 T4 ' +
-           'on T3.IdClass1=T4.Id ' +
-    'left join ClassHierarchy3 T5 ' +
-           'on T3.IdClass2=T5.Id ' +
-    'left join ClassHierarchy1 T6 ' +
-           'on T2.IdClass3=T6.Id ' +
-    'left join ClassHierarchy2 T7 ' +
-           'on T6.IdClass1=T7.Id ' +
-    'left join ClassHierarchy3 T8 ' +
-           'on T6.IdClass2=T8.Id ' +
-    'left join ClassHierarchy3 T9 ' +
-           'on T1.IdClass2=T9.Id', (Query as IQueryBuilderCommand).GetSQL);
+           'on T2.IdClass3=T3.Id ' +
+    'left join ClassHierarchy3 T4 ' +
+           'on T3.IdClass2=T4.Id ' +
+    'left join ClassHierarchy1 T5 ' +
+           'on T2.IdClass4=T5.Id ' +
+    'left join ClassHierarchy3 T6 ' +
+           'on T5.IdClass2=T6.Id ' +
+    'left join ClassHierarchy3 T7 ' +
+           'on T1.IdClass2=T7.Id', (Query as IQueryBuilderCommand).GetSQL);
 end;
 
 procedure TDelphiORMQueryBuilderTest.OnlyPublishedPropertiesMustAppearInInsertSQL;
@@ -616,9 +626,7 @@ begin
         'left join ClassRecursiveSecond T9 ' +
                'on T8.IdRecursive=T9.Id ' +
         'left join ClassRecursiveFirst T10 ' +
-               'on T9.IdRecursive=T10.Id ' +
-        'left join ClassRecursiveThrid T11 ' +
-               'on T10.IdRecursive=T11.Id',
+               'on T9.IdRecursive=T10.Id',
     (From as IQueryBuilderCommand).GetSQL);
 
   Query.Build;
@@ -727,6 +735,29 @@ begin
   MyClass.Free;
 
   Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenTheClassRecursivelyItselfMoreThenOneTimeMustBuildTheSQLAsEspected;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 2);
+
+  From.From<TClassRecursiveItself>;
+
+  Assert.AreEqual(
+        ' from ClassRecursiveItself T1 ' +
+    'left join ClassRecursiveItself T2 ' +
+           'on T1.IdRecursive1=T2.Id ' +
+    'left join ClassRecursiveItself T3 ' +
+           'on T2.IdRecursive1=T3.Id ' +
+    'left join ClassRecursiveItself T4 ' +
+           'on T2.IdRecursive2=T4.Id ' +
+    'left join ClassRecursiveItself T5 ' +
+           'on T1.IdRecursive2=T5.Id ' +
+    'left join ClassRecursiveItself T6 ' +
+           'on T5.IdRecursive1=T6.Id ' +
+    'left join ClassRecursiveItself T7 ' +
+           'on T5.IdRecursive2=T7.Id',
+    (From as IQueryBuilderCommand).GetSQL);
 end;
 
 { TDatabase }

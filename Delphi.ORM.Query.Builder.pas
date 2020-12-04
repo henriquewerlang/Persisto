@@ -7,6 +7,7 @@ uses System.Rtti, System.Classes, System.Generics.Collections, Delphi.ORM.Databa
 type
   TQueryBuilder = class;
   TQueryBuilderFrom = class;
+  TQueryBuilderJoin = class;
   TQueryBuilderSelect = class;
   TQueryBuilderWhere<T: class, constructor> = class;
 
@@ -47,18 +48,38 @@ type
 
   TQueryBuilderFrom = class(TInterfacedObject, IQueryBuilderCommand)
   private
+    FJoin: TQueryBuilderJoin;
     FBuilder: TQueryBuilder;
-    FTable: TTable;
     FWhere: IQueryBuilderCommand;
     FRecursivityLevel: Word;
 
-    function BuildJoin: String;
+    function BuildJoinSQL: String;
+    function MakeJoinSQL(Join: TQueryBuilderJoin): String;
     function GetSQL: String;
-    function MakeJoin(ParentTable: TTable; var TableIndex: Integer; RecursionControl: TDictionary<TField, Word>): String;
+
+    procedure BuildJoin;
+    procedure MakeJoin(Join: TQueryBuilderJoin; var TableIndex: Integer; RecursionControl: TDictionary<TTable, Word>);
   public
     constructor Create(Builder: TQueryBuilder; RecursivityLevel: Word);
 
+    destructor Destroy; override;
+
     function From<T: class, constructor>: TQueryBuilderWhere<T>;
+  end;
+
+  TQueryBuilderJoin = class
+  private
+    FAlias: String;
+    FLink: TDictionary<TField, TQueryBuilderJoin>;
+    FTable: TTable;
+  public
+    constructor Create(Table: TTable);
+
+    destructor Destroy; override;
+
+    property Alias: String read FAlias write FAlias;
+    property Link: TDictionary<TField, TQueryBuilderJoin> read FLink write FLink;
+    property Table: TTable read FTable write FTable;
   end;
 
   TQueryBuilderOpen<T: class, constructor> = class(TInterfacedObject, IQueryBuilderOpen<T>)
@@ -82,7 +103,7 @@ type
   private
     FFrom: TQueryBuilderFrom;
 
-    function GetAllFields(Table: TTable; RecursionControl: TDictionary<TForeignKey, Word>): TArray<TField>;
+    function GetAllFields(Join: TQueryBuilderJoin): TArray<TField>;
     function GetFields: TArray<TField>;
   public
     constructor Create(From: TQueryBuilderFrom);
@@ -163,21 +184,6 @@ uses System.SysUtils, System.TypInfo, System.Variants, Delphi.ORM.Attributes;
 function Field(const Name: String): TQueryBuilderCondition;
 begin
   Result.Condition := Name;
-end;
-
-function MakeTableAlias(TableIndex: Integer): String;
-begin
-  Result := Format('T%d', [TableIndex]);
-end;
-
-function TableDeclaration(Table: TTable; TableIndex: Integer): String;
-begin
-  Result := Format('%s %s', [Table.DatabaseName, MakeTableAlias(TableIndex)]);
-end;
-
-function FieldDeclaration(Field: TField; TableIndex: Integer): String;
-begin
-  Result := Format('T%d.%s', [TableIndex, Field.DatabaseName]);
 end;
 
 { TQueryBuilder }
@@ -305,14 +311,19 @@ end;
 
 { TQueryBuilderFrom }
 
-function TQueryBuilderFrom.BuildJoin: String;
+procedure TQueryBuilderFrom.BuildJoin;
 begin
-  var RecursionControl := TDictionary<TField, Word>.Create;
+  var RecursionControl := TDictionary<TTable, Word>.Create;
   var TableIndex := 1;
 
-  Result := TableDeclaration(FTable, TableIndex) + MakeJoin(FTable, TableIndex, RecursionControl);
+  MakeJoin(FJoin, TableIndex, RecursionControl);
 
   RecursionControl.Free;
+end;
+
+function TQueryBuilderFrom.BuildJoinSQL: String;
+begin
+  Result := Format('%s %s', [FJoin.Table.DatabaseName, FJoin.Alias]) + MakeJoinSQL(FJoin);
 end;
 
 constructor TQueryBuilderFrom.Create(Builder: TQueryBuilder; RecursivityLevel: Word);
@@ -323,45 +334,64 @@ begin
   FRecursivityLevel := RecursivityLevel;
 end;
 
+destructor TQueryBuilderFrom.Destroy;
+begin
+  FJoin.Free;
+
+  inherited;
+end;
+
 function TQueryBuilderFrom.From<T>: TQueryBuilderWhere<T>;
 begin
-  FTable := TMapper.Default.FindTable(T);
+  FJoin := TQueryBuilderJoin.Create(TMapper.Default.FindTable(T));
   Result := TQueryBuilderWhere<T>.Create(FBuilder);
 
   FWhere := Result;
+
+  BuildJoin;
 end;
 
 function TQueryBuilderFrom.GetSQL: String;
 begin
-  Result := Format(' from %s', [BuildJoin]);
+  Result := Format(' from %s', [BuildJoinSQL]);
 
   if Assigned(FWhere) then
     Result := Result + FWhere.GetSQL;
 end;
 
-function TQueryBuilderFrom.MakeJoin(ParentTable: TTable; var TableIndex: Integer; RecursionControl: TDictionary<TField, Word>): String;
+procedure TQueryBuilderFrom.MakeJoin(Join: TQueryBuilderJoin; var TableIndex: Integer; RecursionControl: TDictionary<TTable, Word>);
 begin
-  var ParentIndex := TableIndex;
+  Join.Alias := 'T' + TableIndex.ToString;
+
+  Inc(TableIndex);
+
+  for var ForeignKey in Join.Table.ForeignKeys do
+  begin
+    if not RecursionControl.ContainsKey(ForeignKey.ParentTable) then
+      RecursionControl.Add(ForeignKey.ParentTable, 0);
+
+    if RecursionControl[ForeignKey.ParentTable] < FRecursivityLevel then
+    begin
+      var NewJoin := TQueryBuilderJoin.Create(ForeignKey.ParentTable);
+      RecursionControl[ForeignKey.ParentTable] := RecursionControl[ForeignKey.ParentTable] + 1;
+
+      Join.Link.Add(ForeignKey.Field, NewJoin);
+
+      MakeJoin(NewJoin, TableIndex, RecursionControl);
+
+      RecursionControl[ForeignKey.ParentTable] := RecursionControl[ForeignKey.ParentTable] - 1;
+    end;
+  end;
+end;
+
+function TQueryBuilderFrom.MakeJoinSQL(Join: TQueryBuilderJoin): String;
+begin
   Result := EmptyStr;
 
-  for var ForeignKey in ParentTable.ForeignKeys do
+  for var Link in Join.Link do
   begin
-    var CurrentField := ForeignKey.Field;
-
-    Inc(TableIndex);
-
-    Result := Result + Format(' left join %s on %s', [TableDeclaration(ForeignKey.ParentTable, TableIndex),
-      (Field(FieldDeclaration(CurrentField, ParentIndex)) = Field(FieldDeclaration(ForeignKey.ParentTable.PrimaryKey[0], TableIndex))).Condition]);
-
-    if not RecursionControl.ContainsKey(CurrentField) then
-      RecursionControl.Add(CurrentField, 0);
-
-    if RecursionControl[CurrentField] < FRecursivityLevel then
-    begin
-      RecursionControl[CurrentField] := RecursionControl[CurrentField] + 1;
-
-      Result := Result + MakeJoin(ForeignKey.ParentTable, TableIndex, RecursionControl);
-    end;
+    Result := Result + Format(' left join %s %s on %s.%s=%s.%s', [Link.Value.Table.DatabaseName, Link.Value.Alias, Join.Alias, Link.Key.DatabaseName, Link.Value.Alias, Link.Value.Table.PrimaryKey[0].DatabaseName])
+      + MakeJoinSQL(Link.Value);
   end;
 end;
 
@@ -483,34 +513,21 @@ begin
   FFrom := From;
 end;
 
-function TQueryBuilderAllFields.GetAllFields(Table: TTable; RecursionControl: TDictionary<TForeignKey, Word>): TArray<TField>;
+function TQueryBuilderAllFields.GetAllFields(Join: TQueryBuilderJoin): TArray<TField>;
 begin
   Result := nil;
 
-  for var Field in Table.Fields do
+  for var Field in Join.Table.Fields do
     if not Field.TypeInfo.PropertyType.IsInstance then
       Result := Result + [Field];
 
-  for var ForeignKey in Table.ForeignKeys do
-  begin
-    if not RecursionControl.ContainsKey(ForeignKey) then
-      RecursionControl.Add(ForeignKey, 0);
-
-    if RecursionControl[ForeignKey] < FFrom.FRecursivityLevel then
-    begin
-      RecursionControl[ForeignKey] := RecursionControl[ForeignKey] + 1;
-      Result := Result + GetAllFields(ForeignKey.ParentTable, RecursionControl);
-    end;
-  end;
+  for var Link in Join.Link do
+    Result := Result + GetAllFields(Link.Value);
 end;
 
 function TQueryBuilderAllFields.GetFields: TArray<TField>;
 begin
-  var RecursionControl := TDictionary<TForeignKey, Word>.Create;
-
-  Result := GetAllFields(FFrom.FTable, RecursionControl);
-
-  RecursionControl.Free;
+  Result := GetAllFields(FFrom.FJoin);
 end;
 
 { TQueryBuilderCondition }
@@ -644,6 +661,23 @@ end;
 class operator TQueryBuilderCondition.NotEqual(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
 begin
   Result.Condition := GenerateCondition(Condition, qboNotEqual, Value.Condition);
+end;
+
+{ TQueryBuilderJoin }
+
+constructor TQueryBuilderJoin.Create(Table: TTable);
+begin
+  inherited Create;
+
+  FLink := TObjectDictionary<TField, TQueryBuilderJoin>.Create([doOwnsValues]);
+  FTable := Table;
+end;
+
+destructor TQueryBuilderJoin.Destroy;
+begin
+  FLink.Free;
+
+  inherited;
 end;
 
 end.
