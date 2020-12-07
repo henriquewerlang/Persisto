@@ -70,15 +70,17 @@ type
   TQueryBuilderJoin = class
   private
     FAlias: String;
-    FLink: TDictionary<TField, TQueryBuilderJoin>;
+    FLinks: TArray<TQueryBuilderJoin>;
     FTable: TTable;
+    FField: TField;
   public
-    constructor Create(Table: TTable);
+    constructor Create(Table: TTable; Field: TField);
 
     destructor Destroy; override;
 
     property Alias: String read FAlias write FAlias;
-    property Link: TDictionary<TField, TQueryBuilderJoin> read FLink write FLink;
+    property Field: TField read FField write FField;
+    property Links: TArray<TQueryBuilderJoin> read FLinks write FLinks;
     property Table: TTable read FTable write FTable;
   end;
 
@@ -345,7 +347,7 @@ end;
 
 function TQueryBuilderFrom.From<T>: TQueryBuilderWhere<T>;
 begin
-  FJoin := TQueryBuilderJoin.Create(TMapper.Default.FindTable(T));
+  FJoin := TQueryBuilderJoin.Create(TMapper.Default.FindTable(T), nil);
   Result := TQueryBuilderWhere<T>.Create(FBuilder);
 
   FWhere := Result;
@@ -374,10 +376,10 @@ begin
 
     if RecursionControl[ForeignKey.ParentTable] < FRecursivityLevel then
     begin
-      var NewJoin := TQueryBuilderJoin.Create(ForeignKey.ParentTable);
+      var NewJoin := TQueryBuilderJoin.Create(ForeignKey.ParentTable, ForeignKey.Field);
       RecursionControl[ForeignKey.ParentTable] := RecursionControl[ForeignKey.ParentTable] + 1;
 
-      Join.Link.Add(ForeignKey.Field, NewJoin);
+      Join.Links := Join.Links + [NewJoin];
 
       MakeJoin(NewJoin, TableIndex, RecursionControl);
 
@@ -390,11 +392,9 @@ function TQueryBuilderFrom.MakeJoinSQL(Join: TQueryBuilderJoin): String;
 begin
   Result := EmptyStr;
 
-  for var Link in Join.Link do
-  begin
-    Result := Result + Format(' left join %s %s on %s.%s=%s.%s', [Link.Value.Table.DatabaseName, Link.Value.Alias, Join.Alias, Link.Key.DatabaseName, Link.Value.Alias, Link.Value.Table.PrimaryKey[0].DatabaseName])
-      + MakeJoinSQL(Link.Value);
-  end;
+  for var Link in Join.Links do
+    Result := Result + Format(' left join %s %s on %s.%s=%s.%s', [Link.Table.DatabaseName, Link.Alias, Join.Alias, Link.Field.DatabaseName, Link.Alias, Link.Table.PrimaryKey[0].DatabaseName])
+      + MakeJoinSQL(Link);
 end;
 
 { TQueryBuilderSelect }
@@ -527,8 +527,8 @@ begin
     if not Field.TypeInfo.PropertyType.IsInstance then
       Result := Result + [TFieldAlias.Create(Join.Alias, Field)];
 
-  for var Link in Join.Link do
-    Result := Result + GetAllFields(Link.Value);
+  for var Link in Join.Links do
+    Result := Result + GetAllFields(Link);
 end;
 
 function TQueryBuilderAllFields.GetFields: TArray<TFieldAlias>;
@@ -671,17 +671,18 @@ end;
 
 { TQueryBuilderJoin }
 
-constructor TQueryBuilderJoin.Create(Table: TTable);
+constructor TQueryBuilderJoin.Create(Table: TTable; Field: TField);
 begin
   inherited Create;
 
-  FLink := TObjectDictionary<TField, TQueryBuilderJoin>.Create([doOwnsValues]);
+  FField := Field;
   FTable := Table;
 end;
 
 destructor TQueryBuilderJoin.Destroy;
 begin
-  FLink.Free;
+  for var Link in Links do
+    Link.Free;
 
   inherited;
 end;

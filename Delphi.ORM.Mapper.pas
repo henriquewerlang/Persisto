@@ -141,7 +141,7 @@ end;
 
 function TMapper.FindTable(ClassInfo: TClass): TTable;
 begin
-  if not FTables.TryGetValue(FContext.GetType(ClassInfo) as TRttiInstanceType, Result) then
+  if not FTables.TryGetValue(FContext.GetType(ClassInfo).AsInstance, Result) then
     Result := nil;
 end;
 
@@ -197,12 +197,12 @@ begin
 
   for var TypeInfo in FContext.GetTypes do
     if CheckAttribute<EntityAttribute>(TypeInfo) then
-      LoadTable(TypeInfo as TRttiInstanceType);
+      LoadTable(TypeInfo.AsInstance);
 end;
 
 function TMapper.LoadClass(ClassInfo: TClass): TTable;
 begin
-  Result := LoadTable(FContext.GetType(ClassInfo) as TRttiInstanceType);
+  Result := LoadTable(FContext.GetType(ClassInfo).AsInstance);
 end;
 
 function TMapper.LoadTable(TypeInfo: TRttiInstanceType): TTable;
@@ -237,7 +237,7 @@ begin
   for var Field in Table.Fields do
     if Field.TypeInfo.PropertyType.IsInstance then
     begin
-      var ForeignTable := FindOrLoadTable((Field.TypeInfo.PropertyType as TRttiInstanceType).MetaclassType);
+      var ForeignTable := FindOrLoadTable((Field.TypeInfo.PropertyType.AsInstance).MetaclassType);
 
       if Length(ForeignTable.PrimaryKey) = 0 then
         raise EClassWithoutPrimaryKeyDefined.CreateFmt('You must define a primary key for class %s!', [ForeignTable.TypeInfo.Name]);
