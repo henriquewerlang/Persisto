@@ -8,7 +8,7 @@ type
   [TestFixture]
   TClassLoaderTest = class
   private
-    function CreateFieldList: TArray<TField>;
+    function CreateFieldList: TArray<TFieldAlias>;
   public
     [SetupFixture]
     procedure Setup;
@@ -51,11 +51,13 @@ uses System.Generics.Collections, System.SysUtils, Delphi.Mock;
 
 { TClassLoaderTest }
 
-function TClassLoaderTest.CreateFieldList: TArray<TField>;
+function TClassLoaderTest.CreateFieldList: TArray<TFieldAlias>;
 begin
+  Result := nil;
   var Table := TMapper.Default.FindTable(TMyClass);
 
-  Result := Table.Fields;
+  for var Field in Table.Fields do
+    Result := Result + [TFieldAlias.Create('T', Field)];
 end;
 
 procedure TClassLoaderTest.MustLoadThePropertiesOfAllRecords;

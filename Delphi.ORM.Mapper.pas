@@ -39,6 +39,17 @@ type
     property TypeInfo: TRttiInstanceProperty read FTypeInfo;
   end;
 
+  TFieldAlias = record
+  private
+    FTableAlias: String;
+    FField: TField;
+  public
+    constructor Create(TableAlias: String; Field: TField);
+
+    property Field: TField read FField write FField;
+    property TableAlias: String read FTableAlias write FTableAlias;
+  end;
+
   TForeignKey = class
   private
     FParentTable: TTable;
@@ -295,6 +306,14 @@ begin
 
   FParentTable := ParentTable;
   FField := Field;
+end;
+
+{ TFieldAlias }
+
+constructor TFieldAlias.Create(TableAlias: String; Field: TField);
+begin
+  FField := Field;
+  FTableAlias := TableAlias;
 end;
 
 end.

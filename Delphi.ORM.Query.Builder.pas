@@ -18,7 +18,7 @@ type
   end;
 
   IQueryBuilderFieldList = interface
-    function GetFields: TArray<TField>;
+    function GetFields: TArray<TFieldAlias>;
   end;
 
   IQueryBuilderOpen<T: class, constructor> = interface
@@ -103,8 +103,8 @@ type
   private
     FFrom: TQueryBuilderFrom;
 
-    function GetAllFields(Join: TQueryBuilderJoin): TArray<TField>;
-    function GetFields: TArray<TField>;
+    function GetAllFields(Join: TQueryBuilderJoin): TArray<TFieldAlias>;
+    function GetFields: TArray<TFieldAlias>;
   public
     constructor Create(From: TQueryBuilderFrom);
   end;
@@ -123,6 +123,8 @@ type
 
     function All: TQueryBuilderFrom;
     function RecursivityLevel(const Level: Word): TQueryBuilderSelect;
+
+    property RecursivityLevelValue: Word read FRecursivityLevel write FRecursivityLevel;
   end;
 
   TQueryBuilderOperator = (qboEqual, qboNotEqual, qboGreaterThan, qboGreaterThanOrEqual, qboLessThan, qboLessThanOrEqual, qboAnd, qboOr);
@@ -411,19 +413,23 @@ begin
 
   FBuilder := Builder;
   FConnection := Connection;
+  FRecursivityLevel := 1;
 end;
 
 function TQueryBuilderSelect.GetFields: String;
 begin
+  var FieldAlias: TFieldAlias;
   var FieldList := FBuilder.FFieldList.GetFields;
   Result := EmptyStr;
 
   for var A := Low(FieldList) to High(FieldList) do
   begin
+    FieldAlias := FieldList[A];
+
     if not Result.IsEmpty then
       Result := Result + ',';
 
-    Result := Result + Format('%s.%s F%d', ['T1', FieldList[A].DatabaseName, Succ(A)]);
+    Result := Result + Format('%s.%s F%d', [FieldAlias.TableAlias, FieldAlias.Field.DatabaseName, Succ(A)]);
   end;
 end;
 
@@ -513,19 +519,19 @@ begin
   FFrom := From;
 end;
 
-function TQueryBuilderAllFields.GetAllFields(Join: TQueryBuilderJoin): TArray<TField>;
+function TQueryBuilderAllFields.GetAllFields(Join: TQueryBuilderJoin): TArray<TFieldAlias>;
 begin
   Result := nil;
 
   for var Field in Join.Table.Fields do
     if not Field.TypeInfo.PropertyType.IsInstance then
-      Result := Result + [Field];
+      Result := Result + [TFieldAlias.Create(Join.Alias, Field)];
 
   for var Link in Join.Link do
     Result := Result + GetAllFields(Link.Value);
 end;
 
-function TQueryBuilderAllFields.GetFields: TArray<TField>;
+function TQueryBuilderAllFields.GetFields: TArray<TFieldAlias>;
 begin
   Result := GetAllFields(FFrom.FJoin);
 end;

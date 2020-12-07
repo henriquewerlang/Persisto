@@ -69,6 +69,17 @@ type
   end;
 
   [TestFixture]
+  TQueryBuilderSelectTest = class
+  public
+    [SetupFixture]
+    procedure Setup;
+    [Test]
+    procedure WhenIsNotDefinedTheRecursivityLevelMustBeOneTheDefaultValue;
+    [Test]
+    procedure WhenTheClassHaveForeignKeyMustBuildTheSQLWithTheAliasOfTheJoinMapped;
+  end;
+
+  [TestFixture]
   TDelphiORMQueryBuilderConditionTest = class
   public
     [TestCase('Equal.String', 'qboEqual')]
@@ -913,7 +924,7 @@ begin
   From.From<TClassWithTwoForeignKey>;
 
   for var Field in FieldList.GetFields do
-    Assert.IsFalse(Field.TypeInfo.PropertyType.InheritsFrom(TRttiStructuredType));
+    Assert.IsFalse(Field.Field.TypeInfo.PropertyType.InheritsFrom(TRttiStructuredType));
 
   From.Free;
 end;
@@ -992,6 +1003,34 @@ begin
     end);
 
   From.Free;
+end;
+
+{ TQueryBuilderSelectTest }
+
+procedure TQueryBuilderSelectTest.Setup;
+begin
+  TMapper.Default.LoadAll;
+end;
+
+procedure TQueryBuilderSelectTest.WhenIsNotDefinedTheRecursivityLevelMustBeOneTheDefaultValue;
+begin
+  var Select := TQueryBuilderSelect.Create(nil, nil);
+
+  Assert.AreEqual(1, Select.RecursivityLevelValue);
+
+  Select.Free;
+end;
+
+procedure TQueryBuilderSelectTest.WhenTheClassHaveForeignKeyMustBuildTheSQLWithTheAliasOfTheJoinMapped;
+begin
+  var Database := TDatabase.Create(nil);
+  var Query := TQueryBuilder.Create(Database);
+
+  Query.Select.All.From<TClassWithForeignKey>.Open;
+
+  Assert.AreEqual('select T1.Id F1,T2.Id F2,T2.Value F3 from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', Database.SQL);
+
+  Query.Free;
 end;
 
 end.
