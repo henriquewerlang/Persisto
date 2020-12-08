@@ -6,7 +6,7 @@ uses DUnitX.TestFramework;
 
 type
   [TestFixture]
-  TPrimaryKeyAttributeTeste = class
+  TPrimaryKeyAttributeTest = class
   public
     [Test]
     procedure TheFieldsPropertyMustReturnAllFieldsInTheStringInTheConstructor;
@@ -20,9 +20,9 @@ implementation
 
 uses Delphi.ORM.Attributes;
 
-{ TPrimaryKeyAttributeTeste }
+{ TPrimaryKeyAttributeTest }
 
-procedure TPrimaryKeyAttributeTeste.MustRemoveAllWhiteSpaceFromFieldNames;
+procedure TPrimaryKeyAttributeTest.MustRemoveAllWhiteSpaceFromFieldNames;
 begin
   var Attribute := PrimaryKeyAttribute.Create(' F1 ,F2  ,F3 ');
 
@@ -33,7 +33,7 @@ begin
   Attribute.Free;
 end;
 
-procedure TPrimaryKeyAttributeTeste.TheFieldsPassedInConstructorMustReturnInTheListOfFields;
+procedure TPrimaryKeyAttributeTest.TheFieldsPassedInConstructorMustReturnInTheListOfFields;
 begin
   var Attribute := PrimaryKeyAttribute.Create('F1,F2,F3');
 
@@ -44,7 +44,7 @@ begin
   Attribute.Free;
 end;
 
-procedure TPrimaryKeyAttributeTeste.TheFieldsPropertyMustReturnAllFieldsInTheStringInTheConstructor;
+procedure TPrimaryKeyAttributeTest.TheFieldsPropertyMustReturnAllFieldsInTheStringInTheConstructor;
 begin
   var Attribute := PrimaryKeyAttribute.Create('F1,F2,F3');
 
