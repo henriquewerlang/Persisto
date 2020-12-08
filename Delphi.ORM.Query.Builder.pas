@@ -72,15 +72,18 @@ type
     FAlias: String;
     FLinks: TArray<TQueryBuilderJoin>;
     FTable: TTable;
-    FField: TField;
+    FLeftField: TField;
+    FRightField: TField;
   public
-    constructor Create(Table: TTable; Field: TField);
+    constructor Create(Table: TTable); overload;
+    constructor Create(Table: TTable; LeftField, RightField: TField); overload;
 
     destructor Destroy; override;
 
     property Alias: String read FAlias write FAlias;
-    property Field: TField read FField write FField;
+    property LeftField: TField read FLeftField write FLeftField;
     property Links: TArray<TQueryBuilderJoin> read FLinks write FLinks;
+    property RightField: TField read FRightField write FRightField;
     property Table: TTable read FTable write FTable;
   end;
 
@@ -183,7 +186,7 @@ const
 
 implementation
 
-uses System.SysUtils, System.TypInfo, System.Variants, Delphi.ORM.Attributes;
+uses System.SysUtils, System.TypInfo, System.Variants, Delphi.ORM.Attributes, Delphi.ORM.Rtti.Helper;
 
 function Field(const Name: String): TQueryBuilderCondition;
 begin
@@ -347,7 +350,7 @@ end;
 
 function TQueryBuilderFrom.From<T>: TQueryBuilderWhere<T>;
 begin
-  FJoin := TQueryBuilderJoin.Create(TMapper.Default.FindTable(T), nil);
+  FJoin := TQueryBuilderJoin.Create(TMapper.Default.FindTable(T));
   Result := TQueryBuilderWhere<T>.Create(FBuilder);
 
   FWhere := Result;
@@ -376,7 +379,7 @@ begin
 
     if RecursionControl[ForeignKey.ParentTable] < FRecursivityLevel then
     begin
-      var NewJoin := TQueryBuilderJoin.Create(ForeignKey.ParentTable, ForeignKey.Field);
+      var NewJoin := TQueryBuilderJoin.Create(ForeignKey.ParentTable, ForeignKey.Field, Join.Table.PrimaryKey[0]);
       RecursionControl[ForeignKey.ParentTable] := RecursionControl[ForeignKey.ParentTable] + 1;
 
       Join.Links := Join.Links + [NewJoin];
@@ -386,6 +389,17 @@ begin
       RecursionControl[ForeignKey.ParentTable] := RecursionControl[ForeignKey.ParentTable] - 1;
     end;
   end;
+
+  for var ManyValueAssociation in Join.Table.ManyValueAssociations do
+  begin
+    var NewJoin := TQueryBuilderJoin.Create(ManyValueAssociation.ChildTable, Join.Table.PrimaryKey[0], ManyValueAssociation.ChildField);
+
+    Join.Links := Join.Links + [NewJoin];
+
+    RecursionControl.AddOrSetValue(Join.Table, FRecursivityLevel);
+
+    MakeJoin(NewJoin, TableIndex, RecursionControl);
+  end;
 end;
 
 function TQueryBuilderFrom.MakeJoinSQL(Join: TQueryBuilderJoin): String;
@@ -393,7 +407,7 @@ begin
   Result := EmptyStr;
 
   for var Link in Join.Links do
-    Result := Result + Format(' left join %s %s on %s.%s=%s.%s', [Link.Table.DatabaseName, Link.Alias, Join.Alias, Link.Field.DatabaseName, Link.Alias, Link.Table.PrimaryKey[0].DatabaseName])
+    Result := Result + Format(' left join %s %s on %s.%s=%s.%s', [Link.Table.DatabaseName, Link.Alias, Join.Alias, Link.LeftField.DatabaseName, Link.Alias, Link.RightField.DatabaseName])
       + MakeJoinSQL(Link);
 end;
 
@@ -524,7 +538,7 @@ begin
   Result := nil;
 
   for var Field in Join.Table.Fields do
-    if not Field.TypeInfo.PropertyType.IsInstance then
+    if not Field.TypeInfo.PropertyType.IsInstance and not Field.TypeInfo.PropertyType.IsArray then
       Result := Result + [TFieldAlias.Create(Join.Alias, Field)];
 
   for var Link in Join.Links do
@@ -671,11 +685,18 @@ end;
 
 { TQueryBuilderJoin }
 
-constructor TQueryBuilderJoin.Create(Table: TTable; Field: TField);
+constructor TQueryBuilderJoin.Create(Table: TTable; LeftField, RightField: TField);
+begin
+  Create(Table);
+
+  FLeftField := LeftField;
+  FRightField := RightField;
+end;
+
+constructor TQueryBuilderJoin.Create(Table: TTable);
 begin
   inherited Create;
 
-  FField := Field;
   FTable := Table;
 end;
 

@@ -8,6 +8,7 @@ type
   EClassWithoutPrimaryKeyDefined = class(Exception);
   TField = class;
   TForeignKey = class;
+  TManyValueAssociation = class;
 
   TTable = class
   private
@@ -16,6 +17,7 @@ type
     FFields: TArray<TField>;
     FTypeInfo: TRttiInstanceType;
     FDatabaseName: String;
+    FManyValueAssociations: TArray<TManyValueAssociation>;
   public
     constructor Create(TypeInfo: TRttiInstanceType);
 
@@ -24,6 +26,7 @@ type
     property DatabaseName: String read FDatabaseName write FDatabaseName;
     property Fields: TArray<TField> read FFields;
     property ForeignKeys: TArray<TForeignKey> read FForeignKeys;
+    property ManyValueAssociations: TArray<TManyValueAssociation> read FManyValueAssociations write FManyValueAssociations;
     property PrimaryKey: TArray<TField> read FPrimaryKey;
     property TypeInfo: TRttiInstanceType read FTypeInfo;
   end;
@@ -61,6 +64,17 @@ type
     property ParentTable: TTable read FParentTable;
   end;
 
+  TManyValueAssociation = class
+  private
+    FChildTable: TTable;
+    FChildField: TField;
+  public
+    constructor Create(ChildTable: TTable; ChildField: TField);
+
+    property ChildField: TField read FChildField write FChildField;
+    property ChildTable: TTable read FChildTable write FChildTable;
+  end;
+
   TMapper = class
   private
     class var [Unsafe] FDefault: TMapper;
@@ -82,6 +96,7 @@ type
     procedure LoadTableFields(TypeInfo: TRttiInstanceType; var Table: TTable);
     procedure LoadTableForeignKeys(var Table: TTable);
     procedure LoadTableInfo(TypeInfo: TRttiInstanceType; var Table: TTable);
+    procedure LoadTableManyValueAssociations(var Table: TTable);
   public
     constructor Create;
 
@@ -237,7 +252,7 @@ begin
   for var Field in Table.Fields do
     if Field.TypeInfo.PropertyType.IsInstance then
     begin
-      var ForeignTable := FindOrLoadTable((Field.TypeInfo.PropertyType.AsInstance).MetaclassType);
+      var ForeignTable := FindOrLoadTable(Field.TypeInfo.PropertyType.AsInstance.MetaclassType);
 
       if Length(ForeignTable.PrimaryKey) = 0 then
         raise EClassWithoutPrimaryKeyDefined.CreateFmt('You must define a primary key for class %s!', [ForeignTable.TypeInfo.Name]);
@@ -276,6 +291,21 @@ begin
         end;
 
   LoadTableForeignKeys(Table);
+
+  LoadTableManyValueAssociations(Table);
+end;
+
+procedure TMapper.LoadTableManyValueAssociations(var Table: TTable);
+begin
+  for var Field in Table.Fields do
+    if Field.TypeInfo.PropertyType.IsArray then
+    begin
+      var ChildTable := FindOrLoadTable(Field.TypeInfo.PropertyType.AsArray.ElementType.AsInstance.MetaclassType);
+
+      for var ForeignKey in ChildTable.ForeignKeys do
+        if ForeignKey.ParentTable = Table then
+          Table.FManyValueAssociations := Table.FManyValueAssociations + [TManyValueAssociation.Create(ChildTable, ForeignKey.Field)];
+    end;
 end;
 
 { TTable }
@@ -294,6 +324,9 @@ begin
 
   for var ForeignKey in ForeignKeys do
     ForeignKey.Free;
+
+  for var ManyValueAssociation in ManyValueAssociations do
+    ManyValueAssociation.Free;
 
   inherited;
 end;
@@ -314,6 +347,16 @@ constructor TFieldAlias.Create(TableAlias: String; Field: TField);
 begin
   FField := Field;
   FTableAlias := TableAlias;
+end;
+
+{ TManyValueAssociation }
+
+constructor TManyValueAssociation.Create(ChildTable: TTable; ChildField: TField);
+begin
+  inherited Create;
+
+  FChildField := ChildField;
+  FChildTable := ChildTable;
 end;
 
 end.

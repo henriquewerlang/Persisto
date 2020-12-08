@@ -84,6 +84,12 @@ type
     procedure WhenTheForeignKeyIsAClassAliasMustLoadTheForeignClassAndLinkToForeignKey;
     [Test]
     procedure WhenLoadMoreThenOneTimeTheSameClassCantRaiseAnError;
+    [Test]
+    procedure WhenAPropertyIsAnArrayMustLoadAManyValueLink;
+    [Test]
+    procedure TheTableOfManyValueAssociationMustBeTheChildTableOfThisLink;
+    [Test]
+    procedure TheFieldLinkingTheParentAndChildOfManyValueAssociationMustBeLoaded;
   end;
 
   [Entity]
@@ -254,6 +260,28 @@ type
     property Id: Integer read FId write FId;
   end;
 
+  TMyEntityWithManyValueAssociationChild = class;
+
+  [Entity]
+  TMyEntityWithManyValueAssociation = class
+  private
+    FId: Integer;
+    FManyValueAssociation: TArray<TMyEntityWithManyValueAssociationChild>;
+  published
+    property Id: Integer read FId write FId;
+    property ManyValueAssociation: TArray<TMyEntityWithManyValueAssociationChild> read FManyValueAssociation write FManyValueAssociation;
+  end;
+
+  [Entity]
+  TMyEntityWithManyValueAssociationChild = class
+  private
+    FId: Integer;
+    FManyValueAssociation: TMyEntityWithManyValueAssociation;
+  published
+    property Id: Integer read FId write FId;
+    property ManyValueAssociation: TMyEntityWithManyValueAssociation read FManyValueAssociation write FManyValueAssociation;
+  end;
+
 implementation
 
 uses Delphi.ORM.Mapper;
@@ -328,6 +356,20 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.TheFieldLinkingTheParentAndChildOfManyValueAssociationMustBeLoaded;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var ChildTable := Mapper.FindTable(TMyEntityWithManyValueAssociationChild);
+  var Table := Mapper.FindTable(TMyEntityWithManyValueAssociation);
+
+  Assert.AreEqual(ChildTable.Fields[1], Table.ManyValueAssociations[0].ChildField);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.TheFieldOfAForeignKeyMustBeFilledWithTheFieldOfTheClassThatIsAForeignKey;
 begin
   var Mapper := TMapper.Create;
@@ -364,6 +406,20 @@ begin
   var Table := Mapper.FindTable(TMyEntityWithFieldNameAttribute);
 
   Assert.AreEqual(ParentTable, Table.ForeignKeys[0].ParentTable);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.TheTableOfManyValueAssociationMustBeTheChildTableOfThisLink;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var ChildTable := Mapper.FindTable(TMyEntityWithManyValueAssociationChild);
+  var Table := Mapper.FindTable(TMyEntityWithManyValueAssociation);
+
+  Assert.AreEqual(ChildTable, Table.ManyValueAssociations[0].ChildTable);
 
   Mapper.Free;
 end;
@@ -410,6 +466,17 @@ begin
   var Table := Mapper.FindTable(TMyEntityInheritedFromSingle);
 
   Assert.AreEqual<Integer>(1, Length(Table.PrimaryKey));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenAPropertyIsAnArrayMustLoadAManyValueLink;
+begin
+  var Mapper := TMapper.Create;
+
+  var Table := Mapper.LoadClass(TMyEntityWithManyValueAssociation);
+
+  Assert.AreEqual<Integer>(1, Length(Table.ManyValueAssociations));
 
   Mapper.Free;
 end;
