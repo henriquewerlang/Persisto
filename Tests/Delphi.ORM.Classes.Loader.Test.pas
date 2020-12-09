@@ -8,7 +8,7 @@ type
   [TestFixture]
   TClassLoaderTest = class
   private
-    function CreateFieldList: TArray<TFieldAlias>;
+    function CreateFieldList<T: class>: TArray<TFieldAlias>;
   public
     [SetupFixture]
     procedure Setup;
@@ -22,6 +22,8 @@ type
     procedure MustLoadThePropertiesOfAllRecords;
     [Test]
     procedure WhenThereIsNoRecordsMustReturnAEmptyArray;
+    [Test]
+    procedure WhenTheClassAsSpecialFieldsMustLoadTheFieldsAsExpected;
   end;
 
   [Entity]
@@ -32,6 +34,18 @@ type
   published
     property Name: String read FName write FName;
     property Value: Integer read FValue write FValue;
+  end;
+
+  TMyEnumerator = (Enum1, Enum2, Enum3, Enum4);
+
+  [Entity]
+  TMyClassWithSpecialTypes = class
+  private
+    FGuid: TGUID;
+    FEnumerator: TMyEnumerator;
+  published
+    property Enumerator: TMyEnumerator read FEnumerator write FEnumerator;
+    property Guid: TGUID read FGuid write FGuid;
   end;
 
   TCursorMock = class(TInterfacedObject, IDatabaseCursor)
@@ -51,10 +65,10 @@ uses System.Generics.Collections, System.SysUtils, Delphi.Mock;
 
 { TClassLoaderTest }
 
-function TClassLoaderTest.CreateFieldList: TArray<TFieldAlias>;
+function TClassLoaderTest.CreateFieldList<T>: TArray<TFieldAlias>;
 begin
   Result := nil;
-  var Table := TMapper.Default.FindTable(TMyClass);
+  var Table := TMapper.Default.FindTable(T);
 
   for var Field in Table.Fields do
     Result := Result + [TFieldAlias.Create('T', Field)];
@@ -64,7 +78,7 @@ procedure TClassLoaderTest.MustLoadThePropertiesOfAllRecords;
 begin
   var Cursor := TCursorMock.Create([['aaa', 111], ['bbb', 222]]);
   var Loader := TClassLoader.Create;
-  var Result := Loader.LoadAll<TMyClass>(Cursor, CreateFieldList);
+  var Result := Loader.LoadAll<TMyClass>(Cursor, CreateFieldList<TMyClass>);
 
   Assert.AreEqual('aaa', Result[0].Name);
 
@@ -84,7 +98,7 @@ procedure TClassLoaderTest.MustLoadThePropertiesOfTheClassWithTheValuesOfCursor;
 begin
   var Cursor := TCursorMock.Create([['abc', 123]]);
   var Loader := TClassLoader.Create;
-  var MyClass := Loader.Load<TMyClass>(Cursor, CreateFieldList);
+  var MyClass := Loader.Load<TMyClass>(Cursor, CreateFieldList<TMyClass>);
 
   Assert.AreEqual('abc', MyClass.Name);
   Assert.AreEqual(123, MyClass.Value);
@@ -103,7 +117,7 @@ procedure TClassLoaderTest.WhenHaveMoreThenOneRecordMustLoadAllThenWhenRequested
 begin
   var Cursor := TCursorMock.Create([['abc', 123], ['abc', 123]]);
   var Loader := TClassLoader.Create;
-  var Result := Loader.LoadAll<TMyClass>(Cursor, CreateFieldList);
+  var Result := Loader.LoadAll<TMyClass>(Cursor, CreateFieldList<TMyClass>);
 
   Assert.AreEqual<Integer>(2, Length(Result));
 
@@ -113,11 +127,28 @@ begin
   Loader.Free;
 end;
 
+procedure TClassLoaderTest.WhenTheClassAsSpecialFieldsMustLoadTheFieldsAsExpected;
+begin
+  var Loader := TClassLoader.Create;
+  var MyGuid := TGUID.Create('{EFBF3977-8A0E-4508-B913-E1F8FA2B2D6C}');
+
+  var Cursor := TCursorMock.Create([[Ord(Enum2), MyGuid.ToString]]);
+  var MyClass := Loader.Load<TMyClassWithSpecialTypes>(Cursor, CreateFieldList<TMyClassWithSpecialTypes>);
+
+  Assert.AreEqual(Enum2, MyClass.Enumerator);
+
+  Assert.AreEqual(MyGuid.ToString, MyClass.Guid.ToString);
+
+  MyClass.Free;
+
+  Loader.Free;
+end;
+
 procedure TClassLoaderTest.WhenThereIsNoExistingRecordInCursorMustReturnNilToClassReference;
 begin
   var Cursor := TCursorMock.Create(nil);
   var Loader := TClassLoader.Create;
-  var MyClass := Loader.Load<TMyClass>(Cursor, CreateFieldList);
+  var MyClass := Loader.Load<TMyClass>(Cursor, CreateFieldList<TMyClass>);
 
   Assert.IsNull(MyClass);
 
@@ -128,7 +159,7 @@ procedure TClassLoaderTest.WhenThereIsNoRecordsMustReturnAEmptyArray;
 begin
   var Cursor := TCursorMock.Create(nil);
   var Loader := TClassLoader.Create;
-  var Result := Loader.LoadAll<TMyClass>(Cursor, CreateFieldList);
+  var Result := Loader.LoadAll<TMyClass>(Cursor, CreateFieldList<TMyClass>);
 
   Assert.AreEqual<TArray<TMyClass>>(nil, Result);
 
