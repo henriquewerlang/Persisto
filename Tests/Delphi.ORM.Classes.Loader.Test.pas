@@ -53,17 +53,17 @@ type
   TCursorMock = class(TInterfacedObject, IDatabaseCursor)
   private
     FCurrentRecord: Integer;
-    FValues: TArray<TArray<TValue>>;
+    FValues: TArray<TArray<Variant>>;
 
-    function GetFieldValue(const FieldIndex: Integer): TValue;
+    function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
   public
-    constructor Create(Values: TArray<TArray<TValue>>);
+    constructor Create(Values: TArray<TArray<Variant>>);
   end;
 
 implementation
 
-uses System.Generics.Collections, System.SysUtils, Delphi.Mock;
+uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock;
 
 { TClassLoaderTest }
 
@@ -170,7 +170,7 @@ end;
 
 procedure TClassLoaderTest.WhenTheValueOfTheFieldIsNullCantRaiseAnError;
 begin
-  var Cursor := TCursorMock.Create([[TValue.Empty, TValue.Empty]]);
+  var Cursor := TCursorMock.Create([[NULL, NULL]]);
   var Loader := TClassLoader.Create;
 
   Assert.WillNotRaise(
@@ -186,7 +186,7 @@ end;
 
 { TCursorMock }
 
-constructor TCursorMock.Create(Values: TArray<TArray<TValue>>);
+constructor TCursorMock.Create(Values: TArray<TArray<Variant>>);
 begin
   inherited Create;
 
@@ -194,7 +194,7 @@ begin
   FValues := Values;
 end;
 
-function TCursorMock.GetFieldValue(const FieldIndex: Integer): TValue;
+function TCursorMock.GetFieldValue(const FieldIndex: Integer): Variant;
 begin
   Result := FValues[FCurrentRecord][FieldIndex];
 end;

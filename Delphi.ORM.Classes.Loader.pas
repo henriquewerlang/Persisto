@@ -20,7 +20,7 @@ type
 
 implementation
 
-uses System.SysUtils;
+uses System.SysUtils, System.Variants;
 
 { TClassLoader }
 
@@ -31,13 +31,19 @@ end;
 
 function TClassLoader.GetFieldValue(Cursor: IDatabaseCursor; Field: TField; const Index: Integer): TValue;
 begin
-  Result := Cursor.GetFieldValue(Index);
+  var FieldValue := Cursor.GetFieldValue(Index);
 
-  if not Result.IsEmpty then
+  if VarIsNull(FieldValue) then
+    Result := TValue.Empty
+  else
+  begin
     if Field.TypeInfo.PropertyType = FContext.GetType(TypeInfo(TGUID)) then
-      Result := TValue.From(StringToGuid(Result.AsString))
+      Result := TValue.From(StringToGuid(FieldValue))
     else if Field.TypeInfo.PropertyType is TRttiEnumerationType then
-      Result := TValue.FromOrdinal(Field.TypeInfo.PropertyType.Handle, Result.AsOrdinal);
+      Result := TValue.FromOrdinal(Field.TypeInfo.PropertyType.Handle, FieldValue)
+    else
+      Result := TValue.FromVariant(FieldValue);
+  end;
 end;
 
 function TClassLoader.Load<T>(Cursor: IDatabaseCursor; const Fields: TArray<TFieldAlias>): T;

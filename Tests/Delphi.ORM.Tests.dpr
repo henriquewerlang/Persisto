@@ -28,7 +28,8 @@ uses
   Delphi.ORM.Mapper.Test in 'Delphi.ORM.Mapper.Test.pas',
   Delphi.ORM.Mapper in '..\Delphi.ORM.Mapper.pas',
   Delphi.ORM.Rtti.Helper in '..\Delphi.ORM.Rtti.Helper.pas',
-  Delphi.ORM.Query.Builder.Test.Entity in 'Delphi.ORM.Query.Builder.Test.Entity.pas';
+  Delphi.ORM.Query.Builder.Test.Entity in 'Delphi.ORM.Query.Builder.Test.Entity.pas',
+  Delphi.ORM.Database.Connection.Unidac in '..\Delphi.ORM.Database.Connection.Unidac.pas';
 
 // Para não remover o valor abaixo
 {$IFNDEF TESTINSIGHT}

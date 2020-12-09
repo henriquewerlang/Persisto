@@ -9,7 +9,7 @@ type
   private
     FQuery: TUniQuery;
 
-    function GetFieldValue(const FieldIndex: Integer): TValue;
+    function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
   public
     constructor Create(Connection: TUniConnection; SQL: String);
@@ -54,9 +54,9 @@ begin
   inherited;
 end;
 
-function TDatabaseCursorUnidac.GetFieldValue(const FieldIndex: Integer): TValue;
+function TDatabaseCursorUnidac.GetFieldValue(const FieldIndex: Integer): Variant;
 begin
-  Result := TValue.FromVariant(FQuery.Fields[FieldIndex].AsVariant);
+  Result := FQuery.Fields[FieldIndex].AsVariant;
 end;
 
 function TDatabaseCursorUnidac.Next: Boolean;
