@@ -24,6 +24,8 @@ type
     procedure WhenThereIsNoRecordsMustReturnAEmptyArray;
     [Test]
     procedure WhenTheClassAsSpecialFieldsMustLoadTheFieldsAsExpected;
+    [Test]
+    procedure WhenTheValueOfTheFieldIsNullCantRaiseAnError;
   end;
 
   [Entity]
@@ -162,6 +164,22 @@ begin
   var Result := Loader.LoadAll<TMyClass>(Cursor, CreateFieldList<TMyClass>);
 
   Assert.AreEqual<TArray<TMyClass>>(nil, Result);
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenTheValueOfTheFieldIsNullCantRaiseAnError;
+begin
+  var Cursor := TCursorMock.Create([[TValue.Empty, TValue.Empty]]);
+  var Loader := TClassLoader.Create;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      var MyClass := Loader.Load<TMyClassWithSpecialTypes>(Cursor, CreateFieldList<TMyClassWithSpecialTypes>);
+
+      MyClass.Free;
+    end);
 
   Loader.Free;
 end;

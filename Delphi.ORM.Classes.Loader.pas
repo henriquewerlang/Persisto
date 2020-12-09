@@ -31,12 +31,13 @@ end;
 
 function TClassLoader.GetFieldValue(Cursor: IDatabaseCursor; Field: TField; const Index: Integer): TValue;
 begin
-  if Field.TypeInfo.PropertyType = FContext.GetType(TypeInfo(TGUID)) then
-    Result := TValue.From(StringToGuid(Cursor.GetFieldValue(Index).AsString))
-  else if Field.TypeInfo.PropertyType is TRttiEnumerationType then
-    Result := TValue.FromOrdinal(Field.TypeInfo.PropertyType.Handle, Cursor.GetFieldValue(Index).AsInt64)
-  else
-    Result := Cursor.GetFieldValue(Index);
+  Result := Cursor.GetFieldValue(Index);
+
+  if not Result.IsEmpty then
+    if Field.TypeInfo.PropertyType = FContext.GetType(TypeInfo(TGUID)) then
+      Result := TValue.From(StringToGuid(Result.AsString))
+    else if Field.TypeInfo.PropertyType is TRttiEnumerationType then
+      Result := TValue.FromOrdinal(Field.TypeInfo.PropertyType.Handle, Result.AsOrdinal);
 end;
 
 function TClassLoader.Load<T>(Cursor: IDatabaseCursor; const Fields: TArray<TFieldAlias>): T;
