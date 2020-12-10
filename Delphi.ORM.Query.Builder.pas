@@ -2,7 +2,7 @@ unit Delphi.ORM.Query.Builder;
 
 interface
 
-uses System.Rtti, System.Classes, System.Generics.Collections, Delphi.ORM.Database.Connection, Delphi.ORM.Classes.Loader, Delphi.ORM.Mapper;
+uses System.Rtti, System.Classes, System.Generics.Collections, Delphi.ORM.Database.Connection, Delphi.ORM.Mapper;
 
 type
   TQueryBuilder = class;
@@ -13,30 +13,27 @@ type
 
   TFilterOperation = (Equal);
 
-  IQueryBuilderCommand = interface
-    function GetSQL: String;
+  TQueryBuilderCommand = class
+    function GetSQL: String; virtual; abstract;
   end;
 
-  IQueryBuilderFieldList = interface
-    function GetFields: TArray<TFieldAlias>;
-  end;
-
-  IQueryBuilderOpen<T: class, constructor> = interface
-    function All: TArray<T>;
-    function One: T;
+  TQueryBuilderFieldList = class
+    function GetFields: TArray<TFieldAlias>; virtual; abstract;
   end;
 
   TQueryBuilder = class
   private
     FConnection: IDatabaseConnection;
-    FCommand: IQueryBuilderCommand;
-    FFieldList: IQueryBuilderFieldList;
+    FCommand: TQueryBuilderCommand;
 
+    function GetConnection: IDatabaseConnection;
     function GetValueString(const Value: TValue): String;
   public
     constructor Create(Connection: IDatabaseConnection);
 
-    function Build: String;
+    destructor Destroy; override;
+
+    function GetSQL: String;
     function Select: TQueryBuilderSelect;
 
     procedure Delete<T: class, constructor>(const AObject: T);
@@ -46,25 +43,28 @@ type
     property Connection: IDatabaseConnection read FConnection;
   end;
 
-  TQueryBuilderFrom = class(TInterfacedObject, IQueryBuilderCommand)
+  TQueryBuilderFrom = class
   private
     FJoin: TQueryBuilderJoin;
-    FBuilder: TQueryBuilder;
-    FWhere: IQueryBuilderCommand;
+    FWhere: TQueryBuilderCommand;
     FRecursivityLevel: Word;
+    FSelect: TQueryBuilderSelect;
 
     function BuildJoinSQL: String;
+    function GetBuilder: TQueryBuilder;
+    function GetFields: TArray<TFieldAlias>;
+    function GetJoin: TQueryBuilderJoin;
     function MakeJoinSQL(Join: TQueryBuilderJoin): String;
-    function GetSQL: String;
 
     procedure BuildJoin;
     procedure MakeJoin(Join: TQueryBuilderJoin; var TableIndex: Integer; RecursionControl: TDictionary<TTable, Word>);
   public
-    constructor Create(Builder: TQueryBuilder; RecursivityLevel: Word);
+    constructor Create(Select: TQueryBuilderSelect; RecursivityLevel: Word);
 
     destructor Destroy; override;
 
     function From<T: class, constructor>: TQueryBuilderWhere<T>;
+    function GetSQL: String;
   end;
 
   TQueryBuilderJoin = class
@@ -87,46 +87,45 @@ type
     property Table: TTable read FTable write FTable;
   end;
 
-  TQueryBuilderOpen<T: class, constructor> = class(TInterfacedObject, IQueryBuilderOpen<T>)
+  TQueryBuilderOpen<T: class, constructor> = class
   private
     FCursor: IDatabaseCursor;
-    FBuilder: TQueryBuilder;
-    FLoader: TClassLoader;
+    FFrom: TQueryBuilderFrom;
+  public
+    constructor Create(From: TQueryBuilderFrom);
 
     function All: TArray<T>;
     function One: T;
-    function GetLoader: TClassLoader;
-
-    property Loader: TClassLoader read GetLoader;
-  public
-    constructor Create(Cursor: IDatabaseCursor; Builder: TQueryBuilder);
-
-    destructor Destroy; override;
   end;
 
-  TQueryBuilderAllFields = class(TInterfacedObject, IQueryBuilderFieldList)
+  TQueryBuilderAllFields = class(TQueryBuilderFieldList)
   private
     FFrom: TQueryBuilderFrom;
 
     function GetAllFields(Join: TQueryBuilderJoin): TArray<TFieldAlias>;
-    function GetFields: TArray<TFieldAlias>;
   public
     constructor Create(From: TQueryBuilderFrom);
+
+    function GetFields: TArray<TFieldAlias>; override;
   end;
 
-  TQueryBuilderSelect = class(TInterfacedObject, IQueryBuilderCommand)
+  TQueryBuilderSelect = class(TQueryBuilderCommand)
   private
-    FConnection: IDatabaseConnection;
     FBuilder: TQueryBuilder;
-    FFrom: IQueryBuilderCommand;
+    FFieldList: TQueryBuilderFieldList;
+    FFrom: TQueryBuilderFrom;
     FRecursivityLevel: Word;
 
-    function GetFields: String;
-    function GetSQL: String;
+    function GetBuilder: TQueryBuilder;
+    function GetFields: TArray<TFieldAlias>;
+    function GetFieldsWithAlias: String;
   public
-    constructor Create(Connection: IDatabaseConnection; Builder: TQueryBuilder);
+    constructor Create(Builder: TQueryBuilder);
+
+    destructor Destroy; override;
 
     function All: TQueryBuilderFrom;
+    function GetSQL: String; override;
     function RecursivityLevel(const Level: Word): TQueryBuilderSelect;
 
     property RecursivityLevelValue: Word read FRecursivityLevel write FRecursivityLevel;
@@ -166,16 +165,18 @@ type
     class operator NotEqual(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
   end;
 
-  TQueryBuilderWhere<T: class, constructor> = class(TInterfacedObject, IQueryBuilderCommand)
+  TQueryBuilderWhere<T: class, constructor> = class(TQueryBuilderCommand)
   private
-    FBuilder: TQueryBuilder;
     FFilter: String;
-
-    function GetSQL: String;
+    FFrom: TQueryBuilderFrom;
+    FOpen: TObject;
   public
-    constructor Create(Builder: TQueryBuilder);
+    constructor Create(From: TQueryBuilderFrom);
 
-    function Open: IQueryBuilderOpen<T>;
+    destructor Destroy; override;
+
+    function GetSQL: String; override;
+    function Open: TQueryBuilderOpen<T>;
     function Where(const Condition: TQueryBuilderCondition): TQueryBuilderWhere<T>;
   end;
 
@@ -186,7 +187,7 @@ const
 
 implementation
 
-uses System.SysUtils, System.TypInfo, System.Variants, Delphi.ORM.Attributes, Delphi.ORM.Rtti.Helper;
+uses System.SysUtils, System.TypInfo, System.Variants, Delphi.ORM.Attributes, Delphi.ORM.Rtti.Helper, Delphi.ORM.Classes.Loader;
 
 function Field(const Name: String): TQueryBuilderCondition;
 begin
@@ -221,6 +222,13 @@ begin
   FConnection.ExecuteDirect(Format('delete from %s%s', [Table.DatabaseName, Where.Where(Condition).GetSQL]));
 
   Where.Free;
+end;
+
+destructor TQueryBuilder.Destroy;
+begin
+  FCommand.Free;
+
+  inherited;
 end;
 
 function TQueryBuilder.GetValueString(const Value: TValue): String;
@@ -269,7 +277,12 @@ begin
   FConnection.ExecuteDirect(SQL);
 end;
 
-function TQueryBuilder.Build: String;
+function TQueryBuilder.GetConnection: IDatabaseConnection;
+begin
+  Result := FConnection;
+end;
+
+function TQueryBuilder.GetSQL: String;
 begin
   if Assigned(FCommand) then
     Result := FCommand.GetSQL
@@ -279,7 +292,7 @@ end;
 
 function TQueryBuilder.Select: TQueryBuilderSelect;
 begin
-  Result := TQueryBuilderSelect.Create(FConnection, Self);
+  Result := TQueryBuilderSelect.Create(Self);
 
   FCommand := Result;
 end;
@@ -333,16 +346,18 @@ begin
   Result := Format('%s %s', [FJoin.Table.DatabaseName, FJoin.Alias]) + MakeJoinSQL(FJoin);
 end;
 
-constructor TQueryBuilderFrom.Create(Builder: TQueryBuilder; RecursivityLevel: Word);
+constructor TQueryBuilderFrom.Create(Select: TQueryBuilderSelect; RecursivityLevel: Word);
 begin
   inherited Create;
 
-  FBuilder := Builder;
+  FSelect := Select;
   FRecursivityLevel := RecursivityLevel;
 end;
 
 destructor TQueryBuilderFrom.Destroy;
 begin
+  FWhere.Free;
+
   FJoin.Free;
 
   inherited;
@@ -351,11 +366,26 @@ end;
 function TQueryBuilderFrom.From<T>: TQueryBuilderWhere<T>;
 begin
   FJoin := TQueryBuilderJoin.Create(TMapper.Default.FindTable(T));
-  Result := TQueryBuilderWhere<T>.Create(FBuilder);
+  Result := TQueryBuilderWhere<T>.Create(Self);
 
   FWhere := Result;
 
   BuildJoin;
+end;
+
+function TQueryBuilderFrom.GetBuilder: TQueryBuilder;
+begin
+  Result := FSelect.GetBuilder;
+end;
+
+function TQueryBuilderFrom.GetFields: TArray<TFieldAlias>;
+begin
+  Result := FSelect.GetFields;
+end;
+
+function TQueryBuilderFrom.GetJoin: TQueryBuilderJoin;
+begin
+  Result := FJoin;
 end;
 
 function TQueryBuilderFrom.GetSQL: String;
@@ -415,25 +445,33 @@ end;
 
 function TQueryBuilderSelect.All: TQueryBuilderFrom;
 begin
-  Result := TQueryBuilderFrom.Create(FBuilder, FRecursivityLevel);
+  Result := TQueryBuilderFrom.Create(Self, FRecursivityLevel);
 
-  FBuilder.FFieldList := TQueryBuilderAllFields.Create(Result);
+  FFieldList := TQueryBuilderAllFields.Create(Result);
   FFrom := Result;
 end;
 
-constructor TQueryBuilderSelect.Create(Connection: IDatabaseConnection; Builder: TQueryBuilder);
+constructor TQueryBuilderSelect.Create(Builder: TQueryBuilder);
 begin
   inherited Create;
 
   FBuilder := Builder;
-  FConnection := Connection;
   FRecursivityLevel := 1;
 end;
 
-function TQueryBuilderSelect.GetFields: String;
+destructor TQueryBuilderSelect.Destroy;
+begin
+  FFrom.Free;
+
+  FFieldList.Free;
+
+  inherited;
+end;
+
+function TQueryBuilderSelect.GetFieldsWithAlias: String;
 begin
   var FieldAlias: TFieldAlias;
-  var FieldList := FBuilder.FFieldList.GetFields;
+  var FieldList := FFrom.GetFields;
   Result := EmptyStr;
 
   for var A := Low(FieldList) to High(FieldList) do
@@ -447,12 +485,17 @@ begin
   end;
 end;
 
+function TQueryBuilderSelect.GetFields: TArray<TFieldAlias>;
+begin
+  Result := FFieldList.GetFields;
+end;
+
 function TQueryBuilderSelect.GetSQL: String;
 begin
   Result := 'select ';
 
   if Assigned(FFrom) then
-    Result := Result + GetFields + FFrom.GetSQL;
+    Result := Result + GetFieldsWithAlias + FFrom.GetSQL;
 end;
 
 function TQueryBuilderSelect.RecursivityLevel(const Level: Word): TQueryBuilderSelect;
@@ -461,13 +504,25 @@ begin
   Result := Self;
 end;
 
+function TQueryBuilderSelect.GetBuilder: TQueryBuilder;
+begin
+  Result := FBuilder;
+end;
+
 { TQueryBuilderWhere<T> }
 
-constructor TQueryBuilderWhere<T>.Create(Builder: TQueryBuilder);
+constructor TQueryBuilderWhere<T>.Create(From: TQueryBuilderFrom);
 begin
   inherited Create;
 
-  FBuilder := Builder;
+  FFrom := From;
+end;
+
+destructor TQueryBuilderWhere<T>.Destroy;
+begin
+  FOpen.Free;
+
+  inherited;
 end;
 
 function TQueryBuilderWhere<T>.GetSQL: String;
@@ -478,9 +533,11 @@ begin
     Result := ' where ' + FFilter;
 end;
 
-function TQueryBuilderWhere<T>.Open: IQueryBuilderOpen<T>;
+function TQueryBuilderWhere<T>.Open: TQueryBuilderOpen<T>;
 begin
-  Result := TQueryBuilderOpen<T>.Create(FBuilder.Connection.OpenCursor(FBuilder.Build), FBuilder);
+  Result := TQueryBuilderOpen<T>.Create(FFrom);
+
+  FOpen := Result;
 end;
 
 function TQueryBuilderWhere<T>.Where(const Condition: TQueryBuilderCondition): TQueryBuilderWhere<T>;
@@ -493,35 +550,29 @@ end;
 
 function TQueryBuilderOpen<T>.All: TArray<T>;
 begin
-  Result := Loader.LoadAll<T>(FCursor, FBuilder.FFieldList.GetFields);
+  var Loader := TClassLoader.Create(FCursor, FFrom.GetFields);
+
+  Result := Loader.LoadAll<T>;
+
+  Loader.Free;
 end;
 
-constructor TQueryBuilderOpen<T>.Create(Cursor: IDatabaseCursor; Builder: TQueryBuilder);
+constructor TQueryBuilderOpen<T>.Create(From: TQueryBuilderFrom);
 begin
   inherited Create;
 
-  FBuilder := Builder;
-  FCursor := Cursor;
-end;
+  FFrom := From;
 
-destructor TQueryBuilderOpen<T>.Destroy;
-begin
-  FLoader.Free;
-
-  inherited;
-end;
-
-function TQueryBuilderOpen<T>.GetLoader: TClassLoader;
-begin
-  if not Assigned(FLoader) then
-    FLoader := TClassLoader.Create;
-
-  Result := FLoader;
+  FCursor := FFrom.GetBuilder.GetConnection.OpenCursor(FFrom.GetBuilder.GetSQL);
 end;
 
 function TQueryBuilderOpen<T>.One: T;
 begin
-  Result := Loader.Load<T>(FCursor, FBuilder.FFieldList.GetFields);
+  var Loader := TClassLoader.Create(FCursor, FFrom.GetFields);
+
+  Result := Loader.Load<T>;
+
+  Loader.Free;
 end;
 
 { TQueryBuilderAllFields }
@@ -547,7 +598,7 @@ end;
 
 function TQueryBuilderAllFields.GetFields: TArray<TFieldAlias>;
 begin
-  Result := GetAllFields(FFrom.FJoin);
+  Result := GetAllFields(FFrom.GetJoin);
 end;
 
 { TQueryBuilderCondition }

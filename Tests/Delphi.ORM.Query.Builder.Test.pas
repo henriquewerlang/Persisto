@@ -179,14 +179,16 @@ begin
 
   Query.From<TClassWithTwoForeignKey>;
 
-  Assert.AreEqual(' from ClassWithTwoForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id left join ClassWithPrimaryKey T3 on T1.IdAnotherClass2=T3.Id', (Query as IQueryBuilderCommand).GetSQL);
+  Assert.AreEqual(' from ClassWithTwoForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id left join ClassWithPrimaryKey T3 on T1.IdAnotherClass2=T3.Id', Query.GetSQL);
+
+  Query.Free;
 end;
 
 procedure TDelphiORMQueryBuilderTest.IfNoCommandCalledTheSQLMustReturnEmpty;
 begin
   var Query := TQueryBuilder.Create(nil);
 
-  Assert.AreEqual(EmptyStr, Query.Build);
+  Assert.AreEqual(EmptyStr, Query.GetSQL);
 
   Query.Free;
 end;
@@ -198,7 +200,7 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      Query.Build
+      Query.GetSQL
     end, EAccessViolation);
 
   Query.Free;
@@ -225,7 +227,7 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      Query.Build;
+      Query.GetSQL;
     end, EAccessViolation);
 
   Query.Free;
@@ -250,7 +252,9 @@ begin
     'left join ClassHierarchy3 T6 ' +
            'on T5.IdClass2=T6.Id ' +
     'left join ClassHierarchy3 T7 ' +
-           'on T1.IdClass2=T7.Id', (Query as IQueryBuilderCommand).GetSQL);
+           'on T1.IdClass2=T7.Id', Query.GetSQL);
+
+  Query.Free;
 end;
 
 procedure TDelphiORMQueryBuilderTest.OnlyPublishedPropertiesMustAppearInInsertSQL;
@@ -303,7 +307,9 @@ begin
 
   Query.From<TMyTestClass>;
 
-  Assert.AreEqual(' from MyTestClass T1', (Query as IQueryBuilderCommand).GetSQL);
+  Assert.AreEqual(' from MyTestClass T1', Query.GetSQL);
+
+  Query.Free;
 end;
 
 procedure TDelphiORMQueryBuilderTest.TheFieldsHaveToBeGeneratedWithTheAliasOfTheRespectiveTables;
@@ -312,7 +318,7 @@ begin
 
   Query.Select.All.From<TMyTestClass>;
 
-  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Query.Build);
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Query.GetSQL);
 
   Query.Free;
 end;
@@ -323,7 +329,9 @@ begin
 
   Query.From<TClassWithForeignKeyRecursive>;
 
-  Assert.AreEqual(' from ClassWithForeignKeyRecursive T1 left join ClassWithForeignKey T2 on T1.IdAnotherClass=T2.Id left join ClassWithPrimaryKey T3 on T2.IdAnotherClass=T3.Id', (Query as IQueryBuilderCommand).GetSQL);
+  Assert.AreEqual(' from ClassWithForeignKeyRecursive T1 left join ClassWithForeignKey T2 on T1.IdAnotherClass=T2.Id left join ClassWithPrimaryKey T3 on T2.IdAnotherClass=T3.Id', Query.GetSQL);
+
+  Query.Free;
 end;
 
 procedure TDelphiORMQueryBuilderTest.TheKeyFieldCantBeUpdatedInTheUpdateProcedure;
@@ -356,7 +364,9 @@ begin
         ' from MyEntityWithManyValueAssociation T1 ' +
     'left join MyEntityWithManyValueAssociationChild T2 ' +
            'on T1.Id=T2.IdManyValueAssociation',
-    (From as IQueryBuilderCommand).GetSQL);
+    From.GetSQL);
+
+  From.Free;
 end;
 
 procedure TDelphiORMQueryBuilderTest.OnlyPublishedPropertiesCanAppearInSQL;
@@ -365,7 +375,7 @@ begin
 
   Query.Select.All.From<TMyTestClass>;
 
-  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Query.Build);
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Query.GetSQL);
 
   Query.Free;
 end;
@@ -419,7 +429,7 @@ begin
 
   Query.Select;
 
-  Assert.AreEqual('select ', Query.Build);
+  Assert.AreEqual('select ', Query.GetSQL);
 
   Query.Free;
 end;
@@ -467,7 +477,9 @@ begin
 
   Query.From<TClassWithForeignKey>;
 
-  Assert.AreEqual(' from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', (Query as IQueryBuilderCommand).GetSQL);
+  Assert.AreEqual(' from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', Query.GetSQL);
+
+  Query.Free;
 end;
 
 procedure TDelphiORMQueryBuilderTest.WhenConfiguredTheRecursivityLevelTheJoinsMustFollowTheConfiguration;
@@ -498,9 +510,9 @@ begin
                'on T8.IdRecursive=T9.Id ' +
         'left join ClassRecursiveFirst T10 ' +
                'on T9.IdRecursive=T10.Id',
-    (From as IQueryBuilderCommand).GetSQL);
+    From.GetSQL);
 
-  Query.Build;
+  Query.GetSQL;
 
   Query.Free;
 end;
@@ -538,7 +550,7 @@ begin
 
   Query.Select.All.From<TMyTestClass>;
 
-  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Query.Build);
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Query.GetSQL);
 
   Query.Free;
 end;
@@ -585,8 +597,10 @@ begin
     begin
       Query.From<TClassRecursiveFirst>;
 
-      (Query as IQueryBuilderCommand).GetSQL;
+      Query.GetSQL;
     end);
+
+  Query.Free;
 end;
 
 procedure TDelphiORMQueryBuilderTest.WhenTheClassHaveManyValueAssociationMustLoadTheJoinBetweenTheParentAndChildTable;
@@ -599,7 +613,9 @@ begin
         ' from MyEntityWithManyValueAssociation T1 ' +
     'left join MyEntityWithManyValueAssociationChild T2 ' +
            'on T1.Id=T2.IdManyValueAssociation',
-    (From as IQueryBuilderCommand).GetSQL);
+    From.GetSQL);
+
+  From.Free;
 end;
 
 procedure TDelphiORMQueryBuilderTest.WhenTheClassHaveThePrimaryKeyAttributeMustBuildTheWhereWithTheValuesOfFieldInTheKeyList;
@@ -641,7 +657,9 @@ begin
            'on T5.IdRecursive1=T6.Id ' +
     'left join ClassRecursiveItself T7 ' +
            'on T5.IdRecursive2=T7.Id',
-    (From as IQueryBuilderCommand).GetSQL);
+    From.GetSQL);
+
+  From.Free;
 end;
 
 { TDatabase }
@@ -792,7 +810,7 @@ procedure TQueryBuilderAllFieldsTest.FieldsOfAnObjectCantBeLoadedInTheListOfFiel
 begin
   var From := TQueryBuilderFrom.Create(nil, 1);
 
-  var FieldList: IQueryBuilderFieldList := TQueryBuilderAllFields.Create(From);
+  var FieldList := TQueryBuilderAllFields.Create(From);
 
   From.From<TClassWithTwoForeignKey>;
 
@@ -800,19 +818,23 @@ begin
     Assert.IsFalse(Field.Field.TypeInfo.PropertyType.InheritsFrom(TRttiStructuredType));
 
   From.Free;
+
+  FieldList.Free;
 end;
 
 procedure TQueryBuilderAllFieldsTest.InASingleClassMustLoadAllFieldsFromThatClass;
 begin
   var From := TQueryBuilderFrom.Create(nil, 1);
 
-  var FieldList: IQueryBuilderFieldList := TQueryBuilderAllFields.Create(From);
+  var FieldList := TQueryBuilderAllFields.Create(From);
 
   From.From<TMyTestClass>;
 
   Assert.AreEqual<Integer>(3, Length(FieldList.GetFields));
 
   From.Free;
+
+  FieldList.Free;
 end;
 
 procedure TQueryBuilderAllFieldsTest.Setup;
@@ -824,46 +846,52 @@ procedure TQueryBuilderAllFieldsTest.TheFieldsMustBeLoadedRecursivelyInAllForeig
 begin
   var From := TQueryBuilderFrom.Create(nil, 1);
 
-  var FieldList: IQueryBuilderFieldList := TQueryBuilderAllFields.Create(From);
+  var FieldList := TQueryBuilderAllFields.Create(From);
 
   From.From<TClassWithForeignKeyRecursive>;
 
   Assert.AreEqual<Integer>(4, Length(FieldList.GetFields));
 
   From.Free;
+
+  FieldList.Free;
 end;
 
 procedure TQueryBuilderAllFieldsTest.TheRecursivelyMustBeRespectedAndLoadAllFieldFromTheClasses;
 begin
   var From := TQueryBuilderFrom.Create(nil, 3);
 
-  var FieldList: IQueryBuilderFieldList := TQueryBuilderAllFields.Create(From);
+  var FieldList := TQueryBuilderAllFields.Create(From);
 
   From.From<TClassRecursiveFirst>;
 
   Assert.AreEqual<Integer>(10, Length(FieldList.GetFields));
 
   From.Free;
+
+  FieldList.Free;
 end;
 
 procedure TQueryBuilderAllFieldsTest.WhenTheClassHaveForeignKeyMustLoadAllFieldsOfAllClassesInvolved;
 begin
   var From := TQueryBuilderFrom.Create(nil, 1);
 
-  var FieldList: IQueryBuilderFieldList := TQueryBuilderAllFields.Create(From);
+  var FieldList := TQueryBuilderAllFields.Create(From);
 
   From.From<TClassWithTwoForeignKey>;
 
   Assert.AreEqual<Integer>(5, Length(FieldList.GetFields));
 
   From.Free;
+
+  FieldList.Free;
 end;
 
 procedure TQueryBuilderAllFieldsTest.WhenTheClassIsRecursiveItselfCantRaiseAnErrorInTheExecution;
 begin
   var From := TQueryBuilderFrom.Create(nil, 1);
 
-  var FieldList: IQueryBuilderFieldList := TQueryBuilderAllFields.Create(From);
+  var FieldList := TQueryBuilderAllFields.Create(From);
 
   From.From<TClassRecursiveFirst>;
 
@@ -871,24 +899,26 @@ begin
     procedure
     begin
       FieldList.GetFields;
-
-      FieldList := nil;
     end);
 
   From.Free;
+
+  FieldList.Free;
 end;
 
 procedure TQueryBuilderAllFieldsTest.WhenThePropertyIsAnArrayCantLoadTheFieldInTheList;
 begin
   var From := TQueryBuilderFrom.Create(nil, 1);
 
-  var FieldList: IQueryBuilderFieldList := TQueryBuilderAllFields.Create(From);
+  var FieldList := TQueryBuilderAllFields.Create(From);
 
   From.From<TMyEntityWithManyValueAssociation>;
 
   Assert.AreEqual<Integer>(2, Length(FieldList.GetFields));
 
   From.Free;
+
+  FieldList.Free;
 end;
 
 { TQueryBuilderSelectTest }
@@ -900,7 +930,7 @@ end;
 
 procedure TQueryBuilderSelectTest.WhenIsNotDefinedTheRecursivityLevelMustBeOneTheDefaultValue;
 begin
-  var Select := TQueryBuilderSelect.Create(nil, nil);
+  var Select := TQueryBuilderSelect.Create(nil);
 
   Assert.AreEqual(1, Select.RecursivityLevelValue);
 

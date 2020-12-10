@@ -8,14 +8,16 @@ type
   TClassLoader = class
   private
     FContext: TRttiContext;
+    FCursor: IDatabaseCursor;
+    FFields: TArray<TFieldAlias>;
 
-    function GetFieldValue(Cursor: IDatabaseCursor; Field: TField; const Index: Integer): TValue;
-    function LoadClass<T: class, constructor>(Cursor: IDatabaseCursor; const Fields: TArray<TFieldAlias>): T;
+    function GetFieldValue(Field: TField; const Index: Integer): TValue;
+    function LoadClass<T: class, constructor>: T;
   public
-    constructor Create;
+    constructor Create(Cursor: IDatabaseCursor; const Fields: TArray<TFieldAlias>);
 
-    function Load<T: class, constructor>(Cursor: IDatabaseCursor; const Fields: TArray<TFieldAlias>): T;
-    function LoadAll<T: class, constructor>(Cursor: IDatabaseCursor; const Fields: TArray<TFieldAlias>): TArray<T>;
+    function Load<T: class, constructor>: T;
+    function LoadAll<T: class, constructor>: TArray<T>;
   end;
 
 implementation
@@ -24,14 +26,18 @@ uses System.SysUtils, System.Variants;
 
 { TClassLoader }
 
-constructor TClassLoader.Create;
+constructor TClassLoader.Create(Cursor: IDatabaseCursor; const Fields: TArray<TFieldAlias>);
 begin
+  inherited Create;
+
   FContext := TRttiContext.Create;
+  FCursor := Cursor;
+  FFields := Fields;
 end;
 
-function TClassLoader.GetFieldValue(Cursor: IDatabaseCursor; Field: TField; const Index: Integer): TValue;
+function TClassLoader.GetFieldValue(Field: TField; const Index: Integer): TValue;
 begin
-  var FieldValue := Cursor.GetFieldValue(Index);
+  var FieldValue := FCursor.GetFieldValue(Index);
 
   if VarIsNull(FieldValue) then
     Result := TValue.Empty
@@ -46,28 +52,28 @@ begin
   end;
 end;
 
-function TClassLoader.Load<T>(Cursor: IDatabaseCursor; const Fields: TArray<TFieldAlias>): T;
+function TClassLoader.Load<T>: T;
 begin
-  if Cursor.Next then
-    Result := LoadClass<T>(Cursor, Fields)
+  if FCursor.Next then
+    Result := LoadClass<T>
   else
     Result := nil;
 end;
 
-function TClassLoader.LoadAll<T>(Cursor: IDatabaseCursor; const Fields: TArray<TFieldAlias>): TArray<T>;
+function TClassLoader.LoadAll<T>: TArray<T>;
 begin
   Result := nil;
 
-  while Cursor.Next do
-    Result := Result + [LoadClass<T>(Cursor, Fields)];
+  while FCursor.Next do
+    Result := Result + [LoadClass<T>];
 end;
 
-function TClassLoader.LoadClass<T>(Cursor: IDatabaseCursor; const Fields: TArray<TFieldAlias>): T;
+function TClassLoader.LoadClass<T>: T;
 begin
   Result := T.Create;
 
-  for var A := Low(Fields) to High(Fields) do
-    Fields[A].Field.TypeInfo.SetValue(TObject(Result), GetFieldValue(Cursor, Fields[A].Field, A));
+  for var A := Low(FFields) to High(FFields) do
+    FFields[A].Field.TypeInfo.SetValue(TObject(Result), GetFieldValue(FFields[A].Field, A));
 end;
 
 end.
