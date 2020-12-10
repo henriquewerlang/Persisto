@@ -206,10 +206,5 @@ begin
   Result := FCurrentRecord < Length(FValues);
 end;
 
-initialization
-  // Avoid leak reporting
-  TRttiContext.Create.GetType(TMyClass).GetProperties;
-  TMock.CreateInterface<IDatabaseCursor>;
-
 end.
 

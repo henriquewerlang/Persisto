@@ -292,6 +292,8 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.Setup;
 begin
+  TMock.CreateInterface<IDatabaseCursor>;
+
   TMapper.Default.LoadAll;
 end;
 
