@@ -79,8 +79,6 @@ type
     [Test]
     procedure WhenTheClassIsInheritedMustShareTheSamePrimaryKeyFromTheBaseClass;
     [Test]
-    procedure WhenCantFindTheClassHaveToLoadTheClass;
-    [Test]
     procedure WhenTheForeignKeyIsAClassAliasMustLoadTheForeignClassAndLinkToForeignKey;
     [Test]
     procedure WhenLoadMoreThenOneTimeTheSameClassCantRaiseAnError;
@@ -90,6 +88,8 @@ type
     procedure TheTableOfManyValueAssociationMustBeTheChildTableOfThisLink;
     [Test]
     procedure TheFieldLinkingTheParentAndChildOfManyValueAssociationMustBeLoaded;
+    [Test]
+    procedure WhenTheChildClassIsDeclaredBeforeTheParentClassTheLinkBetweenOfTablesMustBeCreated;
   end;
 
   [Entity]
@@ -260,17 +260,7 @@ type
     property Id: Integer read FId write FId;
   end;
 
-  TMyEntityWithManyValueAssociationChild = class;
-
-  [Entity]
-  TMyEntityWithManyValueAssociation = class
-  private
-    FId: Integer;
-    FManyValueAssociation: TArray<TMyEntityWithManyValueAssociationChild>;
-  published
-    property Id: Integer read FId write FId;
-    property ManyValueAssociation: TArray<TMyEntityWithManyValueAssociationChild> read FManyValueAssociation write FManyValueAssociation;
-  end;
+  TMyEntityWithManyValueAssociation = class;
 
   [Entity]
   TMyEntityWithManyValueAssociationChild = class
@@ -280,6 +270,16 @@ type
   published
     property Id: Integer read FId write FId;
     property ManyValueAssociation: TMyEntityWithManyValueAssociation read FManyValueAssociation write FManyValueAssociation;
+  end;
+
+  [Entity]
+  TMyEntityWithManyValueAssociation = class
+  private
+    FId: Integer;
+    FManyValueAssociation: TArray<TMyEntityWithManyValueAssociationChild>;
+  published
+    property Id: Integer read FId write FId;
+    property ManyValueAssociation: TArray<TMyEntityWithManyValueAssociationChild> read FManyValueAssociation write FManyValueAssociation;
   end;
 
 implementation
@@ -503,23 +503,6 @@ begin
   Mapper.Free;
 end;
 
-procedure TMapperTest.WhenCantFindTheClassHaveToLoadTheClass;
-begin
-  var Mapper := TMapper.Create;
-
-  var Table := Mapper.FindTable(TMyEntity);
-
-  Assert.IsNull(Table);
-
-  Mapper.FindOrLoadTable(TMyEntity);
-
-  Table := Mapper.FindTable(TMyEntity);
-
-  Assert.IsNotNull(Table);
-
-  Mapper.Free;
-end;
-
 procedure TMapperTest.WhenLoadAClassMustKeepTheOrderingOfTablesToTheFindTableContinueToWorking;
 begin
   var Mapper := TMapper.Create;
@@ -587,6 +570,19 @@ begin
     begin
       Mapper.LoadClass(TMyEntityForeignKeyToClassWithoutPrimaryKey);
     end, EClassWithoutPrimaryKeyDefined);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheChildClassIsDeclaredBeforeTheParentClassTheLinkBetweenOfTablesMustBeCreated;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithManyValueAssociation);
+
+  Assert.AreEqual<Integer>(1, Length(Table.ManyValueAssociations));
 
   Mapper.Free;
 end;

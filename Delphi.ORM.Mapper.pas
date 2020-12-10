@@ -84,6 +84,7 @@ type
   private
     FContext: TRttiContext;
     FTables: TDictionary<TRttiInstanceType, TTable>;
+    FLateLoadTables: TList<TTable>;
 
     function CheckAttribute<T: TCustomAttribute>(TypeInfo: TRttiType): Boolean;
     function GetFieldName(TypeInfo: TRttiInstanceProperty): String;
@@ -91,18 +92,18 @@ type
     function GetPrimaryKey(TypeInfo: TRttiInstanceType): TArray<String>;
     function GetTableName(TypeInfo: TRttiInstanceType): String;
     function GetTables: TArray<TTable>;
+    function LoadClassInTable(TypeInfo: TRttiInstanceType): TTable;
     function LoadTable(TypeInfo: TRttiInstanceType): TTable;
 
     procedure LoadTableFields(TypeInfo: TRttiInstanceType; var Table: TTable);
     procedure LoadTableForeignKeys(var Table: TTable);
     procedure LoadTableInfo(TypeInfo: TRttiInstanceType; var Table: TTable);
-    procedure LoadTableManyValueAssociations(var Table: TTable);
+    procedure LoadTableManyValueAssociations(Table: TTable);
   public
     constructor Create;
 
     destructor Destroy; override;
 
-    function FindOrLoadTable(ClassInfo: TClass): TTable;
     function FindTable(ClassInfo: TClass): TTable;
     function LoadClass(ClassInfo: TClass): TTable;
 
@@ -136,22 +137,17 @@ end;
 constructor TMapper.Create;
 begin
   FContext := TRttiContext.Create;
+  FLateLoadTables := TList<TTable>.Create;
   FTables := TObjectDictionary<TRttiInstanceType, TTable>.Create([doOwnsValues]);
 end;
 
 destructor TMapper.Destroy;
 begin
+  FLateLoadTables.Free;
+
   FTables.Free;
 
   FContext.Free;
-end;
-
-function TMapper.FindOrLoadTable(ClassInfo: TClass): TTable;
-begin
-  Result := FindTable(ClassInfo);
-
-  if not Assigned(Result) then
-    Result := LoadClass(ClassInfo);
 end;
 
 function TMapper.FindTable(ClassInfo: TClass): TTable;
@@ -212,12 +208,22 @@ begin
 
   for var TypeInfo in FContext.GetTypes do
     if CheckAttribute<EntityAttribute>(TypeInfo) then
-      LoadTable(TypeInfo.AsInstance);
+      LoadClassInTable(TypeInfo.AsInstance);
 end;
 
 function TMapper.LoadClass(ClassInfo: TClass): TTable;
 begin
-  Result := LoadTable(FContext.GetType(ClassInfo).AsInstance);
+  Result := LoadClassInTable(FContext.GetType(ClassInfo).AsInstance);
+end;
+
+function TMapper.LoadClassInTable(TypeInfo: TRttiInstanceType): TTable;
+begin
+  Result := LoadTable(TypeInfo);
+
+  for var Table in FLateLoadTables do
+    LoadTableManyValueAssociations(Table);
+
+  FLateLoadTables.Clear;
 end;
 
 function TMapper.LoadTable(TypeInfo: TRttiInstanceType): TTable;
@@ -230,6 +236,8 @@ begin
     Result.DatabaseName := GetTableName(TypeInfo);
 
     FTables.Add(TypeInfo, Result);
+
+    FLateLoadTables.Add(Result);
 
     LoadTableInfo(TypeInfo, Result);
   end;
@@ -252,7 +260,7 @@ begin
   for var Field in Table.Fields do
     if Field.TypeInfo.PropertyType.IsInstance then
     begin
-      var ForeignTable := FindOrLoadTable(Field.TypeInfo.PropertyType.AsInstance.MetaclassType);
+      var ForeignTable := LoadTable(Field.TypeInfo.PropertyType.AsInstance);
 
       if Length(ForeignTable.PrimaryKey) = 0 then
         raise EClassWithoutPrimaryKeyDefined.CreateFmt('You must define a primary key for class %s!', [ForeignTable.TypeInfo.Name]);
@@ -291,16 +299,14 @@ begin
         end;
 
   LoadTableForeignKeys(Table);
-
-  LoadTableManyValueAssociations(Table);
 end;
 
-procedure TMapper.LoadTableManyValueAssociations(var Table: TTable);
+procedure TMapper.LoadTableManyValueAssociations(Table: TTable);
 begin
   for var Field in Table.Fields do
     if Field.TypeInfo.PropertyType.IsArray then
     begin
-      var ChildTable := FindOrLoadTable(Field.TypeInfo.PropertyType.AsArray.ElementType.AsInstance.MetaclassType);
+      var ChildTable := LoadTable(Field.TypeInfo.PropertyType.AsArray.ElementType.AsInstance);
 
       for var ForeignKey in ChildTable.ForeignKeys do
         if ForeignKey.ParentTable = Table then

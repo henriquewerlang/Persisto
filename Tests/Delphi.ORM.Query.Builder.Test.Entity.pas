@@ -166,17 +166,7 @@ type
     property Recursive2: TClassRecursiveItself read FRecursive2 write FRecursive2;
   end;
 
-  TMyEntityWithManyValueAssociationChild = class;
-
-  [Entity]
-  TMyEntityWithManyValueAssociation = class
-  private
-    FId: Integer;
-    FManyValueAssociation: TArray<TMyEntityWithManyValueAssociationChild>;
-  published
-    property Id: Integer read FId write FId;
-    property ManyValueAssociationList: TArray<TMyEntityWithManyValueAssociationChild> read FManyValueAssociation write FManyValueAssociation;
-  end;
+  TMyEntityWithManyValueAssociation = class;
 
   [Entity]
   TMyEntityWithManyValueAssociationChild = class
@@ -187,6 +177,16 @@ type
     property Id: Integer read FId write FId;
     property ManyValueAssociation: TMyEntityWithManyValueAssociation read FManyValueAssociation write FManyValueAssociation;
   end;
+  [Entity]
+  TMyEntityWithManyValueAssociation = class
+  private
+    FId: Integer;
+    FManyValueAssociation: TArray<TMyEntityWithManyValueAssociationChild>;
+  published
+    property Id: Integer read FId write FId;
+    property ManyValueAssociationList: TArray<TMyEntityWithManyValueAssociationChild> read FManyValueAssociation write FManyValueAssociation;
+  end;
+
 
 implementation
 
