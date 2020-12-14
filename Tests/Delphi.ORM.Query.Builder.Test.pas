@@ -70,6 +70,10 @@ type
     procedure WhenTheClassHaveManyValueAssociationMustLoadTheJoinBetweenTheParentAndChildTable;
     [Test]
     procedure TheManyValueAssociationMustAvoidRecursivilyLoadTheParentClassWhenLoadingTheChildClass;
+    [Test]
+    procedure WhenIsLoadedAJoinMustLoadTheFieldThatIsTheLinkBetweenTheClasses;
+    [Test]
+    procedure TheManyValueAssociationMustLoadTheLinkingFieldBetweenTheClasses;
   end;
 
   [TestFixture]
@@ -369,6 +373,17 @@ begin
   From.Free;
 end;
 
+procedure TDelphiORMQueryBuilderTest.TheManyValueAssociationMustLoadTheLinkingFieldBetweenTheClasses;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+
+  From.From<TMyEntityWithManyValueAssociation>;
+
+  Assert.IsNotNull(From.Join.Links[0].Field);
+
+  From.Free;
+end;
+
 procedure TDelphiORMQueryBuilderTest.OnlyPublishedPropertiesCanAppearInSQL;
 begin
   var Query := TQueryBuilder.Create(nil);
@@ -513,6 +528,17 @@ begin
     From.GetSQL);
 
   Query.GetSQL;
+
+  Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenIsLoadedAJoinMustLoadTheFieldThatIsTheLinkBetweenTheClasses;
+begin
+  var Query := TQueryBuilderFrom.Create(nil, 1);
+
+  Query.From<TClassWithForeignKey>;
+
+  Assert.IsNotNull(Query.Join.Links[0].Field);
 
   Query.Free;
 end;

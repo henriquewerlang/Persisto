@@ -9,7 +9,7 @@ type
   TQueryBuilderFrom = class;
   TQueryBuilderJoin = class;
   TQueryBuilderSelect = class;
-  TQueryBuilderWhere<T: class, constructor> = class;
+  TQueryBuilderWhere<T: class> = class;
 
   TFilterOperation = (Equal);
 
@@ -36,9 +36,9 @@ type
     function GetSQL: String;
     function Select: TQueryBuilderSelect;
 
-    procedure Delete<T: class, constructor>(const AObject: T);
+    procedure Delete<T: class>(const AObject: T);
     procedure Insert<T: class>(const AObject: T);
-    procedure Update<T: class, constructor>(const AObject: T);
+    procedure Update<T: class>(const AObject: T);
 
     property Connection: IDatabaseConnection read FConnection;
   end;
@@ -63,8 +63,10 @@ type
 
     destructor Destroy; override;
 
-    function From<T: class, constructor>: TQueryBuilderWhere<T>;
+    function From<T: class>: TQueryBuilderWhere<T>;
     function GetSQL: String;
+
+    property Join: TQueryBuilderJoin read FJoin;
   end;
 
   TQueryBuilderJoin = class
@@ -74,20 +76,22 @@ type
     FTable: TTable;
     FLeftField: TField;
     FRightField: TField;
+    FField: TField;
   public
     constructor Create(Table: TTable); overload;
-    constructor Create(Table: TTable; LeftField, RightField: TField); overload;
+    constructor Create(Table: TTable; Field, LeftField, RightField: TField); overload;
 
     destructor Destroy; override;
 
     property Alias: String read FAlias write FAlias;
+    property Field: TField read FField write FField;
     property LeftField: TField read FLeftField write FLeftField;
     property Links: TArray<TQueryBuilderJoin> read FLinks write FLinks;
     property RightField: TField read FRightField write FRightField;
     property Table: TTable read FTable write FTable;
   end;
 
-  TQueryBuilderOpen<T: class, constructor> = class
+  TQueryBuilderOpen<T: class> = class
   private
     FCursor: IDatabaseCursor;
     FFrom: TQueryBuilderFrom;
@@ -165,7 +169,7 @@ type
     class operator NotEqual(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
   end;
 
-  TQueryBuilderWhere<T: class, constructor> = class(TQueryBuilderCommand)
+  TQueryBuilderWhere<T: class> = class(TQueryBuilderCommand)
   private
     FFilter: String;
     FFrom: TQueryBuilderFrom;
@@ -409,7 +413,7 @@ begin
 
     if RecursionControl[ForeignKey.ParentTable] < FRecursivityLevel then
     begin
-      var NewJoin := TQueryBuilderJoin.Create(ForeignKey.ParentTable, ForeignKey.Field, Join.Table.PrimaryKey[0]);
+      var NewJoin := TQueryBuilderJoin.Create(ForeignKey.ParentTable, ForeignKey.Field, ForeignKey.Field, Join.Table.PrimaryKey[0]);
       RecursionControl[ForeignKey.ParentTable] := RecursionControl[ForeignKey.ParentTable] + 1;
 
       Join.Links := Join.Links + [NewJoin];
@@ -422,7 +426,7 @@ begin
 
   for var ManyValueAssociation in Join.Table.ManyValueAssociations do
   begin
-    var NewJoin := TQueryBuilderJoin.Create(ManyValueAssociation.ChildTable, Join.Table.PrimaryKey[0], ManyValueAssociation.ChildField);
+    var NewJoin := TQueryBuilderJoin.Create(ManyValueAssociation.ChildTable, ManyValueAssociation.Field, Join.Table.PrimaryKey[0], ManyValueAssociation.ChildField);
 
     Join.Links := Join.Links + [NewJoin];
 
@@ -550,7 +554,7 @@ end;
 
 function TQueryBuilderOpen<T>.All: TArray<T>;
 begin
-  var Loader := TClassLoader.Create(FCursor, FFrom.GetFields);
+  var Loader := TClassLoader.Create(FCursor, FFrom.GetJoin, FFrom.GetFields);
 
   Result := Loader.LoadAll<T>;
 
@@ -568,7 +572,7 @@ end;
 
 function TQueryBuilderOpen<T>.One: T;
 begin
-  var Loader := TClassLoader.Create(FCursor, FFrom.GetFields);
+  var Loader := TClassLoader.Create(FCursor, FFrom.GetJoin, FFrom.GetFields);
 
   Result := Loader.Load<T>;
 
@@ -589,7 +593,7 @@ begin
   Result := nil;
 
   for var Field in Join.Table.Fields do
-    if not Field.TypeInfo.PropertyType.IsInstance and not Field.TypeInfo.PropertyType.IsArray then
+    if not TMapper.IsJoinLink(Field) then
       Result := Result + [TFieldAlias.Create(Join.Alias, Field)];
 
   for var Link in Join.Links do
@@ -736,10 +740,11 @@ end;
 
 { TQueryBuilderJoin }
 
-constructor TQueryBuilderJoin.Create(Table: TTable; LeftField, RightField: TField);
+constructor TQueryBuilderJoin.Create(Table: TTable; Field, LeftField, RightField: TField);
 begin
   Create(Table);
 
+  FField := Field;
   FLeftField := LeftField;
   FRightField := RightField;
 end;

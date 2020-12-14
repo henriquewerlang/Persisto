@@ -68,9 +68,11 @@ type
   private
     FChildTable: TTable;
     FChildField: TField;
+    FField: TField;
   public
-    constructor Create(ChildTable: TTable; ChildField: TField);
+    constructor Create(Field: TField; ChildTable: TTable; ChildField: TField);
 
+    property Field: TField read FField write FField;
     property ChildField: TField read FChildField write FChildField;
     property ChildTable: TTable read FChildTable write FChildTable;
   end;
@@ -103,6 +105,10 @@ type
     constructor Create;
 
     destructor Destroy; override;
+
+    class function IsForeignKey(Field: TField): Boolean;
+    class function IsJoinLink(Field: TField): Boolean;
+    class function IsManyValueAssociation(Field: TField): Boolean;
 
     function FindTable(ClassInfo: TClass): TTable;
     function LoadClass(ClassInfo: TClass): TTable;
@@ -197,6 +203,21 @@ begin
   Result := FTables.Values.ToArray;
 end;
 
+class function TMapper.IsForeignKey(Field: TField): Boolean;
+begin
+  Result := Field.TypeInfo.PropertyType.IsInstance;
+end;
+
+class function TMapper.IsJoinLink(Field: TField): Boolean;
+begin
+  Result := IsForeignKey(Field) or IsManyValueAssociation(Field);
+end;
+
+class function TMapper.IsManyValueAssociation(Field: TField): Boolean;
+begin
+  Result := Field.TypeInfo.PropertyType.IsArray;
+end;
+
 class destructor TMapper.Destroy;
 begin
   FDefault.Free;
@@ -258,7 +279,7 @@ end;
 procedure TMapper.LoadTableForeignKeys(var Table: TTable);
 begin
   for var Field in Table.Fields do
-    if Field.TypeInfo.PropertyType.IsInstance then
+    if IsForeignKey(Field) then
     begin
       var ForeignTable := LoadTable(Field.TypeInfo.PropertyType.AsInstance);
 
@@ -304,13 +325,13 @@ end;
 procedure TMapper.LoadTableManyValueAssociations(Table: TTable);
 begin
   for var Field in Table.Fields do
-    if Field.TypeInfo.PropertyType.IsArray then
+    if IsManyValueAssociation(Field) then
     begin
       var ChildTable := LoadTable(Field.TypeInfo.PropertyType.AsArray.ElementType.AsInstance);
 
       for var ForeignKey in ChildTable.ForeignKeys do
         if ForeignKey.ParentTable = Table then
-          Table.FManyValueAssociations := Table.FManyValueAssociations + [TManyValueAssociation.Create(ChildTable, ForeignKey.Field)];
+          Table.FManyValueAssociations := Table.FManyValueAssociations + [TManyValueAssociation.Create(Field, ChildTable, ForeignKey.Field)];
     end;
 end;
 
@@ -357,12 +378,13 @@ end;
 
 { TManyValueAssociation }
 
-constructor TManyValueAssociation.Create(ChildTable: TTable; ChildField: TField);
+constructor TManyValueAssociation.Create(Field: TField; ChildTable: TTable; ChildField: TField);
 begin
   inherited Create;
 
   FChildField := ChildField;
   FChildTable := ChildTable;
+  FField := Field;
 end;
 
 end.

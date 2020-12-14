@@ -2,16 +2,22 @@ unit Delphi.ORM.Classes.Loader.Test;
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Classes.Loader, Delphi.ORM.Database.Connection, Delphi.ORM.Attributes, Delphi.ORM.Mapper;
+uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Classes.Loader, Delphi.ORM.Database.Connection, Delphi.ORM.Attributes, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder;
 
 type
+
   [TestFixture]
   TClassLoaderTest = class
   private
+    FFrom: TQueryBuilderFrom;
+
     function CreateFieldList<T: class>: TArray<TFieldAlias>;
+    function CreateLoader<T: class>(CursorValues: TArray<TArray<Variant>>): TClassLoader;
   public
+    [TearDown]
+    procedure TearDown;
     [SetupFixture]
-    procedure Setup;
+    procedure SetupFixture;
     [Test]
     procedure MustLoadThePropertiesOfTheClassWithTheValuesOfCursor;
     [Test]
@@ -26,6 +32,10 @@ type
     procedure WhenTheClassAsSpecialFieldsMustLoadTheFieldsAsExpected;
     [Test]
     procedure WhenTheValueOfTheFieldIsNullCantRaiseAnError;
+    [Test]
+    procedure TheClassWithASingleJoinMustCreateTheForeignKeyClass;
+    [Test]
+    procedure TheClassWithASingleJoinMustLoadTheForeignKeyMapped;
   end;
 
   [Entity]
@@ -63,23 +73,29 @@ type
 
 implementation
 
-uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock;
+uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Query.Builder.Test.Entity;
 
 { TClassLoaderTest }
 
 function TClassLoaderTest.CreateFieldList<T>: TArray<TFieldAlias>;
 begin
-  Result := nil;
-  var Table := TMapper.Default.FindTable(T);
+  var AllFields := TQueryBuilderAllFields.Create(FFrom);
+  Result := AllFields.GetFields;
 
-  for var Field in Table.Fields do
-    Result := Result + [TFieldAlias.Create('T', Field)];
+  AllFields.Free;
+end;
+
+function TClassLoaderTest.CreateLoader<T>(CursorValues: TArray<TArray<Variant>>): TClassLoader;
+begin
+  FFrom := TQueryBuilderFrom.Create(nil, 1);
+  FFrom.From<T>;
+  var Cursor := TCursorMock.Create(CursorValues);
+  Result := TClassLoader.Create(Cursor, FFrom.Join, CreateFieldList<T>);
 end;
 
 procedure TClassLoaderTest.MustLoadThePropertiesOfAllRecords;
 begin
-  var Cursor := TCursorMock.Create([['aaa', 111], ['bbb', 222]]);
-  var Loader := TClassLoader.Create(Cursor, CreateFieldList<TMyClass>);
+  var Loader := CreateLoader<TMyClass>([['aaa', 111], ['bbb', 222]]);
   var Result := Loader.LoadAll<TMyClass>;
 
   Assert.AreEqual('aaa', Result[0].Name);
@@ -98,8 +114,7 @@ end;
 
 procedure TClassLoaderTest.MustLoadThePropertiesOfTheClassWithTheValuesOfCursor;
 begin
-  var Cursor := TCursorMock.Create([['abc', 123]]);
-  var Loader := TClassLoader.Create(Cursor, CreateFieldList<TMyClass>);
+  var Loader := CreateLoader<TMyClass>([['abc', 123]]);
   var MyClass := Loader.Load<TMyClass>;
 
   Assert.AreEqual('abc', MyClass.Name);
@@ -110,15 +125,48 @@ begin
   Loader.Free;
 end;
 
-procedure TClassLoaderTest.Setup;
+procedure TClassLoaderTest.TearDown;
+begin
+  FFrom.Free;
+end;
+
+procedure TClassLoaderTest.TheClassWithASingleJoinMustCreateTheForeignKeyClass;
+begin
+  var Loader := CreateLoader<TClassWithForeignKey>([[123, 456, 789]]);
+  var Result := Loader.Load<TClassWithForeignKey>;
+
+  Assert.IsNotNull(Result.AnotherClass);
+
+  Result.AnotherClass.Free;
+
+  Result.Free;
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.TheClassWithASingleJoinMustLoadTheForeignKeyMapped;
+begin
+   var Loader := CreateLoader<TClassWithForeignKey>([[123, 456, 789]]);
+   var Result := Loader.Load<TClassWithForeignKey>;
+
+   Assert.AreEqual(456, Result.AnotherClass.Id);
+   Assert.AreEqual(789, Result.AnotherClass.Value);
+
+   Result.AnotherClass.Free;
+
+   Result.Free;
+
+   Loader.Free;
+end;
+
+procedure TClassLoaderTest.SetupFixture;
 begin
   TMapper.Default.LoadAll;
 end;
 
 procedure TClassLoaderTest.WhenHaveMoreThenOneRecordMustLoadAllThenWhenRequested;
 begin
-  var Cursor := TCursorMock.Create([['abc', 123], ['abc', 123]]);
-  var Loader := TClassLoader.Create(Cursor, CreateFieldList<TMyClass>);
+  var Loader := CreateLoader<TMyClass>([['abc', 123], ['abc', 123]]);
   var Result := Loader.LoadAll<TMyClass>;
 
   Assert.AreEqual<Integer>(2, Length(Result));
@@ -133,8 +181,7 @@ procedure TClassLoaderTest.WhenTheClassAsSpecialFieldsMustLoadTheFieldsAsExpecte
 begin
   var MyGuid := TGUID.Create('{EFBF3977-8A0E-4508-B913-E1F8FA2B2D6C}');
 
-  var Cursor := TCursorMock.Create([[Ord(Enum2), MyGuid.ToString]]);
-  var Loader := TClassLoader.Create(Cursor, CreateFieldList<TMyClassWithSpecialTypes>);
+  var Loader := CreateLoader<TMyClassWithSpecialTypes>([[Ord(Enum2), MyGuid.ToString]]);
   var MyClass := Loader.Load<TMyClassWithSpecialTypes>;
 
   Assert.AreEqual(Enum2, MyClass.Enumerator);
@@ -148,8 +195,7 @@ end;
 
 procedure TClassLoaderTest.WhenThereIsNoExistingRecordInCursorMustReturnNilToClassReference;
 begin
-  var Cursor := TCursorMock.Create(nil);
-  var Loader := TClassLoader.Create(Cursor, CreateFieldList<TMyClass>);
+  var Loader := CreateLoader<TMyClass>(nil);
   var MyClass := Loader.Load<TMyClass>;
 
   Assert.IsNull(MyClass);
@@ -159,8 +205,7 @@ end;
 
 procedure TClassLoaderTest.WhenThereIsNoRecordsMustReturnAEmptyArray;
 begin
-  var Cursor := TCursorMock.Create(nil);
-  var Loader := TClassLoader.Create(Cursor, CreateFieldList<TMyClass>);
+  var Loader := CreateLoader<TMyClass>(nil);
   var Result := Loader.LoadAll<TMyClass>;
 
   Assert.AreEqual<TArray<TMyClass>>(nil, Result);
@@ -170,13 +215,13 @@ end;
 
 procedure TClassLoaderTest.WhenTheValueOfTheFieldIsNullCantRaiseAnError;
 begin
-  var Cursor := TCursorMock.Create([[NULL, NULL]]);
-  var Loader := TClassLoader.Create(Cursor, CreateFieldList<TMyClassWithSpecialTypes>);
+  var Loader := CreateLoader<TMyClassWithSpecialTypes>([[NULL, NULL]]);
 
   Assert.WillNotRaise(
     procedure
     begin
-      var MyClass := Loader.Load<TMyClassWithSpecialTypes>;
+      var
+      MyClass := Loader.Load<TMyClassWithSpecialTypes>;
 
       MyClass.Free;
     end);
@@ -207,4 +252,3 @@ begin
 end;
 
 end.
-

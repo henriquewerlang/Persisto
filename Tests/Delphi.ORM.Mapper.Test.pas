@@ -90,6 +90,8 @@ type
     procedure TheFieldLinkingTheParentAndChildOfManyValueAssociationMustBeLoaded;
     [Test]
     procedure WhenTheChildClassIsDeclaredBeforeTheParentClassTheLinkBetweenOfTablesMustBeCreated;
+    [Test]
+    procedure TheManyValueAssociationMustLoadTheFieldThatGeneratedTheValue;
   end;
 
   [Entity]
@@ -392,6 +394,19 @@ begin
   var Table := Mapper.FindTable(TZZZZ);
 
   Assert.IsNotNull(Table.ForeignKeys[0].ParentTable);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.TheManyValueAssociationMustLoadTheFieldThatGeneratedTheValue;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithManyValueAssociation);
+
+  Assert.AreEqual(Table.Fields[1], Table.ManyValueAssociations[0].Field);
 
   Mapper.Free;
 end;
