@@ -177,6 +177,7 @@ type
     property Id: Integer read FId write FId;
     property ManyValueAssociation: TMyEntityWithManyValueAssociation read FManyValueAssociation write FManyValueAssociation;
   end;
+
   [Entity]
   TMyEntityWithManyValueAssociation = class
   private
@@ -187,7 +188,21 @@ type
     property ManyValueAssociationList: TArray<TMyEntityWithManyValueAssociationChild> read FManyValueAssociation write FManyValueAssociation;
   end;
 
+  [Entity]
+  TMyEntityWithPrimaryKeyInLastField = class
+  private
+    FField1: Integer;
+    FField2: Integer;
+    FField3: String;
+    FId: Integer;
+  published
+    property Field1: Integer read FField1 write FField1;
+    property Field2: Integer read FField2 write FField2;
+    property Field3: String read FField3 write FField3;
+    property Id: Integer read FId write FId;
+  end;
 
 implementation
 
 end.
+

@@ -36,9 +36,12 @@ type
     procedure TheClassWithASingleJoinMustCreateTheForeignKeyClass;
     [Test]
     procedure TheClassWithASingleJoinMustLoadTheForeignKeyMapped;
+    [Test]
+    procedure WhenAClassIsLoadedAndMustUseTheSameInstanceIfThePrimaryKeyRepeats;
   end;
 
   [Entity]
+  [PrimaryKey('Name')]
   TMyClass = class
   private
     FName: String;
@@ -146,17 +149,17 @@ end;
 
 procedure TClassLoaderTest.TheClassWithASingleJoinMustLoadTheForeignKeyMapped;
 begin
-   var Loader := CreateLoader<TClassWithForeignKey>([[123, 456, 789]]);
-   var Result := Loader.Load<TClassWithForeignKey>;
+  var Loader := CreateLoader<TClassWithForeignKey>([[123, 456, 789]]);
+  var Result := Loader.Load<TClassWithForeignKey>;
 
-   Assert.AreEqual(456, Result.AnotherClass.Id);
-   Assert.AreEqual(789, Result.AnotherClass.Value);
+  Assert.AreEqual(456, Result.AnotherClass.Id);
+  Assert.AreEqual(789, Result.AnotherClass.Value);
 
-   Result.AnotherClass.Free;
+  Result.AnotherClass.Free;
 
-   Result.Free;
+  Result.Free;
 
-   Loader.Free;
+  Loader.Free;
 end;
 
 procedure TClassLoaderTest.SetupFixture;
@@ -164,9 +167,24 @@ begin
   TMapper.Default.LoadAll;
 end;
 
+procedure TClassLoaderTest.WhenAClassIsLoadedAndMustUseTheSameInstanceIfThePrimaryKeyRepeats;
+begin
+  var Loader := CreateLoader<TClassWithForeignKey>([[111, 222, 333], [222, 222, 333]]);
+  var Result := Loader.LoadAll<TClassWithForeignKey>;
+
+  Assert.AreEqual(Result[0].AnotherClass, Result[1].AnotherClass);
+
+  Result[0].AnotherClass.Free;
+
+  for var Obj in Result do
+    Obj.Free;
+
+  Loader.Free;
+end;
+
 procedure TClassLoaderTest.WhenHaveMoreThenOneRecordMustLoadAllThenWhenRequested;
 begin
-  var Loader := CreateLoader<TMyClass>([['abc', 123], ['abc', 123]]);
+  var Loader := CreateLoader<TMyClass>([['aaa', 123], ['bbb', 123]]);
   var Result := Loader.LoadAll<TMyClass>;
 
   Assert.AreEqual<Integer>(2, Length(Result));
@@ -220,8 +238,7 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      var
-      MyClass := Loader.Load<TMyClassWithSpecialTypes>;
+      var MyClass := Loader.Load<TMyClassWithSpecialTypes>;
 
       MyClass.Free;
     end);

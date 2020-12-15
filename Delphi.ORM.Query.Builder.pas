@@ -592,8 +592,11 @@ function TQueryBuilderAllFields.GetAllFields(Join: TQueryBuilderJoin): TArray<TF
 begin
   Result := nil;
 
+  for var Field in Join.Table.PrimaryKey do
+    Result := Result + [TFieldAlias.Create(Join.Alias, Field)];
+
   for var Field in Join.Table.Fields do
-    if not TMapper.IsJoinLink(Field) then
+    if not Field.InPrimaryKey and not TMapper.IsJoinLink(Field) then
       Result := Result + [TFieldAlias.Create(Join.Alias, Field)];
 
   for var Link in Join.Links do

@@ -74,6 +74,8 @@ type
     procedure WhenIsLoadedAJoinMustLoadTheFieldThatIsTheLinkBetweenTheClasses;
     [Test]
     procedure TheManyValueAssociationMustLoadTheLinkingFieldBetweenTheClasses;
+    [Test]
+    procedure WhenGetAllFieldsOfATableMustPutThePrimaryKeyFieldInTheBeginningOfTheResultingArray;
   end;
 
   [TestFixture]
@@ -530,6 +532,21 @@ begin
   Query.GetSQL;
 
   Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenGetAllFieldsOfATableMustPutThePrimaryKeyFieldInTheBeginningOfTheResultingArray;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+
+  var Fields := TQueryBuilderAllFields.Create(From);
+
+  From.From<TMyEntityWithPrimaryKeyInLastField>;
+
+  Assert.IsTrue(Fields.GetFields[0].Field.InPrimaryKey);
+
+  From.Free;
+
+  Fields.Free;
 end;
 
 procedure TDelphiORMQueryBuilderTest.WhenIsLoadedAJoinMustLoadTheFieldThatIsTheLinkBetweenTheClasses;

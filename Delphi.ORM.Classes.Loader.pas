@@ -7,17 +7,22 @@ uses System.Rtti, System.Generics.Collections, Delphi.ORM.Database.Connection, D
 type
   TClassLoader = class
   private
+    FCache: TDictionary<String, TObject>;
     FContext: TRttiContext;
     FCursor: IDatabaseCursor;
     FFields: TArray<TFieldAlias>;
     FJoin: TQueryBuilderJoin;
 
     function GetFieldValue(Field: TField; const Index: Integer): TValue;
+    function GetFieldValueAsString(Field: TField; const Index: Integer): String;
+    function GetObjectFromCache(Join: TQueryBuilderJoin; FieldIndexStart: Integer): TObject;
     function LoadClass: TObject;
     function LoadClassJoin(Join: TQueryBuilderJoin): TObject;
     function LoadClassLink(Join: TQueryBuilderJoin; var FieldIndexStart: Integer): TObject;
   public
     constructor Create(Cursor: IDatabaseCursor; Join: TQueryBuilderJoin; const Fields: TArray<TFieldAlias>);
+
+    destructor Destroy; override;
 
     function Load<T: class>: T;
     function LoadAll<T: class>: TArray<T>;
@@ -33,10 +38,18 @@ constructor TClassLoader.Create(Cursor: IDatabaseCursor; Join: TQueryBuilderJoin
 begin
   inherited Create;
 
+  FCache := TDictionary<String, TObject>.Create;
   FContext := TRttiContext.Create;
   FCursor := Cursor;
   FFields := Fields;
   FJoin := Join;
+end;
+
+destructor TClassLoader.Destroy;
+begin
+  FCache.Free;
+
+  inherited;
 end;
 
 function TClassLoader.GetFieldValue(Field: TField; const Index: Integer): TValue;
@@ -51,6 +64,33 @@ begin
     Result := TValue.FromOrdinal(Field.TypeInfo.PropertyType.Handle, FieldValue)
   else
     Result := TValue.FromVariant(FieldValue);
+end;
+
+function TClassLoader.GetFieldValueAsString(Field: TField; const Index: Integer): String;
+begin
+  var FieldValue := FCursor.GetFieldValue(Index);
+
+  if VarIsNull(FieldValue) then
+    Result := EmptyStr
+  else if Field.TypeInfo.PropertyType = FContext.GetType(TypeInfo(TGUID)) then
+    Result := FieldValue
+  else if Field.TypeInfo.PropertyType is TRttiEnumerationType then
+    Result := TRttiEnumerationType.GetName(FieldValue)
+  else
+    Result := FieldValue;
+end;
+
+function TClassLoader.GetObjectFromCache(Join: TQueryBuilderJoin; FieldIndexStart: Integer): TObject;
+begin
+  var TableKey := Join.Table.TypeInfo.Name;
+
+  for var A := FieldIndexStart to FieldIndexStart + High(Join.Table.PrimaryKey) do
+    TableKey := TableKey + '.' + GetFieldValueAsString(FFields[A].Field, A);
+
+  if not FCache.ContainsKey(TableKey) then
+    FCache.Add(TableKey, Join.Table.TypeInfo.MetaclassType.Create);
+
+  Result := FCache[TableKey];
 end;
 
 function TClassLoader.Load<T>: T;
@@ -82,7 +122,7 @@ end;
 
 function TClassLoader.LoadClassLink(Join: TQueryBuilderJoin; var FieldIndexStart: Integer): TObject;
 begin
-  Result := Join.Table.TypeInfo.MetaclassType.Create;
+  Result := GetObjectFromCache(Join, FieldIndexStart);
 
   for var A := Low(Join.Table.Fields) to High(Join.Table.Fields) do
     if not TMapper.IsJoinLink(Join.Table.Fields[A]) then
