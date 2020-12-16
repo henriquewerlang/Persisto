@@ -95,10 +95,11 @@ end;
 
 function TClassLoader.Load<T>: T;
 begin
-  if FCursor.Next then
-    Result := LoadClass as T
-  else
-    Result := nil;
+  var All := LoadAll<T>;
+  Result := nil;
+
+  if Assigned(All) then
+    Result := All[0];
 end;
 
 function TClassLoader.LoadAll<T>: TArray<T>;
@@ -133,7 +134,27 @@ begin
     end;
 
   for var Link in Join.Links do
-    Link.Field.TypeInfo.SetValue(Result, LoadClassLink(Link, FieldIndexStart));
+  begin
+    var Value: TValue;
+
+    if TMapper.IsForeignKey(Link.Field) then
+      Value := LoadClassLink(Link, FieldIndexStart)
+    else
+    begin
+      var ChildObject := LoadClassLink(Link, FieldIndexStart);
+      Value := Link.Field.TypeInfo.GetValue(Result);
+
+      var NewArrayLength: NativeInt := Succ(Value.GetArrayLength);
+
+      DynArraySetLength(PPointer(Value.GetReferenceToRawData)^, Link.Field.TypeInfo.PropertyType.Handle, 1, @NewArrayLength);
+
+      Value.SetArrayElement(Pred(Value.GetArrayLength), ChildObject);
+
+      Link.RightField.TypeInfo.SetValue(ChildObject, Result);
+    end;
+
+    Link.Field.TypeInfo.SetValue(Result, Value);
+  end;
 end;
 
 end.

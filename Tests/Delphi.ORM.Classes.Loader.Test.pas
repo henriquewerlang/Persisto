@@ -13,6 +13,7 @@ type
 
     function CreateFieldList<T: class>: TArray<TFieldAlias>;
     function CreateLoader<T: class>(CursorValues: TArray<TArray<Variant>>): TClassLoader;
+    function CreateLoaderCursor<T: class>(Cursor: IDatabaseCursor): TClassLoader;
   public
     [TearDown]
     procedure TearDown;
@@ -38,6 +39,12 @@ type
     procedure TheClassWithASingleJoinMustLoadTheForeignKeyMapped;
     [Test]
     procedure WhenAClassIsLoadedAndMustUseTheSameInstanceIfThePrimaryKeyRepeats;
+    [Test]
+    procedure WhenTheAClassAsAManyValueAssociationMustLoadThePropertyArrayOfTheClass;
+    [Test]
+    procedure EvenIfTheCursorReturnsMoreThanOneRecordTheLoadClassHasToReturnOnlyOneClass;
+    [Test]
+    procedure TheChildFieldInManyValueAssociationMustBeLoadedWithTheReferenceOfTheParentClass;
   end;
 
   [Entity]
@@ -90,10 +97,29 @@ end;
 
 function TClassLoaderTest.CreateLoader<T>(CursorValues: TArray<TArray<Variant>>): TClassLoader;
 begin
+  Result := CreateLoaderCursor<T>(TCursorMock.Create(CursorValues));
+end;
+
+function TClassLoaderTest.CreateLoaderCursor<T>(Cursor: IDatabaseCursor): TClassLoader;
+begin
   FFrom := TQueryBuilderFrom.Create(nil, 1);
+
   FFrom.From<T>;
-  var Cursor := TCursorMock.Create(CursorValues);
+
   Result := TClassLoader.Create(Cursor, FFrom.Join, CreateFieldList<T>);
+end;
+
+procedure TClassLoaderTest.EvenIfTheCursorReturnsMoreThanOneRecordTheLoadClassHasToReturnOnlyOneClass;
+begin
+  var Cursor := TCursorMock.Create([['aaa', 111], ['aaa', 222], ['aaa', 222]]);
+  var Loader := CreateLoaderCursor<TMyClass>(Cursor);
+  var Result := Loader.Load<TMyClass>;
+
+  Assert.AreEqual(3, Cursor.FCurrentRecord);
+
+  Loader.Free;
+
+  Result.Free;
 end;
 
 procedure TClassLoaderTest.MustLoadThePropertiesOfAllRecords;
@@ -131,6 +157,21 @@ end;
 procedure TClassLoaderTest.TearDown;
 begin
   FFrom.Free;
+end;
+
+procedure TClassLoaderTest.TheChildFieldInManyValueAssociationMustBeLoadedWithTheReferenceOfTheParentClass;
+begin
+  var Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[111, 222], [111, 333], [111, 444]]);
+  var Result := Loader.Load<TMyEntityWithManyValueAssociation>;
+
+  Assert.AreEqual(Result, Result.ManyValueAssociationList[0].ManyValueAssociation);
+
+  for var Obj in Result.ManyValueAssociationList do
+    Obj.Free;
+
+  Result.Free;
+
+  Loader.Free;
 end;
 
 procedure TClassLoaderTest.TheClassWithASingleJoinMustCreateTheForeignKeyClass;
@@ -191,6 +232,21 @@ begin
 
   for var Obj in Result do
     Obj.Free;
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenTheAClassAsAManyValueAssociationMustLoadThePropertyArrayOfTheClass;
+begin
+  var Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[111, 222], [111, 333], [111, 444]]);
+  var Result := Loader.Load<TMyEntityWithManyValueAssociation>;
+
+  Assert.AreEqual<Integer>(3, Length(Result.ManyValueAssociationList));
+
+  for var Obj in Result.ManyValueAssociationList do
+    Obj.Free;
+
+  Result.Free;
 
   Loader.Free;
 end;
