@@ -45,6 +45,10 @@ type
     procedure EvenIfTheCursorReturnsMoreThanOneRecordTheLoadClassHasToReturnOnlyOneClass;
     [Test]
     procedure TheChildFieldInManyValueAssociationMustBeLoadedWithTheReferenceOfTheParentClass;
+    [Test]
+    procedure WhenThePrimaryKeyOfAForeignKeyIsNullCantLoadTheEntireObject;
+    [Test]
+    procedure WhenThePrimaryKeyOfAManyValueAssociationIsNullCantLoadTheEntireObject;
   end;
 
   [Entity]
@@ -263,6 +267,30 @@ begin
   Assert.AreEqual(MyGuid.ToString, MyClass.Guid.ToString);
 
   MyClass.Free;
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenThePrimaryKeyOfAForeignKeyIsNullCantLoadTheEntireObject;
+begin
+  var Loader := CreateLoader<TMyEntityWithManyValueAssociationChild>([[111, NULL, NULL]]);
+  var Result := Loader.Load<TMyEntityWithManyValueAssociationChild>;
+
+  Assert.IsNull(Result.ManyValueAssociation);
+
+  Result.Free;
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenThePrimaryKeyOfAManyValueAssociationIsNullCantLoadTheEntireObject;
+begin
+  var Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[111, NULL]]);
+  var Result := Loader.Load<TMyEntityWithManyValueAssociation>;
+
+  Assert.AreEqual<Integer>(0, Length(Result.ManyValueAssociationList));
+
+  Result.Free;
 
   Loader.Free;
 end;

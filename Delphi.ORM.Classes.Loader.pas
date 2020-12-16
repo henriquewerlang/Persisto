@@ -2,7 +2,7 @@ unit Delphi.ORM.Classes.Loader;
 
 interface
 
-uses System.Rtti, System.Generics.Collections, Delphi.ORM.Database.Connection, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder;
+uses System.Rtti, System.Generics.Collections, System.SysUtils, Delphi.ORM.Database.Connection, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder;
 
 type
   TClassLoader = class
@@ -13,9 +13,11 @@ type
     FFields: TArray<TFieldAlias>;
     FJoin: TQueryBuilderJoin;
 
+    function CreateObject(Join: TQueryBuilderJoin; FieldIndexStart: Integer): TObject;
+    function FieldValueToString(Field: TField; const FieldValue: Variant): String;
     function GetFieldValue(Field: TField; const Index: Integer): TValue;
-    function GetFieldValueAsString(Field: TField; const Index: Integer): String;
-    function GetObjectFromCache(Join: TQueryBuilderJoin; FieldIndexStart: Integer): TObject;
+    function GetFieldValueVariant(const Index: Integer): Variant;
+    function GetObjectFromCache(const Key: String; CreateFunction: TFunc<TObject>): TObject;
     function LoadClass: TObject;
     function LoadClassJoin(Join: TQueryBuilderJoin): TObject;
     function LoadClassLink(Join: TQueryBuilderJoin; var FieldIndexStart: Integer): TObject;
@@ -30,7 +32,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.Variants;
+uses System.Variants;
 
 { TClassLoader }
 
@@ -45,6 +47,29 @@ begin
   FJoin := Join;
 end;
 
+function TClassLoader.CreateObject(Join: TQueryBuilderJoin; FieldIndexStart: Integer): TObject;
+begin
+  Result := nil;
+  var TableKey := Join.Table.TypeInfo.Name;
+
+  for var A := FieldIndexStart to FieldIndexStart + High(Join.Table.PrimaryKey) do
+  begin
+    var Field := FFields[A].Field;
+    var FieldValue := GetFieldValueVariant(A);
+
+    if VarIsNull(FieldValue) then
+      Exit
+    else
+      TableKey := TableKey + '.' + FieldValueToString(Field, FieldValue);
+  end;
+
+  Result := GetObjectFromCache(TableKey,
+    function: TObject
+    begin
+      Result := Join.Table.TypeInfo.MetaclassType.Create;
+    end);
+end;
+
 destructor TClassLoader.Destroy;
 begin
   FCache.Free;
@@ -54,7 +79,7 @@ end;
 
 function TClassLoader.GetFieldValue(Field: TField; const Index: Integer): TValue;
 begin
-  var FieldValue := FCursor.GetFieldValue(Index);
+  var FieldValue := GetFieldValueVariant(Index);
 
   if VarIsNull(FieldValue) then
     Result := TValue.Empty
@@ -66,10 +91,13 @@ begin
     Result := TValue.FromVariant(FieldValue);
 end;
 
-function TClassLoader.GetFieldValueAsString(Field: TField; const Index: Integer): String;
+function TClassLoader.GetFieldValueVariant(const Index: Integer): Variant;
 begin
-  var FieldValue := FCursor.GetFieldValue(Index);
+  Result := FCursor.GetFieldValue(Index);
+end;
 
+function TClassLoader.FieldValueToString(Field: TField; const FieldValue: Variant): String;
+begin
   if VarIsNull(FieldValue) then
     Result := EmptyStr
   else if Field.TypeInfo.PropertyType = FContext.GetType(TypeInfo(TGUID)) then
@@ -80,17 +108,12 @@ begin
     Result := FieldValue;
 end;
 
-function TClassLoader.GetObjectFromCache(Join: TQueryBuilderJoin; FieldIndexStart: Integer): TObject;
+function TClassLoader.GetObjectFromCache(const Key: String; CreateFunction: TFunc<TObject>): TObject;
 begin
-  var TableKey := Join.Table.TypeInfo.Name;
+  if not FCache.ContainsKey(Key) then
+    FCache.Add(Key, CreateFunction);
 
-  for var A := FieldIndexStart to FieldIndexStart + High(Join.Table.PrimaryKey) do
-    TableKey := TableKey + '.' + GetFieldValueAsString(FFields[A].Field, A);
-
-  if not FCache.ContainsKey(TableKey) then
-    FCache.Add(TableKey, Join.Table.TypeInfo.MetaclassType.Create);
-
-  Result := FCache[TableKey];
+  Result := FCache[Key];
 end;
 
 function TClassLoader.Load<T>: T;
@@ -123,37 +146,44 @@ end;
 
 function TClassLoader.LoadClassLink(Join: TQueryBuilderJoin; var FieldIndexStart: Integer): TObject;
 begin
-  Result := GetObjectFromCache(Join, FieldIndexStart);
+  Result := CreateObject(Join, FieldIndexStart);
 
-  for var A := Low(Join.Table.Fields) to High(Join.Table.Fields) do
-    if not TMapper.IsJoinLink(Join.Table.Fields[A]) then
-    begin
-      FFields[FieldIndexStart].Field.TypeInfo.SetValue(Result, GetFieldValue(FFields[FieldIndexStart].Field, FieldIndexStart));
-
-      Inc(FieldIndexStart);
-    end;
-
-  for var Link in Join.Links do
+  if Assigned(Result) then
   begin
-    var Value: TValue;
+    for var A := Low(Join.Table.Fields) to High(Join.Table.Fields) do
+      if not TMapper.IsJoinLink(Join.Table.Fields[A]) then
+      begin
+        FFields[FieldIndexStart].Field.TypeInfo.SetValue(Result, GetFieldValue(FFields[FieldIndexStart].Field, FieldIndexStart));
 
-    if TMapper.IsForeignKey(Link.Field) then
-      Value := LoadClassLink(Link, FieldIndexStart)
-    else
+        Inc(FieldIndexStart);
+      end;
+
+    for var Link in Join.Links do
     begin
-      var ChildObject := LoadClassLink(Link, FieldIndexStart);
-      Value := Link.Field.TypeInfo.GetValue(Result);
+      var Value: TValue;
 
-      var NewArrayLength: NativeInt := Succ(Value.GetArrayLength);
+      if TMapper.IsForeignKey(Link.Field) then
+        Value := LoadClassLink(Link, FieldIndexStart)
+      else
+      begin
+        var ChildObject := LoadClassLink(Link, FieldIndexStart);
 
-      DynArraySetLength(PPointer(Value.GetReferenceToRawData)^, Link.Field.TypeInfo.PropertyType.Handle, 1, @NewArrayLength);
+        if Assigned(ChildObject) then
+        begin
+          Value := Link.Field.TypeInfo.GetValue(Result);
 
-      Value.SetArrayElement(Pred(Value.GetArrayLength), ChildObject);
+          var NewArrayLength: NativeInt := Succ(Value.GetArrayLength);
 
-      Link.RightField.TypeInfo.SetValue(ChildObject, Result);
+          DynArraySetLength(PPointer(Value.GetReferenceToRawData)^, Link.Field.TypeInfo.PropertyType.Handle, 1, @NewArrayLength);
+
+          Value.SetArrayElement(Pred(Value.GetArrayLength), ChildObject);
+
+          Link.RightField.TypeInfo.SetValue(ChildObject, Result);
+        end;
+      end;
+
+      Link.Field.TypeInfo.SetValue(Result, Value);
     end;
-
-    Link.Field.TypeInfo.SetValue(Result, Value);
   end;
 end;
 
