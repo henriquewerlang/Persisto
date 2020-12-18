@@ -412,7 +412,7 @@ end;
 
 function TORMDataSet.IsCursorOpen: Boolean;
 begin
-  Result := Assigned(FObjectList) and (ObjectList.Count > 0);
+  Result := Assigned(FObjectList);
 end;
 
 procedure TORMDataSet.LoadFieldDefsFromClass;
@@ -479,9 +479,9 @@ end;
 
 procedure TORMDataSet.OpenClass<T>;
 begin
-  SetObjectType(TypeInfo(T));
+  FInternalList := TList<TObject>(TList<T>.Create);
 
-  Open;
+  OpenList<T>(TList<T>(FInternalList));
 end;
 
 procedure TORMDataSet.OpenList<T>(List: {$IFDEF PAS2JS}TObject{$ELSE}TList<T>{$ENDIF});

@@ -68,6 +68,8 @@ type
     procedure WhenUseTheOpenClassMustLoadFieldFromTheClass;
     [Test]
     procedure WhenExistsAFieldInDataSetMustFillTheFieldDefFromThisField;
+    [Test]
+    procedure WhenInsertIntoDataSetCantRaiseAnError;
   end;
 
   TAnotherObject = class
@@ -330,6 +332,17 @@ begin
   DataSet.Free;
 
   MyObject.Free;
+end;
+
+procedure TORMDataSetTest.WhenInsertIntoDataSetCantRaiseAnError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  Assert.WillNotRaise(DataSet.Append);
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenNavigateByDataSetMustHaveToShowTheValuesFromTheList;
