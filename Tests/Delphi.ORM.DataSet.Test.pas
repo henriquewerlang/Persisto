@@ -20,11 +20,12 @@ type
     [TestCase('Byte', 'Byte,ftByte')]
     [TestCase('Cardinal', 'Cardinal,ftLongWord')]
     [TestCase('Char', 'Char,ftString')]
-    [TestCase('Class', 'Class,ftObject')]
+    [TestCase('Class', 'Class,ftVariant')]
     [TestCase('Currency', 'Currency,ftCurrency')]
     [TestCase('Date', 'Date,ftDate')]
     [TestCase('DateTime', 'DateTime,ftDateTime')]
     [TestCase('Double', 'Double,ftFloat')]
+    [TestCase('Enumerator', 'MyEnum,ftInteger')]
     [TestCase('Int64', 'Int64,ftLargeint')]
     [TestCase('Integer', 'Int,ftInteger')]
     [TestCase('Sigle', 'Single,ftSingle')]
@@ -70,6 +71,31 @@ type
     procedure WhenExistsAFieldInDataSetMustFillTheFieldDefFromThisField;
     [Test]
     procedure WhenInsertIntoDataSetCantRaiseAnError;
+    [Test]
+    procedure WhenPostARecordMustAppendToListOfObjects;
+    [TestCase('Boolean', 'Boolean,True')]
+    [TestCase('Byte', 'Byte,123')]
+    [TestCase('Cardinal', 'Cardinal,123')]
+    [TestCase('Char', 'Char,C')]
+    [TestCase('Currency', 'Currency;123,456', ';')]
+    [TestCase('Date', 'Date,21/12/2020')]
+    [TestCase('DateTime', 'DateTime,21/12/2020 17:17:17')]
+    [TestCase('Double', 'Double;123,456', ';')]
+    [TestCase('Enumerator', 'MyEnum,1')]
+    [TestCase('Int64', 'Int64,123')]
+    [TestCase('Integer', 'Int,123')]
+    [TestCase('Sigle', 'Single;123,456', ';')]
+    [TestCase('String', 'Str,Value String')]
+    [TestCase('Time', 'Time,17:17:17')]
+    [TestCase('WideChar', 'WideChar,C')]
+    [TestCase('WideString', 'WideString,Value String')]
+    [TestCase('Word', 'Word,123')]
+    procedure WhenSetTheFieldValueMustChangeTheValueFromTheClass(FieldName, FieldValue: String);
+    [TestCase('Char', 'Char,1')]
+    [TestCase('String', 'Str,50')]
+    [TestCase('WideChar', 'WideChar,1')]
+    [TestCase('WideString', 'WideString,50')]
+    procedure WhenAFieldIsACreateTheFieldMustHaveTheMinimalSizeDefined(FieldName: String; Size: Integer);
   end;
 
   TAnotherObject = class
@@ -98,6 +124,8 @@ type
     property AnotherObject: TAnotherObject read FAnotherObject write FAnotherObject;
   end;
 
+  TMyEnumerator = (Enum1, Enum2, Enum3);
+
   TMyTestClassTypes = class
   private
     FInt: Integer;
@@ -119,6 +147,7 @@ type
     FSingle: Single;
     FCurrency: Currency;
     FClass: TObject;
+    FMyEnum: TMyEnumerator;
   published
     property Boolean: Boolean read FBoolean write FBoolean;
     property Byte: Byte read FByte write FByte;
@@ -132,6 +161,7 @@ type
     property Extended: Extended read FExtended write FExtended;
     property Int64: Int64 read FInt64 write FInt64;
     property Int: Integer read FInt write FInt;
+    property MyEnum: TMyEnumerator read FMyEnum write FMyEnum;
     property Single: Single read FSingle write FSingle;
     property SmallInt: SmallInt read FSmallInt write FSmallInt;
     property Str: String read FStr write FStr;
@@ -143,7 +173,7 @@ type
 
 implementation
 
-uses System.Rtti, System.Generics.Collections, System.SysUtils, System.Classes, Delphi.ORM.DataSet;
+uses System.Rtti, System.Generics.Collections, System.SysUtils, System.Classes, System.Variants, Delphi.ORM.DataSet;
 
 { TORMDataSetTest }
 
@@ -240,6 +270,17 @@ begin
   DataSet.Free;
 
   MyList.Free;
+end;
+
+procedure TORMDataSetTest.WhenAFieldIsACreateTheFieldMustHaveTheMinimalSizeDefined(FieldName: String; Size: Integer);
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenClass<TMyTestClassTypes>;
+
+  Assert.AreEqual(Size, DataSet.FieldByName(FieldName).Size);
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenAFieldIsSeparatedByAPointItHasToLoadTheSubPropertiesOfTheObject;
@@ -471,6 +512,78 @@ begin
   DataSet.Free;
 
   MyObject.Free;
+end;
+
+procedure TORMDataSetTest.WhenPostARecordMustAppendToListOfObjects;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  DataSet.Append;
+
+  DataSet.Post;
+
+  DataSet.Append;
+
+  DataSet.Post;
+
+  Assert.AreEqual(2, DataSet.RecordCount);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenSetTheFieldValueMustChangeTheValueFromTheClass(FieldName, FieldValue: String);
+begin
+  var Context := TRttiContext.Create;
+  var DataSet := TORMDataSet.Create(nil);
+  var RttiType := Context.GetType(TMyTestClassTypes);
+  var Value := NULL;
+
+  var &Property := RttiType.GetProperty(FieldName);
+
+  DataSet.OpenClass<TMyTestClassTypes>;
+
+  DataSet.Append;
+
+  var Field := DataSet.FieldByName(FieldName);
+
+  Field.AsString := FieldValue;
+
+  case Field.DataType of
+    ftBoolean: Value := True;
+    ftDate: Value := EncodeDate(2020, 12, 21);
+    ftDateTime: Value := EncodeDate(2020, 12, 21) + EncodeTime(17, 17, 17, 0);
+    ftTime: Value := EncodeTime(17, 17, 17, 0);
+    ftString,
+    ftWideString:
+      if Field.Size = 1 then
+        Value := 'C'
+      else
+        Value := 'Value String';
+
+    ftByte,
+    ftInteger,
+    ftLargeint,
+    ftLongWord,
+    ftWord:
+    begin
+      if &Property.PropertyType is TRttiEnumerationType then
+        Value := Enum2
+      else
+        Value := 123;
+    end;
+
+    ftCurrency,
+    ftFloat,
+    ftSingle: Value := 123.456;
+
+    ftObject: ;
+  end;
+
+  Assert.IsTrue(Value = &Property.GetValue(DataSet.GetCurrentObject<TMyTestClassTypes>).AsVariant);
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenTheFieldAndPropertyTypeAreDifferentItHasToRaiseAnException;
