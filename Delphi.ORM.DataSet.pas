@@ -41,6 +41,7 @@ type
     function GetObjectList: TList<TObject>;
     function GetPropertyValueFromCurrentObject(Field: TField): TValue;
 
+    procedure GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty);
     procedure LoadFieldDefsFromClass;
     procedure ResetCurrentRecord;
     procedure SetObjectClassName(const Value: String);
@@ -170,11 +171,21 @@ begin
 end;
 
 function TORMDataSet.GetCurrentObject<T>: T;
+var
+  ActiveRecord: Integer;
+
 begin
+  Result := nil;
+
   if State = dsInsert then
     Result := FInsertingObject as T
   else
-    Result := ObjectList[GetActiveRecordNumber] as T;
+  begin
+    ActiveRecord := GetActiveRecordNumber;
+
+    if ActiveRecord > -1 then
+      Result := ObjectList[ActiveRecord] as T;
+  end;
 end;
 
 function TORMDataSet.GetFieldClass(FieldType: TFieldType): TFieldClass;
@@ -320,22 +331,34 @@ begin
   Result := FObjectList;
 end;
 
+procedure TORMDataSet.GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty);
+var
+  A: Integer;
+
+  PropertyList: TArray<TRttiProperty>;
+
+begin
+  Instance := GetCurrentObject<TObject>;
+  PropertyList := FPropertyMappingList[Pred(Field.FieldNo)];
+
+  for A := Low(PropertyList) to High(PropertyList) do
+  begin
+    if A > 0 then
+      Instance := &Property.GetValue(Instance.AsObject);
+
+    &Property := PropertyList[A];
+  end;
+end;
+
 function TORMDataSet.GetPropertyValueFromCurrentObject(Field: TField): TValue;
 var
-  &Object: TObject;
-
   &Property: TRttiProperty;
 
 begin
-  &Object := GetCurrentObject<TObject>;
+  GetPropertyAndObjectFromField(Field, Result, &Property);
 
-  for &Property in FPropertyMappingList[Pred(Field.FieldNo)] do
-  begin
-    Result := &Property.GetValue(&Object);
-
-    if &Property.PropertyType.IsInstance then
-      &Object := &Property.GetValue(&Object).AsObject;
-  end;
+  if not Result.IsEmpty then
+    Result := &Property.GetValue(Result.AsObject);
 end;
 
 function TORMDataSet.GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
@@ -362,11 +385,10 @@ begin
         Result := grBOF;
   end;
 
-  if Result = grOK then
 {$IFDEF PAS2JS}
-    Buffer.Data := FRecordNumber;
+  Buffer.Data := FRecordNumber;
 {$ELSE}
-    ObjectBuffer^ := FRecordNumber;
+  ObjectBuffer^ := FRecordNumber;
 {$ENDIF}
 end;
 
@@ -579,11 +601,12 @@ var
 
   &Property: TRttiProperty;
 
-  Value: TValue;
+  Instance, Value: TValue;
 
 begin
-  &Property := FPropertyMappingList[Pred(Field.FieldNo)][0];
   Value := TValue.Empty;
+
+  GetPropertyAndObjectFromField(Field, Instance, &Property);
 
 {$IFDEF DCC}
   case Field.DataType of
@@ -625,7 +648,7 @@ begin
   end;
 {$ENDIF}
 
-  &Property.SetValue(GetCurrentObject<TObject>, Value);
+  &Property.SetValue(Instance.AsObject, Value);
 end;
 
 procedure TORMDataSet.SetObjectClassName(const Value: String);

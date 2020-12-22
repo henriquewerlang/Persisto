@@ -96,6 +96,18 @@ type
     [TestCase('WideChar', 'WideChar,1')]
     [TestCase('WideString', 'WideString,50')]
     procedure WhenAFieldIsACreateTheFieldMustHaveTheMinimalSizeDefined(FieldName: String; Size: Integer);
+    [Test]
+    procedure WhenOpenAnEmptyDataSetCantRaiseAnError;
+    [Test]
+    procedure WhenOpenAnEmptyDataSetTheCurrentObjectMustReturnNil;
+    [Test]
+    procedure WhenTryToGetAFieldValueFromAEmptyDataSetCantRaiseAnError;
+    [Test]
+    procedure WhenOpenAnEmptyDataSetTheValueOfTheFieldMustReturnNull;
+    [Test]
+    procedure WhenASubPropertyIsAnObjectAndTheValueIsNilCantRaiseAnError;
+    [Test]
+    procedure WhenFillingAFieldWithSubPropertyMustFillTheLastLevelOfTheField;
   end;
 
   TAnotherObject = class
@@ -302,6 +314,27 @@ begin
   MyObject.Free;
 end;
 
+procedure TORMDataSetTest.WhenASubPropertyIsAnObjectAndTheValueIsNilCantRaiseAnError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyObject := TMyTestClass.Create;
+  MyObject.AnotherObject := TAnotherObject.Create;
+
+  DataSet.FieldDefs.Add('AnotherObject.AnotherObject.AnotherName', ftString, 50);
+
+  DataSet.OpenObject(MyObject);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.FieldByName('AnotherObject.AnotherObject.AnotherName').AsString
+    end);
+
+  DataSet.Free;
+
+  MyObject.Free;
+end;
+
 procedure TORMDataSetTest.WhenCallFirstHaveToGoToTheFirstRecord;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -355,6 +388,28 @@ begin
   Assert.WillNotRaise(DataSet.Open);
 
   DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenFillingAFieldWithSubPropertyMustFillTheLastLevelOfTheField;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyObject := TMyTestClass.Create;
+  MyObject.AnotherObject := TAnotherObject.Create;
+  MyObject.AnotherObject.AnotherObject := TAnotherObject.Create;
+
+  DataSet.FieldDefs.Add('AnotherObject.AnotherObject.AnotherName', ftString, 50);
+
+  DataSet.OpenObject(MyObject);
+
+  DataSet.Edit;
+
+  DataSet.FieldByName('AnotherObject.AnotherObject.AnotherName').AsString := 'A Name';
+
+  Assert.AreEqual('A Name', DataSet.FieldByName('AnotherObject.AnotherObject.AnotherName').AsString);
+
+  DataSet.Free;
+
+  MyObject.Free;
 end;
 
 procedure TORMDataSetTest.WhenHaveFieldDefDefinedCantLoadFieldsFromTheClass;
@@ -448,6 +503,43 @@ begin
   DataSet.Free;
 
   MyList.Free;
+end;
+
+procedure TORMDataSetTest.WhenOpenAnEmptyDataSetCantRaiseAnError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.GetCurrentObject<TMyTestClass>;
+    end);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenOpenAnEmptyDataSetTheCurrentObjectMustReturnNil;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  Assert.IsNull(DataSet.GetCurrentObject<TMyTestClass>);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenOpenAnEmptyDataSetTheValueOfTheFieldMustReturnNull;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  Assert.IsNull(DataSet.FieldByName('Name').Value);
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenOpenDataSetFromAListMustHaveToLoadFieldListWithPropertiesOfMappedObject;
@@ -631,6 +723,21 @@ begin
     begin
       DataSet.Open;
     end, EDataSetWithoutObjectDefinition);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenTryToGetAFieldValueFromAEmptyDataSetCantRaiseAnError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.FieldByName('Name').AsString;
+    end);
 
   DataSet.Free;
 end;
