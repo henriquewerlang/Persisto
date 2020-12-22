@@ -36,9 +36,8 @@ type
     function GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
     function GetFieldTypeFromProperty(&Property: TRttiProperty): TFieldType;
     function GetObjectClassName: String;
-    function GetPropertyValueFromCurrentObject(Field: TField): TValue;
+    function GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
 
-    procedure GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty);
     procedure LoadFieldDefsFromClass;
     procedure ResetCurrentRecord;
     procedure SetObjectClassName(const Value: String);
@@ -195,30 +194,42 @@ end;
 
 {$IFDEF PAS2JS}
 function TORMDataSet.GetFieldData(Field: TField; Buffer: TDatarecord): JSValue;
-begin
-  Result := GetPropertyValueFromCurrentObject(Field).AsJSValue;
-end;
 {$ELSE}
 function TORMDataSet.GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean;
-begin
-  var Value := GetPropertyValueFromCurrentObject(Field);
-
-  Result := not Value.IsEmpty;
-
-  if Result and Assigned(Buffer) then
-    if Field is TStringField then
-    begin
-      var StringData := Value.AsType<AnsiString>;
-      var StringSize := Length(StringData);
-
-      Move(PAnsiChar(@StringData[1])^, PAnsiChar(@Buffer[0])^, StringSize);
-
-      Buffer[StringSize] := 0;
-    end
-    else
-      Value.ExtractRawData(@Buffer[0])
-end;
 {$ENDIF}
+var
+  &Property: TRttiProperty;
+
+  Value: TValue;
+
+begin
+  Result := GetPropertyAndObjectFromField(Field, Value, &Property);
+
+  if Result then
+  begin
+    Value := &Property.GetValue(Value.AsObject);
+
+    Result := not Value.IsEmpty;
+
+    if Result then
+{$IFDEF PAS2JS}
+      Result := Value.AsJSValue;
+{$ELSE}
+      if Assigned(Buffer) then
+        if Field is TStringField then
+        begin
+          var StringData := Value.AsType<AnsiString>;
+          var StringSize := Length(StringData);
+
+          Move(PAnsiChar(@StringData[1])^, PAnsiChar(@Buffer[0])^, StringSize);
+
+          Buffer[StringSize] := 0;
+        end
+        else
+          Value.ExtractRawData(@Buffer[0])
+{$ENDIF}
+  end;
+end;
 
 function TORMDataSet.GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
 begin
@@ -312,7 +323,7 @@ begin
     Result := FObjectType.Name;
 end;
 
-procedure TORMDataSet.GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty);
+function TORMDataSet.GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
 var
   A: Integer;
 
@@ -321,6 +332,7 @@ var
 begin
   Instance := TValue.From(GetCurrentObject<TObject>);
   PropertyList := FPropertyMappingList[Pred(Field.FieldNo)];
+  Result := True;
 
   for A := Low(PropertyList) to High(PropertyList) do
   begin
@@ -328,18 +340,10 @@ begin
       Instance := &Property.GetValue(Instance.AsObject);
 
     &Property := PropertyList[A];
+
+    if Instance.IsEmpty then
+      Exit(False);
   end;
-end;
-
-function TORMDataSet.GetPropertyValueFromCurrentObject(Field: TField): TValue;
-var
-  &Property: TRttiProperty;
-
-begin
-  GetPropertyAndObjectFromField(Field, Result, &Property);
-
-  if not Result.IsEmpty then
-    Result := &Property.GetValue(Result.AsObject);
 end;
 
 function TORMDataSet.GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult;

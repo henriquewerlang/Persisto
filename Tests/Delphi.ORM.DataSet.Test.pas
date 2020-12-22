@@ -60,7 +60,7 @@ type
     [Test]
     procedure WhenUseQualifiedClassNameHasToLoadTheDataSetWithoutErrors;
     [Test]
-    procedure WhnCheckingIfTheFieldIsNullCantRaiseAnError;
+    procedure WhenCheckingIfTheFieldIsNullCantRaiseAnError;
     [Test]
     procedure WhenCallFirstHaveToGoToTheFirstRecord;
     [Test]
@@ -110,6 +110,8 @@ type
     procedure WhenFillingAFieldWithSubPropertyMustFillTheLastLevelOfTheField;
     [Test]
     procedure WhenOpenAClassWithDerivationMustLoadTheFieldFromTheBaseClassToo;
+    [Test]
+    procedure WhenTheDataSetIsEmptyCantRaiseAnErrorWhenGetAFieldFromASubPropertyThatIsAnObject;
   end;
 
   TAnotherObject = class
@@ -323,6 +325,23 @@ begin
   DataSet.Free;
 
   MyObject.Free;
+end;
+
+procedure TORMDataSetTest.WhenTheDataSetIsEmptyCantRaiseAnErrorWhenGetAFieldFromASubPropertyThatIsAnObject;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.FieldDefs.Add('AnotherObject.AnotherName', ftString, 50);
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.FieldByName('AnotherObject.AnotherName').AsString
+    end);
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenASubPropertyIsAnObjectAndTheValueIsNilCantRaiseAnError;
@@ -786,7 +805,7 @@ begin
   DataSet.Free;
 end;
 
-procedure TORMDataSetTest.WhnCheckingIfTheFieldIsNullCantRaiseAnError;
+procedure TORMDataSetTest.WhenCheckingIfTheFieldIsNullCantRaiseAnError;
 begin
   var DataSet := TORMDataSet.Create(nil);
   var MyObject := TMyTestClass.Create;
