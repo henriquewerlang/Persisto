@@ -338,7 +338,7 @@ var
   PropertyList: TArray<TRttiProperty>;
 
 begin
-  Instance := GetCurrentObject<TObject>;
+  Instance := TValue.From(GetCurrentObject<TObject>);
   PropertyList := FPropertyMappingList[Pred(Field.FieldNo)];
 
   for A := Low(PropertyList) to High(PropertyList) do
