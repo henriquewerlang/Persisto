@@ -6,7 +6,7 @@ procedure Register;
 
 implementation
 
-uses DesignIntf, System.Classes, Delphi.ORM.DataSet, Delphi.ORM.Editors;
+uses DesignIntf, Data.DB, System.Classes, Delphi.ORM.DataSet, Delphi.ORM.Editors;
 
 procedure Register;
 begin
