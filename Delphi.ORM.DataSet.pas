@@ -78,7 +78,7 @@ type
 
     procedure OpenArray<T: class>(List: TArray<T>);
     procedure OpenClass<T: class>;
-    procedure OpenList<T: class>(List: {$IFDEF PAS2JS}TObject{$ELSE}TList<T>{$ENDIF});
+    procedure OpenList<T: class>(List: TList<T>);
     procedure OpenObject<T: class>(&Object: T);
 
     property ObjectList: TArray<TObject> read FObjectList;
@@ -540,7 +540,13 @@ end;
 
 procedure TORMDataSet.OpenArray<T>(List: TArray<T>);
 begin
+{$IFDEF PAS2JS}
+asm
+  this.FObjectList = List;
+end;
+{$ELSE}
   FObjectList := TArray<TObject>(List);
+{$ENDIF}
   FObjectType := FContext.GetType(TypeInfo(T)) as TRttiInstanceType;
 
   SetUniDirectional(True);
@@ -555,7 +561,7 @@ begin
   OpenArray<T>(nil);
 end;
 
-procedure TORMDataSet.OpenList<T>(List: {$IFDEF PAS2JS}TObject{$ELSE}TList<T>{$ENDIF});
+procedure TORMDataSet.OpenList<T>(List: TList<T>);
 begin
   OpenArray<T>(List.ToArray);
 end;
