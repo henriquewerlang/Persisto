@@ -108,6 +108,8 @@ type
     procedure WhenASubPropertyIsAnObjectAndTheValueIsNilCantRaiseAnError;
     [Test]
     procedure WhenFillingAFieldWithSubPropertyMustFillTheLastLevelOfTheField;
+    [Test]
+    procedure WhenOpenAClassWithDerivationMustLoadTheFieldFromTheBaseClassToo;
   end;
 
   TAnotherObject = class
@@ -134,6 +136,15 @@ type
     property Name: String read FName write FName;
     property Value: Double read FValue write FValue;
     property AnotherObject: TAnotherObject read FAnotherObject write FAnotherObject;
+  end;
+
+  TMyTestClassChild = class(TMyTestClass)
+  private
+    FAField: String;
+    FAnotherField: Integer;
+  published
+    property AField: String read FAField write FAField;
+    property AnotherField: Integer read FAnotherField write FAnotherField;
   end;
 
   TMyEnumerator = (Enum1, Enum2, Enum3);
@@ -503,6 +514,17 @@ begin
   DataSet.Free;
 
   MyList.Free;
+end;
+
+procedure TORMDataSetTest.WhenOpenAClassWithDerivationMustLoadTheFieldFromTheBaseClassToo;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenClass<TMyTestClassChild>;
+
+  Assert.AreEqual(6, DataSet.FieldCount);
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenOpenAnEmptyDataSetCantRaiseAnError;

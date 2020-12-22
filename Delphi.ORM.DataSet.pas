@@ -500,7 +500,7 @@ var
 begin
   FPropertyMappingList := nil;
 
-  for &Property in FObjectType.GetDeclaredProperties do
+  for &Property in FObjectType.GetProperties do
     if &Property.Visibility = mvPublished then
     begin
       FieldType := GetFieldInfoFromProperty(&Property, Size);
