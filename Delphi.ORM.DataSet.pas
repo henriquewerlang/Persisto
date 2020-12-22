@@ -466,7 +466,9 @@ procedure TORMDataSet.InternalPost;
 begin
   inherited;
 
-  FObjectList := FObjectList + [nil];
+  FObjectList := FObjectList + [FInsertingObject];
+
+  FInsertingObject := nil;
 end;
 
 function TORMDataSet.IsCursorOpen: Boolean;

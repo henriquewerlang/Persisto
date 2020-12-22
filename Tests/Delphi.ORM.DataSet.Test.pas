@@ -7,6 +7,8 @@ uses Data.DB, DUnitX.TestFramework;
 type
   [TestFixture]
   TORMDataSetTest = class
+  private
+    procedure DestroyObjectArray(Values: TArray<TObject>);
   public
     [SetupFixture]
     procedure Setup;
@@ -112,6 +114,10 @@ type
     procedure WhenOpenAClassWithDerivationMustLoadTheFieldFromTheBaseClassToo;
     [Test]
     procedure WhenTheDataSetIsEmptyCantRaiseAnErrorWhenGetAFieldFromASubPropertyThatIsAnObject;
+    [Test]
+    procedure EveryInsertedObjectMustGoToTheObjectList;
+    [Test]
+    procedure AfterInsertAnObjectMustResetTheObjectToSaveTheNewInfo;
   end;
 
   TAnotherObject = class
@@ -202,6 +208,31 @@ uses System.Rtti, System.Generics.Collections, System.SysUtils, System.Classes, 
 
 { TORMDataSetTest }
 
+procedure TORMDataSetTest.AfterInsertAnObjectMustResetTheObjectToSaveTheNewInfo;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  DataSet.Append;
+
+  DataSet.FieldByName('Name').AsString := 'Name1';
+
+  DataSet.Post;
+
+  DataSet.Append;
+
+  DataSet.FieldByName('Name').AsString := 'Name2';
+
+  DataSet.Post;
+
+  Assert.AreEqual('Name1', TMyTestClass(DataSet.ObjectList[0]).Name);
+
+  DestroyObjectArray(DataSet.ObjectList);
+
+  DataSet.Free;
+end;
+
 procedure TORMDataSetTest.AfterOpenTheFieldMustLoadTheValuesFromTheObjectClass;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -219,6 +250,29 @@ begin
   DataSet.Free;
 
   MyObject.Free;
+end;
+
+procedure TORMDataSetTest.DestroyObjectArray(Values: TArray<TObject>);
+begin
+  for var Value in Values do
+    Value.Free;
+end;
+
+procedure TORMDataSetTest.EveryInsertedObjectMustGoToTheObjectList;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  DataSet.Append;
+
+  DataSet.Post;
+
+  Assert.IsNotNull(DataSet.ObjectList[0]);
+
+  DestroyObjectArray(DataSet.ObjectList);
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.Setup;
@@ -662,6 +716,8 @@ begin
   DataSet.Post;
 
   Assert.AreEqual(2, DataSet.RecordCount);
+
+  DestroyObjectArray(DataSet.ObjectList);
 
   DataSet.Free;
 end;
