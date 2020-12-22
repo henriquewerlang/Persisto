@@ -59,7 +59,7 @@ type
     procedure InternalGotoBookmark(Bookmark: TBookmark); override;
     procedure InternalHandleException{$IFDEF PAS2JS}(E: Exception){$ENDIF}; override;
     procedure InternalInitFieldDefs; override;
-    procedure InternalInitRecord(Buffer: TRecBuf); override;
+    procedure InternalInitRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf); override;
     procedure InternalInsert; override;
     procedure InternalLast; override;
     procedure InternalOpen; override;
@@ -155,7 +155,11 @@ end;
 
 function TORMDataSet.GetActiveRecordNumber: Integer;
 begin
+{$IFDEF DCC}
   Result := PInteger(ActiveBuffer)^;
+{$ELSE}
+  Result := Integer(ActiveBuffer.Data);
+{$ENDIF}
 end;
 
 procedure TORMDataSet.GetBookmarkData(Buffer: TRecBuf; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark);
@@ -283,8 +287,11 @@ begin
 end;
 
 function TORMDataSet.GetFieldTypeFromProperty(&Property: TRttiProperty): TFieldType;
+var
+  Size: Integer;
+
 begin
-  var Size := 0;
+  Size := 0;
 
   Result := GetFieldInfoFromProperty(&Property, Size);
 end;
@@ -368,14 +375,16 @@ begin
   Result := ObjectList.Count;
 end;
 
-procedure TORMDataSet.InternalInitRecord(Buffer: TRecBuf);
+procedure TORMDataSet.InternalInitRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf);
 {$IFDEF DCC}
 var
   ObjectBuffer: PInteger absolute Buffer;
 
 {$ENDIF}
 begin
+{$IFDEF DCC}
   ObjectBuffer^ := -1;
+{$ENDIF}
 end;
 
 procedure TORMDataSet.InternalInsert;
@@ -568,11 +577,15 @@ procedure TORMDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer);
 var
   IntValue: Integer;
 
-begin
-  var &Property := FPropertyMappingList[Pred(Field.FieldNo)][0];
-{$IFDEF DCC}
-  var Value := TValue.Empty;
+  &Property: TRttiProperty;
 
+  Value: TValue;
+
+begin
+  &Property := FPropertyMappingList[Pred(Field.FieldNo)][0];
+  Value := TValue.Empty;
+
+{$IFDEF DCC}
   case Field.DataType of
     ftByte,
     ftInteger,
