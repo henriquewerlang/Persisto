@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Classes, Data.DB, System.Rtti, System.Generics.Collections, System.SysUtils, System.TypInfo;
+uses System.Classes, Data.DB, System.Rtti, System.Generics.Collections, System.SysUtils;
 
 type
   EDataSetWithoutObjectDefinition = class(Exception)
@@ -25,8 +25,7 @@ type
 
   TORMDataSet = class(TDataSet)
   private
-    FInternalList: TList<TObject>;
-    FObjectList: TList<TObject>;
+    FObjectList: TArray<TObject>;
     FContext: TRttiContext;
     FObjectType: TRttiInstanceType;
     FPropertyMappingList: TArray<TArray<TRttiProperty>>;
@@ -34,18 +33,15 @@ type
     FInsertingObject: TObject;
 
     function GetActiveRecordNumber: Integer;
-    function GetInternalList: TList<TObject>;
     function GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
     function GetFieldTypeFromProperty(&Property: TRttiProperty): TFieldType;
     function GetObjectClassName: String;
-    function GetObjectList: TList<TObject>;
     function GetPropertyValueFromCurrentObject(Field: TField): TValue;
 
     procedure GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty);
     procedure LoadFieldDefsFromClass;
     procedure ResetCurrentRecord;
     procedure SetObjectClassName(const Value: String);
-    procedure SetObjectType(TypeInfo: PTypeInfo);
   protected
     function AllocRecordBuffer: TRecordBuffer; override;
     function GetFieldClass(FieldType: TFieldType): TFieldClass; override;
@@ -80,11 +76,12 @@ type
           var Buffer: TValueBuffer): Boolean;
         {$ENDIF} override;
 
-    procedure OpenClass<T: class>; 
+    procedure OpenArray<T: class>(List: TArray<T>);
+    procedure OpenClass<T: class>;
     procedure OpenList<T: class>(List: {$IFDEF PAS2JS}TObject{$ELSE}TList<T>{$ENDIF});
     procedure OpenObject<T: class>(&Object: T);
 
-    property ObjectList: TList<TObject> read GetObjectList;
+    property ObjectList: TArray<TObject> read FObjectList;
   published
     property Active;
     property AfterCancel;
@@ -116,6 +113,8 @@ type
 
 implementation
 
+uses System.TypInfo;
+
 { TORMDataSet }
 
 function TORMDataSet.AllocRecordBuffer: TRecordBuffer;
@@ -140,8 +139,6 @@ end;
 
 destructor TORMDataSet.Destroy;
 begin
-  FInternalList.Free;
-
   FInsertingObject.Free;
 
   inherited;
@@ -307,28 +304,12 @@ begin
   Result := GetFieldInfoFromProperty(&Property, Size);
 end;
 
-function TORMDataSet.GetInternalList: TList<TObject>;
-begin
-  if not Assigned(FInternalList) then
-    FInternalList := TList<TObject>.Create;
-
-  Result := FInternalList;
-end;
-
 function TORMDataSet.GetObjectClassName: String;
 begin
   Result := EmptyStr;
 
   if Assigned(FObjectType) then
     Result := FObjectType.Name;
-end;
-
-function TORMDataSet.GetObjectList: TList<TObject>;
-begin
-  if not Assigned(FObjectList) then
-    FObjectList := GetInternalList;
-
-  Result := FObjectList;
 end;
 
 procedure TORMDataSet.GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty);
@@ -394,7 +375,7 @@ end;
 
 function TORMDataSet.GetRecordCount: Integer;
 begin
-  Result := ObjectList.Count;
+  Result := Length(ObjectList);
 end;
 
 procedure TORMDataSet.InternalInitRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf);
@@ -481,12 +462,12 @@ procedure TORMDataSet.InternalPost;
 begin
   inherited;
 
-  ObjectList.Add(nil);
+  FObjectList := FObjectList + [nil];
 end;
 
 function TORMDataSet.IsCursorOpen: Boolean;
 begin
-  Result := Assigned(FObjectList);
+  Result := Assigned(FObjectType);
 end;
 
 procedure TORMDataSet.LoadFieldDefsFromClass;
@@ -557,24 +538,10 @@ begin
   end;
 end;
 
-procedure TORMDataSet.OpenClass<T>;
+procedure TORMDataSet.OpenArray<T>(List: TArray<T>);
 begin
-  FInternalList := TList<TObject>(TList<T>.Create);
-
-  OpenList<T>(TList<T>(FInternalList));
-end;
-
-procedure TORMDataSet.OpenList<T>(List: {$IFDEF PAS2JS}TObject{$ELSE}TList<T>{$ENDIF});
-begin
-  {$IFDEF PAS2JS}
-  // It's necessary, to optimazer don't remove the "GetItem" of the param list!
-  if False then
-    TList<T>(List).First;
-  {$ENDIF}
-
-  FObjectList := TList<TObject>(List);
-
-  SetObjectType(TypeInfo(T));
+  FObjectList := TArray<TObject>(List);
+  FObjectType := FContext.GetType(TypeInfo(T)) as TRttiInstanceType;
 
   SetUniDirectional(True);
 
@@ -583,11 +550,19 @@ begin
   SetUniDirectional(False);
 end;
 
+procedure TORMDataSet.OpenClass<T>;
+begin
+  OpenArray<T>(nil);
+end;
+
+procedure TORMDataSet.OpenList<T>(List: {$IFDEF PAS2JS}TObject{$ELSE}TList<T>{$ENDIF});
+begin
+  OpenArray<T>(List.ToArray);
+end;
+
 procedure TORMDataSet.OpenObject<T>(&Object: T);
 begin
-  ObjectList.Add(&Object);
-
-  OpenList<T>(TList<T>(ObjectList));
+  OpenArray<T>([&Object]);
 end;
 
 procedure TORMDataSet.ResetCurrentRecord;
@@ -663,11 +638,6 @@ begin
     if (&Type.Name = Value) or (&Type.QualifiedName = Value) then
       FObjectType := &Type as TRttiInstanceType;
 {$ENDIF}
-end;
-
-procedure TORMDataSet.SetObjectType(TypeInfo: PTypeInfo);
-begin
-  FObjectType := FContext.GetType(TypeInfo) as TRttiInstanceType;
 end;
 
 { TORMObjectField }
