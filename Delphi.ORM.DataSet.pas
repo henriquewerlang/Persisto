@@ -19,6 +19,8 @@ type
 {$ENDIF}
 
   TORMObjectField = class(TField)
+  protected
+    function GetAsVariant: Variant; override;
   public
     constructor Create(AOwner: TComponent); override;
   end;
@@ -31,6 +33,7 @@ type
     FPropertyMappingList: TArray<TArray<TRttiProperty>>;
     FRecordNumber: Integer;
     FInsertingObject: TObject;
+    FOldValueObject: TObject;
 
     function GetActiveRecordNumber: Integer;
     function GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
@@ -50,7 +53,9 @@ type
 
     procedure GetBookmarkData(Buffer: TRecBuf; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark); override;
     procedure FreeRecordBuffer(var Buffer: TRecordBuffer); override;
+    procedure InternalCancel; override;
     procedure InternalClose; override;
+    procedure InternalEdit; override;
     procedure InternalFirst; override;
     procedure InternalGotoBookmark(Bookmark: TBookmark); override;
     procedure InternalHandleException{$IFDEF PAS2JS}(E: Exception){$ENDIF}; override;
@@ -112,7 +117,7 @@ type
 
 implementation
 
-uses System.TypInfo;
+uses System.TypInfo, System.Variants;
 
 { TORMDataSet }
 
@@ -173,14 +178,27 @@ var
 begin
   Result := nil;
 
-  if State = dsInsert then
-    Result := FInsertingObject as T
-  else
-  begin
-    ActiveRecord := GetActiveRecordNumber;
+  case State of
+    dsInsert: Result := FInsertingObject as T;
+    dsOldValue: Result := FOldValueObject as T;
+//    dsInactive: ;
+//    dsBrowse: ;
+//    dsEdit: ;
+//    dsSetKey: ;
+//    dsCalcFields: ;
+//    dsFilter: ;
+//    dsNewValue: ;
+//    dsCurValue: ;
+//    dsBlockRead: ;
+//    dsInternalCalc: ;
+//    dsOpening: ;
+    else
+    begin
+      ActiveRecord := GetActiveRecordNumber;
 
-    if ActiveRecord > -1 then
-      Result := ObjectList[ActiveRecord] as T;
+      if ActiveRecord > -1 then
+        Result := ObjectList[ActiveRecord] as T;
+    end;
   end;
 end;
 
@@ -221,7 +239,8 @@ begin
           var StringData := Value.AsType<AnsiString>;
           var StringSize := Length(StringData);
 
-          Move(PAnsiChar(@StringData[1])^, PAnsiChar(@Buffer[0])^, StringSize);
+          if StringSize > 0 then
+            Move(PAnsiChar(@StringData[1])^, PAnsiChar(@Buffer[0])^, StringSize);
 
           Buffer[StringSize] := 0;
         end
@@ -402,8 +421,45 @@ begin
     FInsertingObject := FObjectType.MetaclassType.Create;
 end;
 
+procedure TORMDataSet.InternalCancel;
+var
+  &Property: TRttiProperty;
+
+  CurrentObject: TObject;
+
+begin
+  if Assigned(FOldValueObject) then
+  begin
+    CurrentObject := GetCurrentObject<TObject>;
+
+    for &Property in FObjectType.GetProperties do
+      &Property.SetValue(CurrentObject, &Property.GetValue(FOldValueObject));
+
+    FreeAndNil(FOldValueObject);
+  end;
+end;
+
 procedure TORMDataSet.InternalClose;
 begin
+
+end;
+
+procedure TORMDataSet.InternalEdit;
+var
+  &Property: TRttiProperty;
+
+  CurrentObject: TObject;
+
+begin
+  inherited;
+
+  CurrentObject := GetCurrentObject<TObject>;
+
+  if not Assigned(FOldValueObject) then
+    FOldValueObject := FObjectType.MetaclassType.Create;
+
+  for &Property in FObjectType.GetProperties do
+    &Property.SetValue(FOldValueObject, &Property.GetValue(CurrentObject));
 end;
 
 procedure TORMDataSet.InternalFirst;
@@ -659,6 +715,11 @@ begin
   inherited;
 
   SetDataType(ftVariant);
+end;
+
+function TORMObjectField.GetAsVariant: Variant;
+begin
+  Result := NULL;
 end;
 
 { EDataSetWithoutObjectDefinition }

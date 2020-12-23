@@ -118,6 +118,14 @@ type
     procedure EveryInsertedObjectMustGoToTheObjectList;
     [Test]
     procedure AfterInsertAnObjectMustResetTheObjectToSaveTheNewInfo;
+    [Test]
+    procedure WhenEditingTheDataSetAndSetAFieldValueMustChangeThePropertyOfTheObjectToo;
+    [Test]
+    procedure TheOldValuePropertyFromFieldMustReturnTheOriginalValueOfTheObjectBeingEdited;
+    [Test]
+    procedure WhenAStringFieldIsEmptyCantRaiseAnErrorBecauseOfIt;
+    [Test]
+    procedure WhenTheEditionIsCanceledMustReturnTheOriginalValueFromTheField;
   end;
 
   TAnotherObject = class
@@ -318,6 +326,26 @@ begin
   MyObject.Free;
 end;
 
+procedure TORMDataSetTest.TheOldValuePropertyFromFieldMustReturnTheOriginalValueOfTheObjectBeingEdited;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyClass := TMyTestClass.Create;
+
+  MyClass.Name := 'My Name';
+
+  DataSet.OpenObject(MyClass);
+
+  DataSet.Edit;
+
+  DataSet.FieldByName('Name').AsString := 'Another Name';
+
+  Assert.AreEqual<String>('My Name', DataSet.FieldByName('Name').OldValue);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
 procedure TORMDataSetTest.UsingBookmarkHaveToWorkLikeSpected;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -398,6 +426,45 @@ begin
   DataSet.Free;
 end;
 
+procedure TORMDataSetTest.WhenTheEditionIsCanceledMustReturnTheOriginalValueFromTheField;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyClass := TMyTestClass.Create;
+  MyClass.Name := 'My Name';
+
+  DataSet.OpenObject(MyClass);
+
+  DataSet.Edit;
+
+  DataSet.FieldByName('Name').AsString := 'New Name';
+
+  DataSet.Cancel;
+
+  Assert.AreEqual('My Name', DataSet.FieldByName('Name').AsString);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
+procedure TORMDataSetTest.WhenAStringFieldIsEmptyCantRaiseAnErrorBecauseOfIt;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyClass := TMyTestClass.Create;
+
+  DataSet.OpenObject(MyClass);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.FieldByName('Name').AsString;
+    end);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
 procedure TORMDataSetTest.WhenASubPropertyIsAnObjectAndTheValueIsNilCantRaiseAnError;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -448,6 +515,26 @@ begin
   MyList.Free;
 end;
 
+procedure TORMDataSetTest.WhenEditingTheDataSetAndSetAFieldValueMustChangeThePropertyOfTheObjectToo;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyClass := TMyTestClass.Create;
+
+  MyClass.Name := 'My Name';
+
+  DataSet.OpenObject(MyClass);
+
+  DataSet.Edit;
+
+  DataSet.FieldByName('Name').AsString := 'Name1';
+
+  Assert.AreEqual('Name1', MyClass.Name);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
 procedure TORMDataSetTest.WhenExistsAFieldInDataSetMustFillTheFieldDefFromThisField;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -492,6 +579,8 @@ begin
   Assert.AreEqual('A Name', DataSet.FieldByName('AnotherObject.AnotherObject.AnotherName').AsString);
 
   DataSet.Free;
+
+  MyObject.AnotherObject := nil;
 
   MyObject.Free;
 end;
