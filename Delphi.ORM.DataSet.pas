@@ -20,7 +20,12 @@ type
 
   TORMObjectField = class(TField)
   protected
+{$IFDEF PAS2JS}
+    function GetAsJSValue: JSValue; override;
+{$ENDIF}
+{$IFDEF DCC}
     function GetAsVariant: Variant; override;
+{$ENDIF}
   public
     constructor Create(AOwner: TComponent); override;
   end;
@@ -117,7 +122,7 @@ type
 
 implementation
 
-uses System.TypInfo, System.Variants;
+uses System.TypInfo{$IFDEF DCC}, System.Variants{$ENDIF};
 
 { TORMDataSet }
 
@@ -717,10 +722,19 @@ begin
   SetDataType(ftVariant);
 end;
 
+{$IFDEF PAS2JS}
+function TORMObjectField.GetAsJSValue: JSValue;
+begin
+
+end;
+{$ENDIF}
+
+{$IFDEF DCC}
 function TORMObjectField.GetAsVariant: Variant;
 begin
   Result := NULL;
 end;
+{$ENDIF}
 
 { EDataSetWithoutObjectDefinition }
 
