@@ -128,6 +128,10 @@ type
     procedure WhenTheEditionIsCanceledMustReturnTheOriginalValueFromTheField;
     [Test]
     procedure WhenEditingCantIncreseTheRecordCountWhenPostTheRecord;
+    [Test]
+    procedure WhenSetAValueToAFieldThatIsAnObjectMustFillThePropertyInTheClassWithThisObject;
+    [Test]
+    procedure WhenGetAValueFromAFieldAndIsAnObjectMustReturnTheObjectFromTheClass;
   end;
 
   TAnotherObject = class
@@ -606,6 +610,21 @@ begin
   MyObject.Free;
 end;
 
+procedure TORMDataSetTest.WhenGetAValueFromAFieldAndIsAnObjectMustReturnTheObjectFromTheClass;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyClass := TMyTestClass.Create;
+  MyClass.AnotherObject := TAnotherObject.Create;
+
+  DataSet.OpenObject(MyClass);
+
+  Assert.AreEqual<TObject>(MyClass.AnotherObject, (DataSet.FieldByName('AnotherObject') as TORMObjectField).AsObject);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
 procedure TORMDataSetTest.WhenHaveFieldDefDefinedCantLoadFieldsFromTheClass;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -832,6 +851,27 @@ begin
   DataSet.Free;
 end;
 
+procedure TORMDataSetTest.WhenSetAValueToAFieldThatIsAnObjectMustFillThePropertyInTheClassWithThisObject;
+begin
+  var AnotherObject := TAnotherObject.Create;
+  var DataSet := TORMDataSet.Create(nil);
+  var MyClass := TMyTestClass.Create;
+
+  DataSet.OpenObject(MyClass);
+
+  DataSet.Edit;
+
+  (DataSet.FieldByName('AnotherObject') as TORMObjectField).AsObject := AnotherObject;
+
+  DataSet.Post;
+
+  Assert.AreEqual(AnotherObject, MyClass.AnotherObject);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
 procedure TORMDataSetTest.WhenSetTheFieldValueMustChangeTheValueFromTheClass(FieldName, FieldValue: String);
 begin
   var Context := TRttiContext.Create;
@@ -876,8 +916,6 @@ begin
     ftCurrency,
     ftFloat,
     ftSingle: Value := 123.456;
-
-    ftObject: ;
   end;
 
   Assert.IsTrue(Value = &Property.GetValue(DataSet.GetCurrentObject<TMyTestClassTypes>).AsVariant);

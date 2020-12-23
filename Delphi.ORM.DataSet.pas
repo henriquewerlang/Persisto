@@ -19,15 +19,18 @@ type
 {$ENDIF}
 
   TORMObjectField = class(TField)
-  protected
-{$IFDEF PAS2JS}
-    function GetAsJSValue: JSValue; override;
-{$ENDIF}
-{$IFDEF DCC}
-    function GetAsVariant: Variant; override;
-{$ENDIF}
+  private
+    {$IFDEF DCC}
+    FBuffer: TValueBuffer;
+    {$ENDIF}
+
+    function GetAsObject: TObject;
+
+    procedure SetAsObject(const Value: TObject);
   public
     constructor Create(AOwner: TComponent); override;
+
+    property AsObject: TObject read GetAsObject write SetAsObject;
   end;
 
   TORMDataSet = class(TDataSet)
@@ -702,6 +705,7 @@ begin
 
     ftLargeint: Value := TValue.From(PInt64(Buffer)^);
     ftWideString: Value := TValue.From(String(PWideChar(Buffer)));
+    ftVariant: Value := TValue.From(TObject(PNativeInt(Buffer)^));
   end;
 {$ENDIF}
 
@@ -709,14 +713,9 @@ begin
 end;
 
 procedure TORMDataSet.SetObjectClassName(const Value: String);
-{$IFDEF DCC}
-var
-  &Type: TRttiType;
-
-{$ENDIF}
 begin
 {$IFDEF DCC}
-  for &Type in FContext.GetTypes do
+  for var &Type in FContext.GetTypes do
     if (&Type.Name = Value) or (&Type.QualifiedName = Value) then
       FObjectType := &Type as TRttiInstanceType;
 {$ENDIF}
@@ -729,21 +728,34 @@ begin
   inherited;
 
   SetDataType(ftVariant);
-end;
-
-{$IFDEF PAS2JS}
-function TORMObjectField.GetAsJSValue: JSValue;
-begin
-
-end;
-{$ENDIF}
 
 {$IFDEF DCC}
-function TORMObjectField.GetAsVariant: Variant;
-begin
-  Result := NULL;
-end;
+  SetLength(FBuffer, SizeOf(TObject));
 {$ENDIF}
+end;
+
+function TORMObjectField.GetAsObject: TObject;
+begin
+{$IFDEF DCC}
+  if GetData(FBuffer, True) then
+    Result := TObject(PNativeInt(FBuffer)^)
+  else
+    Result := nil;
+{$ELSE}
+  Result := TObject(GetData);
+{$ENDIF}
+end;
+
+procedure TORMObjectField.SetAsObject(const Value: TObject);
+begin
+{$IFDEF DCC}
+  Move(NativeInt(Value), FBuffer[0], SizeOf(Value));
+
+  SetData(FBuffer);
+{$ELSE}
+  SetData(Value);
+{$ENDIF}
+end;
 
 { EDataSetWithoutObjectDefinition }
 
