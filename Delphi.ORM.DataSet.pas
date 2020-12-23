@@ -90,11 +90,13 @@ type
         {$ENDIF} override;
 
     procedure OpenArray<T: class>(List: TArray<T>);
+    procedure OpenObjectArray(ObjectType: TClass; List: TArray<TObject>);
     procedure OpenClass<T: class>;
     procedure OpenList<T: class>(List: TList<T>);
     procedure OpenObject<T: class>(&Object: T);
 
     property ObjectList: TArray<TObject> read FObjectList;
+    property ObjectType: TRttiInstanceType read FObjectType;
   published
     property Active;
     property AfterCancel;
@@ -126,7 +128,7 @@ type
 
 implementation
 
-uses System.TypInfo{$IFDEF DCC}, System.Variants{$ENDIF};
+uses System.TypInfo, {$IFDEF PAS2JS}Pas2JS.JS{$ELSE}System.Variants{$ENDIF};
 
 { TORMDataSet }
 
@@ -230,18 +232,17 @@ var
   Value: TValue;
 
 begin
-  Result := GetPropertyAndObjectFromField(Field, Value, &Property);
+  Result := {$IFDEF PAS2JS}NULL{$ELSE}False{$ENDIF};
 
-  if Result then
+  if GetPropertyAndObjectFromField(Field, Value, &Property) then
   begin
     Value := &Property.GetValue(Value.AsObject);
 
-    Result := not Value.IsEmpty;
-
-    if Result then
+    if not Value.IsEmpty then
 {$IFDEF PAS2JS}
       Result := Value.AsJSValue;
 {$ELSE}
+    begin
       if Assigned(Buffer) then
         if Field is TStringField then
         begin
@@ -254,7 +255,10 @@ begin
           Buffer[StringSize] := 0;
         end
         else
-          Value.ExtractRawData(@Buffer[0])
+          Value.ExtractRawData(@Buffer[0]);
+
+      Result := True;
+    end;
 {$ENDIF}
   end;
 end;
@@ -347,8 +351,8 @@ function TORMDataSet.GetObjectClassName: String;
 begin
   Result := EmptyStr;
 
-  if Assigned(FObjectType) then
-    Result := FObjectType.Name;
+  if Assigned(ObjectType) then
+    Result := ObjectType.Name;
 end;
 
 function TORMDataSet.GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
@@ -427,7 +431,7 @@ begin
   inherited;
 
   if not Assigned(FInsertingObject) then
-    FInsertingObject := FObjectType.MetaclassType.Create;
+    FInsertingObject := ObjectType.MetaclassType.Create;
 end;
 
 procedure TORMDataSet.InternalCancel;
@@ -441,7 +445,7 @@ begin
   begin
     CurrentObject := GetCurrentObject<TObject>;
 
-    for &Property in FObjectType.GetProperties do
+    for &Property in ObjectType.GetProperties do
       &Property.SetValue(CurrentObject, &Property.GetValue(FOldValueObject));
 
     ReleaseOldValueObject;
@@ -465,9 +469,9 @@ begin
   CurrentObject := GetCurrentObject<TObject>;
 
   if not Assigned(FOldValueObject) then
-    FOldValueObject := FObjectType.MetaclassType.Create;
+    FOldValueObject := ObjectType.MetaclassType.Create;
 
-  for &Property in FObjectType.GetProperties do
+  for &Property in ObjectType.GetProperties do
     &Property.SetValue(FOldValueObject, &Property.GetValue(CurrentObject));
 end;
 
@@ -506,7 +510,7 @@ end;
 
 procedure TORMDataSet.InternalOpen;
 begin
-  if not Assigned(FObjectType) then
+  if not Assigned(ObjectType) then
     raise EDataSetWithoutObjectDefinition.Create;
 
   if FieldDefs.Count = 0 then
@@ -541,7 +545,7 @@ end;
 
 function TORMDataSet.IsCursorOpen: Boolean;
 begin
-  Result := Assigned(FObjectType);
+  Result := Assigned(ObjectType);
 end;
 
 procedure TORMDataSet.LoadFieldDefsFromClass;
@@ -553,16 +557,12 @@ var
   Size: Integer;
 
 begin
-  FPropertyMappingList := nil;
-
-  for &Property in FObjectType.GetProperties do
+  for &Property in ObjectType.GetProperties do
     if &Property.Visibility = mvPublished then
     begin
       FieldType := GetFieldInfoFromProperty(&Property, Size);
 
       FieldDefs.Add(&Property.Name, FieldType, Size);
-
-      FPropertyMappingList := FPropertyMappingList + [[&Property]];
     end;
 end;
 
@@ -581,7 +581,7 @@ var
   PropertyName: String;
 
 begin
-  FPropertyMappingList := nil;
+  SetLength(FPropertyMappingList, Fields.Count);
 
   for A := 0 to Pred(Fields.Count) do
   begin
@@ -608,26 +608,24 @@ begin
       raise EPropertyWithDifferentType.CreateFmt('The property type is not equal to the type of the added field, expected value %s found %s',
         [TRttiEnumerationType.GetName(GetFieldTypeFromProperty(&Property)), TRttiEnumerationType.GetName(Field.DataType)]);
 
-    FPropertyMappingList := FPropertyMappingList + [PropertyList];
+    FPropertyMappingList[Pred(Field.FieldNo)] := PropertyList;
   end;
 end;
 
 procedure TORMDataSet.OpenArray<T>(List: TArray<T>);
+var
+  ArrayOfObject: TArray<TObject>;
+
 begin
 {$IFDEF PAS2JS}
-asm
-  this.FObjectList = List;
-end;
+  asm
+    ArrayOfObject = List;
+  end;
 {$ELSE}
-  FObjectList := TArray<TObject>(List);
+  ArrayOfObject := TArray<TObject>(List);
 {$ENDIF}
-  FObjectType := FContext.GetType(TypeInfo(T)) as TRttiInstanceType;
 
-  SetUniDirectional(True);
-
-  Open;
-
-  SetUniDirectional(False);
+  OpenObjectArray((FContext.GetType(TypeInfo(T)) as TRttiInstanceType).MetaclassType, ArrayOfObject);
 end;
 
 procedure TORMDataSet.OpenClass<T>;
@@ -643,6 +641,18 @@ end;
 procedure TORMDataSet.OpenObject<T>(&Object: T);
 begin
   OpenArray<T>([&Object]);
+end;
+
+procedure TORMDataSet.OpenObjectArray(ObjectType: TClass; List: TArray<TObject>);
+begin
+  FObjectList := List;
+  FObjectType := FContext.GetType(ObjectType) as TRttiInstanceType;
+
+  SetUniDirectional(True);
+
+  Open;
+
+  SetUniDirectional(False);
 end;
 
 procedure TORMDataSet.ReleaseOldValueObject;

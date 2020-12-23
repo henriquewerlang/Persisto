@@ -132,6 +132,12 @@ type
     procedure WhenSetAValueToAFieldThatIsAnObjectMustFillThePropertyInTheClassWithThisObject;
     [Test]
     procedure WhenGetAValueFromAFieldAndIsAnObjectMustReturnTheObjectFromTheClass;
+    [Test]
+    procedure OpenArrayObjectMustLoadTheObjectTypeFromTheParam;
+    [Test]
+    procedure OpenArrayObjectMustActiveTheDataSet;
+    [Test]
+    procedure OpenArrayMustLoadTheObjectListWithTheParamPassed;
   end;
 
   TAnotherObject = class
@@ -285,6 +291,45 @@ begin
   Assert.IsNotNull(DataSet.ObjectList[0]);
 
   DestroyObjectArray(DataSet.ObjectList);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.OpenArrayMustLoadTheObjectListWithTheParamPassed;
+begin
+  var Context := TRttiContext.Create;
+  var DataSet := TORMDataSet.Create(nil);
+  var MyClass := TMyTestClass.Create;
+
+  DataSet.OpenObjectArray(TMyTestClass, [MyClass]);
+
+  Assert.AreEqual(1, DataSet.RecordCount);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
+procedure TORMDataSetTest.OpenArrayObjectMustActiveTheDataSet;
+begin
+  var Context := TRttiContext.Create;
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenObjectArray(TMyTestClass, nil);
+
+  Assert.IsTrue(DataSet.Active);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.OpenArrayObjectMustLoadTheObjectTypeFromTheParam;
+begin
+  var Context := TRttiContext.Create;
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenObjectArray(TMyTestClass, nil);
+
+  Assert.AreEqual(Context.GetType(TMyTestClass) as TRttiInstanceType, DataSet.ObjectType);
 
   DataSet.Free;
 end;
