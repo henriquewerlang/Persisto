@@ -47,7 +47,9 @@ type
     function GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
 
     procedure LoadFieldDefsFromClass;
+    procedure LoadPropertiesFromFields;
     procedure ResetCurrentRecord;
+    procedure ReleaseOldValueObject;
     procedure SetObjectClassName(const Value: String);
   protected
     function AllocRecordBuffer: TRecordBuffer; override;
@@ -70,7 +72,6 @@ type
     procedure InternalLast; override;
     procedure InternalOpen; override;
     procedure InternalPost; override;
-    procedure LoadPropertiesFromFields;
     procedure SetFieldData(Field: TField; Buffer: TValueBuffer); override;
   public
     constructor Create(AOwner: TComponent); override;
@@ -440,7 +441,7 @@ begin
     for &Property in FObjectType.GetProperties do
       &Property.SetValue(CurrentObject, &Property.GetValue(FOldValueObject));
 
-    FreeAndNil(FOldValueObject);
+    ReleaseOldValueObject;
   end;
 end;
 
@@ -527,9 +528,12 @@ procedure TORMDataSet.InternalPost;
 begin
   inherited;
 
-  FObjectList := FObjectList + [FInsertingObject];
+  if State = dsInsert then
+    FObjectList := FObjectList + [FInsertingObject];
 
   FInsertingObject := nil;
+
+  ReleaseOldValueObject;
 end;
 
 function TORMDataSet.IsCursorOpen: Boolean;
@@ -636,6 +640,11 @@ end;
 procedure TORMDataSet.OpenObject<T>(&Object: T);
 begin
   OpenArray<T>([&Object]);
+end;
+
+procedure TORMDataSet.ReleaseOldValueObject;
+begin
+  FreeAndNil(FOldValueObject);
 end;
 
 procedure TORMDataSet.ResetCurrentRecord;

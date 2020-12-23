@@ -126,6 +126,8 @@ type
     procedure WhenAStringFieldIsEmptyCantRaiseAnErrorBecauseOfIt;
     [Test]
     procedure WhenTheEditionIsCanceledMustReturnTheOriginalValueFromTheField;
+    [Test]
+    procedure WhenEditingCantIncreseTheRecordCountWhenPostTheRecord;
   end;
 
   TAnotherObject = class
@@ -513,6 +515,25 @@ begin
   DataSet.Free;
 
   MyList.Free;
+end;
+
+procedure TORMDataSetTest.WhenEditingCantIncreseTheRecordCountWhenPostTheRecord;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyClass := TMyTestClass.Create;
+  MyClass.Name := 'My Name';
+
+  DataSet.OpenObject(MyClass);
+
+  DataSet.Edit;
+
+  DataSet.Post;
+
+  Assert.AreEqual(1, DataSet.RecordCount);
+
+  DataSet.Free;
+
+  MyClass.Free;
 end;
 
 procedure TORMDataSetTest.WhenEditingTheDataSetAndSetAFieldValueMustChangeThePropertyOfTheObjectToo;
