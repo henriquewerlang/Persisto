@@ -726,6 +726,8 @@ begin
 {$ENDIF}
 
   &Property.SetValue(Instance.AsObject, Value);
+
+  DataEvent(deFieldChange, {$IFDEF DCC}IntPtr{$ENDIF}(Field));
 end;
 
 procedure TORMDataSet.SetObjectClassName(const Value: String);
