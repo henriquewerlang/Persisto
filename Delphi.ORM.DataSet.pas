@@ -673,18 +673,23 @@ end;
 
 procedure TORMDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer);
 var
+{$IFDEF DCC}
+  Value: TValue;
+{$ELSE}
+  Value: JSValue absolute Buffer;
+{$ENDIF}
   IntValue: Integer;
 
   &Property: TRttiProperty;
 
-  Instance, Value: TValue;
+  Instance: TValue;
 
 begin
-  Value := TValue.Empty;
-
   GetPropertyAndObjectFromField(Field, Instance, &Property);
 
 {$IFDEF DCC}
+  Value := TValue.Empty;
+
   case Field.DataType of
     ftByte,
     ftInteger,
