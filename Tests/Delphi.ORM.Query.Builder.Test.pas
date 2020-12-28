@@ -159,7 +159,7 @@ type
     procedure WhenThePropertyIsAnArrayCantLoadTheFieldInTheList;
   end;
 
-  TDatabase = class(TInterfacedObject, IDatabaseConnection)
+  TDatabaseTest = class(TInterfacedObject, IDatabaseConnection)
   private
     FCursor: IDatabaseCursor;
     FSQL: String;
@@ -214,7 +214,7 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.IfNotExistsAFilterInWhereMustReturnTheQueryWithoutWhereCommand;
 begin
-  var Database := TDatabase.Create(nil);
+  var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
 
   Query.Select.All.From<TMyTestClass>.Open;
@@ -265,7 +265,7 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.OnlyPublishedPropertiesMustAppearInInsertSQL;
 begin
-  var Database := TDatabase.Create(nil);
+  var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
 
   var MyClass := TClassOnlyPublic.Create;
@@ -283,7 +283,7 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.OnlyPublishedPropertiesMustAppearInUpdateSQL;
 begin
-  var Database := TDatabase.Create(nil);
+  var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
   var SQL := 'update ClassOnlyPublic set ';
 
@@ -342,7 +342,7 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.TheKeyFieldCantBeUpdatedInTheUpdateProcedure;
 begin
-  var Database := TDatabase.Create(nil);
+  var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
   var SQL := 'update ClassWithPrimaryKeyAttribute set Value=222';
 
@@ -399,7 +399,7 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.WhenAFilterConditionMustBuildTheSQLAsExpected;
 begin
-  var Database := TDatabase.Create(nil);
+  var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
 
   Query.Select.All.From<TMyTestClass>.Where(Field('MyField') = 1234).Open;
@@ -411,7 +411,7 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.WhenCallInsertProcedureMustBuildTheSQLWithAllFieldsAndValuesFromTheClassParameter;
 begin
-  var Database := TDatabase.Create(nil);
+  var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
 
   var MyClass := TMyTestClass.Create;
@@ -430,7 +430,7 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.WhenCallOpenProcedureMustOpenTheDatabaseCursor;
 begin
-  var Database := TDatabase.Create(nil);
+  var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
 
   Query.Select.All.From<TMyTestClass>.Open;
@@ -453,7 +453,7 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.WhenCallTheDeleteProcedureMustBuildTheSQLWithTheValuesOfKeysOfClass;
 begin
-  var Database := TDatabase.Create(nil);
+  var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
 
   var MyClass := TClassWithPrimaryKeyAttribute.Create;
@@ -471,7 +471,7 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.WhenCallUpdateMustBuildTheSQLWithAllPropertiesInTheObjectParameter;
 begin
-  var Database := TDatabase.Create(nil);
+  var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
 
   var MyClass := TMyTestClass.Create;
@@ -563,7 +563,7 @@ end;
 procedure TDelphiORMQueryBuilderTest.WhenOpenOneMustFillTheClassWithTheValuesOfCursor;
 begin
   var Cursor := TMock.CreateInterface<IDatabaseCursor>;
-  var Database := TDatabase.Create(Cursor.Instance);
+  var Database := TDatabaseTest.Create(Cursor.Instance);
   var Query := TQueryBuilder.Create(Database);
 
   Cursor.Setup.WillReturn(123).When.GetFieldValue(It.IsEqualTo(0));
@@ -600,7 +600,7 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.WhenTheClassDontHaveAnyPrimaryKeyTheDeleteMustBuildTheSQLWithoutWhereCondition;
 begin
-  var Database := TDatabase.Create(nil);
+  var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
 
   var MyClass := TMyTestClass.Create;
@@ -616,7 +616,7 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.WhenTheClassDontHaveThePrimaryKeyAttributeCantRaiseAException;
 begin
-  var Database := TDatabase.Create(nil);
+  var Database := TDatabaseTest.Create(nil);
   var MyClass := TClassOnlyPublic.Create;
   var Query := TQueryBuilder.Create(Database);
 
@@ -663,7 +663,7 @@ end;
 
 procedure TDelphiORMQueryBuilderTest.WhenTheClassHaveThePrimaryKeyAttributeMustBuildTheWhereWithTheValuesOfFieldInTheKeyList;
 begin
-  var Database := TDatabase.Create(nil);
+  var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
 
   var MyClass := TClassWithPrimaryKeyAttribute.Create;
@@ -705,21 +705,21 @@ begin
   From.Free;
 end;
 
-{ TDatabase }
+{ TDatabaseTest }
 
-constructor TDatabase.Create(Cursor: IDatabaseCursor);
+constructor TDatabaseTest.Create(Cursor: IDatabaseCursor);
 begin
   inherited Create;
 
   FCursor := Cursor;
 end;
 
-procedure TDatabase.ExecuteDirect(SQL: String);
+procedure TDatabaseTest.ExecuteDirect(SQL: String);
 begin
   FSQL := SQL;
 end;
 
-function TDatabase.OpenCursor(SQL: String): IDatabaseCursor;
+function TDatabaseTest.OpenCursor(SQL: String): IDatabaseCursor;
 begin
   FSQL := SQL;
   Result := FCursor;
@@ -982,7 +982,7 @@ end;
 
 procedure TQueryBuilderSelectTest.WhenTheClassHaveForeignKeyMustBuildTheSQLWithTheAliasOfTheJoinMapped;
 begin
-  var Database := TDatabase.Create(nil);
+  var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
 
   Query.Select.All.From<TClassWithForeignKey>.Open;

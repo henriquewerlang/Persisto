@@ -240,31 +240,19 @@ begin
   case Value.Kind of
     tkEnumeration,
     tkInteger,
-    tkInt64: Result := Value.ToString;
+    tkInt64: Exit(Value.ToString);
 
-    tkFloat: Result := FloatToStr(Value.AsExtended, TFormatSettings.Invariant);
+    tkFloat: Exit(FloatToStr(Value.AsExtended, TFormatSettings.Invariant));
 
     tkChar,
     tkString,
     tkWChar,
     tkLString,
     tkWString,
-    tkUString: Result := QuotedStr(Value.AsString);
-
-    tkUnknown,
-    tkSet,
-    tkClass,
-    tkMethod,
-    tkVariant,
-    tkArray,
-    tkRecord,
-    tkInterface,
-    tkDynArray,
-    tkClassRef,
-    tkPointer,
-    tkProcedure,
-    tkMRecord: raise Exception.Create('Invalid value!');
+    tkUString: Exit(QuotedStr(Value.AsString));
   end;
+
+  raise Exception.Create('Invalid value!');
 end;
 
 procedure TQueryBuilder.Insert<T>(const AObject: T);
