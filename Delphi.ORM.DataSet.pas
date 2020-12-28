@@ -59,6 +59,7 @@ type
     function GetFieldClass(FieldType: TFieldType): TFieldClass; override;
     function GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function GetRecordCount: Integer; override;
+    function GetRecNo: Integer; override;
     function IsCursorOpen: Boolean; override;
 
     procedure GetBookmarkData(Buffer: TRecBuf; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark); override;
@@ -376,6 +377,11 @@ begin
     if Instance.IsEmpty then
       Exit(False);
   end;
+end;
+
+function TORMDataSet.GetRecNo: Integer;
+begin
+  Result := GetActiveRecordNumber;
 end;
 
 function TORMDataSet.GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult;

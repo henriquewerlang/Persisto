@@ -138,6 +138,8 @@ type
     procedure OpenArrayObjectMustActiveTheDataSet;
     [Test]
     procedure OpenArrayMustLoadTheObjectListWithTheParamPassed;
+    [Test]
+    procedure TheRecNoPropertyMustReturnTheCurrentRecordPositionInTheDataSet;
   end;
 
   TAnotherObject = class
@@ -395,6 +397,26 @@ begin
   DataSet.Free;
 
   MyClass.Free;
+end;
+
+procedure TORMDataSetTest.TheRecNoPropertyMustReturnTheCurrentRecordPositionInTheDataSet;
+begin
+  var Context := TRttiContext.Create;
+  var DataSet := TORMDataSet.Create(nil);
+  var List: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  DataSet.OpenArray<TMyTestClass>(List);
+
+  DataSet.Next;
+
+  DataSet.Next;
+
+  Assert.AreEqual(2, DataSet.RecNo);
+
+  for var Item in List do
+    Item.Free;
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.UsingBookmarkHaveToWorkLikeSpected;
