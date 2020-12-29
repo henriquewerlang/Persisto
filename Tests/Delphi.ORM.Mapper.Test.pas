@@ -31,8 +31,6 @@ type
     [Test]
     procedure WhenTheClassHaveThePrimaryKeyAttributeThePrimaryKeyWillBeTheFieldFilled;
     [Test]
-    procedure WhenThePrimaryKeyAttributeHasMoreThanOneFieldHasToPutEveryoneOnTheList;
-    [Test]
     procedure TheFieldInPrimaryKeyMustBeMarkedWithInPrimaryKey;
     [Test]
     procedure TheDatabaseNameOfATableMustBeTheNameOfClassRemovingTheFirstCharOfTheClassName;
@@ -138,17 +136,6 @@ type
   [Entity]
   [PrimaryKey('Value')]
   TMyEntityWithPrimaryKey = class
-  private
-    FId: Integer;
-    FValue: Double;
-  published
-    property Id: Integer read FId write FId;
-    property Value: Double read FValue write FValue;
-  end;
-
-  [Entity]
-  [PrimaryKey('Value,Id')]
-  TMyEntityWithPrimaryKey2 = class
   private
     FId: Integer;
     FValue: Double;
@@ -356,7 +343,7 @@ begin
   var Mapper := TMapper.Create;
   var Table := Mapper.LoadClass(TMyEntity);
 
-  Assert.IsTrue(Table.PrimaryKey[0].InPrimaryKey);
+  Assert.IsTrue(Table.PrimaryKey.InPrimaryKey);
 
   Mapper.Free;
 end;
@@ -447,8 +434,7 @@ begin
   var Mapper := TMapper.Create;
   var Table := Mapper.LoadClass(TMyEntity2);
 
-  Assert.AreEqual<Integer>(1, Length(Table.PrimaryKey));
-  Assert.AreEqual('Id', Table.PrimaryKey[0].DatabaseName);
+  Assert.AreEqual('Id', Table.PrimaryKey.DatabaseName);
 
   Mapper.Free;
 end;
@@ -483,7 +469,7 @@ begin
 
   var Table := Mapper.FindTable(TMyEntityInheritedFromSingle);
 
-  Assert.AreEqual<Integer>(1, Length(Table.PrimaryKey));
+  Assert.IsTrue(Assigned(Table.PrimaryKey));
 
   Mapper.Free;
 end;
@@ -620,7 +606,7 @@ begin
   var Mapper := TMapper.Create;
   var Table := Mapper.LoadClass(TMyEntityWithPrimaryKey);
 
-  Assert.AreEqual('Value', Table.PrimaryKey[0].DatabaseName);
+  Assert.AreEqual('Value', Table.PrimaryKey.DatabaseName);
 
   Mapper.Free;
 end;
@@ -666,9 +652,8 @@ begin
   var Table := Mapper.FindTable(TMyEntityInheritedFromSimpleClass);
 
   var ForeignKey := Table.ForeignKeys[0];
-  var PrimaryKey := Table.PrimaryKey;
 
-  Assert.AreEqual(PrimaryKey[0], ForeignKey.Field);
+  Assert.AreEqual(Table.PrimaryKey, ForeignKey.Field);
 
   Mapper.Free;
 end;
@@ -692,7 +677,7 @@ begin
 
   var Table := Mapper.FindTable(TMyEntityInheritedFromSimpleClass);
 
-  Assert.AreEqual<Integer>(1, Length(Table.PrimaryKey));
+  Assert.IsTrue(Assigned(Table.PrimaryKey));
 
   Mapper.Free;
 end;
@@ -706,7 +691,7 @@ begin
   var BaseTable := Mapper.FindTable(TMyEntityInheritedFromSingle);
   var Table := Mapper.FindTable(TMyEntityInheritedFromSimpleClass);
 
-  Assert.AreSame(BaseTable.PrimaryKey[0], Table.PrimaryKey[0]);
+  Assert.AreSame(BaseTable.PrimaryKey, Table.PrimaryKey);
 
   Mapper.Free;
 end;
@@ -767,16 +752,6 @@ begin
   var Table := Mapper.FindTable(TMyEntityWithFieldNameAttribute);
 
   Assert.IsNotNull(Table.ForeignKeys[0].ParentTable);
-
-  Mapper.Free;
-end;
-
-procedure TMapperTest.WhenThePrimaryKeyAttributeHasMoreThanOneFieldHasToPutEveryoneOnTheList;
-begin
-  var Mapper := TMapper.Create;
-  var Table := Mapper.LoadClass(TMyEntityWithPrimaryKey2);
-
-  Assert.AreEqual<Integer>(2, Length(Table.PrimaryKey));
 
   Mapper.Free;
 end;

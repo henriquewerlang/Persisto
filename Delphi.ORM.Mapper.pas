@@ -2,7 +2,7 @@ unit Delphi.ORM.Mapper;
 
 interface
 
-uses System.Rtti, System.Generics.Collections, System.Generics.Defaults, System.SysUtils;
+uses System.Rtti, System.Generics.Collections, System.Generics.Defaults, System.SysUtils, Delphi.ORM.Attributes;
 
 type
   EClassWithoutPrimaryKeyDefined = class(Exception);
@@ -12,7 +12,7 @@ type
 
   TTable = class
   private
-    FPrimaryKey: TArray<TField>;
+    FPrimaryKey: TField;
     FForeignKeys: TArray<TForeignKey>;
     FFields: TArray<TField>;
     FTypeInfo: TRttiInstanceType;
@@ -27,7 +27,7 @@ type
     property Fields: TArray<TField> read FFields;
     property ForeignKeys: TArray<TForeignKey> read FForeignKeys;
     property ManyValueAssociations: TArray<TManyValueAssociation> read FManyValueAssociations write FManyValueAssociations;
-    property PrimaryKey: TArray<TField> read FPrimaryKey;
+    property PrimaryKey: TField read FPrimaryKey;
     property TypeInfo: TRttiInstanceType read FTypeInfo;
   end;
 
@@ -92,8 +92,8 @@ type
 
     function CheckAttribute<T: TCustomAttribute>(TypeInfo: TRttiType): Boolean;
     function GetFieldName(TypeInfo: TRttiInstanceProperty): String;
-    function GetNameAttribute(TypeInfo: TRttiNamedObject; var Name: String): Boolean;
-    function GetPrimaryKey(TypeInfo: TRttiInstanceType): TArray<String>;
+    function GetNameAttribute<T: TCustomNameAttribute>(TypeInfo: TRttiNamedObject; var Name: String): Boolean;
+    function GetPrimaryKey(TypeInfo: TRttiInstanceType): String;
     function GetTableName(TypeInfo: TRttiInstanceType): String;
     function GetTables: TArray<TTable>;
     function LoadClassInTable(TypeInfo: TRttiInstanceType): TTable;
@@ -124,7 +124,7 @@ type
 
 implementation
 
-uses System.TypInfo, Delphi.ORM.Attributes, Delphi.ORM.Rtti.Helper;
+uses System.TypInfo, Delphi.ORM.Rtti.Helper;
 
 { TMapper }
 
@@ -166,7 +166,7 @@ end;
 
 function TMapper.GetFieldName(TypeInfo: TRttiInstanceProperty): String;
 begin
-  if not GetNameAttribute(TypeInfo, Result) then
+  if not GetNameAttribute<FieldNameAttribute>(TypeInfo, Result) then
   begin
     Result := TypeInfo.Name;
 
@@ -175,28 +175,28 @@ begin
   end;
 end;
 
-function TMapper.GetNameAttribute(TypeInfo: TRttiNamedObject; var Name: String): Boolean;
+function TMapper.GetNameAttribute<T>(TypeInfo: TRttiNamedObject; var Name: String): Boolean;
 begin
-  var Attribute := TypeInfo.GetAttribute<TCustomNameAttribute>;
+  var Attribute := TypeInfo.GetAttribute<T>;
   Result := Assigned(Attribute);
 
   if Result then
     Name := Attribute.Name;
 end;
 
-function TMapper.GetPrimaryKey(TypeInfo: TRttiInstanceType): TArray<String>;
+function TMapper.GetPrimaryKey(TypeInfo: TRttiInstanceType): String;
 begin
   var Attribute := TypeInfo.GetAttribute<PrimaryKeyAttribute>;
 
   if Assigned(Attribute) then
-    Result := Attribute.Fields
+    Result := Attribute.Name
   else
-    Result := ['Id'];
+    Result := 'Id';
 end;
 
 function TMapper.GetTableName(TypeInfo: TRttiInstanceType): String;
 begin
-  if not GetNameAttribute(TypeInfo, Result) then
+  if not GetNameAttribute<TableNameAttribute>(TypeInfo, Result) then
     Result := TypeInfo.Name.Substring(1);
 end;
 
@@ -286,7 +286,7 @@ begin
     begin
       var ForeignTable := LoadTable(Field.TypeInfo.PropertyType.AsInstance);
 
-      if Length(ForeignTable.PrimaryKey) = 0 then
+      if not Assigned(ForeignTable.PrimaryKey) then
         raise EClassWithoutPrimaryKeyDefined.CreateFmt('You must define a primary key for class %s!', [ForeignTable.TypeInfo.Name]);
 
       Table.FForeignKeys := Table.FForeignKeys + [TForeignKey.Create(ForeignTable, Field)];
@@ -310,17 +310,20 @@ begin
   begin
     var BaseTable := FindTable(BaseClass.MetaclassType);
 
-    Table.FForeignKeys := Table.FForeignKeys + [TForeignKey.Create(BaseTable, BaseTable.PrimaryKey[0])];
+    Table.FForeignKeys := Table.FForeignKeys + [TForeignKey.Create(BaseTable, BaseTable.PrimaryKey)];
     Table.FPrimaryKey := BaseTable.PrimaryKey;
   end
   else
-    for var PropertyName in GetPrimaryKey(TypeInfo) do
-      for var Field in Table.Fields do
-        if Field.TypeInfo.Name = PropertyName then
-        begin
-          Field.FInPrimaryKey := True;
-          Table.FPrimaryKey := Table.FPrimaryKey + [Field];
-        end;
+  begin
+    var PropertyName := GetPrimaryKey(TypeInfo);
+
+    for var Field in Table.Fields do
+      if Field.TypeInfo.Name = PropertyName then
+      begin
+        Field.FInPrimaryKey := True;
+        Table.FPrimaryKey := Field;
+      end;
+end;
 
   LoadTableForeignKeys(Table);
 end;

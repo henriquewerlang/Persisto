@@ -118,7 +118,6 @@
         <DCCReference Include="Delphi.ORM.Classes.Loader.Test.pas"/>
         <DCCReference Include="..\Delphi.ORM.Classes.Loader.pas"/>
         <DCCReference Include="..\Delphi.ORM.Attributes.pas"/>
-        <DCCReference Include="Delphi.ORM.Attributes.Test.pas"/>
         <DCCReference Include="Delphi.ORM.Mapper.Test.pas"/>
         <DCCReference Include="..\Delphi.ORM.Mapper.pas"/>
         <DCCReference Include="..\Delphi.ORM.Rtti.Helper.pas"/>

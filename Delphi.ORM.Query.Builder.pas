@@ -213,15 +213,8 @@ begin
   var Table := TMapper.Default.FindTable(AObject.ClassType);
   var Where := TQueryBuilderWhere<T>.Create(nil);
 
-  for var TableField in Table.PrimaryKey do
-  begin
-    var Comparision := Field(TableField.DatabaseName) = TableField.TypeInfo.GetValue(TObject(AObject));
-
-    if Condition.Condition.IsEmpty then
-      Condition := Comparision
-    else
-      Condition := Condition and Comparision;
-  end;
+  if Assigned(Table.PrimaryKey) then
+    Condition := Field(Table.PrimaryKey.DatabaseName) = Table.PrimaryKey.TypeInfo.GetValue(TObject(AObject));
 
   FConnection.ExecuteDirect(Format('delete from %s%s', [Table.DatabaseName, Where.Where(Condition).GetSQL]));
 
@@ -402,7 +395,7 @@ begin
 
     if RecursionControl[ForeignKey.ParentTable] < FRecursivityLevel then
     begin
-      var NewJoin := TQueryBuilderJoin.Create(ForeignKey.ParentTable, ForeignKey.Field, ForeignKey.Field, Join.Table.PrimaryKey[0]);
+      var NewJoin := TQueryBuilderJoin.Create(ForeignKey.ParentTable, ForeignKey.Field, ForeignKey.Field, Join.Table.PrimaryKey);
       RecursionControl[ForeignKey.ParentTable] := RecursionControl[ForeignKey.ParentTable] + 1;
 
       Join.Links := Join.Links + [NewJoin];
@@ -415,7 +408,7 @@ begin
 
   for var ManyValueAssociation in Join.Table.ManyValueAssociations do
   begin
-    var NewJoin := TQueryBuilderJoin.Create(ManyValueAssociation.ChildTable, ManyValueAssociation.Field, Join.Table.PrimaryKey[0], ManyValueAssociation.ChildField);
+    var NewJoin := TQueryBuilderJoin.Create(ManyValueAssociation.ChildTable, ManyValueAssociation.Field, Join.Table.PrimaryKey, ManyValueAssociation.ChildField);
 
     Join.Links := Join.Links + [NewJoin];
 
@@ -581,8 +574,8 @@ function TQueryBuilderAllFields.GetAllFields(Join: TQueryBuilderJoin): TArray<TF
 begin
   Result := nil;
 
-  for var Field in Join.Table.PrimaryKey do
-    Result := Result + [TFieldAlias.Create(Join.Alias, Field)];
+  if Assigned(Join.Table.PrimaryKey) then
+    Result := Result + [TFieldAlias.Create(Join.Alias, Join.Table.PrimaryKey)];
 
   for var Field in Join.Table.Fields do
     if not Field.InPrimaryKey and not TMapper.IsJoinLink(Field) then

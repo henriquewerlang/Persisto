@@ -24,7 +24,6 @@ uses
   Delphi.ORM.Classes.Loader.Test in 'Delphi.ORM.Classes.Loader.Test.pas',
   Delphi.ORM.Classes.Loader in '..\Delphi.ORM.Classes.Loader.pas',
   Delphi.ORM.Attributes in '..\Delphi.ORM.Attributes.pas',
-  Delphi.ORM.Attributes.Test in 'Delphi.ORM.Attributes.Test.pas',
   Delphi.ORM.Mapper.Test in 'Delphi.ORM.Mapper.Test.pas',
   Delphi.ORM.Mapper in '..\Delphi.ORM.Mapper.pas',
   Delphi.ORM.Rtti.Helper in '..\Delphi.ORM.Rtti.Helper.pas',

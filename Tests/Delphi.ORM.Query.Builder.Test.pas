@@ -346,7 +346,7 @@ procedure TDelphiORMQueryBuilderTest.TheKeyFieldCantBeUpdatedInTheUpdateProcedur
 begin
   var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
-  var SQL := 'update ClassWithPrimaryKeyAttribute set Value=222';
+  var SQL := 'update ClassWithPrimaryKeyAttribute set Id=123,Value=222';
 
   var MyClass := TClassWithPrimaryKeyAttribute.Create;
   MyClass.Id := 123;
@@ -476,12 +476,11 @@ begin
   var Query := TQueryBuilder.Create(Database);
 
   var MyClass := TClassWithPrimaryKeyAttribute.Create;
-  MyClass.Id := 123;
   MyClass.Id2 := 456;
 
   Query.Delete(MyClass);
 
-  Assert.AreEqual('delete from ClassWithPrimaryKeyAttribute where Id=123 and Id2=456', Database.SQL);
+  Assert.AreEqual('delete from ClassWithPrimaryKeyAttribute where Id2=456', Database.SQL);
 
   MyClass.Free;
 
@@ -692,7 +691,7 @@ begin
 
   Query.Update(MyClass);
 
-  Assert.AreEqual('update ClassWithPrimaryKeyAttribute set Value=222 where Id=123 and Id2=456', Database.SQL);
+  Assert.AreEqual('update ClassWithPrimaryKeyAttribute set Id=123,Value=222 where Id2=456', Database.SQL);
 
   MyClass.Free;
 

@@ -42,7 +42,7 @@ type
   end;
 
   [Entity]
-  [PrimaryKey('Id,Id2')]
+  [PrimaryKey('Id2')]
   TClassWithPrimaryKeyAttribute = class
   private
     FId: Integer;

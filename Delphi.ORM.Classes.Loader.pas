@@ -50,12 +50,12 @@ end;
 function TClassLoader.CreateObject(Join: TQueryBuilderJoin; FieldIndexStart: Integer): TObject;
 begin
   Result := nil;
-  var TableKey := Join.Table.TypeInfo.Name;
+  var TableKey := Join.Table.DatabaseName;
 
-  for var A := FieldIndexStart to FieldIndexStart + High(Join.Table.PrimaryKey) do
+  if Assigned(Join.Table.PrimaryKey) then
   begin
-    var Field := FFields[A].Field;
-    var FieldValue := GetFieldValueVariant(A);
+    var Field := FFields[FieldIndexStart].Field;
+    var FieldValue := GetFieldValueVariant(FieldIndexStart);
 
     if VarIsNull(FieldValue) then
       Exit
