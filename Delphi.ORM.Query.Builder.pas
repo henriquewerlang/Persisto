@@ -2,7 +2,7 @@ unit Delphi.ORM.Query.Builder;
 
 interface
 
-uses System.Rtti, System.Classes, System.Generics.Collections, Delphi.ORM.Database.Connection, Delphi.ORM.Mapper;
+uses System.Rtti, System.Classes, System.Generics.Collections, System.SysUtils, Delphi.ORM.Database.Connection, Delphi.ORM.Mapper;
 
 type
   TQueryBuilder = class;
@@ -11,7 +11,7 @@ type
   TQueryBuilderSelect = class;
   TQueryBuilderWhere<T: class> = class;
 
-  TFilterOperation = (Equal);
+  EInvalidTypeValue = class(Exception);
 
   TQueryBuilderCommand = class
     function GetSQL: String; virtual; abstract;
@@ -27,7 +27,6 @@ type
     FCommand: TQueryBuilderCommand;
 
     function GetConnection: IDatabaseConnection;
-    function GetValueString(const Value: TValue): String;
   public
     constructor Create(Connection: IDatabaseConnection);
 
@@ -149,7 +148,8 @@ type
     class operator Equal(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
     class operator Equal(const Condition: TQueryBuilderCondition; const Value: TValue): TQueryBuilderCondition;
     class operator Equal(const Condition: TQueryBuilderCondition; const Value: Variant): TQueryBuilderCondition;
-    class operator Equal(const Condition: TQueryBuilderCondition; const Value: TQueryBuilderCondition): TQueryBuilderCondition;
+    class operator Equal(const Condition: TQueryBuilderCondition; const Value: TObject): TQueryBuilderCondition;
+    class operator Equal(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
     class operator GreaterThan(const Condition: TQueryBuilderCondition; const Value: Extended): TQueryBuilderCondition;
     class operator GreaterThan(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
     class operator GreaterThan(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
@@ -166,6 +166,7 @@ type
     class operator NotEqual(const Condition: TQueryBuilderCondition; const Value: String): TQueryBuilderCondition;
     class operator NotEqual(const Condition: TQueryBuilderCondition; const Value: Variant): TQueryBuilderCondition;
     class operator NotEqual(const Condition: TQueryBuilderCondition; const Value: TValue): TQueryBuilderCondition;
+    class operator NotEqual(const Condition: TQueryBuilderCondition; const Value: TObject): TQueryBuilderCondition;
     class operator NotEqual(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
   end;
 
@@ -185,17 +186,37 @@ type
   end;
 
 function Field(const Name: String): TQueryBuilderCondition;
+function GetValueString(const Value: TValue): String;
 
 const
   OPERATOR_CHAR: array[TQueryBuilderOperator] of String = ('=', '<>', '>', '>=', '<', '<=', ' and ', ' or ');
 
 implementation
 
-uses System.SysUtils, System.TypInfo, System.Variants, Delphi.ORM.Attributes, Delphi.ORM.Rtti.Helper, Delphi.ORM.Classes.Loader;
+uses System.TypInfo, System.Variants, Delphi.ORM.Attributes, Delphi.ORM.Rtti.Helper, Delphi.ORM.Classes.Loader;
 
 function Field(const Name: String): TQueryBuilderCondition;
 begin
   Result.Condition := Name;
+end;
+
+function GetValueString(const Value: TValue): String;
+begin
+  case Value.Kind of
+    tkEnumeration: Exit(Value.AsOrdinal.ToString);
+
+    tkInteger,
+    tkInt64: Exit(Value.ToString);
+
+    tkFloat: Exit(FloatToStr(Value.AsExtended, TFormatSettings.Invariant));
+
+    tkUString: Exit(QuotedStr(Value.AsString));
+
+    tkRecord:
+      if TypeInfo(TGUID) = Value.TypeInfo then
+        Result := GetValueString(Value.AsType<TGUID>.ToString);
+    else raise EInvalidTypeValue.Create('Invalid type value!');
+  end;
 end;
 
 { TQueryBuilder }
@@ -226,26 +247,6 @@ begin
   FCommand.Free;
 
   inherited;
-end;
-
-function TQueryBuilder.GetValueString(const Value: TValue): String;
-begin
-  case Value.Kind of
-    tkEnumeration,
-    tkInteger,
-    tkInt64: Exit(Value.ToString);
-
-    tkFloat: Exit(FloatToStr(Value.AsExtended, TFormatSettings.Invariant));
-
-    tkChar,
-    tkString,
-    tkWChar,
-    tkLString,
-    tkWString,
-    tkUString: Exit(QuotedStr(Value.AsString));
-  end;
-
-  raise Exception.Create('Invalid value!');
 end;
 
 procedure TQueryBuilder.Insert<T>(const AObject: T);
@@ -721,6 +722,20 @@ end;
 class operator TQueryBuilderCondition.NotEqual(const Condition, Value: TQueryBuilderCondition): TQueryBuilderCondition;
 begin
   Result.Condition := GenerateCondition(Condition, qboNotEqual, Value.Condition);
+end;
+
+class operator TQueryBuilderCondition.NotEqual(const Condition: TQueryBuilderCondition; const Value: TObject): TQueryBuilderCondition;
+begin
+  var Table := TMapper.Default.FindTable(Value.ClassType);
+
+  Result.Condition := GenerateCondition(Condition, qboNotEqual, GetValueString(Table.PrimaryKey.TypeInfo.GetValue(Value)));
+end;
+
+class operator TQueryBuilderCondition.Equal(const Condition: TQueryBuilderCondition; const Value: TObject): TQueryBuilderCondition;
+begin
+  var Table := TMapper.Default.FindTable(Value.ClassType);
+
+  Result.Condition := GenerateCondition(Condition, qboEqual, GetValueString(Table.PrimaryKey.TypeInfo.GetValue(Value)));
 end;
 
 { TQueryBuilderJoin }
