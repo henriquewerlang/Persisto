@@ -17,13 +17,13 @@ type
     destructor Destroy; override;
   end;
 
-  TDatabaseConnectionUnidac = class(TInterfacedObject, IDatabaseConnection)
+  TDatabaseConnectionUnidac = class(TCustomDatabaseConnection, IDatabaseConnection)
   private
     FConnection: TUniConnection;
 
-    function OpenCursor(SQL: String): IDatabaseCursor;
-
     procedure ExecuteDirect(SQL: String);
+  protected
+    function OpenCursor(SQL: String): IDatabaseCursor; override;
   public
     constructor Create;
 
