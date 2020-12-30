@@ -5,7 +5,6 @@ interface
 uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Classes.Loader, Delphi.ORM.Database.Connection, Delphi.ORM.Attributes, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder;
 
 type
-
   [TestFixture]
   TClassLoaderTest = class
   private
@@ -74,20 +73,9 @@ type
     property Guid: TGUID read FGuid write FGuid;
   end;
 
-  TCursorMock = class(TInterfacedObject, IDatabaseCursor)
-  private
-    FCurrentRecord: Integer;
-    FValues: TArray<TArray<Variant>>;
-
-    function GetFieldValue(const FieldIndex: Integer): Variant;
-    function Next: Boolean;
-  public
-    constructor Create(Values: TArray<TArray<Variant>>);
-  end;
-
 implementation
 
-uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Query.Builder.Test.Entity;
+uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Query.Builder.Test.Entity, Delphi.ORM.Cursor.Mock;
 
 { TClassLoaderTest }
 
@@ -119,7 +107,7 @@ begin
   var Loader := CreateLoaderCursor<TMyClass>(Cursor);
   var Result := Loader.Load<TMyClass>;
 
-  Assert.AreEqual(3, Cursor.FCurrentRecord);
+  Assert.AreEqual(3, Cursor.CurrentRecord);
 
   Loader.Free;
 
@@ -330,26 +318,5 @@ begin
   Loader.Free;
 end;
 
-{ TCursorMock }
-
-constructor TCursorMock.Create(Values: TArray<TArray<Variant>>);
-begin
-  inherited Create;
-
-  FCurrentRecord := -1;
-  FValues := Values;
-end;
-
-function TCursorMock.GetFieldValue(const FieldIndex: Integer): Variant;
-begin
-  Result := FValues[FCurrentRecord][FieldIndex];
-end;
-
-function TCursorMock.Next: Boolean;
-begin
-  Inc(FCurrentRecord);
-
-  Result := FCurrentRecord < Length(FValues);
-end;
-
 end.
+

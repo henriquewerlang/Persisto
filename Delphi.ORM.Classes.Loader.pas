@@ -15,7 +15,6 @@ type
 
     function CreateObject(Join: TQueryBuilderJoin; FieldIndexStart: Integer): TObject;
     function FieldValueToString(Field: TField; const FieldValue: Variant): String;
-    function GetFieldValue(Field: TField; const Index: Integer): TValue;
     function GetFieldValueVariant(const Index: Integer): Variant;
     function GetObjectFromCache(const Key: String; CreateFunction: TFunc<TObject>): TObject;
     function LoadClass: TObject;
@@ -75,20 +74,6 @@ begin
   FCache.Free;
 
   inherited;
-end;
-
-function TClassLoader.GetFieldValue(Field: TField; const Index: Integer): TValue;
-begin
-  var FieldValue := GetFieldValueVariant(Index);
-
-  if VarIsNull(FieldValue) then
-    Result := TValue.Empty
-  else if Field.TypeInfo.PropertyType = FContext.GetType(TypeInfo(TGUID)) then
-    Result := TValue.From(StringToGuid(FieldValue))
-  else if Field.TypeInfo.PropertyType is TRttiEnumerationType then
-    Result := TValue.FromOrdinal(Field.TypeInfo.PropertyType.Handle, FieldValue)
-  else
-    Result := TValue.FromVariant(FieldValue);
 end;
 
 function TClassLoader.GetFieldValueVariant(const Index: Integer): Variant;
@@ -153,7 +138,7 @@ begin
     for var A := Low(Join.Table.Fields) to High(Join.Table.Fields) do
       if not TMapper.IsJoinLink(Join.Table.Fields[A]) then
       begin
-        FFields[FieldIndexStart].Field.TypeInfo.SetValue(Result, GetFieldValue(FFields[FieldIndexStart].Field, FieldIndexStart));
+        FFields[FieldIndexStart].Field.SetValue(Result, GetFieldValueVariant(FieldIndexStart));
 
         Inc(FieldIndexStart);
       end;
