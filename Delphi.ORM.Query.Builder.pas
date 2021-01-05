@@ -215,6 +215,7 @@ begin
     tkRecord:
       if TypeInfo(TGUID) = Value.TypeInfo then
         Result := GetValueString(Value.AsType<TGUID>.ToString);
+    tkClass: Result := GetValueString(TMapper.Default.FindTable(Value.AsObject.ClassType).PrimaryKey.GetValue(Value.AsObject));
     else raise EInvalidTypeValue.Create('Invalid type value!');
   end;
 end;
@@ -263,7 +264,7 @@ begin
       OutputFieldList := OutputFieldList + [Field];
       OutputFieldNameList := OutputFieldNameList + [Field.DatabaseName];
     end
-    else
+    else if not Field.IsManyValueAssociation then
       SQL := Format(SQL, [Field.DatabaseName + '%2:s%0:s', GetValueString(Field.TypeInfo.GetValue(TObject(AObject))) + '%2:s%1:s', ',']);
 
   var Cursor := FConnection.ExecuteInsert('insert into ' + Table.DatabaseName + Format(SQL, ['', '', '', '']), OutputFieldNameList);
@@ -310,7 +311,7 @@ begin
       else
         Condition := Condition and Comparision;
     end
-    else
+    else if not TableField.IsManyValueAssociation then
     begin
       if not SQL.IsEmpty then
         SQL := SQL + ',';

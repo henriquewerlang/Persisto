@@ -100,6 +100,12 @@ type
     procedure TheValuesReturnedInTheCursorOfTheInsertMustLoadTheFieldsOfTheClassBeenInserted;
     [Test]
     procedure WhenDontHaveAResultingCursorCantLoadTheProperties;
+    [Test]
+    procedure WhenConvertAClassValueMustReturnThePrimaryKeyValueAsAStringAsExpected;
+    [Test]
+    procedure WhenInsertingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheInsert;
+    [Test]
+    procedure WhenUpdatingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheUpdateList;
   end;
 
   [TestFixture]
@@ -600,6 +606,16 @@ begin
   Query.Free;
 end;
 
+procedure TDelphiORMQueryBuilderTest.WhenConvertAClassValueMustReturnThePrimaryKeyValueAsAStringAsExpected;
+begin
+  var MyClass := TClassWithPrimaryKey.Create;
+  MyClass.Id := 123456;
+
+  Assert.AreEqual('123456', GetValueString(MyClass));
+
+  MyClass.Free;
+end;
+
 procedure TDelphiORMQueryBuilderTest.WhenConvertAFloatNumberValueMustConvertTheStringAsExpected;
 begin
   Assert.AreEqual('1234.456', GetValueString(1234.456));
@@ -617,7 +633,7 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      GetValueString(Self)
+      GetValueString(TValue.Empty);
     end, EInvalidTypeValue);
 end;
 
@@ -691,6 +707,23 @@ begin
 
   Assert.AreEqual('Id', Database.OutputFields[0]);
   Assert.AreEqual('AnotherField', Database.OutputFields[1]);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenInsertingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheInsert;
+begin
+  var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
+  var Query := TQueryBuilder.Create(Database);
+
+  var MyClass := TMyEntityWithManyValueAssociation.Create;
+  MyClass.Id := 12345;
+
+  Query.Insert(MyClass);
+
+  Assert.AreEqual('insert into MyEntityWithManyValueAssociation(Id)values(12345)', Database.SQL);
 
   MyClass.Free;
 
@@ -842,6 +875,24 @@ begin
     From.GetSQL);
 
   From.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenUpdatingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheUpdateList;
+begin
+  var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
+  var Query := TQueryBuilder.Create(Database);
+
+  var MyClass := TMyEntityWithManyValueAssociation2.Create;
+  MyClass.AnotherField := 'My field';
+  MyClass.Id := 12345;
+
+  Query.Update(MyClass);
+
+  Assert.AreEqual('update MyEntityWithManyValueAssociation2 set AnotherField=''My field'' where Id=12345', Database.SQL);
+
+  MyClass.Free;
+
+  Query.Free;
 end;
 
 { TDatabaseTest }

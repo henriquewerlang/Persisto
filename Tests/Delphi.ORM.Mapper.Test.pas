@@ -112,6 +112,8 @@ type
     procedure WhenAFieldIsAForeignKeyThePropertyIsJoinLinkMustReturnTrue;
     [Test]
     procedure WhenAFieldIsAManyValueAssociationThePropertyIsJoinLinkReturnTrue;
+    [Test]
+    procedure TheFunctionGetValueFromFieldMustReturnTheValueOfThePropertyOfTheField;
   end;
 
   [Entity]
@@ -419,6 +421,24 @@ begin
   Assert.AreEqual(Table.Fields[1], Table.ForeignKeys[0].Field);
 
   Mapper.Free;
+end;
+
+procedure TMapperTest.TheFunctionGetValueFromFieldMustReturnTheValueOfThePropertyOfTheField;
+begin
+  var Mapper := TMapper.Create;
+  var MyClass := TMyEntityWithAllTypeOfFields.Create;
+  MyClass.&String := 'My Field';
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithAllTypeOfFields);
+  var Field := Table.Fields[8];
+
+  Assert.AreEqual('My Field', Field.GetValue(MyClass).AsString);
+
+  Mapper.Free;
+
+  MyClass.Free;
 end;
 
 procedure TMapperTest.TheLoadingOfForeingKeyMustBeAfterAllTablesAreLoadedToTheFindTableWorksPropertily;

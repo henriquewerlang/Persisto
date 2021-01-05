@@ -203,6 +203,18 @@ type
   end;
 
   [Entity]
+  TMyEntityWithManyValueAssociation2 = class
+  private
+    FId: Integer;
+    FManyValueAssociation: TArray<TMyEntityWithManyValueAssociationChild>;
+    FAnotherField: String;
+  published
+    property AnotherField: String read FAnotherField write FAnotherField;
+    property Id: Integer read FId write FId;
+    property ManyValueAssociationList: TArray<TMyEntityWithManyValueAssociationChild> read FManyValueAssociation write FManyValueAssociation;
+  end;
+
+  [Entity]
   TMyEntityWithPrimaryKeyInLastField = class
   private
     FField1: Integer;
