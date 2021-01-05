@@ -215,7 +215,11 @@ begin
     tkRecord:
       if TypeInfo(TGUID) = Value.TypeInfo then
         Result := GetValueString(Value.AsType<TGUID>.ToString);
-    tkClass: Result := GetValueString(TMapper.Default.FindTable(Value.AsObject.ClassType).PrimaryKey.GetValue(Value.AsObject));
+    tkClass:
+      if Value.IsEmpty then
+        Result := 'null'
+      else
+        Result := GetValueString(TMapper.Default.FindTable(Value.AsObject.ClassType).PrimaryKey.GetValue(Value.AsObject));
     else raise EInvalidTypeValue.Create('Invalid type value!');
   end;
 end;

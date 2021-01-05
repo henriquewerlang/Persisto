@@ -106,6 +106,8 @@ type
     procedure WhenInsertingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheInsert;
     [Test]
     procedure WhenUpdatingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheUpdateList;
+    [Test]
+    procedure WhenTheClassIsNilTheGetStringValueMustReturnTheStringWithNullText;
   end;
 
   [TestFixture]
@@ -850,6 +852,11 @@ begin
   MyClass.Free;
 
   Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenTheClassIsNilTheGetStringValueMustReturnTheStringWithNullText;
+begin
+  Assert.AreEqual('null', GetValueString(TValue.From<TClassWithPrimaryKey>(nil)));
 end;
 
 procedure TDelphiORMQueryBuilderTest.WhenTheClassRecursivelyItselfMoreThenOneTimeMustBuildTheSQLAsEspected;
