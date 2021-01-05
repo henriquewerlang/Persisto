@@ -588,7 +588,7 @@ begin
     Result := Result + [TFieldAlias.Create(Join.Alias, Join.Table.PrimaryKey)];
 
   for var Field in Join.Table.Fields do
-    if not Field.InPrimaryKey and not TMapper.IsJoinLink(Field) then
+    if not Field.InPrimaryKey and not Field.IsJoinLink then
       Result := Result + [TFieldAlias.Create(Join.Alias, Field)];
 
   for var Link in Join.Links do

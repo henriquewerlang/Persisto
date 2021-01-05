@@ -136,7 +136,7 @@ begin
   if Assigned(Result) then
   begin
     for var A := Low(Join.Table.Fields) to High(Join.Table.Fields) do
-      if not TMapper.IsJoinLink(Join.Table.Fields[A]) then
+      if not Join.Table.Fields[A].IsJoinLink then
       begin
         FFields[FieldIndexStart].Field.SetValue(Result, GetFieldValueVariant(FieldIndexStart));
 
@@ -147,7 +147,7 @@ begin
     begin
       var Value: TValue;
 
-      if TMapper.IsForeignKey(Link.Field) then
+      if Link.Field.IsForeignKey then
         Value := LoadClassLink(Link, FieldIndexStart)
       else
       begin

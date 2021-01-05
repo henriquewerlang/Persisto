@@ -104,6 +104,14 @@ type
     procedure WhenSetValueFieldMustLoadThePropertyOfTheClassAsWithTheValueExpected(FieldName: String);
     [Test]
     procedure WhenTheFieldValueIsNullMustLoadTheFieldWithTheEmptyValue;
+    [Test]
+    procedure WhenAFieldIsAForeignKeyThePropertyIsForeignKeyMustReturnTrue;
+    [Test]
+    procedure WhenAFieldIsAManyValueAssociationThePropertyIsManyValueAssociationReturnTrue;
+    [Test]
+    procedure WhenAFieldIsAForeignKeyThePropertyIsJoinLinkMustReturnTrue;
+    [Test]
+    procedure WhenAFieldIsAManyValueAssociationThePropertyIsJoinLinkReturnTrue;
   end;
 
   [Entity]
@@ -508,6 +516,66 @@ begin
   var Table := Mapper.FindTable(TMyEntityInheritedFromSingle);
 
   Assert.IsTrue(Assigned(Table.PrimaryKey));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenAFieldIsAForeignKeyThePropertyIsForeignKeyMustReturnTrue;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithManyValueAssociationChild);
+
+  var Field := Table.Fields[1];
+
+  Assert.IsTrue(Field.IsForeignKey);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenAFieldIsAForeignKeyThePropertyIsJoinLinkMustReturnTrue;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithManyValueAssociationChild);
+
+  var Field := Table.Fields[1];
+
+  Assert.IsTrue(Field.IsJoinLink);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenAFieldIsAManyValueAssociationThePropertyIsJoinLinkReturnTrue;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithManyValueAssociation);
+
+  var Field := Table.Fields[1];
+
+  Assert.IsTrue(Field.IsJoinLink);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenAFieldIsAManyValueAssociationThePropertyIsManyValueAssociationReturnTrue;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithManyValueAssociation);
+
+  var Field := Table.Fields[1];
+
+  Assert.IsTrue(Field.IsManyValueAssociation);
 
   Mapper.Free;
 end;
