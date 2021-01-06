@@ -11,8 +11,6 @@ type
   TQueryBuilderSelect = class;
   TQueryBuilderWhere<T: class> = class;
 
-  EInvalidTypeValue = class(Exception);
-
   TQueryBuilderCommand = class
     function GetSQL: String; virtual; abstract;
   end;
@@ -186,7 +184,6 @@ type
   end;
 
 function Field(const Name: String): TQueryBuilderCondition;
-function GetValueString(const Value: TValue): String;
 
 const
   OPERATOR_CHAR: array[TQueryBuilderOperator] of String = ('=', '<>', '>', '>=', '<', '<=', ' and ', ' or ');
@@ -198,30 +195,6 @@ uses System.TypInfo, System.Variants, Delphi.ORM.Attributes, Delphi.ORM.Rtti.Hel
 function Field(const Name: String): TQueryBuilderCondition;
 begin
   Result.Condition := Name;
-end;
-
-function GetValueString(const Value: TValue): String;
-begin
-  case Value.Kind of
-    tkEnumeration: Exit(Value.AsOrdinal.ToString);
-
-    tkInteger,
-    tkInt64: Exit(Value.ToString);
-
-    tkFloat: Exit(FloatToStr(Value.AsExtended, TFormatSettings.Invariant));
-
-    tkUString: Exit(QuotedStr(Value.AsString));
-
-    tkRecord:
-      if TypeInfo(TGUID) = Value.TypeInfo then
-        Result := GetValueString(Value.AsType<TGUID>.ToString);
-    tkClass:
-      if Value.IsEmpty then
-        Result := 'null'
-      else
-        Result := GetValueString(TMapper.Default.FindTable(Value.AsObject.ClassType).PrimaryKey.GetValue(Value.AsObject));
-    else raise EInvalidTypeValue.Create('Invalid type value!');
-  end;
 end;
 
 { TQueryBuilder }
@@ -240,7 +213,7 @@ begin
   var Where := TQueryBuilderWhere<T>.Create(nil);
 
   if Assigned(Table.PrimaryKey) then
-    Condition := Field(Table.PrimaryKey.DatabaseName) = Table.PrimaryKey.TypeInfo.GetValue(TObject(AObject));
+    Condition := Field(Table.PrimaryKey.DatabaseName) = Table.PrimaryKey.GetValue(TObject(AObject));
 
   FConnection.ExecuteDirect(Format('delete from %s%s', [Table.DatabaseName, Where.Where(Condition).GetSQL]));
 
@@ -269,7 +242,7 @@ begin
       OutputFieldNameList := OutputFieldNameList + [Field.DatabaseName];
     end
     else if not Field.IsManyValueAssociation then
-      SQL := Format(SQL, [Field.DatabaseName + '%2:s%0:s', GetValueString(Field.TypeInfo.GetValue(TObject(AObject))) + '%2:s%1:s', ',']);
+      SQL := Format(SQL, [Field.DatabaseName + '%2:s%0:s', Field.GetAsString(TObject(AObject)) + '%2:s%1:s', ',']);
 
   var Cursor := FConnection.ExecuteInsert('insert into ' + Table.DatabaseName + Format(SQL, ['', '', '', '']), OutputFieldNameList);
 
@@ -308,7 +281,7 @@ begin
   for var TableField in Table.Fields do
     if TableField.InPrimaryKey then
     begin
-      var Comparision := Field(TableField.DatabaseName) = TableField.TypeInfo.GetValue(TObject(AObject));
+      var Comparision := Field(TableField.DatabaseName) = TableField.GetValue(TObject(AObject));
 
       if Condition.Condition.IsEmpty then
         Condition := Comparision
@@ -320,7 +293,7 @@ begin
       if not SQL.IsEmpty then
         SQL := SQL + ',';
 
-      SQL := SQL + Format('%s=%s', [TableField.DatabaseName, GetValueString(TableField.TypeInfo.GetValue(TObject(AObject)))]);
+      SQL := SQL + Format('%s=%s', [TableField.DatabaseName, TableField.GetAsString(TObject(AObject))]);
     end;
 
   SQL := Format('update %s set %s', [Table.DatabaseName, SQL]) + Where.Where(Condition).GetSQL;
@@ -742,14 +715,14 @@ class operator TQueryBuilderCondition.NotEqual(const Condition: TQueryBuilderCon
 begin
   var Table := TMapper.Default.FindTable(Value.ClassType);
 
-  Result.Condition := GenerateCondition(Condition, qboNotEqual, GetValueString(Table.PrimaryKey.TypeInfo.GetValue(Value)));
+  Result.Condition := GenerateCondition(Condition, qboNotEqual, Table.PrimaryKey.GetAsString(Value));
 end;
 
 class operator TQueryBuilderCondition.Equal(const Condition: TQueryBuilderCondition; const Value: TObject): TQueryBuilderCondition;
 begin
   var Table := TMapper.Default.FindTable(Value.ClassType);
 
-  Result.Condition := GenerateCondition(Condition, qboEqual, GetValueString(Table.PrimaryKey.TypeInfo.GetValue(Value)));
+  Result.Condition := GenerateCondition(Condition, qboEqual, Table.PrimaryKey.GetAsString(Value));
 end;
 
 { TQueryBuilderJoin }

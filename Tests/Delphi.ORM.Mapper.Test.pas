@@ -114,6 +114,23 @@ type
     procedure WhenAFieldIsAManyValueAssociationThePropertyIsJoinLinkReturnTrue;
     [Test]
     procedure TheFunctionGetValueFromFieldMustReturnTheValueOfThePropertyOfTheField;
+    [TestCase('AnsiChar', 'AnsiChar')]
+    [TestCase('AnsiString', 'AnsiString')]
+    [TestCase('Char', 'Char')]
+    [TestCase('Class', 'Class')]
+    [TestCase('Empty Class', 'EmptyClass')]
+    [TestCase('Enumerator', 'Enumerator')]
+    [TestCase('Float', 'Float')]
+    [TestCase('Date', 'Date')]
+    [TestCase('DateTime', 'DateTime')]
+    [TestCase('GUID', 'GUID')]
+    [TestCase('Integer', 'Integer')]
+    [TestCase('Int64', 'Int64')]
+    [TestCase('String', 'String')]
+    [TestCase('Time', 'Time')]
+    procedure WhenGetTheValueOfTheFieldAsStringMustBuildTheStringAsExpected(FieldName: String);
+    [Test]
+    procedure WhenTheFieldIsMappedMustLoadTheReferenceToTheTableOfTheField;
   end;
 
   [Entity]
@@ -299,6 +316,7 @@ type
   TMyEnumerator = (Enum1, Enum2, Enum3);
 
   [Entity]
+  [PrimaryKey('Integer')]
   TMyEntityWithAllTypeOfFields = class
   private
     FString: String;
@@ -310,6 +328,11 @@ type
     FFloat: Double;
     FEnumerator: TMyEnumerator;
     FGUID: TGUID;
+    FDate: TDate;
+    FTime: TTime;
+    FDateTime: TDateTime;
+    FClass: TMyEntityWithPrimaryKey;
+    FEmptyClass: TMyEntityWithPrimaryKey;
   published
     property AnsiChar: AnsiChar read FAnsiChar write FAnsiChar;
     property AnsiString: AnsiString read FAnsiString write FAnsiString;
@@ -320,11 +343,16 @@ type
     property Integer: Integer read FInteger write FInteger;
     property Int64: Int64 read FInt64 write FInt64;
     property &String: String read FString write FString;
+    property &Class: TMyEntityWithPrimaryKey read FClass write FClass;
+    property EmptyClass: TMyEntityWithPrimaryKey read FEmptyClass write FEmptyClass;
+    property Date: TDate read FDate write FDate;
+    property DateTime: TDateTime read FDateTime write FDateTime;
+    property Time: TTime read FTime write FTime;
   end;
 
 implementation
 
-uses System.Variants, System.SysUtils, Delphi.ORM.Mapper;
+uses System.Variants, System.SysUtils, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder.Test.Entity;
 
 { TMapperTest }
 
@@ -643,6 +671,68 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.WhenGetTheValueOfTheFieldAsStringMustBuildTheStringAsExpected(FieldName: String);
+begin
+  var FieldToCompare: TField := nil;
+  var Mapper := TMapper.Create;
+  var MyClass := TMyEntityWithAllTypeOfFields.Create;
+  var ValueToCompare := EmptyStr;
+
+  var Table := Mapper.LoadClass(TMyEntityWithAllTypeOfFields);
+
+  MyClass.AnsiChar := 'C';
+  MyClass.AnsiString := 'AnsiString';
+  MyClass.Char := 'C';
+  MyClass.&Class := TMyEntityWithPrimaryKey.Create;
+  MyClass.&Class.Value := 222.333;
+  MyClass.Date := EncodeDate(2020, 1, 31);
+  MyClass.DateTime := EncodeDate(2020, 1, 31) + EncodeTime(12, 34, 56, 0);
+  MyClass.Enumerator := Enum2;
+  MyClass.Float := 1234.456;
+  MyClass.GUID := StringToGUID('{BD2BBA84-C691-4C5E-ABD3-4F32937C53F8}');
+  MyClass.Integer := 1234;
+  MyClass.Int64 := 1234;
+  MyClass.&String := 'String';
+  MyClass.Time := EncodeTime(12, 34, 56, 0);
+
+  for var Field in Table.Fields do
+    if Field.TypeInfo.Name = FieldName then
+      FieldToCompare := Field;
+
+  case FieldToCompare.TypeInfo.PropertyType.TypeKind of
+    tkChar, tkWChar: ValueToCompare := '''C''';
+    tkEnumeration: ValueToCompare := '1';
+    tkFloat:
+    begin
+      if FieldToCompare.TypeInfo.PropertyType.Handle = TypeInfo(TDate) then
+        ValueToCompare := '''2020-01-31'''
+      else if FieldToCompare.TypeInfo.PropertyType.Handle = TypeInfo(TTime) then
+        ValueToCompare := '''12:34:56'''
+      else if FieldToCompare.TypeInfo.PropertyType.Handle = TypeInfo(TDateTime) then
+        ValueToCompare := '''2020-01-31 12:34:56'''
+      else
+        ValueToCompare := '1234.456';
+    end;
+    tkInteger, tkInt64: ValueToCompare := '1234';
+    tkRecord: ValueToCompare := '''{BD2BBA84-C691-4C5E-ABD3-4F32937C53F8}''';
+    tkLString: ValueToCompare := '''AnsiString''';
+    tkUString: ValueToCompare := '''String''';
+    tkClass:
+      if FieldName = 'Class' then
+        ValueToCompare := '222.333'
+      else
+        ValueToCompare := 'null';
+  end;
+
+  Assert.AreEqual(ValueToCompare, FieldToCompare.GetAsString(MyClass));
+
+  MyClass.&Class.Free;
+
+  Mapper.Free;
+
+  MyClass.Free;
+end;
+
 procedure TMapperTest.WhenLoadAClassMustKeepTheOrderingOfTablesToTheFindTableContinueToWorking;
 begin
   var Mapper := TMapper.Create;
@@ -744,9 +834,9 @@ begin
   FieldToCompare.SetValue(MyClass, ValueToCompare);
 
   if FieldToCompare.TypeInfo.PropertyType.TypeKind = tkRecord then
-    Assert.AreEqual<String>(ValueToCompare, FieldToCompare.TypeInfo.GetValue(MyClass).AsType<TGUID>.ToString)
+    Assert.AreEqual<String>(ValueToCompare, FieldToCompare.GetValue(MyClass).AsType<TGUID>.ToString)
   else
-    Assert.AreEqual(ValueToCompare, FieldToCompare.TypeInfo.GetValue(MyClass).AsVariant);
+    Assert.AreEqual(ValueToCompare, FieldToCompare.GetValue(MyClass).AsVariant);
 
   Mapper.Free;
 
@@ -887,6 +977,16 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.WhenTheFieldIsMappedMustLoadTheReferenceToTheTableOfTheField;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntity);
+
+  Assert.AreEqual(Table, Table.Fields[0].Table);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.WhenTheFieldsAreLoadedMustFillTheNameWithTheNameOfPropertyOfTheClass;
 begin
   var Mapper := TMapper.Create;
@@ -911,7 +1011,7 @@ begin
 
   Field.SetValue(MyClass, NULL);
 
-  Assert.AreEqual(Enum1, Field.TypeInfo.GetValue(MyClass).AsType<TMyEnumerator>);
+  Assert.AreEqual(Enum1, Field.GetValue(MyClass).AsType<TMyEnumerator>);
 
   Mapper.Free;
 

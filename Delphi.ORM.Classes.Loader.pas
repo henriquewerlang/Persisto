@@ -162,12 +162,12 @@ begin
 
         Value.SetArrayElement(Pred(Value.GetArrayLength), ChildObject);
 
-        Link.RightField.TypeInfo.SetValue(ChildObject, Result);
+        Link.RightField.SetValue(ChildObject, Result);
       end;
     end;
 
     if Assigned(Result) then
-      Link.Field.TypeInfo.SetValue(Result, Value);
+      Link.Field.SetValue(Result, Value);
   end;
 end;
 
