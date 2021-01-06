@@ -640,6 +640,8 @@ end;
 
 procedure TORMDataSet.OpenObjectArray(ObjectType: TClass; List: TArray<TObject>);
 begin
+  CheckInactive;
+
   FObjectList := List;
   FObjectType := FContext.GetType(ObjectType) as TRttiInstanceType;
 

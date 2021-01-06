@@ -140,6 +140,8 @@ type
     procedure OpenArrayMustLoadTheObjectListWithTheParamPassed;
     [Test]
     procedure TheRecNoPropertyMustReturnTheCurrentRecordPositionInTheDataSet;
+    [Test]
+    procedure WhenADataSetIsActiveCantOpenItAgainMustRaiseAnError;
   end;
 
   TAnotherObject = class
@@ -450,6 +452,17 @@ begin
   DataSet.Free;
 
   MyList.Free;
+end;
+
+procedure TORMDataSetTest.WhenADataSetIsActiveCantOpenItAgainMustRaiseAnError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenClass<TMyTestClassTypes>;
+
+  Assert.WillRaise(DataSet.OpenClass<TMyTestClassTypes>);
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenAFieldIsACreateTheFieldMustHaveTheMinimalSizeDefined(FieldName: String; Size: Integer);
