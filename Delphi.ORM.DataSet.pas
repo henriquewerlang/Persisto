@@ -619,19 +619,8 @@ begin
 end;
 
 procedure TORMDataSet.OpenArray<T>(List: TArray<T>);
-var
-  ArrayOfObject: TArray<TObject>;
-
 begin
-{$IFDEF PAS2JS}
-  asm
-    ArrayOfObject = List;
-  end;
-{$ELSE}
-  ArrayOfObject := TArray<TObject>(List);
-{$ENDIF}
-
-  OpenObjectArray((FContext.GetType(TypeInfo(T)) as TRttiInstanceType).MetaclassType, ArrayOfObject);
+  OpenObjectArray((FContext.GetType(TypeInfo(T)) as TRttiInstanceType).MetaclassType, TArray<TObject>(List));
 end;
 
 procedure TORMDataSet.OpenClass<T>;
