@@ -228,6 +228,67 @@ type
     property Id: Integer read FId write FId;
   end;
 
+  [Entity]
+  [PrimaryKey('Name')]
+  TMyClass = class
+  private
+    FName: String;
+    FValue: Integer;
+  published
+    property Name: String read FName write FName;
+    property Value: Integer read FValue write FValue;
+  end;
+
+  TMyEnumerator = (Enum1, Enum2, Enum3, Enum4);
+
+  [Entity]
+  TMyClassWithSpecialTypes = class
+  private
+    FGuid: TGUID;
+    FEnumerator: TMyEnumerator;
+  published
+    property Enumerator: TMyEnumerator read FEnumerator write FEnumerator;
+    property Guid: TGUID read FGuid write FGuid;
+  end;
+
+  [Entity]
+  TClassForeignKey = class
+  private
+    FId: Integer;
+    FField1: String;
+    FField2: Double;
+  published
+    property Id: Integer read FId write FId;
+    property Field1: String read FField1 write FField1;
+    property Field2: Double read FField2 write FField2;
+  end;
+
+  [Entity]
+  TClassWithThreeForeignKey = class
+  private
+    FId: Integer;
+    FForeignKey1: TClassForeignKey;
+    FForeignKey2: TClassForeignKey;
+    FForeignKey3: TClassForeignKey;
+  published
+    property Id: Integer read FId write FId;
+    property ForeignKey1: TClassForeignKey read FForeignKey1 write FForeignKey1;
+    property ForeignKey2: TClassForeignKey read FForeignKey2 write FForeignKey2;
+    property ForeignKey3: TClassForeignKey read FForeignKey3 write FForeignKey3;
+  end;
+
+  [Entity]
+  TClassWithSubForeignKey = class
+  private
+    FId: Integer;
+    FForeignKey2: TClassWithThreeForeignKey;
+    FForeignKey1: TClassWithThreeForeignKey;
+  published
+    property Id: Integer read FId write FId;
+    property ForeignKey1: TClassWithThreeForeignKey read FForeignKey1 write FForeignKey1;
+    property ForeignKey2: TClassWithThreeForeignKey read FForeignKey2 write FForeignKey2;
+  end;
+
 implementation
 
 end.

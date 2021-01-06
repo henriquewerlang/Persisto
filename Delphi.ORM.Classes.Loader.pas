@@ -13,7 +13,7 @@ type
     FFields: TArray<TFieldAlias>;
     FJoin: TQueryBuilderJoin;
 
-    function CreateObject(Join: TQueryBuilderJoin; FieldIndexStart: Integer): TObject;
+    function CreateObject(Join: TQueryBuilderJoin; const FieldIndexStart: Integer): TObject;
     function FieldValueToString(Field: TField; const FieldValue: Variant): String;
     function GetFieldValueVariant(const Index: Integer): Variant;
     function GetObjectFromCache(const Key: String; CreateFunction: TFunc<TObject>): TObject;
@@ -46,7 +46,7 @@ begin
   FJoin := Join;
 end;
 
-function TClassLoader.CreateObject(Join: TQueryBuilderJoin; FieldIndexStart: Integer): TObject;
+function TClassLoader.CreateObject(Join: TQueryBuilderJoin; const FieldIndexStart: Integer): TObject;
 begin
   Result := nil;
   var TableKey := Join.Table.DatabaseName;
@@ -133,42 +133,41 @@ function TClassLoader.LoadClassLink(Join: TQueryBuilderJoin; var FieldIndexStart
 begin
   Result := CreateObject(Join, FieldIndexStart);
 
-  if Assigned(Result) then
-  begin
-    for var A := Low(Join.Table.Fields) to High(Join.Table.Fields) do
-      if not Join.Table.Fields[A].IsJoinLink then
-      begin
+  for var A := Low(Join.Table.Fields) to High(Join.Table.Fields) do
+    if not Join.Table.Fields[A].IsJoinLink then
+    begin
+      if Assigned(Result) then
         FFields[FieldIndexStart].Field.SetValue(Result, GetFieldValueVariant(FieldIndexStart));
 
-        Inc(FieldIndexStart);
-      end;
-
-    for var Link in Join.Links do
-    begin
-      var Value: TValue;
-
-      if Link.Field.IsForeignKey then
-        Value := LoadClassLink(Link, FieldIndexStart)
-      else
-      begin
-        var ChildObject := LoadClassLink(Link, FieldIndexStart);
-
-        if Assigned(ChildObject) then
-        begin
-          Value := Link.Field.TypeInfo.GetValue(Result);
-
-          var NewArrayLength: NativeInt := Succ(Value.GetArrayLength);
-
-          DynArraySetLength(PPointer(Value.GetReferenceToRawData)^, Link.Field.TypeInfo.PropertyType.Handle, 1, @NewArrayLength);
-
-          Value.SetArrayElement(Pred(Value.GetArrayLength), ChildObject);
-
-          Link.RightField.TypeInfo.SetValue(ChildObject, Result);
-        end;
-      end;
-
-      Link.Field.TypeInfo.SetValue(Result, Value);
+      Inc(FieldIndexStart);
     end;
+
+  for var Link in Join.Links do
+  begin
+    var Value: TValue;
+
+    if Link.Field.IsForeignKey then
+      Value := LoadClassLink(Link, FieldIndexStart)
+    else
+    begin
+      var ChildObject := LoadClassLink(Link, FieldIndexStart);
+
+      if Assigned(ChildObject) then
+      begin
+        Value := Link.Field.GetValue(Result);
+
+        var NewArrayLength: NativeInt := Succ(Value.GetArrayLength);
+
+        DynArraySetLength(PPointer(Value.GetReferenceToRawData)^, Link.Field.TypeInfo.PropertyType.Handle, 1, @NewArrayLength);
+
+        Value.SetArrayElement(Pred(Value.GetArrayLength), ChildObject);
+
+        Link.RightField.TypeInfo.SetValue(ChildObject, Result);
+      end;
+    end;
+
+    if Assigned(Result) then
+      Link.Field.TypeInfo.SetValue(Result, Value);
   end;
 end;
 

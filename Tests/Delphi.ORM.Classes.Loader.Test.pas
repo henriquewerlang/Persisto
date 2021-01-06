@@ -48,29 +48,10 @@ type
     procedure WhenThePrimaryKeyOfAForeignKeyIsNullCantLoadTheEntireObject;
     [Test]
     procedure WhenThePrimaryKeyOfAManyValueAssociationIsNullCantLoadTheEntireObject;
-  end;
-
-  [Entity]
-  [PrimaryKey('Name')]
-  TMyClass = class
-  private
-    FName: String;
-    FValue: Integer;
-  published
-    property Name: String read FName write FName;
-    property Value: Integer read FValue write FValue;
-  end;
-
-  TMyEnumerator = (Enum1, Enum2, Enum3, Enum4);
-
-  [Entity]
-  TMyClassWithSpecialTypes = class
-  private
-    FGuid: TGUID;
-    FEnumerator: TMyEnumerator;
-  published
-    property Enumerator: TMyEnumerator read FEnumerator write FEnumerator;
-    property Guid: TGUID read FGuid write FGuid;
+    [Test]
+    procedure WhenTheClassAsMoreThenOneForeignKeyAndOneOfThenIsNullMustJumpTheFieldsOfNullForeignKey;
+    [Test]
+    procedure WhenTheClassAsForeignKeyWithAnotherForignKeyAndIsNullTheValuesMustJumpTheFieldsOfAllForeignKeys;
   end;
 
 implementation
@@ -239,6 +220,44 @@ begin
     Obj.Free;
 
   Result.Free;
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenTheClassAsForeignKeyWithAnotherForignKeyAndIsNullTheValuesMustJumpTheFieldsOfAllForeignKeys;
+begin
+  var Loader := CreateLoader<TClassWithSubForeignKey>([[123, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 111, NULL, NULL, NULL, NULL, NULL, NULL, 555, 'My Field', 222.333]]);
+  var MyClass := Loader.Load<TClassWithSubForeignKey>;
+
+  Assert.IsTrue(Assigned(MyClass.ForeignKey2));
+
+  Assert.IsTrue(Assigned(MyClass.ForeignKey2.ForeignKey3));
+
+  Assert.AreEqual(555, MyClass.ForeignKey2.ForeignKey3.Id);
+
+  MyClass.ForeignKey2.ForeignKey3.Free;
+
+  MyClass.ForeignKey2.Free;
+
+  MyClass.Free;
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenTheClassAsMoreThenOneForeignKeyAndOneOfThenIsNullMustJumpTheFieldsOfNullForeignKey;
+begin
+  var Loader := CreateLoader<TClassWithThreeForeignKey>([[111, NULL, NULL, NULL, NULL, NULL, NULL, 555, 'My Field', 222.333]]);
+  var MyClass := Loader.Load<TClassWithThreeForeignKey>;
+
+  Assert.IsTrue(Assigned(MyClass.ForeignKey3));
+
+  Assert.AreEqual(555, MyClass.ForeignKey3.Id);
+  Assert.AreEqual('My Field', MyClass.ForeignKey3.Field1);
+  Assert.AreEqual(222.333, MyClass.ForeignKey3.Field2);
+
+  MyClass.ForeignKey3.Free;
+
+  MyClass.Free;
 
   Loader.Free;
 end;
