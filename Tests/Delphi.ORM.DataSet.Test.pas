@@ -18,6 +18,7 @@ type
     procedure TheNameOfFieldMustBeEqualToTheNameOfTheProperty;
     [Test]
     procedure WhenOpenDataSetFromAListMustHaveToLoadFieldListWithPropertiesOfMappedObject;
+    [TestCase('Array', 'MyArray,ftDataSet')]
     [TestCase('Boolean', 'Boolean,ftBoolean')]
     [TestCase('Byte', 'Byte,ftByte')]
     [TestCase('Cardinal', 'Cardinal,ftLongWord')]
@@ -142,6 +143,22 @@ type
     procedure TheRecNoPropertyMustReturnTheCurrentRecordPositionInTheDataSet;
     [Test]
     procedure WhenADataSetIsActiveCantOpenItAgainMustRaiseAnError;
+    [Test]
+    procedure WhenCleanUpTheObjectClassNameMustStayEmpty;
+    [Test]
+    procedure WhenChangeTheObjectTypeOfTheDataSetMustBeClosedToAcceptTheChange;
+    [Test]
+    procedure WhenFillTheDataSetFieldPropertyMustLoadTheParentDataSetPropertyWithTheDataSetCorrect;
+    [Test]
+    procedure WhenCleanUpTheDataSetFieldPropertyTheParentDataSetMustBeCleanedToo;
+    [Test]
+    procedure WhenFillTheDataSetFieldMustLoadTheObjectTypeFromThePropertyOfTheField;
+    [Test]
+    procedure WhenOpenTheDetailDataSetMustLoadAllRecordsFromTheParentDataSet;
+    [Test]
+    procedure WhenScrollTheParentDataSetMustLoadTheArrayInDetailDataSet;
+    [Test]
+    procedure WhenCloseTheDataSetMustCleanUpTheObjectList;
   end;
 
   TAnotherObject = class
@@ -203,6 +220,7 @@ type
     FCurrency: Currency;
     FClass: TObject;
     FMyEnum: TMyEnumerator;
+    FMyArray: TArray<TMyTestClassTypes>;
   published
     property Boolean: Boolean read FBoolean write FBoolean;
     property Byte: Byte read FByte write FByte;
@@ -224,6 +242,7 @@ type
     property WideChar: WideChar read FWideChar write FWideChar;
     property WideString: WideString read FWideString write FWideString;
     property Word: Word read FWord write FWord;
+    property MyArray: TArray<TMyTestClassTypes> read FMyArray write FMyArray;
   end;
 
 implementation
@@ -690,6 +709,44 @@ begin
   MyObject.Free;
 end;
 
+procedure TORMDataSetTest.WhenFillTheDataSetFieldMustLoadTheObjectTypeFromThePropertyOfTheField;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+
+  DataSet.ObjectClassName := 'TMyTestClassTypes';
+
+  DataSet.Open;
+
+  DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
+
+  Assert.IsNotNull(DataSetDetail.ObjectType);
+
+  Assert.AreEqual('TMyTestClassTypes', DataSetDetail.ObjectType.Name);
+
+  DataSetDetail.Free;
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenFillTheDataSetFieldPropertyMustLoadTheParentDataSetPropertyWithTheDataSetCorrect;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+
+  DataSet.ObjectClassName := 'TMyTestClassTypes';
+
+  DataSet.Open;
+
+  DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
+
+  Assert.AreEqual(DataSet, DataSetDetail.ParentDataSet);
+
+  DataSetDetail.Free;
+
+  DataSet.Free;
+end;
+
 procedure TORMDataSetTest.WhenGetAValueFromAFieldAndIsAnObjectMustReturnTheObjectFromTheClass;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -910,6 +967,36 @@ begin
   MyObject.Free;
 end;
 
+procedure TORMDataSetTest.WhenOpenTheDetailDataSetMustLoadAllRecordsFromTheParentDataSet;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+  var MyClass := TMyTestClassTypes.Create;
+  MyClass.MyArray := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+
+  DataSet.OpenObject(MyClass);
+
+  DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
+
+  DataSet.Close;
+
+  DataSetDetail.Close;
+
+  DataSet.OpenObject(MyClass);
+
+  Assert.AreEqual(2, DataSetDetail.RecordCount);
+
+  MyClass.MyArray[0].Free;
+
+  MyClass.MyArray[1].Free;
+
+  MyClass.Free;
+
+  DataSetDetail.Free;
+
+  DataSet.Free;
+end;
+
 procedure TORMDataSetTest.WhenPostARecordMustAppendToListOfObjects;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -927,6 +1014,34 @@ begin
   Assert.AreEqual(2, DataSet.RecordCount);
 
   DestroyObjectArray(DataSet.ObjectList);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenScrollTheParentDataSetMustLoadTheArrayInDetailDataSet;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+  var MyClass: TArray<TMyTestClassTypes> := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+  MyClass[1].MyArray := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+
+  DataSet.OpenArray<TMyTestClassTypes>(MyClass);
+
+  DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
+
+  DataSet.Next;
+
+  Assert.AreEqual(2, DataSetDetail.RecordCount);
+
+  MyClass[1].MyArray[0].Free;
+
+  MyClass[1].MyArray[1].Free;
+
+  MyClass[1].Free;
+
+  MyClass[0].Free;
+
+  DataSetDetail.Free;
 
   DataSet.Free;
 end;
@@ -1089,6 +1204,23 @@ begin
   DataSet.Free;
 end;
 
+procedure TORMDataSetTest.WhenChangeTheObjectTypeOfTheDataSetMustBeClosedToAcceptTheChange;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.ObjectClassName := 'TMyTestClass';
+
+  DataSet.Open;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      DataSet.ObjectClassName := 'TMyTestClass';
+    end);
+
+  DataSet.Free;
+end;
+
 procedure TORMDataSetTest.WhenCheckingIfTheFieldIsNullCantRaiseAnError;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -1105,6 +1237,57 @@ begin
   DataSet.Free;
 
   MyObject.Free;
+end;
+
+procedure TORMDataSetTest.WhenCleanUpTheDataSetFieldPropertyTheParentDataSetMustBeCleanedToo;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+
+  DataSet.ObjectClassName := 'TMyTestClassTypes';
+
+  DataSet.Open;
+
+  DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
+
+  DataSetDetail.DataSetField := nil;
+
+  Assert.IsNull(DataSetDetail.ParentDataSet);
+
+  DataSetDetail.Free;
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenCleanUpTheObjectClassNameMustStayEmpty;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.ObjectClassName := 'TMyTestClass';
+
+  DataSet.ObjectClassName := EmptyStr;
+
+  Assert.AreEqual(EmptyStr, DataSet.ObjectClassName);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenCloseTheDataSetMustCleanUpTheObjectList;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyClass: TArray<TMyTestClassTypes> := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+
+  DataSet.OpenArray<TMyTestClassTypes>(MyClass);
+
+  DataSet.Close;
+
+  Assert.AreEqual(0, DataSet.RecordCount);
+
+  MyClass[1].Free;
+
+  MyClass[0].Free;
+
+  DataSet.Free;
 end;
 
 { TMyTestClass }
