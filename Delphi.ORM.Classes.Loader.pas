@@ -31,7 +31,7 @@ type
 
 implementation
 
-uses System.Variants;
+uses System.Variants, Delphi.ORM.Rtti.Helper;
 
 { TClassLoader }
 
@@ -156,11 +156,11 @@ begin
       begin
         Value := Link.Field.GetValue(Result);
 
-        var NewArrayLength: NativeInt := Succ(Value.GetArrayLength);
+        var ArrayLength := Value.ArrayLength;
 
-        DynArraySetLength(PPointer(Value.GetReferenceToRawData)^, Link.Field.TypeInfo.PropertyType.Handle, 1, @NewArrayLength);
+        Value.ArrayLength := Succ(ArrayLength);
 
-        Value.SetArrayElement(Pred(Value.GetArrayLength), ChildObject);
+        Value.ArrayElement[ArrayLength] := ChildObject;
 
         Link.RightField.SetValue(ChildObject, Result);
       end;

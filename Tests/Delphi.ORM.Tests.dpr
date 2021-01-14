@@ -29,7 +29,8 @@ uses
   Delphi.ORM.Rtti.Helper in '..\Delphi.ORM.Rtti.Helper.pas',
   Delphi.ORM.Query.Builder.Test.Entity in 'Delphi.ORM.Query.Builder.Test.Entity.pas',
   Delphi.ORM.Database.Connection.Unidac in '..\Delphi.ORM.Database.Connection.Unidac.pas',
-  Delphi.ORM.Cursor.Mock in 'Delphi.ORM.Cursor.Mock.pas';
+  Delphi.ORM.Cursor.Mock in 'Delphi.ORM.Cursor.Mock.pas',
+  Delphi.ORM.Rtti.Helper.Test in 'Delphi.ORM.Rtti.Helper.Test.pas';
 
 // Para não remover o valor abaixo
 {$IFNDEF TESTINSIGHT}
@@ -40,6 +41,12 @@ var
   nunitLogger : ITestLogger;
 {$ENDIF}
 begin
+  FastMM_OutputDebugStringEvents := [];
+  FastMM_LogToFileEvents := [mmetUnexpectedMemoryLeakSummary];
+  FastMM_MessageBoxEvents := [mmetDebugBlockDoubleFree, mmetDebugBlockReallocOfFreedBlock, mmetVirtualMethodCallOnFreedObject];
+
+  FastMM_DeleteEventLogFile;
+
 {$IFDEF TESTINSIGHT}
   TestInsight.DUnitX.RunRegisteredTests;
 {$ELSE}
