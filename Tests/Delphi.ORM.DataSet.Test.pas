@@ -159,6 +159,8 @@ type
     procedure WhenScrollTheParentDataSetMustLoadTheArrayInDetailDataSet;
     [Test]
     procedure WhenCloseTheDataSetMustCleanUpTheObjectList;
+    [Test]
+    procedure WhenPostTheDetailDataSetMustUpdateTheArrayValueFromParentDataSet;
   end;
 
   TAnotherObject = class
@@ -247,7 +249,7 @@ type
 
 implementation
 
-uses System.Rtti, System.Generics.Collections, System.SysUtils, System.Classes, System.Variants, Delphi.ORM.DataSet;
+uses System.Rtti, System.Generics.Collections, System.SysUtils, System.Classes, System.Variants, Data.DBConsts, Delphi.ORM.DataSet;
 
 { TORMDataSetTest }
 
@@ -367,6 +369,11 @@ begin
 
   for var &Type in TRttiContext.Create.GetTypes do
     &Type.QualifiedName;
+
+  try
+    DatabaseError(SDataSetOpen, nil);
+  except
+  end;
 end;
 
 procedure TORMDataSetTest.TheFieldTypeMustMatchWithPropertyType(FieldName: String; TypeToCompare: TFieldType);
@@ -1016,6 +1023,39 @@ begin
   DestroyObjectArray(DataSet.ObjectList);
 
   DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenPostTheDetailDataSetMustUpdateTheArrayValueFromParentDataSet;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+  var MyClass := TMyTestClassTypes.Create;
+
+  DataSet.OpenObject(MyClass);
+
+  DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
+
+  DataSet.Edit;
+
+  DataSetDetail.Append;
+
+  DataSetDetail.Post;
+
+  DataSetDetail.Append;
+
+  DataSetDetail.Post;
+
+  Assert.AreEqual<Integer>(2, Length(MyClass.MyArray));
+
+  MyClass.MyArray[0].Free;
+
+  MyClass.MyArray[1].Free;
+
+  DataSetDetail.Free;
+
+  DataSet.Free;
+
+  MyClass.Free;
 end;
 
 procedure TORMDataSetTest.WhenScrollTheParentDataSetMustLoadTheArrayInDetailDataSet;

@@ -141,7 +141,7 @@ type
 
 implementation
 
-uses System.TypInfo, {$IFDEF PAS2JS}Pas2JS.JS{$ELSE}System.Variants{$ENDIF};
+uses System.TypInfo, {$IFDEF PAS2JS}Pas2JS.JS{$ELSE}System.Variants{$ENDIF}, Delphi.ORM.Rtti.Helper;
 
 { TORMDataSet }
 
@@ -582,7 +582,20 @@ begin
   inherited;
 
   if State = dsInsert then
+  begin
     FObjectList := FObjectList + [FInsertingObject];
+
+    if Assigned(DataSetField) then
+    begin
+      var Valor := FDataSetFieldProperty.GetValue(ParentDataSet.GetCurrentObject<TObject>);
+
+      Valor.ArrayLength := Valor.ArrayLength + 1;
+
+      Valor.ArrayElement[Valor.ArrayLength - 1] := FInsertingObject;
+
+      FDataSetFieldProperty.SetValue(ParentDataSet.GetCurrentObject<TObject>, Valor);
+    end;
+  end;
 
   FInsertingObject := nil;
 
