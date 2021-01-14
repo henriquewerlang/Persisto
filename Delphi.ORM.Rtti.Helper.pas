@@ -18,15 +18,15 @@ type
     function GetArrayLengthInternal: Integer; inline;
 
     procedure SetArrayElementInternal(Index: Integer; const Value: TValue); inline;
-    procedure SetArrayLength(const Size: Integer);
+    procedure SetArrayLengthInternal(const Size: Integer); inline;
   public
     property ArrayElement[Index: Integer]: TValue read GetArrayElementInternal write SetArrayElementInternal;
-    property ArrayLength: Integer read GetArrayLengthInternal write SetArrayLength;
+    property ArrayLength: Integer read GetArrayLengthInternal write SetArrayLengthInternal;
   end;
 
 implementation
 
-uses System.SysUtils, System.SysConst, System.TypInfo;
+uses System.SysUtils, System.TypInfo, {$IFDEF PAS2JS}RTLConsts{$ELSE}System.SysConst{$ENDIF};
 
 { TRttiTypeHelper }
 
@@ -36,10 +36,13 @@ begin
 end;
 
 function TRttiTypeHelper.GetAttribute<T>: T;
+var
+  Attribute: TCustomAttribute;
+
 begin
   Result := nil;
 
-  for var Attribute in GetAttributes do
+  for Attribute in GetAttributes do
     if Attribute is T then
       Exit(T(Attribute));
 end;
@@ -66,12 +69,16 @@ begin
   SetArrayElement(Index, Value);
 end;
 
-procedure TValueHelper.SetArrayLength(const Size: Integer);
+procedure TValueHelper.SetArrayLengthInternal(const Size: Integer);
 begin
-  if TypeInfo^.Kind <> tkDynArray then
-    raise EInvalidCast.CreateRes(@SInvalidCast);
+  if TypeInfo{$IFDEF DCC}^{$ENDIF}.Kind <> tkDynArray then
+    raise EInvalidCast.{$IFDEF PAS2JS}Create(SErrInvalidTypecast){$ELSE}CreateRes(@SInvalidCast){$ENDIF};
 
+{$IFDEF PAS2JS}
+  SetArrayLength(Size);
+{$ELSE}
   DynArraySetLength(PPointer(GetReferenceToRawData)^, TypeInfo, 1, @Size);
+{$ENDIF}
 end;
 
 end.

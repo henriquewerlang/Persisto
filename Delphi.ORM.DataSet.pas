@@ -578,6 +578,9 @@ begin
 end;
 
 procedure TORMDataSet.InternalPost;
+var
+  Value: TValue;
+
 begin
   inherited;
 
@@ -587,13 +590,13 @@ begin
 
     if Assigned(DataSetField) then
     begin
-      var Valor := FDataSetFieldProperty.GetValue(ParentDataSet.GetCurrentObject<TObject>);
+      Value := FDataSetFieldProperty.GetValue(ParentDataSet.GetCurrentObject<TObject>);
 
-      Valor.ArrayLength := Valor.ArrayLength + 1;
+      Value.ArrayLength := Succ(Value.ArrayLength);
 
-      Valor.ArrayElement[Valor.ArrayLength - 1] := FInsertingObject;
+      Value.ArrayElement[Pred(Value.ArrayLength)] := TValue.From(FInsertingObject);
 
-      FDataSetFieldProperty.SetValue(ParentDataSet.GetCurrentObject<TObject>, Valor);
+      FDataSetFieldProperty.SetValue(ParentDataSet.GetCurrentObject<TObject>, Value);
     end;
   end;
 
