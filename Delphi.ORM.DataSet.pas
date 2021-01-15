@@ -92,13 +92,18 @@ type
 
     destructor Destroy; override;
 
+{$IFDEF PAS2JS}
+    function ConvertDateTimeToNative(Field: TField; Value: TDateTime): JSValue; override;
+    function ConvertToDateTime(Field: TField; Value: JSValue; ARaiseException: Boolean): TDateTime; override;
+{$ENDIF}
     function GetCurrentObject<T: class>: T;
     function GetFieldData(Field: TField;
-        {$IFDEF PAS2JS}
-          Buffer: TDatarecord): JSValue;
-        {$ELSE}
-          var Buffer: TValueBuffer): Boolean;
-        {$ENDIF} override;
+{$IFDEF PAS2JS}
+      Buffer: TDatarecord): JSValue;
+{$ELSE}
+      var Buffer: TValueBuffer): Boolean;
+{$ENDIF}
+      override;
 
     procedure OpenArray<T: class>(List: TArray<T>);
     procedure OpenObjectArray(ObjectClass: TClass; List: TArray<TObject>);
@@ -157,6 +162,18 @@ begin
   if not Assigned(ObjectType) then
     raise EDataSetWithoutObjectDefinition.Create;
 end;
+
+{$IFDEF PAS2JS}
+function TORMDataSet.ConvertDateTimeToNative(Field: TField; Value: TDateTime): JSValue;
+begin
+  Result := Value;
+end;
+
+function TORMDataSet.ConvertToDateTime(Field: TField; Value: JSValue; ARaiseException: Boolean): TDateTime;
+begin
+  Result := TDateTime(Value);
+end;
+{$ENDIF}
 
 constructor TORMDataSet.Create(AOwner: TComponent);
 begin
