@@ -189,14 +189,18 @@ end;
 
 procedure TORMDataSet.DoAfterOpen;
 var
-  NestedDataSet: TDataSet;
+  A: Integer;
+
+  NestedDataSet: TORMDataSet;
 
 begin
-  for NestedDataSet in NestedDataSets do
+  for A := 0 to Pred(NestedDataSets.Count) do
   begin
-    TORMDataSet(NestedDataSet).LoadObjectListFromParentDataSet;
+    NestedDataSet := TORMDataSet(NestedDataSets[A]);
 
-    TORMDataSet(NestedDataSet).DataEvent(deDataSetScroll, 0);
+    NestedDataSet.LoadObjectListFromParentDataSet;
+
+    NestedDataSet.DataEvent(deDataSetScroll, 0);
   end;
 
   inherited;
