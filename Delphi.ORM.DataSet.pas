@@ -39,7 +39,7 @@ type
     FContext: TRttiContext;
     FObjectType: TRttiInstanceType;
     FPropertyMappingList: TArray<TArray<TRttiProperty>>;
-    FRecordNumber: Integer;
+    FArrayPosition: Integer;
     FInsertingObject: TObject;
     FOldValueObject: TObject;
     FParentDataSet: TORMDataSet;
@@ -84,7 +84,7 @@ type
     procedure InternalLast; override;
     procedure InternalOpen; override;
     procedure InternalPost; override;
-    procedure SetActive(Value: Boolean); override;
+    procedure InternalSetToRecord(Buffer: TRecBuf); override;
     procedure SetFieldData(Field: TField; Buffer: TValueBuffer); override;
     procedure SetDataSetField(const DataSetField: TDataSetField); override;
   public
@@ -242,7 +242,7 @@ end;
 procedure TORMDataSet.GetBookmarkData(Buffer: TRecBuf; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark);
 begin
 {$IFDEF DCC}
-  PInteger(Data)^ := FRecordNumber;
+  PInteger(Data)^ := FArrayPosition;
 {$ENDIF}
 end;
 
@@ -458,24 +458,24 @@ begin
   Result := grOK;
   case GetMode of
     gmCurrent:
-      if (FRecordNumber >= RecordCount) or (FRecordNumber < 0) then
+      if (FArrayPosition >= RecordCount) or (FArrayPosition < 0) then
         Result := grError;
     gmNext:
-      if FRecordNumber < Pred(RecordCount) then
-        Inc(FRecordNumber)
+      if FArrayPosition < Pred(RecordCount) then
+        Inc(FArrayPosition)
       else
         Result := grEOF;
     gmPrior:
-      if FRecordNumber > 0 then
-        Dec(FRecordNumber)
+      if FArrayPosition > 0 then
+        Dec(FArrayPosition)
       else
         Result := grBOF;
   end;
 
 {$IFDEF PAS2JS}
-  Buffer.Data := FRecordNumber;
+  Buffer.Data := FArrayPosition;
 {$ELSE}
-  ObjectBuffer^ := FRecordNumber;
+  ObjectBuffer^ := FArrayPosition;
 {$ENDIF}
 end;
 
@@ -558,7 +558,7 @@ var
 
 begin
 {$IFDEF DCC}
-  FRecordNumber := RecordIndex^;
+  FArrayPosition := RecordIndex^;
 {$ENDIF}
 end;
 
@@ -575,7 +575,7 @@ end;
 
 procedure TORMDataSet.InternalLast;
 begin
-  FRecordNumber := RecordCount;
+  FArrayPosition := RecordCount;
 end;
 
 procedure TORMDataSet.InternalOpen;
@@ -624,6 +624,19 @@ begin
   FInsertingObject := nil;
 
   ReleaseOldValueObject;
+end;
+
+procedure TORMDataSet.InternalSetToRecord(Buffer: TRecBuf);
+{$IFDEF DCC}
+var
+  ObjectBuffer: PInteger absolute Buffer;
+{$ENDIF}
+begin
+{$IFDEF PAS2JS}
+  FArrayPosition := Integer(Buffer.Data);
+{$ELSE}
+  FArrayPosition := ObjectBuffer^;
+{$ENDIF}
 end;
 
 function TORMDataSet.IsCursorOpen: Boolean;
@@ -760,16 +773,7 @@ end;
 
 procedure TORMDataSet.ResetCurrentRecord;
 begin
-  FRecordNumber := -1;
-end;
-
-procedure TORMDataSet.SetActive(Value: Boolean);
-begin
-  SetUniDirectional(True);
-
-  inherited;
-
-  SetUniDirectional(False);
+  FArrayPosition := -1;
 end;
 
 procedure TORMDataSet.SetDataSetField(const DataSetField: TDataSetField);

@@ -161,6 +161,8 @@ type
     procedure WhenCloseTheDataSetMustCleanUpTheObjectList;
     [Test]
     procedure WhenPostTheDetailDataSetMustUpdateTheArrayValueFromParentDataSet;
+    [Test]
+    procedure WhenTheRecordBufferIsBiggerThenOneMustLoadTheBufferOfTheDataSetAsExpected;
   end;
 
   TAnotherObject = class
@@ -1242,6 +1244,46 @@ begin
   Assert.AreEqual(4, DataSet.FieldCount);
 
   DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenTheRecordBufferIsBiggerThenOneMustLoadTheBufferOfTheDataSetAsExpected;
+begin
+  var DataLink := TDataLink.Create;
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSource := TDataSource.Create(nil);
+
+  DataLink.BufferCount := 15;
+  DataLink.DataSource := DataSource;
+  DataSource.DataSet := DataSet;
+
+  var MyList := TObjectList<TMyTestClass>.Create;
+
+  for var A := 1 to 10 do
+  begin
+    var MyObject := TMyTestClass.Create;
+    MyObject.Id := A;
+    MyObject.Name := Format('Name%d', [A]);
+    MyObject.Value := A + A;
+
+    MyList.Add(MyObject);
+  end;
+
+  DataSet.OpenList<TMyTestClass>(MyList);
+
+  for var A := 1 to 10 do
+    DataSet.Next;
+
+  Assert.AreEqual<Integer>(10, DataSet.FieldByName('Id').AsInteger);
+  Assert.AreEqual('Name10', DataSet.FieldByName('Name').AsString);
+  Assert.AreEqual<Double>(20, DataSet.FieldByName('Value').AsFloat);
+
+  DataLink.Free;
+
+  DataSource.Free;
+
+  DataSet.Free;
+
+  MyList.Free;
 end;
 
 procedure TORMDataSetTest.WhenChangeTheObjectTypeOfTheDataSetMustBeClosedToAcceptTheChange;
