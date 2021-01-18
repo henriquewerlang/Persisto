@@ -77,7 +77,9 @@ begin
 {$IFDEF PAS2JS}
   SetArrayLength(Size);
 {$ELSE}
-  DynArraySetLength(PPointer(GetReferenceToRawData)^, TypeInfo, 1, @Size);
+  var NativeSize: NativeInt := Size;
+
+  DynArraySetLength(PPointer(GetReferenceToRawData)^, TypeInfo, 1, @NativeSize);
 {$ENDIF}
 end;
 
