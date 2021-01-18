@@ -112,10 +112,20 @@ end;
 
 function TClassLoader.LoadAll<T>: TArray<T>;
 begin
+  var CurrentObject: TObject := nil;
+  var LastObjectLoaded: TObject := nil;
   Result := nil;
 
   while FCursor.Next do
-    Result := Result + [LoadClass as T];
+  begin
+    LastObjectLoaded := LoadClass;
+
+    if LastObjectLoaded <> CurrentObject then
+    begin
+      CurrentObject := LastObjectLoaded;
+      Result := Result + [LastObjectLoaded as T];
+    end;
+  end;
 end;
 
 function TClassLoader.LoadClass: TObject;

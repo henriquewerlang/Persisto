@@ -52,6 +52,8 @@ type
     procedure WhenTheClassAsMoreThenOneForeignKeyAndOneOfThenIsNullMustJumpTheFieldsOfNullForeignKey;
     [Test]
     procedure WhenTheClassAsForeignKeyWithAnotherForignKeyAndIsNullTheValuesMustJumpTheFieldsOfAllForeignKeys;
+    [Test]
+    procedure WhenLoadAllIsCallWithTheSamePrimaryKeyValueMustReturnASingleObject;
   end;
 
 implementation
@@ -205,6 +207,18 @@ begin
 
   for var Obj in Result do
     Obj.Free;
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenLoadAllIsCallWithTheSamePrimaryKeyValueMustReturnASingleObject;
+begin
+  var Loader := CreateLoader<TMyClass>([['aaa', 222], ['aaa', 222], ['aaa', 222]]);
+  var Result := Loader.LoadAll<TMyClass>;
+
+  Assert.AreEqual<Integer>(1, Length(Result));
+
+  Result[0].Free;
 
   Loader.Free;
 end;
