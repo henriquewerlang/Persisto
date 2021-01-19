@@ -44,6 +44,7 @@ type
     FOldValueObject: TObject;
     FParentDataSet: TORMDataSet;
     FDataSetFieldProperty: TRttiProperty;
+    FCursorOpen: Boolean;
 
     function GetActiveRecordNumber: Integer;
     function GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
@@ -99,17 +100,17 @@ type
     function GetCurrentObject<T: class>: T;
     function GetFieldData(Field: TField;
 {$IFDEF PAS2JS}
-      Buffer: TDatarecord): JSValue;
+      Buffer: TDataRecord): JSValue;
 {$ELSE}
       var Buffer: TValueBuffer): Boolean;
 {$ENDIF}
       override;
 
     procedure OpenArray<T: class>(List: TArray<T>);
-    procedure OpenObjectArray(ObjectClass: TClass; List: TArray<TObject>);
     procedure OpenClass<T: class>;
     procedure OpenList<T: class>(List: TList<T>);
     procedure OpenObject<T: class>(&Object: T);
+    procedure OpenObjectArray(ObjectClass: TClass; List: TArray<TObject>);
 
     property ObjectList: TArray<TObject> read FObjectList;
     property ObjectType: TRttiInstanceType read FObjectType write SetObjectType;
@@ -194,7 +195,11 @@ begin
   inherited;
 
   if Event = deParentScroll then
+  begin
     LoadObjectListFromParentDataSet;
+
+    Resync([]);
+  end;
 end;
 
 destructor TORMDataSet.Destroy;
@@ -215,9 +220,7 @@ begin
   begin
     NestedDataSet := TORMDataSet(NestedDataSets[A]);
 
-    NestedDataSet.LoadObjectListFromParentDataSet;
-
-    NestedDataSet.DataEvent(deDataSetScroll, 0);
+    NestedDataSet.DataEvent(deParentScroll, 0);
   end;
 
   inherited;
@@ -232,16 +235,18 @@ end;
 
 function TORMDataSet.GetActiveRecordNumber: Integer;
 begin
-{$IFDEF DCC}
-  Result := PInteger(ActiveBuffer)^;
-{$ELSE}
+{$IFDEF PAS2JS}
   Result := Integer(ActiveBuffer.Data);
+{$ELSE}
+  Result := PInteger(ActiveBuffer)^;
 {$ENDIF}
 end;
 
 procedure TORMDataSet.GetBookmarkData(Buffer: TRecBuf; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark);
 begin
-{$IFDEF DCC}
+{$IFDEF PAS2JS}
+  Data.Data := FArrayPosition;
+{$ELSE}
   PInteger(Data)^ := FArrayPosition;
 {$ENDIF}
 end;
@@ -286,7 +291,7 @@ begin
 end;
 
 {$IFDEF PAS2JS}
-function TORMDataSet.GetFieldData(Field: TField; Buffer: TDatarecord): JSValue;
+function TORMDataSet.GetFieldData(Field: TField; Buffer: TDataRecord): JSValue;
 {$ELSE}
 function TORMDataSet.GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean;
 {$ENDIF}
@@ -428,7 +433,7 @@ var
 
 begin
   Instance := TValue.From(GetCurrentObject<TObject>);
-  PropertyList := FPropertyMappingList[Pred(Field.FieldNo)];
+  PropertyList := FPropertyMappingList[Field.Index];
   Result := True;
 
   for A := Low(PropertyList) to High(PropertyList) do
@@ -491,7 +496,9 @@ var
 
 {$ENDIF}
 begin
-{$IFDEF DCC}
+{$IFDEF PAS2JS}
+  Buffer.Data := -1;
+{$ELSE}
   ObjectBuffer^ := -1;
 {$ENDIF}
 end;
@@ -524,7 +531,10 @@ end;
 
 procedure TORMDataSet.InternalClose;
 begin
+  FCursorOpen := False;
   FObjectList := nil;
+
+  ResetCurrentRecord;
 end;
 
 procedure TORMDataSet.InternalEdit;
@@ -580,6 +590,8 @@ end;
 
 procedure TORMDataSet.InternalOpen;
 begin
+  FCursorOpen := True;
+
   LoadDetailInfo;
 
   if FieldDefs.Count = 0 then
@@ -595,7 +607,7 @@ begin
 
   LoadPropertiesFromFields;
 
-  InternalFirst;
+  LoadObjectListFromParentDataSet;
 end;
 
 procedure TORMDataSet.InternalPost;
@@ -641,7 +653,7 @@ end;
 
 function TORMDataSet.IsCursorOpen: Boolean;
 begin
-  Result := Assigned(ObjectType);
+  Result := FCursorOpen;
 end;
 
 procedure TORMDataSet.LoadDetailInfo;
@@ -674,20 +686,21 @@ begin
 end;
 
 procedure TORMDataSet.LoadObjectListFromParentDataSet;
+var
+  A: Integer;
+
+  Value: TValue;
+
 begin
   if Assigned(ParentDataSet) and not ParentDataSet.IsEmpty then
-{$IFDEF PAS2JS}
-    FObjectList := TArray<TObject>(FDataSetFieldProperty.GetValue(ParentDataSet.GetCurrentObject<TObject>).AsJSValue);
-{$ELSE}
   begin
-    var Value := FDataSetFieldProperty.GetValue(ParentDataSet.GetCurrentObject<TObject>);
+    Value := FDataSetFieldProperty.GetValue(ParentDataSet.GetCurrentObject<TObject>);
 
     SetLength(FObjectList, Value.GetArrayLength);
 
-    for var A := 0 to Pred(Value.GetArrayLength) do
+    for A := 0 to Pred(Value.GetArrayLength) do
       FObjectList[A] := Value.GetArrayElement(A).AsObject;
   end;
-{$ENDIF}
 end;
 
 procedure TORMDataSet.LoadPropertiesFromFields;
@@ -734,7 +747,7 @@ begin
       raise EPropertyWithDifferentType.CreateFmt('The property type is not equal to the type of the added field, expected value %s found %s',
         [TRttiEnumerationType.GetName(GetFieldTypeFromProperty(&Property)), TRttiEnumerationType.GetName(Field.DataType)]);
 
-    FPropertyMappingList[Pred(Field.FieldNo)] := PropertyList;
+    FPropertyMappingList[Field.Index] := PropertyList;
   end;
 end;
 

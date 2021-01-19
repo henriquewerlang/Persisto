@@ -163,6 +163,8 @@ type
     procedure WhenPostTheDetailDataSetMustUpdateTheArrayValueFromParentDataSet;
     [Test]
     procedure WhenTheRecordBufferIsBiggerThenOneMustLoadTheBufferOfTheDataSetAsExpected;
+    [Test]
+    procedure WhenOpenADataSetWithDetailMustLoadTheRecordsOfTheDetail;
   end;
 
   TAnotherObject = class
@@ -871,6 +873,32 @@ begin
   DataSet.OpenClass<TMyTestClassChild>;
 
   Assert.AreEqual(6, DataSet.FieldCount);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenOpenADataSetWithDetailMustLoadTheRecordsOfTheDetail;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+  var MyClass: TArray<TMyTestClassTypes> := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+  MyClass[0].MyArray := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+
+  DataSet.OpenArray<TMyTestClassTypes>(MyClass);
+
+  DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
+
+  Assert.AreEqual(2, DataSetDetail.RecordCount);
+
+  MyClass[0].MyArray[0].Free;
+
+  MyClass[0].MyArray[1].Free;
+
+  MyClass[1].Free;
+
+  MyClass[0].Free;
+
+  DataSetDetail.Free;
 
   DataSet.Free;
 end;
