@@ -13,10 +13,11 @@ type
     FFields: TArray<TFieldAlias>;
     FJoin: TQueryBuilderJoin;
 
-    function CreateObject(Join: TQueryBuilderJoin; const FieldIndexStart: Integer): TObject;
+    function CreateObject(Table: TTable; const FieldIndexStart: Integer): TObject;
     function FieldValueToString(Field: TField; const FieldValue: Variant): String;
     function GetFieldValueVariant(const Index: Integer): Variant;
     function GetObjectFromCache(const Key: String; CreateFunction: TFunc<TObject>): TObject;
+    function GetPrimaryKeyFromTable(Table: TTable; const FieldIndexStart: Integer): String;
     function LoadClass: TObject;
     function LoadClassJoin(Join: TQueryBuilderJoin): TObject;
     function LoadClassLink(Join: TQueryBuilderJoin; var FieldIndexStart: Integer): TObject;
@@ -46,27 +47,18 @@ begin
   FJoin := Join;
 end;
 
-function TClassLoader.CreateObject(Join: TQueryBuilderJoin; const FieldIndexStart: Integer): TObject;
+function TClassLoader.CreateObject(Table: TTable; const FieldIndexStart: Integer): TObject;
 begin
-  Result := nil;
-  var TableKey := Join.Table.DatabaseName;
+  var PrimaryKeyValue := GetPrimaryKeyFromTable(Table, FieldIndexStart);
 
-  if Assigned(Join.Table.PrimaryKey) then
-  begin
-    var Field := FFields[FieldIndexStart].Field;
-    var FieldValue := GetFieldValueVariant(FieldIndexStart);
-
-    if VarIsNull(FieldValue) then
-      Exit
-    else
-      TableKey := TableKey + '.' + FieldValueToString(Field, FieldValue);
-  end;
-
-  Result := GetObjectFromCache(TableKey,
-    function: TObject
-    begin
-      Result := Join.Table.TypeInfo.MetaclassType.Create;
-    end);
+  if PrimaryKeyValue.IsEmpty then
+    Result := nil
+  else
+    Result := GetObjectFromCache(PrimaryKeyValue,
+      function: TObject
+      begin
+        Result := Table.TypeInfo.MetaclassType.Create;
+      end);
 end;
 
 destructor TClassLoader.Destroy;
@@ -99,6 +91,24 @@ begin
     FCache.Add(Key, CreateFunction);
 
   Result := FCache[Key];
+end;
+
+function TClassLoader.GetPrimaryKeyFromTable(Table: TTable; const FieldIndexStart: Integer): String;
+begin
+  Result := EmptyStr;
+
+  if Assigned(Table.PrimaryKey) then
+  begin
+    var Field := FFields[FieldIndexStart].Field;
+    var FieldValue := GetFieldValueVariant(FieldIndexStart);
+
+    if VarIsNull(FieldValue) then
+      Exit
+    else
+      Result := Result + '.' + FieldValueToString(Field, FieldValue);
+  end;
+
+  Result := Table.DatabaseName + Result;
 end;
 
 function TClassLoader.Load<T>: T;
@@ -141,7 +151,7 @@ end;
 
 function TClassLoader.LoadClassLink(Join: TQueryBuilderJoin; var FieldIndexStart: Integer): TObject;
 begin
-  Result := CreateObject(Join, FieldIndexStart);
+  Result := CreateObject(Join.Table, FieldIndexStart);
 
   for var A := Low(Join.Table.Fields) to High(Join.Table.Fields) do
     if not Join.Table.Fields[A].IsJoinLink then
@@ -160,9 +170,12 @@ begin
       Value := LoadClassLink(Link, FieldIndexStart)
     else
     begin
+      var AlreadyExists := FCache.ContainsKey(GetPrimaryKeyFromTable(Link.Table, FieldIndexStart));
       var ChildObject := LoadClassLink(Link, FieldIndexStart);
 
-      if Assigned(ChildObject) then
+      if AlreadyExists then
+        Continue
+      else if Assigned(ChildObject) then
       begin
         Value := Link.Field.GetValue(Result);
 

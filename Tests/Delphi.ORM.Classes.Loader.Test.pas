@@ -54,6 +54,8 @@ type
     procedure WhenTheClassAsForeignKeyWithAnotherForignKeyAndIsNullTheValuesMustJumpTheFieldsOfAllForeignKeys;
     [Test]
     procedure WhenLoadAllIsCallWithTheSamePrimaryKeyValueMustReturnASingleObject;
+    [Test]
+    procedure WhenAClassHasManyValueAssociationsInChildClassesMustGroupTheValuesByThePrimaryKey;
   end;
 
 implementation
@@ -181,6 +183,44 @@ end;
 procedure TClassLoaderTest.SetupFixture;
 begin
   TMapper.Default.LoadAll;
+end;
+
+procedure TClassLoaderTest.WhenAClassHasManyValueAssociationsInChildClassesMustGroupTheValuesByThePrimaryKey;
+begin
+  var Loader := CreateLoader<TMyClassParent>([[1, 10, 'Value', 100, 'Another Value'], [1, 10, 'Value', 200, 'Another Value'], [1, 20, 'Value', 300, 'Another Value'], [2, 30, 'Value', 400, 'Another Value']]);
+  var Result := Loader.LoadAll<TMyClassParent>;
+
+  Assert.AreEqual<Integer>(2, Length(Result), 'Main object');
+
+  Assert.AreEqual<Integer>(2, Length(Result[0].Child), 'Key 1');
+
+  Assert.AreEqual<Integer>(2, Length(Result[0].Child[0].Child), 'Key 1, 10');
+
+  Assert.AreEqual<Integer>(1, Length(Result[0].Child[1].Child), 'Key 1, 20');
+
+  Assert.AreEqual<Integer>(1, Length(Result[1].Child), 'Key 2');
+
+  Assert.AreEqual<Integer>(1, Length(Result[1].Child[0].Child), 'Key 2, 30');
+
+  Loader.Free;
+
+  Result[1].Child[0].Child[0].Free;
+
+  Result[1].Child[0].Free;
+
+  Result[1].Free;
+
+  Result[0].Child[1].Child[0].Free;
+
+  Result[0].Child[1].Free;
+
+  Result[0].Child[0].Child[1].Free;
+
+  Result[0].Child[0].Child[0].Free;
+
+  Result[0].Child[0].Free;
+
+  Result[0].Free;
 end;
 
 procedure TClassLoaderTest.WhenAClassIsLoadedAndMustUseTheSameInstanceIfThePrimaryKeyRepeats;

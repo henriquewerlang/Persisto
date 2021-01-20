@@ -88,6 +88,8 @@ type
     procedure WhenInsertingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheInsert;
     [Test]
     procedure WhenUpdatingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheUpdateList;
+    [Test]
+    procedure ThenForeignKeyLinkOfAnManyValueAssociationCantAppearInTheSQL;
   end;
 
   [TestFixture]
@@ -402,6 +404,25 @@ begin
   From.From<TMyEntityWithManyValueAssociation>;
 
   Assert.IsNotNull(From.Join.Links[0].Field);
+
+  From.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.ThenForeignKeyLinkOfAnManyValueAssociationCantAppearInTheSQL;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+
+  From.From<TManyValueAssociationParent>;
+
+  Assert.AreEqual(
+        ' from ManyValueAssociationParent T1 ' +
+    'left join ManyValueAssociationWithThreeForeignKey T2 ' +
+           'on T1.Id=T2.IdManyValueAssociationParent ' +
+    'left join ManyValueAssociationParent T3 ' +
+           'on T2.IdForeingKeyOne=T3.Id ' +
+    'left join ManyValueAssociationParent T4 ' +
+           'on T2.IdForeingKeyTwo=T4.Id',
+    From.GetSQL);
 
   From.Free;
 end;
@@ -808,13 +829,12 @@ begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Query := TQueryBuilder.Create(Database);
 
-  var MyClass := TMyEntityWithManyValueAssociation2.Create;
-  MyClass.AnotherField := 'My field';
+  var MyClass := TMyEntityWithManyValueAssociation.Create;
   MyClass.Id := 12345;
 
   Query.Update(MyClass);
 
-  Assert.AreEqual('update MyEntityWithManyValueAssociation2 set AnotherField=''My field'' where Id=12345', Database.SQL);
+  Assert.AreEqual('update MyEntityWithManyValueAssociation set  where Id=12345', Database.SQL);
 
   MyClass.Free;
 

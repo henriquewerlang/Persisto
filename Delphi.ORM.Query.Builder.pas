@@ -54,7 +54,7 @@ type
     function MakeJoinSQL(Join: TQueryBuilderJoin): String;
 
     procedure BuildJoin;
-    procedure MakeJoin(Join: TQueryBuilderJoin; var TableIndex: Integer; RecursionControl: TDictionary<TTable, Word>);
+    procedure MakeJoin(Join: TQueryBuilderJoin; var TableIndex: Integer; RecursionControl: TDictionary<TTable, Word>; const ManyValueAssociationToIgnore: TManyValueAssociation);
   public
     constructor Create(Select: TQueryBuilderSelect; RecursivityLevel: Word);
 
@@ -310,7 +310,7 @@ begin
   var RecursionControl := TDictionary<TTable, Word>.Create;
   var TableIndex := 1;
 
-  MakeJoin(FJoin, TableIndex, RecursionControl);
+  MakeJoin(FJoin, TableIndex, RecursionControl, nil);
 
   RecursionControl.Free;
 end;
@@ -370,40 +370,40 @@ begin
     Result := Result + FWhere.GetSQL;
 end;
 
-procedure TQueryBuilderFrom.MakeJoin(Join: TQueryBuilderJoin; var TableIndex: Integer; RecursionControl: TDictionary<TTable, Word>);
+procedure TQueryBuilderFrom.MakeJoin(Join: TQueryBuilderJoin; var TableIndex: Integer; RecursionControl: TDictionary<TTable, Word>; const ManyValueAssociationToIgnore: TManyValueAssociation);
 begin
   Join.Alias := 'T' + TableIndex.ToString;
 
   Inc(TableIndex);
 
   for var ForeignKey in Join.Table.ForeignKeys do
-  begin
-    if not RecursionControl.ContainsKey(ForeignKey.ParentTable) then
-      RecursionControl.Add(ForeignKey.ParentTable, 0);
-
-    if RecursionControl[ForeignKey.ParentTable] < FRecursivityLevel then
+    if not Assigned(ManyValueAssociationToIgnore) or (ForeignKey <> ManyValueAssociationToIgnore.ForeignKey) then
     begin
-      var NewJoin := TQueryBuilderJoin.Create(ForeignKey.ParentTable, ForeignKey.Field, ForeignKey.Field, Join.Table.PrimaryKey);
-      RecursionControl[ForeignKey.ParentTable] := RecursionControl[ForeignKey.ParentTable] + 1;
+      if not RecursionControl.ContainsKey(ForeignKey.ParentTable) then
+        RecursionControl.Add(ForeignKey.ParentTable, 0);
+
+      if RecursionControl[ForeignKey.ParentTable] < FRecursivityLevel then
+      begin
+        var NewJoin := TQueryBuilderJoin.Create(ForeignKey.ParentTable, ForeignKey.Field, ForeignKey.Field, Join.Table.PrimaryKey);
+        RecursionControl[ForeignKey.ParentTable] := RecursionControl[ForeignKey.ParentTable] + 1;
+
+        Join.Links := Join.Links + [NewJoin];
+
+        MakeJoin(NewJoin, TableIndex, RecursionControl, ManyValueAssociationToIgnore);
+
+        RecursionControl[ForeignKey.ParentTable] := RecursionControl[ForeignKey.ParentTable] - 1;
+      end;
+    end;
+
+  for var ManyValueAssociation in Join.Table.ManyValueAssociations do
+    if not Assigned(ManyValueAssociationToIgnore) or (ManyValueAssociation <> ManyValueAssociationToIgnore) then
+    begin
+      var NewJoin := TQueryBuilderJoin.Create(ManyValueAssociation.ChildTable, ManyValueAssociation.Field, Join.Table.PrimaryKey, ManyValueAssociation.ForeignKey.Field);
 
       Join.Links := Join.Links + [NewJoin];
 
-      MakeJoin(NewJoin, TableIndex, RecursionControl);
-
-      RecursionControl[ForeignKey.ParentTable] := RecursionControl[ForeignKey.ParentTable] - 1;
+      MakeJoin(NewJoin, TableIndex, RecursionControl, ManyValueAssociation);
     end;
-  end;
-
-  for var ManyValueAssociation in Join.Table.ManyValueAssociations do
-  begin
-    var NewJoin := TQueryBuilderJoin.Create(ManyValueAssociation.ChildTable, ManyValueAssociation.Field, Join.Table.PrimaryKey, ManyValueAssociation.ChildField);
-
-    Join.Links := Join.Links + [NewJoin];
-
-    RecursionControl.AddOrSetValue(Join.Table, FRecursivityLevel);
-
-    MakeJoin(NewJoin, TableIndex, RecursionControl);
-  end;
 end;
 
 function TQueryBuilderFrom.MakeJoinSQL(Join: TQueryBuilderJoin): String;

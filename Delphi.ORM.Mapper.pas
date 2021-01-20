@@ -9,6 +9,12 @@ type
   TField = class;
   TForeignKey = class;
   TManyValueAssociation = class;
+  TTable = class;
+
+  EManyValueAssociationLinkError = class(Exception)
+  public
+    constructor Create(ParentTable, ChildTable: TTable);
+  end;
 
   TTable = class
   private
@@ -84,14 +90,14 @@ type
   TManyValueAssociation = class
   private
     FChildTable: TTable;
-    FChildField: TField;
     FField: TField;
+    FForeignKey: TForeignKey;
   public
-    constructor Create(Field: TField; ChildTable: TTable; ChildField: TField);
+    constructor Create(Field: TField; ChildTable: TTable; ForeignKey: TForeignKey);
 
+    property ChildTable: TTable read FChildTable;
     property Field: TField read FField write FField;
-    property ChildField: TField read FChildField write FChildField;
-    property ChildTable: TTable read FChildTable write FChildTable;
+    property ForeignKey: TForeignKey read FForeignKey;
   end;
 
   TMapper = class
@@ -108,6 +114,7 @@ type
     function CheckAttribute<T: TCustomAttribute>(TypeInfo: TRttiType): Boolean;
     function GetFieldName(TypeInfo: TRttiInstanceProperty): String;
     function GetNameAttribute<T: TCustomNameAttribute>(TypeInfo: TRttiNamedObject; var Name: String): Boolean;
+    function GetManyValuAssociationLinkName(Field: TField): String;
     function GetPrimaryKey(TypeInfo: TRttiInstanceType): String;
     function GetTableName(TypeInfo: TRttiInstanceType): String;
     function GetTables: TArray<TTable>;
@@ -187,6 +194,12 @@ begin
     if TypeInfo.PropertyType.IsInstance then
       Result := 'Id' + Result;
   end;
+end;
+
+function TMapper.GetManyValuAssociationLinkName(Field: TField): String;
+begin
+  if not GetNameAttribute<ManyValueAssociationLinkNameAttribute>(Field.TypeInfo, Result) then
+    Result := Field.Table.TypeInfo.Name.Substring(1);
 end;
 
 function TMapper.GetNameAttribute<T>(TypeInfo: TRttiNamedObject; var Name: String): Boolean;
@@ -337,10 +350,17 @@ begin
     if Field.IsManyValueAssociation then
     begin
       var ChildTable := LoadTable(Field.TypeInfo.PropertyType.AsArray.ElementType.AsInstance);
+      var LinkName := GetManyValuAssociationLinkName(Field);
+      var ManyValueAssociation: TManyValueAssociation := nil;
 
       for var ForeignKey in ChildTable.ForeignKeys do
-        if ForeignKey.ParentTable = Table then
-          Table.FManyValueAssociations := Table.FManyValueAssociations + [TManyValueAssociation.Create(Field, ChildTable, ForeignKey.Field)];
+        if (ForeignKey.ParentTable = Table) and (ForeignKey.Field.TypeInfo.Name = LinkName) then
+          ManyValueAssociation := TManyValueAssociation.Create(Field, ChildTable, ForeignKey);
+
+      if Assigned(ManyValueAssociation) then
+        Table.FManyValueAssociations := Table.FManyValueAssociations + [ManyValueAssociation]
+      else
+        raise EManyValueAssociationLinkError.Create(Table, ChildTable);
     end;
 end;
 
@@ -387,13 +407,13 @@ end;
 
 { TManyValueAssociation }
 
-constructor TManyValueAssociation.Create(Field: TField; ChildTable: TTable; ChildField: TField);
+constructor TManyValueAssociation.Create(Field: TField; ChildTable: TTable; ForeignKey: TForeignKey);
 begin
   inherited Create;
 
-  FChildField := ChildField;
   FChildTable := ChildTable;
   FField := Field;
+  FForeignKey := ForeignKey;
 end;
 
 { TField }
@@ -466,6 +486,14 @@ begin
     SetValue(Instance, TValue.From(StringToGuid(Value)))
   else
     SetValue(Instance, TValue.FromVariant(Value));
+end;
+
+{ EManyValueAssociationLinkError }
+
+constructor EManyValueAssociationLinkError.Create(ParentTable, ChildTable: TTable);
+begin
+  inherited CreateFmt('The link between %s and %s can''t be maded. Check if it exists, as the same name of the parent table or has the attribute defining the name of the link!',
+    [ParentTable.TypeInfo.Name, ChildTable.TypeInfo.Name]);
 end;
 
 initialization
