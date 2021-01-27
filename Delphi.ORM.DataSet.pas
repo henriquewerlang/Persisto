@@ -603,9 +603,9 @@ begin
   if FieldCount = 0 then
     CreateFields;
 
-  BindFields(True);
-
   LoadPropertiesFromFields;
+
+  BindFields(True);
 
   LoadObjectListFromParentDataSet;
 end;
@@ -657,10 +657,15 @@ begin
 end;
 
 procedure TORMDataSet.LoadDetailInfo;
+var
+  Properties: TArray<TRttiProperty>;
+
 begin
   if Assigned(ParentDataSet) then
   begin
-    FDataSetFieldProperty := ParentDataSet.ObjectType.GetProperty(DataSetField.FieldName);
+    Properties := ParentDataSet.FPropertyMappingList[Pred(DataSetField.FieldNo)];
+
+    FDataSetFieldProperty := Properties[High(Properties)];
     ObjectType := (FDataSetFieldProperty.PropertyType as TRttiDynamicArrayType).ElementType as TRttiInstanceType;
   end;
 end;
@@ -691,15 +696,22 @@ var
 
   Value: TValue;
 
+  &Property: TRttiProperty;
+
 begin
   if Assigned(ParentDataSet) and not ParentDataSet.IsEmpty then
   begin
-    Value := FDataSetFieldProperty.GetValue(ParentDataSet.GetCurrentObject<TObject>);
+    Value := TValue.From(ParentDataSet.GetCurrentObject<TObject>);
 
-    SetLength(FObjectList, Value.GetArrayLength);
+    if ParentDataSet.GetPropertyAndObjectFromField(DataSetField, Value, &Property) then
+    begin
+      Value := &Property.GetValue(Value.AsObject);
 
-    for A := 0 to Pred(Value.GetArrayLength) do
-      FObjectList[A] := Value.GetArrayElement(A).AsObject;
+      SetLength(FObjectList, Value.GetArrayLength);
+
+      for A := 0 to Pred(Value.GetArrayLength) do
+        FObjectList[A] := Value.GetArrayElement(A).AsObject;
+    end;
   end;
 end;
 
@@ -724,11 +736,11 @@ begin
 
   for A := 0 to Pred(Fields.Count) do
   begin
-    Field := Fields[A];
     CurrentObjectType := ObjectType;
-    PropertyName := EmptyStr;
+    Field := Fields[A];
     &Property := nil;
     PropertyList := nil;
+    PropertyName := EmptyStr;
 
     for PropertyName in Field.FieldName.Split(['.']) do
     begin

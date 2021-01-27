@@ -165,6 +165,10 @@ type
     procedure WhenTheRecordBufferIsBiggerThenOneMustLoadTheBufferOfTheDataSetAsExpected;
     [Test]
     procedure WhenOpenADataSetWithDetailMustLoadTheRecordsOfTheDetail;
+    [Test]
+    procedure WhenTheDetailDataSetHasAComposeNameMustLoadTheObjectTypeCorrectly;
+    [Test]
+    procedure WhenTheDetailDataSetHasAComposeNameMustLoadTheDataCorrecty;
   end;
 
   TAnotherObject = class
@@ -249,6 +253,13 @@ type
     property WideString: WideString read FWideString write FWideString;
     property Word: Word read FWord write FWord;
     property MyArray: TArray<TMyTestClassTypes> read FMyArray write FMyArray;
+  end;
+
+  TParentClass = class
+  private
+    FMyClass: TMyTestClassTypes;
+  published
+    property MyClass: TMyTestClassTypes read FMyClass write FMyClass;
   end;
 
 implementation
@@ -538,6 +549,65 @@ begin
     begin
       DataSet.FieldByName('AnotherObject.AnotherName').AsString
     end);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenTheDetailDataSetHasAComposeNameMustLoadTheDataCorrecty;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+  var Field := TDataSetField.Create(nil);
+  var MyClass: TArray<TParentClass> := [TParentClass.Create, TParentClass.Create];
+  MyClass[0].MyClass := TMyTestClassTypes.Create;
+  MyClass[0].MyClass.MyArray := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+
+  DataSet.ObjectClassName := 'TParentClass';
+
+  Field.FieldName := 'MyClass.MyArray';
+
+  Field.SetParentComponent(DataSet);
+
+  DataSetDetail.DataSetField := Field;
+
+  DataSet.OpenArray<TParentClass>(MyClass);
+
+  Assert.AreEqual(2, DataSetDetail.RecordCount);
+
+  MyClass[0].MyClass.MyArray[0].Free;
+
+  MyClass[0].MyClass.MyArray[1].Free;
+
+  MyClass[0].MyClass.Free;
+
+  MyClass[1].Free;
+
+  MyClass[0].Free;
+
+  DataSetDetail.Free;
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenTheDetailDataSetHasAComposeNameMustLoadTheObjectTypeCorrectly;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+  var Field := TDataSetField.Create(nil);
+
+  DataSet.ObjectClassName := 'TParentClass';
+
+  Field.FieldName := 'MyClass.MyArray';
+
+  Field.SetParentComponent(DataSet);
+
+  DataSetDetail.DataSetField := Field;
+
+  DataSet.Open;
+
+  Assert.AreEqual('TMyTestClassTypes', DataSetDetail.ObjectType.Name);
+
+  DataSetDetail.Free;
 
   DataSet.Free;
 end;
