@@ -191,6 +191,7 @@ type
     procedure WhenLeftOperationIsASimpleComparisonAndRightIsALogicalOperationItHasToGenerateSQLAsExpected;
     [Test]
     procedure WhenBothOperationsAreLogicalHaveToGenerateSQLAsExpected;
+    [TestCase('Between', 'qbcoBetween')]
     [TestCase('None', 'qbcoNone')]
     [TestCase('Equal', 'qbcoEqual')]
     [TestCase('Not Equal', 'qbcoNotEqual')]
@@ -1093,7 +1094,7 @@ begin
       qbcoGreaterThanOrEqual: Comparison := Field >= Value;
       qbcoLessThan: Comparison := Field < Value;
       qbcoLessThanOrEqual: Comparison := Field <= Value;
-      qbcoNone, qbcoNull, qbcoNotNull:
+      qbcoNone, qbcoNull, qbcoNotNull, qbcoBetween:
       begin
         Field.Value.Free;
 
@@ -1128,7 +1129,7 @@ begin
       qbcoGreaterThanOrEqual: Comparison := Field >= Value;
       qbcoLessThan: Comparison := Field < Value;
       qbcoLessThanOrEqual: Comparison := Field <= Value;
-      qbcoNone, qbcoNull, qbcoNotNull:
+      qbcoNone, qbcoNull, qbcoNotNull, qbcoBetween:
       begin
         Field.Value.Free;
 
@@ -1459,7 +1460,7 @@ end;
 
 procedure TQueryBuilderWhereTest.TheComparisonOperatorsMustBeGeneratedAsExpected(Operation: TQueryBuilderComparisonOperator);
 const
-  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '');
+  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '');
 
 begin
   var Comparison: TQueryBuilderComparisonRecord;
@@ -1467,6 +1468,11 @@ begin
   var ValueString := String('1');
 
   case Operation of
+    qbcoBetween:
+    begin
+      Comparison := Field.Between('abc', 'efd');
+      ValueString := ' between ''abc'' and ''efd''';
+    end;
     qbcoEqual: Comparison := Field = 1;
     qbcoGreaterThan: Comparison := Field > 1;
     qbcoGreaterThanOrEqual: Comparison := Field >= 1;
@@ -1479,15 +1485,15 @@ begin
       Assert.IsTrue(True);
     end;
     qbcoNotEqual: Comparison := Field <> 1;
-    qbcoNull:
-    begin
-      Comparison := Field = NULL;
-      ValueString := ' is null';
-    end;
     qbcoNotNull:
     begin
       Comparison := Field <> NULL;
       ValueString := ' is not null';
+    end;
+    qbcoNull:
+    begin
+      Comparison := Field = NULL;
+      ValueString := ' is null';
     end;
     else raise Exception.Create('Test not implemented');
   end;
