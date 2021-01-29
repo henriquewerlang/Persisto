@@ -9,6 +9,7 @@ type
   TField = class;
   TForeignKey = class;
   TManyValueAssociation = class;
+  TMapper = class;
   TTable = class;
 
   EManyValueAssociationLinkError = class(Exception)
@@ -24,15 +25,17 @@ type
     FTypeInfo: TRttiInstanceType;
     FDatabaseName: String;
     FManyValueAssociations: TArray<TManyValueAssociation>;
+    FMapper: TMapper;
   public
     constructor Create(TypeInfo: TRttiInstanceType);
 
     destructor Destroy; override;
 
-    property DatabaseName: String read FDatabaseName write FDatabaseName;
+    property DatabaseName: String read FDatabaseName;
     property Fields: TArray<TField> read FFields;
     property ForeignKeys: TArray<TForeignKey> read FForeignKeys;
     property ManyValueAssociations: TArray<TManyValueAssociation> read FManyValueAssociations write FManyValueAssociations;
+    property Mapper: TMapper read FMapper;
     property PrimaryKey: TField read FPrimaryKey;
     property TypeInfo: TRttiInstanceType read FTypeInfo;
   end;
@@ -50,7 +53,9 @@ type
     function GetIsJoinLink: Boolean;
   public
     function GetValue(Instance: TObject): TValue;
-    function GetAsString(Instance: TObject): String;
+    function GetAsString(Instance: TObject): String; overload;
+    function GetAsString(const Value: TValue): String; overload;
+    function GetAsString(const Value: TValue; const FormatSettings: TFormatSettings): String; overload;
 
     procedure SetValue(Instance: TObject; const Value: TValue); overload;
     procedure SetValue(Instance: TObject; const Value: Variant); overload;
@@ -268,7 +273,8 @@ begin
   if not Assigned(Result) and (TypeInfo.GetAttribute<SingleTableInheritanceAttribute> = nil) then
   begin
     Result := TTable.Create(TypeInfo);
-    Result.DatabaseName := GetTableName(TypeInfo);
+    Result.FDatabaseName := GetTableName(TypeInfo);
+    Result.FMapper := Self;
 
     FTables.Add(TypeInfo, Result);
 
@@ -420,9 +426,12 @@ end;
 
 function TField.GetAsString(Instance: TObject): String;
 begin
-  var Value := GetValue(Instance);
+  Result := GetAsString(GetValue(Instance), GDateTimeFormat);
+end;
 
-  case TypeInfo.PropertyType.TypeKind of
+function TField.GetAsString(const Value: TValue; const FormatSettings: TFormatSettings): String;
+begin
+  case Value.Kind of
     tkChar,
     tkLString,
     tkUString,
@@ -447,18 +456,26 @@ begin
     tkInteger: Result := IntToStr(Value.AsInteger);
 
     tkRecord: Result := QuotedStr(Value.AsType<TGUID>.ToString);
+
     tkInt64: Result := IntToStr(Value.AsInt64);
 
     tkClass:
-      if Value.IsEmpty then
-        Result := 'null'
+    begin
+      var Obj := Value.AsObject;
+
+      if Assigned(Obj) then
+        Result := Table.Mapper.FindTable(Obj.ClassType).PrimaryKey.GetAsString(Value.AsObject)
       else
-        for var ForeignKey in Table.ForeignKeys do
-          if ForeignKey.Field = Self then
-            Exit(ForeignKey.ParentTable.PrimaryKey.GetAsString(Value.AsObject));
+        Result := 'null';
+    end;
 
     else raise Exception.Create('Type not mapped!');
   end;
+end;
+
+function TField.GetAsString(const Value: TValue): String;
+begin
+  Result := GetAsString(Value, GDateTimeFormat);
 end;
 
 function TField.GetIsJoinLink: Boolean;

@@ -307,7 +307,7 @@ begin
 
   Assert.AreEqual(555, MyClass.ForeignKey3.Id);
   Assert.AreEqual('My Field', MyClass.ForeignKey3.Field1);
-  Assert.AreEqual(222.333, MyClass.ForeignKey3.Field2);
+  Assert.AreEqual<Double>(222.333, MyClass.ForeignKey3.Field2);
 
   MyClass.ForeignKey3.Free;
 

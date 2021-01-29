@@ -104,57 +104,53 @@ type
   end;
 
   [TestFixture]
-  TDelphiORMQueryBuilderConditionTest = class
+  TQueryBuilderComparisonTest = class
   public
     [SetupFixture]
     procedure Setup;
-    [TestCase('Equal.String', 'qboEqual')]
-    [TestCase('Not Equal.String', 'qboNotEqual')]
-    [TestCase('Greater Than.String', 'qboGreaterThan')]
-    [TestCase('Greater Than Or Equal.String', 'qboGreaterThanOrEqual')]
-    [TestCase('Less Than.String', 'qboLessThan')]
-    [TestCase('Less Than Or Equal.String', 'qboLessThanOrEqual')]
-    procedure WhenCompareTheFieldWithAValueMustBuildTheConditionStringAsExpected(Operation: TQueryBuilderOperator);
-    [TestCase('Equal.Integer', 'qboEqual')]
-    [TestCase('Not Equal.Integer', 'qboNotEqual')]
-    [TestCase('Greater Than.Integer', 'qboGreaterThan')]
-    [TestCase('Greater Than Or Equal.Integer', 'qboGreaterThanOrEqual')]
-    [TestCase('Less Than.Integer', 'qboLessThan')]
-    [TestCase('Less Than Or Equal.Integer', 'qboLessThanOrEqual')]
-    procedure WhenCompareTheFieldWithAValueMustBuildTheConditionIntegerAsExpected(Operation: TQueryBuilderOperator);
-    [TestCase('Equal.Float', 'qboEqual')]
-    [TestCase('Not Equal.Float', 'qboNotEqual')]
-    [TestCase('Greater Than.Float', 'qboGreaterThan')]
-    [TestCase('Greater Than Or Equal.Float', 'qboGreaterThanOrEqual')]
-    [TestCase('Less Than.Float', 'qboLessThan')]
-    [TestCase('Less Than Or Equal.Float', 'qboLessThanOrEqual')]
-    procedure WhenCompareTheFieldWithAValueMustBuildTheConditionFloatAsExpected(Operation: TQueryBuilderOperator);
-    [TestCase('Equal.Condition', 'qboEqual')]
-    [TestCase('Not Equal.Condition', 'qboNotEqual')]
-    [TestCase('Greater Than.Condition', 'qboGreaterThan')]
-    [TestCase('Greater Than Or Equal.Condition', 'qboGreaterThanOrEqual')]
-    [TestCase('Less Than.Condition', 'qboLessThan')]
-    [TestCase('Less Than Or Equal.Condition', 'qboLessThanOrEqual')]
-    procedure WhenCompareTheFieldWithAnotherConditionMustBuildTheConditionAsExpected(Operation: TQueryBuilderOperator);
     [Test]
-    procedure WhenUseTheAndOperatorMustBuildTheExpressionAsExpected;
+    procedure WhenCallTheFieldFuncitionMustLoadTheFieldNameInTheLeftOperator;
     [Test]
-    procedure WhenUseTheOrOperatorMustBuildTheExpressionAsExpected;
+    procedure WhenCompareTheFieldWithAStringValueMustLoadTheComparisonAsExpected;
     [Test]
-    procedure NullComparingMustBuildTheExpressionAsExpected;
+    procedure WhenCompareTheFieldWithAnIntegerValueMustLoadTheComparisonAsExpected;
     [Test]
-    procedure NotNullComparingMustBuildTheExpressionAsExpected;
+    procedure WhenToUseTheOperatorAndHaveToGenerateALogicalOperationWithFilledComparisons;
     [Test]
-    procedure WhenTheComparisonIsWithAVariantVariableAndIsNotNullMustBuildWithTheValueOfVariable;
+    procedure WhenToUseTheOperatorAndHaveToGenerateALogicalOperationWithOperationAndFilled;
     [Test]
-    procedure TheNotEqualComparisonWithAVariantVariableMustBuildWithTheValueOfVariable;
+    procedure WhenToUseTheOperatorOrHaveToGenerateALogicalOperationWithFilledComparisons;
     [Test]
-    procedure WhenComparingEqualityWithTValueMustBuildTheConditionAsExpected;
+    procedure WhenToUseTheOperatorOrHaveToGenerateALogicalOperationWithOperationOrFilled;
+  end;
+
+  [TestFixture]
+  TQueryBuilderLogicalOperationTest = class
+  public
     [Test]
-    procedure WhenComparingNotEqualWithTValueMustBuildTheConditionAsExpected;
-    [TestCase('Equal.Condition', 'qboEqual')]
-    [TestCase('Not Equal.Condition', 'qboNotEqual')]
-    procedure WhenCompareTheFieldWithAnObjectMustCompareThePrimaryKeyAsExpected(Operation: TQueryBuilderOperator);
+    procedure WhenTheAndOperatorIsCalledMustLoadTheLeftFieldWithTheLeftValueComparisonAndTheRightFieldWithTheRightValueComparision;
+    [Test]
+    procedure WhenTheOrOperatorIsCalledMustLoadTheLeftFieldWithTheLeftValueComparisonAndTheRightFieldWithTheRightValueComparision;
+    [Test]
+    procedure WhenAndOperatorMustLoadTheOperationWithTheAndValue;
+    [Test]
+    procedure WhenOrOperatorMustLoadTheOperationWithTheOrValue;
+    [Test]
+    procedure WhenForASimpleComparisonYouHaveToAssembleTheLogicalOperatorWithComparisonTypeValuesInOperationAnd;
+    [Test]
+    procedure WhenForASimpleComparisonYouHaveToAssembleTheLogicalOperatorWithComparisonTypeValuesInOperationOr;
+    [Test]
+    procedure WhenOperationLeftIsAComparisonAndRightIsALogicalOperationHaveToAssembleANewLogicalOperatorWithTheLeftWithTheValueOfComparisonAndRightWithTheLogicalOperationInTheAndOperation;
+    [Test]
+    procedure WhenOperationLeftIsAComparisonAndRightIsALogicalOperationHaveToAssembleANewLogicalOperatorWithTheLeftWithTheValueOfComparisonAndRightWithTheLogicalOperationInTheOrOperation;
+    [Test]
+    procedure WhenOperationLeftIsALogicalAndRightIsAComparisonOperationHaveToAssembleANewLogicalOperatorWithTheLeftWithTheLogicalOperationAndRightWithTheValueOfComparisonInTheAndOperation;
+    [Test]
+    procedure WhenOperationLeftIsALogicalAndRightIsAComparisonOperationHaveToAssembleANewLogicalOperatorWithTheLeftWithTheLogicalOperationAndRightWithTheValueOfComparisonInTheOrOperation;
+    [Test]
+    procedure WhenBothOperatorAreLogicalMustCreateANewLogicalOperationWithBothValuesInAndOperator;
+    [Test]
+    procedure WhenBothOperatorAreLogicalMustCreateANewLogicalOperationWithBothValuesInOrOperator;
   end;
 
   [TestFixture]
@@ -178,6 +174,60 @@ type
     procedure WhenThePropertyIsAnArrayCantLoadTheFieldInTheList;
   end;
 
+  [TestFixture]
+  TQueryBuilderWhereTest = class
+  public
+    [SetupFixture]
+    procedure Setup;
+    [Test]
+    procedure WhenCompareAFieldWithAnValueMustBuildTheFilterAsExpected;
+    [Test]
+    procedure ASimpleLogicalAndOperationMustBeGeneratedAsExpected;
+    [Test]
+    procedure ASimpleLogicalOrOperationMustBeGeneratedAsExpected;
+    [Test]
+    procedure AComposeLogicalOperationMustBeGeneratedAsExpected;
+    [Test]
+    procedure WhenLeftOperationIsASimpleComparisonAndRightIsALogicalOperationItHasToGenerateSQLAsExpected;
+    [Test]
+    procedure WhenBothOperationsAreLogicalHaveToGenerateSQLAsExpected;
+    [TestCase('None', 'qbcoNone')]
+    [TestCase('Equal', 'qbcoEqual')]
+    [TestCase('Not Equal', 'qbcoNotEqual')]
+    [TestCase('Greater Than', 'qbcoGreaterThan')]
+    [TestCase('Greater Than Or Equal', 'qbcoGreaterThanOrEqual')]
+    [TestCase('Less Than', 'qbcoLessThan')]
+    [TestCase('Less Than Or Equal', 'qbcoLessThanOrEqual')]
+    [TestCase('Null', 'qbcoNull')]
+    [TestCase('Not Null', 'qbcoNotNull')]
+    procedure TheComparisonOperatorsMustBeGeneratedAsExpected(Operation: TQueryBuilderComparisonOperator);
+    [Test]
+    procedure IfTheWhereDontFoundTheFieldMustRaiseAnError;
+    [Test]
+    procedure WhenExistsAJoinLoadedMustPutTheAliasOfTheTableBeforeTheFieldName;
+    [Test]
+    procedure WhenUsingAComposeNameMustPutTheAliasOfTheTableBeforeTheFieldName;
+    [Test]
+    procedure WhenUsingComposeFieldNameInAOperationWithoutFromMustRaiseAnError;
+    [TestCase('AnsiChar', 'AnsiChar,''C''')]
+    [TestCase('AnsiString', 'AnsiString,''AnsiString''')]
+    [TestCase('Char', 'Char,''C''')]
+    [TestCase('Class', 'Class,1234')]
+    [TestCase('Enumerator', 'Enumerator,1')]
+    [TestCase('Empty class', 'EmptyClass,null')]
+    [TestCase('Float', 'Float,1234.456')]
+    [TestCase('Date', 'Date,''2020-01-31''')]
+    [TestCase('DateTime', 'DateTime,''2020-01-31 12:34:56''')]
+    [TestCase('GUID', 'GUID,''{BD2BBA84-C691-4C5E-ABD3-4F32937C53F8}''')]
+    [TestCase('Integer', 'Integer,1234')]
+    [TestCase('Int64', 'Int64,1234')]
+    [TestCase('String', 'String,''String''')]
+    [TestCase('Time', 'Time,''12:34:56''')]
+    procedure TheComparisonOfTheValuesMustOccurAsExpected(TypeToConvert, ValueToCompare: String);
+    [Test]
+    procedure TheLasNameInTheComposeNameMustBeTheFieldToBeFoundInAClass;
+  end;
+
   TDatabaseTest = class(TInterfacedObject, IDatabaseConnection)
   private
     FCursor: IDatabaseCursor;
@@ -199,7 +249,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.Variants, Delphi.ORM.Mapper, Delphi.ORM.Cursor.Mock;
+uses System.SysUtils, System.Variants, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Cursor.Mock;
 
 { TDelphiORMQueryBuilderTest }
 
@@ -478,9 +528,9 @@ begin
   var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
 
-  Query.Select.All.From<TMyTestClass>.Where(Field('MyField') = 1234).Open;
+  Query.Select.All.From<TMyTestClass>.Where(Field('Field') = 1234).Open;
 
-  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1 where MyField=1234', Database.SQL);
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1 where T1.Field=1234', Database.SQL);
 
   Query.Free;
 end;
@@ -699,7 +749,7 @@ begin
 
   Assert.AreEqual('My name', Result.Name);
 
-  Assert.AreEqual(123.456, Result.Value);
+  Assert.AreEqual<Double>(123.456, Result.Value);
 
   Result.Free;
 
@@ -867,149 +917,6 @@ begin
   Result := FCursor;
 end;
 
-{ TDelphiORMQueryBuilderConditionTest }
-
-procedure TDelphiORMQueryBuilderConditionTest.NotNullComparingMustBuildTheExpressionAsExpected;
-begin
-  var Condition := Field('MyField') <> NULL;
-
-  Assert.AreEqual('MyField is not null', Condition.Condition);
-end;
-
-procedure TDelphiORMQueryBuilderConditionTest.NullComparingMustBuildTheExpressionAsExpected;
-begin
-  var Condition := Field('MyField') = NULL;
-
-  Assert.AreEqual('MyField is null', Condition.Condition);
-end;
-
-procedure TDelphiORMQueryBuilderConditionTest.Setup;
-begin
-  TMapper.Default.LoadAll;
-end;
-
-procedure TDelphiORMQueryBuilderConditionTest.TheNotEqualComparisonWithAVariantVariableMustBuildWithTheValueOfVariable;
-begin
-  var Condition := Field('MyField') <> Variant(123);
-
-  Assert.AreEqual('MyField<>123', Condition.Condition);
-end;
-
-procedure TDelphiORMQueryBuilderConditionTest.WhenCompareTheFieldWithAnObjectMustCompareThePrimaryKeyAsExpected(Operation: TQueryBuilderOperator);
-begin
-  var Condition: TQueryBuilderCondition;
-  var MyClass := TClassWithPrimaryKey.Create;
-  MyClass.Id := 1234;
-
-  case Operation of
-    qboEqual: Condition := Field('MyField') = MyClass;
-    qboNotEqual: Condition := Field('MyField') <> MyClass;
-  end;
-
-  Assert.AreEqual(Format('MyField%s1234', [OPERATOR_CHAR[Operation]]), Condition.Condition);
-
-  MyClass.Free;
-end;
-
-procedure TDelphiORMQueryBuilderConditionTest.WhenCompareTheFieldWithAnotherConditionMustBuildTheConditionAsExpected(Operation: TQueryBuilderOperator);
-begin
-  var Condition: TQueryBuilderCondition;
-
-  case Operation of
-    qboEqual: Condition := Field('MyField') = Field('AnotherField');
-    qboNotEqual: Condition := Field('MyField') <> Field('AnotherField');
-    qboGreaterThan: Condition := Field('MyField') > Field('AnotherField');
-    qboGreaterThanOrEqual: Condition := Field('MyField') >= Field('AnotherField');
-    qboLessThan: Condition := Field('MyField') < Field('AnotherField');
-    qboLessThanOrEqual: Condition := Field('MyField') <= Field('AnotherField');
-  end;
-
-  Assert.AreEqual(Format('MyField%sAnotherField', [OPERATOR_CHAR[Operation]]), Condition.Condition);
-end;
-
-procedure TDelphiORMQueryBuilderConditionTest.WhenCompareTheFieldWithAValueMustBuildTheConditionFloatAsExpected(Operation: TQueryBuilderOperator);
-begin
-  var Condition: TQueryBuilderCondition;
-
-  case Operation of
-    qboEqual: Condition := Field('MyField') = 123.456;
-    qboNotEqual: Condition := Field('MyField') <> 123.456;
-    qboGreaterThan: Condition := Field('MyField') > 123.456;
-    qboGreaterThanOrEqual: Condition := Field('MyField') >= 123.456;
-    qboLessThan: Condition := Field('MyField') < 123.456;
-    qboLessThanOrEqual: Condition := Field('MyField') <= 123.456;
-  end;
-
-  Assert.AreEqual(Format('MyField%s123.456', [OPERATOR_CHAR[Operation]]), Condition.Condition);
-end;
-
-procedure TDelphiORMQueryBuilderConditionTest.WhenCompareTheFieldWithAValueMustBuildTheConditionIntegerAsExpected(Operation: TQueryBuilderOperator);
-begin
-  var Condition: TQueryBuilderCondition;
-
-  case Operation of
-    qboEqual: Condition := Field('MyField') = 123;
-    qboNotEqual: Condition := Field('MyField') <> 123;
-    qboGreaterThan: Condition := Field('MyField') > 123;
-    qboGreaterThanOrEqual: Condition := Field('MyField') >= 123;
-    qboLessThan: Condition := Field('MyField') < 123;
-    qboLessThanOrEqual: Condition := Field('MyField') <= 123;
-  end;
-
-  Assert.AreEqual(Format('MyField%s123', [OPERATOR_CHAR[Operation]]), Condition.Condition);
-end;
-
-procedure TDelphiORMQueryBuilderConditionTest.WhenCompareTheFieldWithAValueMustBuildTheConditionStringAsExpected(Operation: TQueryBuilderOperator);
-begin
-  var Condition: TQueryBuilderCondition;
-
-  case Operation of
-    qboEqual: Condition := Field('MyField') = 'abc';
-    qboNotEqual: Condition := Field('MyField') <> 'abc';
-    qboGreaterThan: Condition := Field('MyField') > 'abc';
-    qboGreaterThanOrEqual: Condition := Field('MyField') >= 'abc';
-    qboLessThan: Condition := Field('MyField') < 'abc';
-    qboLessThanOrEqual: Condition := Field('MyField') <= 'abc';
-  end;
-
-  Assert.AreEqual(Format('MyField%s''abc''', [OPERATOR_CHAR[Operation]]), Condition.Condition);
-end;
-
-procedure TDelphiORMQueryBuilderConditionTest.WhenComparingEqualityWithTValueMustBuildTheConditionAsExpected;
-begin
-  var Condition := Field('MyField') = TValue.From(123.456);
-
-  Assert.AreEqual('MyField=' + TValue.From(123.456).ToString, Condition.Condition);
-end;
-
-procedure TDelphiORMQueryBuilderConditionTest.WhenComparingNotEqualWithTValueMustBuildTheConditionAsExpected;
-begin
-  var Condition := Field('MyField') <> TValue.From(123.456);
-
-  Assert.AreEqual('MyField<>' + TValue.From(123.456).ToString, Condition.Condition);
-end;
-
-procedure TDelphiORMQueryBuilderConditionTest.WhenTheComparisonIsWithAVariantVariableAndIsNotNullMustBuildWithTheValueOfVariable;
-begin
-  var Condition := Field('MyField') = Variant(123);
-
-  Assert.AreEqual('MyField=123', Condition.Condition);
-end;
-
-procedure TDelphiORMQueryBuilderConditionTest.WhenUseTheAndOperatorMustBuildTheExpressionAsExpected;
-begin
-  var Condition := (Field('abc') = 123) and (Field('abc') = 123);
-
-  Assert.AreEqual('abc=123 and abc=123', Condition.Condition);
-end;
-
-procedure TDelphiORMQueryBuilderConditionTest.WhenUseTheOrOperatorMustBuildTheExpressionAsExpected;
-begin
-  var Condition := (Field('abc') = 123) or (Field('abc') = 123);
-
-  Assert.AreEqual('(abc=123 or abc=123)', Condition.Condition);
-end;
-
 { TQueryBuilderAllFieldsTest }
 
 procedure TQueryBuilderAllFieldsTest.FieldsOfAnObjectCantBeLoadedInTheListOfFields;
@@ -1153,6 +1060,519 @@ begin
   Assert.AreEqual('select T1.Id F1,T2.Id F2,T2.Value F3 from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', Database.SQL);
 
   Query.Free;
+end;
+
+{ TQueryBuilderComparisonTest }
+
+procedure TQueryBuilderComparisonTest.Setup;
+begin
+  TMapper.Default.LoadAll;
+end;
+
+procedure TQueryBuilderComparisonTest.WhenCallTheFieldFuncitionMustLoadTheFieldNameInTheLeftOperator;
+begin
+  var Comparison := Field('MyField');
+
+  Assert.AreEqual('MyField', Comparison.Value.Comparison.Left.FieldNames[0]);
+
+  Comparison.Value.Free;
+end;
+
+procedure TQueryBuilderComparisonTest.WhenCompareTheFieldWithAnIntegerValueMustLoadTheComparisonAsExpected;
+begin
+  var Value := 1234;
+
+  for var Operation := Low(TQueryBuilderComparisonOperator) to High(TQueryBuilderComparisonOperator) do
+  begin
+    var Comparison: TQueryBuilderComparisonRecord;
+    var Field := Field('MyField');
+
+    case Operation of
+      qbcoEqual: Comparison := Field = Value;
+      qbcoGreaterThan: Comparison := Field > Value;
+      qbcoGreaterThanOrEqual: Comparison := Field >= Value;
+      qbcoLessThan: Comparison := Field < Value;
+      qbcoLessThanOrEqual: Comparison := Field <= Value;
+      qbcoNone, qbcoNull, qbcoNotNull:
+      begin
+        Field.Value.Free;
+
+        Continue;
+      end;
+      qbcoNotEqual: Comparison := Field <> Value;
+      else raise Exception.Create('Not implemented');
+    end;
+
+    var Left := Comparison.Value.Comparison;
+
+    Assert.AreEqual('MyField', Left.Left.FieldNames[0]);
+    Assert.AreEqual(Operation, Left.Operation);
+    Assert.AreEqual(Value, Left.Right.Value.AsInteger);
+
+    Comparison.Value.Free;
+  end;
+end;
+
+procedure TQueryBuilderComparisonTest.WhenCompareTheFieldWithAStringValueMustLoadTheComparisonAsExpected;
+begin
+  var Comparison: TQueryBuilderComparisonRecord;
+  var Value := 'abc';
+
+  for var Operation := Low(TQueryBuilderComparisonOperator) to High(TQueryBuilderComparisonOperator) do
+  begin
+    var Field := Field('MyField');
+
+    case Operation of
+      qbcoEqual: Comparison := Field = Value;
+      qbcoGreaterThan: Comparison := Field > Value;
+      qbcoGreaterThanOrEqual: Comparison := Field >= Value;
+      qbcoLessThan: Comparison := Field < Value;
+      qbcoLessThanOrEqual: Comparison := Field <= Value;
+      qbcoNone, qbcoNull, qbcoNotNull:
+      begin
+        Field.Value.Free;
+
+        Continue;
+      end;
+      qbcoNotEqual: Comparison := Field <> Value;
+      else raise Exception.Create('Not implemented');
+    end;
+
+    var Left := Comparison.Value.Comparison;
+
+    Assert.AreEqual('MyField', Left.Left.FieldNames[0]);
+    Assert.AreEqual(Operation, Left.Operation);
+    Assert.AreEqual(Value, Left.Right.Value.AsString);
+
+    Comparison.Value.Free;
+  end;
+end;
+
+procedure TQueryBuilderComparisonTest.WhenToUseTheOperatorAndHaveToGenerateALogicalOperationWithFilledComparisons;
+begin
+  var Comparison := (Field('F1') = 'abc') and (Field('F2') = 'abc');
+
+  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F2', Comparison.Value.Logical.Right.Comparison.Left.FieldNames[0]);
+
+  Comparison.Value.Free;
+end;
+
+procedure TQueryBuilderComparisonTest.WhenToUseTheOperatorAndHaveToGenerateALogicalOperationWithOperationAndFilled;
+begin
+  var Comparison := (Field('F1') = 'abc') and (Field('F2') = 'abc');
+
+  Assert.AreEqual(qloAnd, Comparison.Value.Logical.Operation);
+
+  Comparison.Value.Free;
+end;
+
+procedure TQueryBuilderComparisonTest.WhenToUseTheOperatorOrHaveToGenerateALogicalOperationWithFilledComparisons;
+begin
+  var Comparison := (Field('F1') = 'abc') or (Field('F2') = 'abc');
+
+  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F2', Comparison.Value.Logical.Right.Comparison.Left.FieldNames[0]);
+
+  Comparison.Value.Free;
+end;
+
+procedure TQueryBuilderComparisonTest.WhenToUseTheOperatorOrHaveToGenerateALogicalOperationWithOperationOrFilled;
+begin
+  var Comparison := (Field('F1') = 'abc') or (Field('F2') = 'abc');
+
+  Assert.AreEqual(qloOr, Comparison.Value.Logical.Operation);
+
+  Comparison.Value.Free;
+end;
+
+{ TQueryBuilderLogicalOperationTest }
+
+procedure TQueryBuilderLogicalOperationTest.WhenAndOperatorMustLoadTheOperationWithTheAndValue;
+begin
+  var Comparison := (Field('MyField') = 'abc') and (Field('MyField2') = 'abc');
+
+  Assert.AreEqual(qloAnd, Comparison.Value.Logical.Operation);
+
+  Comparison.Value.Free;
+end;
+
+procedure TQueryBuilderLogicalOperationTest.WhenBothOperatorAreLogicalMustCreateANewLogicalOperationWithBothValuesInAndOperator;
+begin
+  var Comparison := ((Field('F1') = 1) and (Field('F2') = 2)) and ((Field('F3') = 3) and (Field('F4') = 4));
+
+  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Logical.Left.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F2', Comparison.Value.Logical.Left.Logical.Right.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F3', Comparison.Value.Logical.Right.Logical.Left.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F4', Comparison.Value.Logical.Right.Logical.Right.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual(qloAnd, Comparison.Value.Logical.Operation);
+
+  Comparison.Value.Free;
+end;
+
+procedure TQueryBuilderLogicalOperationTest.WhenBothOperatorAreLogicalMustCreateANewLogicalOperationWithBothValuesInOrOperator;
+begin
+  var Comparison := ((Field('F1') = 1) or (Field('F2') = 2)) or ((Field('F3') = 3) or (Field('F4') = 4));
+
+  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Logical.Left.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F2', Comparison.Value.Logical.Left.Logical.Right.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F3', Comparison.Value.Logical.Right.Logical.Left.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F4', Comparison.Value.Logical.Right.Logical.Right.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual(qloOr, Comparison.Value.Logical.Operation);
+
+  Comparison.Value.Free;
+end;
+
+procedure TQueryBuilderLogicalOperationTest.WhenForASimpleComparisonYouHaveToAssembleTheLogicalOperatorWithComparisonTypeValuesInOperationAnd;
+begin
+  var Comparison := (Field('F1') = 1) and (Field('F2') = 2);
+
+  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F2', Comparison.Value.Logical.Right.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual(qloAnd, Comparison.Value.Logical.Operation);
+
+  Comparison.Value.Free;
+end;
+
+procedure TQueryBuilderLogicalOperationTest.WhenForASimpleComparisonYouHaveToAssembleTheLogicalOperatorWithComparisonTypeValuesInOperationOr;
+begin
+  var Comparison := (Field('F1') = 1) or (Field('F2') = 2);
+
+  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F2', Comparison.Value.Logical.Right.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual(qloOr, Comparison.Value.Logical.Operation);
+
+  Comparison.Value.Free;
+end;
+
+procedure TQueryBuilderLogicalOperationTest.WhenOperationLeftIsAComparisonAndRightIsALogicalOperationHaveToAssembleANewLogicalOperatorWithTheLeftWithTheValueOfComparisonAndRightWithTheLogicalOperationInTheAndOperation;
+begin
+  var Comparison := (Field('F1') = 1) and ((Field('F2') = 2) and (Field('F3') = 3));
+
+  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F2', Comparison.Value.Logical.Right.Logical.Left.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F3', Comparison.Value.Logical.Right.Logical.Right.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual(qloAnd, Comparison.Value.Logical.Operation);
+
+  Comparison.Value.Free;
+end;
+
+procedure TQueryBuilderLogicalOperationTest.WhenOperationLeftIsAComparisonAndRightIsALogicalOperationHaveToAssembleANewLogicalOperatorWithTheLeftWithTheValueOfComparisonAndRightWithTheLogicalOperationInTheOrOperation;
+begin
+  var Comparison := (Field('F1') = 1) or ((Field('F2') = 2) or (Field('F3') = 3));
+
+  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F2', Comparison.Value.Logical.Right.Logical.Left.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F3', Comparison.Value.Logical.Right.Logical.Right.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual(qloOr, Comparison.Value.Logical.Operation);
+
+  Comparison.Value.Free;
+end;
+
+procedure TQueryBuilderLogicalOperationTest.WhenOperationLeftIsALogicalAndRightIsAComparisonOperationHaveToAssembleANewLogicalOperatorWithTheLeftWithTheLogicalOperationAndRightWithTheValueOfComparisonInTheAndOperation;
+begin
+  var Comparison := ((Field('F1') = 1) and (Field('F2') = 2)) and (Field('F3') = 3);
+
+  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Logical.Left.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F2', Comparison.Value.Logical.Left.Logical.Right.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F3', Comparison.Value.Logical.Right.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual(qloAnd, Comparison.Value.Logical.Operation);
+
+  Comparison.Value.Free;
+end;
+
+procedure TQueryBuilderLogicalOperationTest.WhenOperationLeftIsALogicalAndRightIsAComparisonOperationHaveToAssembleANewLogicalOperatorWithTheLeftWithTheLogicalOperationAndRightWithTheValueOfComparisonInTheOrOperation;
+begin
+  var Comparison := ((Field('F1') = 1) or (Field('F2') = 2)) or (Field('F3') = 3);
+
+  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Logical.Left.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F2', Comparison.Value.Logical.Left.Logical.Right.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual('F3', Comparison.Value.Logical.Right.Comparison.Left.FieldNames[0]);
+
+  Assert.AreEqual(qloOr, Comparison.Value.Logical.Operation);
+
+  Comparison.Value.Free;
+end;
+
+procedure TQueryBuilderLogicalOperationTest.WhenOrOperatorMustLoadTheOperationWithTheOrValue;
+begin
+  var Comparison := (Field('MyField') = 'abc') or (Field('MyField2') = 'abc');
+
+  Assert.AreEqual(qloOr, Comparison.Value.Logical.Operation);
+
+  Comparison.Value.Free;
+end;
+
+procedure TQueryBuilderLogicalOperationTest.WhenTheAndOperatorIsCalledMustLoadTheLeftFieldWithTheLeftValueComparisonAndTheRightFieldWithTheRightValueComparision;
+begin
+  var Comparison := (Field('MyField') = 'abc') and (Field('MyField2') = 'abc');
+
+  Assert.AreEqual('MyField', Comparison.Value.Logical.Left.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('MyField2', Comparison.Value.Logical.Right.Comparison.Left.FieldNames[0]);
+
+  Comparison.Value.Free;
+end;
+
+procedure TQueryBuilderLogicalOperationTest.WhenTheOrOperatorIsCalledMustLoadTheLeftFieldWithTheLeftValueComparisonAndTheRightFieldWithTheRightValueComparision;
+begin
+  var Comparison := (Field('MyField') = 'abc') or (Field('MyField2') = 'abc');
+
+  Assert.AreEqual('MyField', Comparison.Value.Logical.Left.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('MyField2', Comparison.Value.Logical.Right.Comparison.Left.FieldNames[0]);
+
+  Comparison.Value.Free;
+end;
+
+{ TQueryBuilderWhereTest }
+
+procedure TQueryBuilderWhereTest.AComposeLogicalOperationMustBeGeneratedAsExpected;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+  var Where := From.From<TWhereClassTest>.Where((Field('Field1') = 1) and (Field('Field2') = 2) or (Field('Field3') = 3));
+
+  Assert.AreEqual(' where ((T1.Field1=1 and T1.Field2=2) or T1.Field3=3)', Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.ASimpleLogicalAndOperationMustBeGeneratedAsExpected;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+  var Where := From.From<TWhereClassTest>.Where((Field('Field1') = 1111) and (Field('Field2') = 222));
+
+  Assert.AreEqual(' where (T1.Field1=1111 and T1.Field2=222)', Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.ASimpleLogicalOrOperationMustBeGeneratedAsExpected;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+  var Where := From.From<TWhereClassTest>.Where((Field('Field1') = 1111) or (Field('Field2') = 222));
+
+  Assert.AreEqual(' where (T1.Field1=1111 or T1.Field2=222)', Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.IfTheWhereDontFoundTheFieldMustRaiseAnError;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+  var Where := From.From<TWhereClassTest>;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Where.Where(Field('DontExists') = 1234);
+    end, EFieldNotFoundInTable);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.Setup;
+begin
+  TMapper.Default.LoadAll;
+end;
+
+procedure TQueryBuilderWhereTest.TheComparisonOfTheValuesMustOccurAsExpected(TypeToConvert, ValueToCompare: String);
+begin
+  var FormatSettings := TFormatSettings.Invariant;
+  FormatSettings.LongTimeFormat := 'hh":"mm":"ss';
+  FormatSettings.ShortDateFormat := 'yyyy-mm-dd';
+  var From := TQueryBuilderFrom.Create(nil, 1);
+  var Value: TValue;
+  var Prefix := EmptyStr;
+
+  if TypeToConvert = 'AnsiChar' then
+    Value := TValue.From(AnsiChar('C'))
+  else if TypeToConvert = 'AnsiString' then
+    Value := TValue.From(AnsiString('AnsiString'))
+  else if TypeToConvert = 'Char' then
+    Value := TValue.From(Char('C'))
+  else if TypeToConvert = 'Class' then
+  begin
+    var Obj := TMyEntityWithAllTypeOfFields.Create;
+    Obj.Integer := 1234;
+    Prefix := 'Id';
+    Value := Obj;
+  end
+  else if TypeToConvert = 'EmptyClass' then
+  begin
+    Prefix := 'Id';
+    Value := TValue.From<TObject>(nil);
+  end
+  else if TypeToConvert = 'Enumerator' then
+    Value := TValue.From(Enum2)
+  else if TypeToConvert = 'Float' then
+    Value := 1234.456
+  else if TypeToConvert = 'Date' then
+    Value := TValue.From(EncodeDate(2020, 1, 31))
+  else if TypeToConvert = 'DateTime' then
+    Value := TValue.From(EncodeDateTime(2020, 1, 31, 12, 34, 56, 0))
+  else if TypeToConvert = 'GUID' then
+    Value := TValue.From(StringToGUID('{BD2BBA84-C691-4C5E-ABD3-4F32937C53F8}'))
+  else if TypeToConvert = 'Integer' then
+    Value := 1234
+  else if TypeToConvert = 'Int64' then
+    Value := Int64(1234)
+  else if TypeToConvert = 'String' then
+    Value := 'String'
+  else if TypeToConvert = 'Time' then
+    Value := TValue.From(TTime(EncodeTime(12, 34, 56, 0)))
+  else
+    raise Exception.Create('Test not mapped!');
+
+  var Where := From.From<TMyEntityWithAllTypeOfFields>.Where(Field(TypeToConvert) = Value);
+
+  Assert.AreEqual(Format(' where T1.%s%s=%s', [Prefix, TypeToConvert, ValueToCompare]), Where.GetSQL);
+
+  if Value.IsObject then
+    Value.AsObject.Free;
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.TheComparisonOperatorsMustBeGeneratedAsExpected(Operation: TQueryBuilderComparisonOperator);
+const
+  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '');
+
+begin
+  var Comparison: TQueryBuilderComparisonRecord;
+  var Field := Field('MyField');
+  var ValueString := String('1');
+
+  case Operation of
+    qbcoEqual: Comparison := Field = 1;
+    qbcoGreaterThan: Comparison := Field > 1;
+    qbcoGreaterThanOrEqual: Comparison := Field >= 1;
+    qbcoLessThan: Comparison := Field < 1;
+    qbcoLessThanOrEqual: Comparison := Field <= 1;
+    qbcoNone:
+    begin
+      Field.Value.Free;
+
+      Assert.IsTrue(True);
+    end;
+    qbcoNotEqual: Comparison := Field <> 1;
+    qbcoNull:
+    begin
+      Comparison := Field = NULL;
+      ValueString := ' is null';
+    end;
+    qbcoNotNull:
+    begin
+      Comparison := Field <> NULL;
+      ValueString := ' is not null';
+    end;
+    else raise Exception.Create('Test not implemented');
+  end;
+
+  if Operation <> qbcoNone then
+  begin
+    var From := TQueryBuilderFrom.Create(nil, 1);
+
+    Assert.AreEqual(Format(' where T1.MyField%s%s', [COMPARISON_OPERATOR[Operation], ValueString]), From.From<TWhereClassTest>.Where(Comparison).GetSQL);
+
+    From.Free;
+  end;
+end;
+
+procedure TQueryBuilderWhereTest.TheLasNameInTheComposeNameMustBeTheFieldToBeFoundInAClass;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+  var Where := From.From<TWhereClassTest>.Where(Field('Where') = 1);
+
+  Assert.AreEqual(' where T1.IdWhere=1', Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.WhenBothOperationsAreLogicalHaveToGenerateSQLAsExpected;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+  var Where := From.From<TWhereClassTest>.Where((Field('Field1') = 1) and (Field('Field2') = 2) or (Field('Field3') = 3) and (Field('Field4') = 4));
+
+  Assert.AreEqual(' where ((T1.Field1=1 and T1.Field2=2) or (T1.Field3=3 and T1.Field4=4))', Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.WhenCompareAFieldWithAnValueMustBuildTheFilterAsExpected;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+  var Where := From.From<TWhereClassTest>.Where(Field('Value') = 1234);
+
+  Assert.AreEqual(' where T1.Value=1234', Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.WhenExistsAJoinLoadedMustPutTheAliasOfTheTableBeforeTheFieldName;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 2);
+  var Where := From.From<TWhereClassTest>.Where(Field('Field1') = 1);
+
+  Assert.AreEqual(' where T1.Field1=1', Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.WhenLeftOperationIsASimpleComparisonAndRightIsALogicalOperationItHasToGenerateSQLAsExpected;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+  var Where := From.From<TWhereClassTest>.Where((Field('Field1') = 1) and ((Field('Field2') = 2) or (Field('Field3') = 3)));
+
+  Assert.AreEqual(' where (T1.Field1=1 and (T1.Field2=2 or T1.Field3=3))', Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.WhenUsingAComposeNameMustPutTheAliasOfTheTableBeforeTheFieldName;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 2);
+  var Where := From.From<TWhereClassTest>.Where(Field('Where.Class1.Class3.Id') = 1);
+
+  Assert.AreEqual(' where T4.Id=1', Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.WhenUsingComposeFieldNameInAOperationWithoutFromMustRaiseAnError;
+begin
+  var Where := TQueryBuilderWhere<TWhereClassTest>.Create(nil);
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Where.Where(Field('Where.Class1.Class3.Id') = 1);
+    end, ECantUseComposeFieldName);
+
+  Where.Free;
 end;
 
 end.

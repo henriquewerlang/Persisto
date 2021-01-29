@@ -137,11 +137,28 @@ type
     procedure WhenTheLinkBetweenTheManyValueAssociationAndTheChildTableForeignKeyDontExistsMustRaiseAnError;
     [Test]
     procedure TheNameOfManyValueAssociationLinkCanBeDefinedByTheAttributeToTheLinkHappen;
+    [Test]
+    procedure WhenATableIsLoadedMustFillTheMapperPropertyOfTheTable;
+    [TestCase('AnsiChar', 'AnsiChar,''C''')]
+    [TestCase('AnsiString', 'AnsiString,''AnsiString''')]
+    [TestCase('Char', 'Char,''C''')]
+    [TestCase('Class', 'Class,1234')]
+    [TestCase('Enumerator', 'Enumerator,1')]
+    [TestCase('Empty class', 'EmptyClass,null')]
+    [TestCase('Float', 'Float,1234.456')]
+    [TestCase('Date', 'Date,''2020-01-31''')]
+    [TestCase('DateTime', 'DateTime,''2020-01-31 12:34:56''')]
+    [TestCase('GUID', 'GUID,''{BD2BBA84-C691-4C5E-ABD3-4F32937C53F8}''')]
+    [TestCase('Integer', 'Integer,1234')]
+    [TestCase('Int64', 'Int64,1234')]
+    [TestCase('String', 'String,''String''')]
+    [TestCase('Time', 'Time,''12:34:56''')]
+    procedure TheConversionOfTheTValueMustBeLikeExpected(TypeToConvert, ValueToCompare: String);
   end;
 
 implementation
 
-uses System.Variants, System.SysUtils, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder.Test.Entity;
+uses System.Variants, System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder.Test.Entity;
 
 { TMapperTest }
 
@@ -189,6 +206,63 @@ begin
   Mapper.LoadAll;
 
   Assert.IsNull(Mapper.FindTable(TMyEntityWithSingleTableInheritanceAttribute));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.TheConversionOfTheTValueMustBeLikeExpected(TypeToConvert, ValueToCompare: String);
+begin
+  var FieldToCompare: TField := nil;
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var FormatSettings := TFormatSettings.Invariant;
+  FormatSettings.LongTimeFormat := 'hh":"mm":"ss';
+  FormatSettings.ShortDateFormat := 'yyyy-mm-dd';
+  var Value: TValue;
+
+  for var Field in Table.Fields do
+    if Field.TypeInfo.Name = TypeToConvert then
+      FieldToCompare := Field;
+
+  if TypeToConvert = 'AnsiChar' then
+    Value := TValue.From(AnsiChar('C'))
+  else if TypeToConvert = 'AnsiString' then
+    Value := TValue.From(AnsiString('AnsiString'))
+  else if TypeToConvert = 'Char' then
+    Value := TValue.From(Char('C'))
+  else if TypeToConvert = 'Class' then
+  begin
+    var Obj := TMyEntityWithAllTypeOfFields.Create;
+    Obj.Integer := 1234;
+    Value := Obj;
+  end
+  else if TypeToConvert = 'EmptyClass' then
+    Value := TValue.From<TObject>(nil)
+  else if TypeToConvert = 'Enumerator' then
+    Value := TValue.From(Enum2)
+  else if TypeToConvert = 'Float' then
+    Value := 1234.456
+  else if TypeToConvert = 'Date' then
+    Value := TValue.From(EncodeDate(2020, 1, 31))
+  else if TypeToConvert = 'DateTime' then
+    Value := TValue.From(EncodeDateTime(2020, 1, 31, 12, 34, 56, 0))
+  else if TypeToConvert = 'GUID' then
+    Value := TValue.From(StringToGUID('{BD2BBA84-C691-4C5E-ABD3-4F32937C53F8}'))
+  else if TypeToConvert = 'Integer' then
+    Value := 1234
+  else if TypeToConvert = 'Int64' then
+    Value := Int64(1234)
+  else if TypeToConvert = 'String' then
+    Value := 'String'
+  else if TypeToConvert = 'Time' then
+    Value := TValue.From(TTime(EncodeTime(12, 34, 56, 0)))
+  else
+    raise Exception.Create('Test not mapped!');
+
+  Assert.AreEqual(ValueToCompare, FieldToCompare.GetAsString(Value, FormatSettings));
+
+  if Value.IsObject then
+    Value.AsObject.Free;
 
   Mapper.Free;
 end;
@@ -460,6 +534,16 @@ begin
   var Table := Mapper.LoadClass(TMyEntityWithManyValueAssociation);
 
   Assert.AreEqual<Integer>(1, Length(Table.ManyValueAssociations));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenATableIsLoadedMustFillTheMapperPropertyOfTheTable;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntityWithAllTypeOfFields);
+
+  Assert.AreEqual(Mapper, Table.Mapper);
 
   Mapper.Free;
 end;

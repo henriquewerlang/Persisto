@@ -545,6 +545,28 @@ type
     property Id: Integer read FId write FId;
   end;
 
+  [Entity]
+  TWhereClassTest = class
+  private
+    FMyField: Integer;
+    FField1: Integer;
+    FField2: Integer;
+    FField3: Integer;
+    FField4: Integer;
+    FValue: Integer;
+    FWhere: TClassHierarchy1;
+    FId: Integer;
+  published
+    property Field1: Integer read FField1 write FField1;
+    property Field2: Integer read FField2 write FField2;
+    property Field3: Integer read FField3 write FField3;
+    property Field4: Integer read FField4 write FField4;
+    property Id: Integer read FId write FId;
+    property MyField: Integer read FMyField write FMyField;
+    property Value: Integer read FValue write FValue;
+    property Where: TClassHierarchy1 read FWhere write FWhere;
+  end;
+
 implementation
 
 end.
