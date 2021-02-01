@@ -227,6 +227,17 @@ type
     procedure TheComparisonOfTheValuesMustOccurAsExpected(TypeToConvert, ValueToCompare: String);
     [Test]
     procedure TheLasNameInTheComposeNameMustBeTheFieldToBeFoundInAClass;
+    [TestCase('Between', 'qbcoBetween')]
+    [TestCase('None', 'qbcoNone')]
+    [TestCase('Equal', 'qbcoEqual')]
+    [TestCase('Not Equal', 'qbcoNotEqual')]
+    [TestCase('Greater Than', 'qbcoGreaterThan')]
+    [TestCase('Greater Than Or Equal', 'qbcoGreaterThanOrEqual')]
+    [TestCase('Less Than', 'qbcoLessThan')]
+    [TestCase('Less Than Or Equal', 'qbcoLessThanOrEqual')]
+    [TestCase('Null', 'qbcoNull')]
+    [TestCase('Not Null', 'qbcoNotNull')]
+    procedure WhenComparingFieldMustBuildTheFilterAsExpected(Operation: TQueryBuilderComparisonOperator);
   end;
 
   TDatabaseTest = class(TInterfacedObject, IDatabaseConnection)
@@ -1534,6 +1545,41 @@ begin
   var Where := From.From<TWhereClassTest>.Where(Field('Value') = 1234);
 
   Assert.AreEqual(' where T1.Value=1234', Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.WhenComparingFieldMustBuildTheFilterAsExpected(Operation: TQueryBuilderComparisonOperator);
+const
+  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '');
+
+begin
+  var Comparison: TQueryBuilderComparisonRecord;
+  var FieldLeft := Field('MyField');
+  var FieldValue := Field('Value');
+
+  case Operation of
+    qbcoEqual: Comparison := FieldLeft = FieldValue;
+    qbcoGreaterThan: Comparison := FieldLeft > FieldValue;
+    qbcoGreaterThanOrEqual: Comparison := FieldLeft >= FieldValue;
+    qbcoLessThan: Comparison := FieldLeft < FieldValue;
+    qbcoLessThanOrEqual: Comparison := FieldLeft <= FieldValue;
+    qbcoNotEqual: Comparison := FieldLeft <> FieldValue;
+    qbcoNone, qbcoNull, qbcoNotNull, qbcoBetween:
+    begin
+      FieldLeft.Value.Free;
+      FieldValue.Value.Free;
+
+      Assert.IsTrue(True);
+
+      Exit;
+    end;
+    else raise Exception.Create('Test not implemented');
+  end;
+
+  var From := TQueryBuilderFrom.Create(nil, 1);
+
+  Assert.AreEqual(Format(' where T1.MyField%sT1.Value', [COMPARISON_OPERATOR[Operation]]), From.From<TWhereClassTest>.Where(Comparison).GetSQL);
 
   From.Free;
 end;
