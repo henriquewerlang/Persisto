@@ -59,6 +59,7 @@ type
     procedure LoadPropertiesFromFields;
     procedure ResetCurrentRecord;
     procedure ReleaseOldValueObject;
+    procedure ReleaseThenInsertingObject;
     procedure SetObjectClassName(const Value: String);
     procedure SetObjectType(const Value: TRttiInstanceType);
   protected
@@ -204,7 +205,7 @@ end;
 
 destructor TORMDataSet.Destroy;
 begin
-  FInsertingObject.Free;
+  ReleaseThenInsertingObject;
 
   inherited;
 end;
@@ -527,6 +528,8 @@ begin
 
     ReleaseOldValueObject;
   end;
+
+  ReleaseThenInsertingObject;
 end;
 
 procedure TORMDataSet.InternalClose;
@@ -794,6 +797,11 @@ end;
 procedure TORMDataSet.ReleaseOldValueObject;
 begin
   FreeAndNil(FOldValueObject);
+end;
+
+procedure TORMDataSet.ReleaseThenInsertingObject;
+begin
+  FreeAndNil(FInsertingObject);
 end;
 
 procedure TORMDataSet.ResetCurrentRecord;

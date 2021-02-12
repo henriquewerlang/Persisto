@@ -169,6 +169,8 @@ type
     procedure WhenTheDetailDataSetHasAComposeNameMustLoadTheObjectTypeCorrectly;
     [Test]
     procedure WhenTheDetailDataSetHasAComposeNameMustLoadTheDataCorrecty;
+    [Test]
+    procedure WhenInsertARecordThenCancelTheInsertionAndStartANewInsertTheOldBufferMustBeCleanedUp;
   end;
 
   TAnotherObject = class
@@ -859,6 +861,25 @@ begin
   DataSet.Free;
 
   MyObject.Free;
+end;
+
+procedure TORMDataSetTest.WhenInsertARecordThenCancelTheInsertionAndStartANewInsertTheOldBufferMustBeCleanedUp;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  DataSet.Append;
+
+  DataSet.FieldByName('Name').AsString := 'Name1';
+
+  DataSet.Cancel;
+
+  DataSet.Append;
+
+  Assert.AreEqual(EmptyStr, DataSet.FieldByName('Name').AsString);
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenInsertIntoDataSetCantRaiseAnError;
