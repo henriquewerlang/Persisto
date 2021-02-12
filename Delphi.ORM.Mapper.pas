@@ -444,13 +444,13 @@ begin
     tkFloat:
     begin
       if TypeInfo.PropertyType.Handle = System.TypeInfo(TDate) then
-        Result := QuotedStr(DateToStr(Value.AsExtended, GDateTimeFormat))
+        Result := QuotedStr(DateToStr(Value.AsExtended, FormatSettings))
       else if TypeInfo.PropertyType.Handle = System.TypeInfo(TDateTime) then
-        Result := QuotedStr(DateTimeToStr(Value.AsExtended, GDateTimeFormat))
+        Result := QuotedStr(DateTimeToStr(Value.AsExtended, FormatSettings))
       else if TypeInfo.PropertyType.Handle = System.TypeInfo(TTime) then
-        Result := QuotedStr(TimeToStr(Value.AsExtended, GDateTimeFormat))
+        Result := QuotedStr(TimeToStr(Value.AsExtended, FormatSettings))
       else
-        Result := FloatToStr(Value.AsExtended, TFormatSettings.Invariant);
+        Result := FloatToStr(Value.AsExtended, FormatSettings);
     end;
 
     tkInteger: Result := IntToStr(Value.AsInteger);
@@ -514,6 +514,7 @@ begin
 end;
 
 initialization
+  GDateTimeFormat := TFormatSettings.Invariant;
   GDateTimeFormat.ShortDateFormat := 'yyyy-mm-dd';
   GDateTimeFormat.LongTimeFormat := 'hh":"mm":"ss';
 
