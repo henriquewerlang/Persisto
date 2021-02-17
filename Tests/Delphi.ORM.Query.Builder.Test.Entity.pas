@@ -2,7 +2,7 @@ unit Delphi.ORM.Query.Builder.Test.Entity;
 
 interface
 
-uses Delphi.ORM.Attributes;
+uses Delphi.ORM.Attributes, Delphi.ORM.Nullable;
 
 type
   [Entity]
@@ -565,6 +565,23 @@ type
     property MyField: Integer read FMyField write FMyField;
     property Value: Integer read FValue write FValue;
     property Where: TClassHierarchy1 read FWhere write FWhere;
+  end;
+
+  [Entity]
+  TClassWithNullableProperty = class
+  private
+    FId: Integer;
+    FNullable: Nullable<Integer>;
+  published
+    property Id: Integer read FId write FId;
+    property Nullable: Nullable<Integer> read FNullable write FNullable;
+  end;
+
+  TClassWithPrimaryKeyNullableProperty = class
+  private
+    FId: Nullable<Integer>;
+  published
+    property Id: Nullable<Integer> read FId write FId;
   end;
 
 implementation

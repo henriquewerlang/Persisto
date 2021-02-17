@@ -125,6 +125,8 @@
         <DCCReference Include="..\Delphi.ORM.Database.Connection.Unidac.pas"/>
         <DCCReference Include="Delphi.ORM.Cursor.Mock.pas"/>
         <DCCReference Include="Delphi.ORM.Rtti.Helper.Test.pas"/>
+        <DCCReference Include="..\Delphi.ORM.Nullable.pas"/>
+        <DCCReference Include="Delphi.ORM.Nullable.Test.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -171,12 +173,6 @@
                 </DeployFile>
                 <DeployFile LocalName="$(BDS)\Redist\iossimulator\libpcre.dylib" Class="DependencyModule">
                     <Platform Name="iOSSimulator">
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="Win64\Debug\Delphi.ORM.Tests.rsm" Configuration="Debug" Class="DebugSymbols">
-                    <Platform Name="Win64">
-                        <RemoteName>Delphi_ORM_Tests.rsm</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

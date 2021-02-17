@@ -30,7 +30,9 @@ uses
   Delphi.ORM.Query.Builder.Test.Entity in 'Delphi.ORM.Query.Builder.Test.Entity.pas',
   Delphi.ORM.Database.Connection.Unidac in '..\Delphi.ORM.Database.Connection.Unidac.pas',
   Delphi.ORM.Cursor.Mock in 'Delphi.ORM.Cursor.Mock.pas',
-  Delphi.ORM.Rtti.Helper.Test in 'Delphi.ORM.Rtti.Helper.Test.pas';
+  Delphi.ORM.Rtti.Helper.Test in 'Delphi.ORM.Rtti.Helper.Test.pas',
+  Delphi.ORM.Nullable in '..\Delphi.ORM.Nullable.pas',
+  Delphi.ORM.Nullable.Test in 'Delphi.ORM.Nullable.Test.pas';
 
 // Para não remover o valor abaixo
 {$IFNDEF TESTINSIGHT}

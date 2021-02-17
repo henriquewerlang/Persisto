@@ -2,7 +2,7 @@ unit Delphi.ORM.Query.Builder;
 
 interface
 
-uses System.Rtti, System.Classes, System.Generics.Collections, System.SysUtils, Delphi.ORM.Database.Connection, Delphi.ORM.Mapper;
+uses System.Rtti, System.Classes, System.Generics.Collections, System.SysUtils, Delphi.ORM.Database.Connection, Delphi.ORM.Mapper, Delphi.ORM.Nullable;
 
 type
   TQueryBuilder = class;
@@ -246,8 +246,8 @@ type
     class operator BitwiseAnd(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderLogicalOperationHelper;
     class operator BitwiseOr(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderLogicalOperationHelper;
     class operator Equal(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
+    class operator Equal(const Left: TQueryBuilderComparisonRecord; const Value: TNullEnumerator): TQueryBuilderComparisonRecord;
     class operator Equal(const Left: TQueryBuilderComparisonRecord; const Value: TValue): TQueryBuilderComparisonRecord;
-    class operator Equal(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
     class operator GreaterThan(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
     class operator GreaterThan(const Left: TQueryBuilderComparisonRecord; const Value: TValue): TQueryBuilderComparisonRecord;
     class operator GreaterThanOrEqual(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
@@ -257,8 +257,8 @@ type
     class operator LessThanOrEqual(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
     class operator LessThanOrEqual(const Left: TQueryBuilderComparisonRecord; const Value: TValue): TQueryBuilderComparisonRecord;
     class operator NotEqual(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
+    class operator NotEqual(const Left: TQueryBuilderComparisonRecord; const Value: TNullEnumerator): TQueryBuilderComparisonRecord;
     class operator NotEqual(const Left: TQueryBuilderComparisonRecord; const Value: TValue): TQueryBuilderComparisonRecord;
-    class operator NotEqual(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
   end;
 
   TQueryBuilderWhere<T: class> = class(TQueryBuilderCommand)
@@ -292,7 +292,7 @@ function Field(const Name: String): TQueryBuilderComparisonRecord;
 
 implementation
 
-uses System.TypInfo, System.Variants, Delphi.ORM.Attributes, Delphi.ORM.Rtti.Helper, Delphi.ORM.Classes.Loader;
+uses System.TypInfo, Delphi.ORM.Attributes, Delphi.ORM.Rtti.Helper, Delphi.ORM.Classes.Loader;
 
 function Field(const Name: String): TQueryBuilderComparisonRecord;
 begin
@@ -838,12 +838,9 @@ begin
   MakeLogicalOperation(Left, Right, qloOr, Result);
 end;
 
-class operator TQueryBuilderComparisonHelper.Equal(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
+class operator TQueryBuilderComparisonHelper.Equal(const Left: TQueryBuilderComparisonRecord; const Value: TNullEnumerator): TQueryBuilderComparisonRecord;
 begin
-  if Value = NULL then
-    Left.MakeCompareOperation(qbcoNull, nil, Result)
-  else
-    Left.MakeEqual(TValue.FromVariant(Value), Result);
+  Left.MakeCompareOperation(qbcoNull, nil, Result);
 end;
 
 class operator TQueryBuilderComparisonHelper.Equal(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
@@ -956,12 +953,9 @@ begin
   Left.MakeCompareOperation(qbcoNotEqual, MakeFieldValue(Right), Result);
 end;
 
-class operator TQueryBuilderComparisonHelper.NotEqual(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
+class operator TQueryBuilderComparisonHelper.NotEqual(const Left: TQueryBuilderComparisonRecord; const Value: TNullEnumerator): TQueryBuilderComparisonRecord;
 begin
-  if Value = NULL then
-    Left.MakeCompareOperation(qbcoNotNull, nil, Result)
-  else
-    Left.MakeNotEqual(TValue.FromVariant(Value), Result);
+  Left.MakeCompareOperation(qbcoNotNull, nil, Result);
 end;
 
 procedure TQueryBuilderComparisonHelper.MakeCompareOperation(const Operation: TQueryBuilderComparisonOperator; const ValueOp: TValue; out Result: TQueryBuilderComparisonRecord);

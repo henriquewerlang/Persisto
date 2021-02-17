@@ -171,6 +171,20 @@ type
     procedure WhenTheDetailDataSetHasAComposeNameMustLoadTheDataCorrecty;
     [Test]
     procedure WhenInsertARecordThenCancelTheInsertionAndStartANewInsertTheOldBufferMustBeCleanedUp;
+    [Test]
+    procedure WhenThePropertyIsANullableTypeMustCreateTheField;
+    [Test]
+    procedure WhenThePropertyIsANullableTypeMustCreateTheFieldWithTheInternalTypeOfTheNullable;
+    [Test]
+    procedure WhenTheFieldIsMappedToANullableFieldAndTheValueIsntFilledMustReturnNullInTheFieldValue;
+    [Test]
+    procedure WhenTheNullablePropertyIsFilledMustReturnTheValueFilled;
+    [Test]
+    procedure WhenClearAFieldCantRaiseAnError;
+    [Test]
+    procedure WhenFillANullableFieldWithTheNullValueMustMarkThePropertyWithIsNullTrue;
+    [Test]
+    procedure WhenFillANullableFieldWithAnValueMustFillThePropertyWithTheValue;
   end;
 
   TAnotherObject = class
@@ -266,7 +280,7 @@ type
 
 implementation
 
-uses System.Rtti, System.Generics.Collections, System.SysUtils, System.Classes, System.Variants, Data.DBConsts, Delphi.ORM.DataSet;
+uses System.Rtti, System.Generics.Collections, System.SysUtils, System.Classes, System.Variants, Data.DBConsts, Delphi.ORM.DataSet, Delphi.ORM.Query.Builder.Test.Entity;
 
 { TORMDataSetTest }
 
@@ -755,6 +769,49 @@ begin
   Assert.AreEqual(1, DataSet.FieldDefs.Count);
 
   DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenFillANullableFieldWithAnValueMustFillThePropertyWithTheValue;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  var MyClass := TClassWithNullableProperty.Create;
+
+  DataSet.OpenObject(MyClass);
+
+  DataSet.Edit;
+
+  DataSet.FieldByName('Nullable').AsInteger := 12345678;
+
+  DataSet.Post;
+
+  Assert.AreEqual(12345678, MyClass.Nullable.Value);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
+procedure TORMDataSetTest.WhenFillANullableFieldWithTheNullValueMustMarkThePropertyWithIsNullTrue;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  var MyClass := TClassWithNullableProperty.Create;
+  MyClass.Nullable := 12345678;
+
+  DataSet.OpenObject(MyClass);
+
+  DataSet.Edit;
+
+  DataSet.FieldByName('Nullable').Clear;
+
+  DataSet.Post;
+
+  Assert.IsTrue(MyClass.Nullable.IsNull);
+
+  DataSet.Free;
+
+  MyClass.Free;
 end;
 
 procedure TORMDataSetTest.WhenFilledTheObjectClassNameHasToLoadTheDataSetWithoutErrors;
@@ -1315,6 +1372,67 @@ begin
   MyObject.Free;
 end;
 
+procedure TORMDataSetTest.WhenTheFieldIsMappedToANullableFieldAndTheValueIsntFilledMustReturnNullInTheFieldValue;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  var MyClass := TClassWithNullableProperty.Create;
+
+  DataSet.OpenObject(MyClass);
+
+  Assert.IsNull(DataSet.FieldByName('Nullable').Value);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
+procedure TORMDataSetTest.WhenTheNullablePropertyIsFilledMustReturnTheValueFilled;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  var MyClass := TClassWithNullableProperty.Create;
+  MyClass.Nullable := 12345678;
+
+  DataSet.OpenObject(MyClass);
+
+  Assert.AreEqual(12345678, DataSet.FieldByName('Nullable').AsInteger);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
+procedure TORMDataSetTest.WhenThePropertyIsANullableTypeMustCreateTheField;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  var MyClass := TClassWithNullableProperty.Create;
+
+  DataSet.OpenObject(MyClass);
+
+  Assert.IsTrue(DataSet.FindField('Nullable') <> nil);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
+procedure TORMDataSetTest.WhenThePropertyIsANullableTypeMustCreateTheFieldWithTheInternalTypeOfTheNullable;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  var MyClass := TClassWithNullableProperty.Create;
+
+  DataSet.OpenObject(MyClass);
+
+  Assert.AreEqual(ftInteger, DataSet.FieldByName('Nullable').DataType);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
 procedure TORMDataSetTest.WhenTryOpenADataSetWithoutAObjectDefinitionMustRaiseAnError;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -1469,6 +1587,21 @@ begin
   DataSet.ObjectClassName := EmptyStr;
 
   Assert.AreEqual(EmptyStr, DataSet.ObjectClassName);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenClearAFieldCantRaiseAnError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  DataSet.Append;
+
+  Assert.WillNotRaise(DataSet.FieldByName('Id').Clear);
+
+  DataSet.Cancel;
 
   DataSet.Free;
 end;

@@ -154,6 +154,18 @@ type
     [TestCase('String', 'String,''String''')]
     [TestCase('Time', 'Time,''12:34:56''')]
     procedure TheConversionOfTheTValueMustBeLikeExpected(TypeToConvert, ValueToCompare: String);
+    [Test]
+    procedure WhenThePropertyIsNullableMustMarkTheFieldAsNullable;
+    [Test]
+    procedure ThePrimaryKeyCantBeNullable;
+    [Test]
+    procedure WhenGetValueOfAndFieldNullableMustReturnEmptyIfHasNoValue;
+    [Test]
+    procedure WhenTheNullablePropertyIsLoadedMustReturnTheFilled;
+    [Test]
+    procedure WhenTheNullablePropertyIsFilledWithTheNullValueMustMarkAsNullTheValue;
+    [Test]
+    procedure WhenTheNullablePropertyIsFilledWithAValueMustLoadTheValue;
   end;
 
 implementation
@@ -192,7 +204,10 @@ procedure TMapperTest.Setup;
 begin
   var Mapper := TMapper.Create;
 
-  Mapper.LoadAll;
+  try
+    Mapper.LoadAll;
+  except
+  end;
 
   FContext.GetType(TMyEntity);
 
@@ -381,6 +396,19 @@ begin
   var Table := Mapper.FindTable(TMyEntityWithFieldNameAttribute);
 
   Assert.AreEqual(ParentTable, Table.ForeignKeys[0].ParentTable);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.ThePrimaryKeyCantBeNullable;
+begin
+  var Mapper := TMapper.Create;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Mapper.LoadClass(TClassWithPrimaryKeyNullableProperty);
+    end, EClassWithPrimaryKeyNullable);
 
   Mapper.Free;
 end;
@@ -626,6 +654,21 @@ begin
   Assert.AreEqual(ValueToCompare, FieldToCompare.GetAsString(MyClass));
 
   MyClass.&Class.Free;
+
+  Mapper.Free;
+
+  MyClass.Free;
+end;
+
+procedure TMapperTest.WhenGetValueOfAndFieldNullableMustReturnEmptyIfHasNoValue;
+begin
+  var Mapper := TMapper.Create;
+  var MyClass := TClassWithNullableProperty.Create;
+  var Table := Mapper.LoadClass(MyClass.ClassType);
+
+  var Field := Table.Fields[1];
+
+  Assert.IsTrue(Field.GetValue(MyClass).IsEmpty);
 
   Mapper.Free;
 
@@ -952,6 +995,66 @@ begin
     begin
       Mapper.LoadClass(TManyValueAssociationParentNoLink);
     end, EManyValueAssociationLinkError);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheNullablePropertyIsFilledWithAValueMustLoadTheValue;
+begin
+  var Mapper := TMapper.Create;
+  var MyClass := TClassWithNullableProperty.Create;
+  var Table := Mapper.LoadClass(MyClass.ClassType);
+
+  var Field := Table.Fields[1];
+
+  Field.SetValue(MyClass, 123456);
+
+  Assert.AreEqual<Integer>(123456, MyClass.Nullable.Value);
+
+  Mapper.Free;
+
+  MyClass.Free;
+end;
+
+procedure TMapperTest.WhenTheNullablePropertyIsFilledWithTheNullValueMustMarkAsNullTheValue;
+begin
+  var Mapper := TMapper.Create;
+  var MyClass := TClassWithNullableProperty.Create;
+  var Table := Mapper.LoadClass(MyClass.ClassType);
+
+  var Field := Table.Fields[1];
+
+  Field.SetValue(MyClass, Null);
+
+  Assert.IsTrue(MyClass.Nullable.IsNull);
+
+  Mapper.Free;
+
+  MyClass.Free;
+end;
+
+procedure TMapperTest.WhenTheNullablePropertyIsLoadedMustReturnTheFilled;
+begin
+  var Mapper := TMapper.Create;
+  var MyClass := TClassWithNullableProperty.Create;
+  MyClass.Nullable := 123456;
+  var Table := Mapper.LoadClass(MyClass.ClassType);
+
+  var Field := Table.Fields[1];
+
+  Assert.AreEqual(123456, Field.GetValue(MyClass).AsInteger);
+
+  Mapper.Free;
+
+  MyClass.Free;
+end;
+
+procedure TMapperTest.WhenThePropertyIsNullableMustMarkTheFieldAsNullable;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TClassWithNullableProperty);
+
+  Assert.IsTrue(Table.Fields[1].IsNullable);
 
   Mapper.Free;
 end;

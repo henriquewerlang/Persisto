@@ -90,6 +90,14 @@ type
     procedure WhenUpdatingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheUpdateList;
     [Test]
     procedure ThenForeignKeyLinkOfAnManyValueAssociationCantAppearInTheSQL;
+    [Test]
+    procedure WhenTheClassAsAFieldWithNullableRecordMustInsertTheValueNullInSQLIfIsNull;
+    [Test]
+    procedure WhenTheClassAsAFieldWithNullableRecordMustInsertThenValueOfThePropertyIfNotIsNull;
+    [Test]
+    procedure WhenTheClassAsAFieldWithNullableRecordMustUpdateTheValueNullInSQLIfIsNull;
+    [Test]
+    procedure WhenTheClassAsAFieldWithNullableRecordMustUpdateThenValueOfThePropertyIfNotIsNull;
   end;
 
   [TestFixture]
@@ -261,7 +269,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.Variants, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Cursor.Mock;
+uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Cursor.Mock, Delphi.ORM.Nullable;
 
 { TDelphiORMQueryBuilderTest }
 
@@ -775,6 +783,74 @@ begin
   Query.Select.All.From<TMyTestClass>;
 
   Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Query.GetSQL);
+
+  Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustInsertThenValueOfThePropertyIfNotIsNull;
+begin
+  var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
+  var Query := TQueryBuilder.Create(Database);
+
+  var MyClass := TClassWithNullableProperty.Create;
+  MyClass.Nullable := 1234;
+
+  Query.Insert(MyClass);
+
+  Assert.AreEqual('insert into ClassWithNullableProperty(Id,Nullable)values(0,1234)', Database.SQL);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustInsertTheValueNullInSQLIfIsNull;
+begin
+  var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
+  var Query := TQueryBuilder.Create(Database);
+
+  var MyClass := TClassWithNullableProperty.Create;
+
+  Query.Insert(MyClass);
+
+  Assert.AreEqual('insert into ClassWithNullableProperty(Id,Nullable)values(0,null)', Database.SQL);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustUpdateThenValueOfThePropertyIfNotIsNull;
+begin
+  var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
+  var Query := TQueryBuilder.Create(Database);
+
+  var MyClass := TClassWithNullableProperty.Create;
+  MyClass.Id := 123;
+  MyClass.Nullable := 456;
+
+  Query.Update(MyClass);
+
+  Assert.AreEqual('update ClassWithNullableProperty set Nullable=456 where Id=123', Database.SQL);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustUpdateTheValueNullInSQLIfIsNull;
+begin
+  var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
+  var Query := TQueryBuilder.Create(Database);
+
+  var MyClass := TClassWithNullableProperty.Create;
+  MyClass.Id := 123;
+
+  Query.Update(MyClass);
+
+  Assert.AreEqual('update ClassWithNullableProperty set Nullable=null where Id=123', Database.SQL);
+
+  MyClass.Free;
 
   Query.Free;
 end;

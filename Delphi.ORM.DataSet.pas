@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Classes, Data.DB, System.Rtti, System.Generics.Collections, System.SysUtils;
+uses System.Classes, Data.DB, System.Rtti, System.Generics.Collections, System.SysUtils, System.TypInfo;
 
 type
   EDataSetWithoutObjectDefinition = class(Exception)
@@ -48,6 +48,7 @@ type
 
     function GetActiveRecordNumber: Integer;
     function GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
+    function GetFieldInfoFromTypeInfo(PropertyType: PTypeInfo; var Size: Integer): TFieldType;
     function GetFieldTypeFromProperty(&Property: TRttiProperty): TFieldType;
     function GetObjectClassName: String;
     function GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
@@ -148,7 +149,7 @@ type
 
 implementation
 
-uses System.TypInfo, {$IFDEF PAS2JS}Pas2JS.JS{$ELSE}System.Variants{$ENDIF}, Delphi.ORM.Rtti.Helper;
+uses Delphi.ORM.Nullable, {$IFDEF PAS2JS}Pas2JS.JS, {$ENDIF}Delphi.ORM.Rtti.Helper;
 
 { TORMDataSet }
 
@@ -308,6 +309,9 @@ begin
   begin
     Value := &Property.GetValue(Value.AsObject);
 
+    if IsNullableType(&Property.PropertyType) then
+      Value := GetNullableValue(&Property.PropertyType, Value);
+
     if not Value.IsEmpty then
 {$IFDEF PAS2JS}
       Result := Value.AsJSValue;
@@ -335,10 +339,22 @@ end;
 
 function TORMDataSet.GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
 begin
+  if IsNullableType(&Property.PropertyType) then
+    Result := GetFieldInfoFromTypeInfo(GetNullableTypeInfo(&Property.PropertyType), Size)
+  else
+    Result := GetFieldInfoFromTypeInfo(&Property.PropertyType.Handle, Size);
+end;
+
+function TORMDataSet.GetFieldInfoFromTypeInfo(PropertyType: PTypeInfo; var Size: Integer): TFieldType;
+var
+  PropertyKind: TTypeKind;
+
+begin
+  PropertyKind := {$IFDEF PAS2JS}TTypeInfo{$ENDIF}(PropertyType).Kind;
   Result := ftUnknown;
   Size := 0;
 
-  case &Property.PropertyType.TypeKind of
+  case PropertyKind of
 {$IFDEF DCC}
     tkLString,
     tkUString,
@@ -350,20 +366,20 @@ begin
     tkBool,
 {$ENDIF}
     tkEnumeration:
-      if &Property.PropertyType.Handle = TypeInfo(Boolean) then
+      if PropertyType = TypeInfo(Boolean) then
         Result := ftBoolean
       else
         Result := ftInteger;
     tkFloat:
-      if &Property.PropertyType.Handle = TypeInfo(TDate) then
+      if PropertyType = TypeInfo(TDate) then
         Result := ftDate
-      else if &Property.PropertyType.Handle = TypeInfo(TDateTime) then
+      else if PropertyType = TypeInfo(TDateTime) then
         Result := ftDateTime
-      else if &Property.PropertyType.Handle = TypeInfo(TTime) then
+      else if PropertyType = TypeInfo(TTime) then
         Result := ftTime
       else
 {$IFDEF DCC}
-        case TRttiInstanceProperty(&Property).PropInfo.PropType^.TypeData.FloatType of
+        case PropertyType.TypeData.FloatType of
           ftCurr: Result := TFieldType.ftCurrency;
           ftDouble: Result := TFieldType.ftFloat;
           ftExtended: Result := TFieldType.ftExtended;
@@ -374,7 +390,7 @@ begin
 {$ENDIF}
     tkInteger:
 {$IFDEF DCC}
-      case &Property.PropertyType.AsOrdinal.OrdType of
+      case PropertyType.TypeData.OrdType of
         otSByte,
         otUByte: Result := ftByte;
         otSWord: Result := ftInteger;
@@ -393,7 +409,7 @@ begin
     tkDynArray: Result := ftDataSet;
   end;
 
-  case &Property.PropertyType.TypeKind of
+  case PropertyKind of
 {$IFDEF DCC}
     tkLString,
     tkUString,
@@ -758,9 +774,11 @@ begin
         CurrentObjectType := &Property.PropertyType as TRttiInstanceType;
     end;
 
+{$IFDEF DCC}
     if GetFieldTypeFromProperty(&Property) <> Field.DataType then
-      raise EPropertyWithDifferentType.CreateFmt('The property type is not equal to the type of the added field, expected value %s found %s',
-        [TRttiEnumerationType.GetName(GetFieldTypeFromProperty(&Property)), TRttiEnumerationType.GetName(Field.DataType)]);
+      raise EPropertyWithDifferentType.CreateFmt('The field %s as type %s and the expected field type is %s!',
+        [Field.FieldName, TRttiEnumerationType.GetName(Field.DataType), TRttiEnumerationType.GetName(GetFieldTypeFromProperty(&Property))]);
+{$ENDIF}
 
     FPropertyMappingList[Field.Index] := PropertyList;
   end;
@@ -838,47 +856,51 @@ begin
 {$IFDEF DCC}
   Value := TValue.Empty;
 
-  case Field.DataType of
-    ftByte,
-    ftInteger,
-    ftWord:
-    begin
-      IntValue := PInteger(Buffer)^;
+  if Assigned(Buffer) then
+    case Field.DataType of
+      ftByte,
+      ftInteger,
+      ftWord:
+      begin
+        IntValue := PInteger(Buffer)^;
 
-      if &Property.PropertyType is TRttiEnumerationType then
-        Value := TValue.FromOrdinal(&Property.PropertyType.Handle, IntValue)
-      else
-        Value := TValue.From(IntValue);
+        if &Property.PropertyType is TRttiEnumerationType then
+          Value := TValue.FromOrdinal(&Property.PropertyType.Handle, IntValue)
+        else
+          Value := TValue.From(IntValue);
+      end;
+      ftString: Value := TValue.From(String(AnsiString(PAnsiChar(Buffer))));
+      ftBoolean: Value := TValue.From(PWordBool(Buffer)^);
+      ftDate,
+      ftDateTime,
+      ftTime:
+      begin
+        var DataTimeValue: TValueBuffer;
+
+        SetLength(DataTimeValue, SizeOf(Double));
+
+        DataConvert(Field, Buffer, DataTimeValue, False);
+
+        Value := TValue.From(PDouble(DataTimeValue)^);
+      end;
+      ftCurrency,
+      ftFloat: Value := TValue.From(PDouble(Buffer)^);
+      TFieldType.ftSingle: Value := TValue.From(PSingle(Buffer)^);
+
+      TFieldType.ftExtended: Value := TValue.From(PExtended(Buffer)^);
+
+      ftLongWord: Value := TValue.From(PCardinal(Buffer)^);
+
+      ftLargeint: Value := TValue.From(PInt64(Buffer)^);
+      ftWideString: Value := TValue.From(String(PWideChar(Buffer)));
+      ftVariant: Value := TValue.From(TObject(PNativeInt(Buffer)^));
     end;
-    ftString: Value := TValue.From(String(AnsiString(PAnsiChar(Buffer))));
-    ftBoolean: Value := TValue.From(PWordBool(Buffer)^);
-    ftDate,
-    ftDateTime,
-    ftTime:
-    begin
-      var DataTimeValue: TValueBuffer;
-
-      SetLength(DataTimeValue, SizeOf(Double));
-
-      DataConvert(Field, Buffer, DataTimeValue, False);
-
-      Value := TValue.From(PDouble(DataTimeValue)^);
-    end;
-    ftCurrency,
-    ftFloat: Value := TValue.From(PDouble(Buffer)^);
-    TFieldType.ftSingle: Value := TValue.From(PSingle(Buffer)^);
-
-    TFieldType.ftExtended: Value := TValue.From(PExtended(Buffer)^);
-
-    ftLongWord: Value := TValue.From(PCardinal(Buffer)^);
-
-    ftLargeint: Value := TValue.From(PInt64(Buffer)^);
-    ftWideString: Value := TValue.From(String(PWideChar(Buffer)));
-    ftVariant: Value := TValue.From(TObject(PNativeInt(Buffer)^));
-  end;
 {$ENDIF}
 
-  &Property.SetValue(Instance.AsObject, Value);
+  if IsNullableType(&Property.PropertyType) then
+    SetNullableValue(&Property.PropertyType, &Property.GetValue(Instance.AsObject), Value)
+  else
+    &Property.SetValue(Instance.AsObject, Value);
 
   DataEvent(deFieldChange, {$IFDEF DCC}IntPtr{$ENDIF}(Field));
 end;
