@@ -246,6 +246,17 @@ type
     [TestCase('Null', 'qbcoNull')]
     [TestCase('Not Null', 'qbcoNotNull')]
     procedure WhenComparingFieldMustBuildTheFilterAsExpected(Operation: TQueryBuilderComparisonOperator);
+    [TestCase('Between', 'qbcoBetween')]
+    [TestCase('None', 'qbcoNone')]
+    [TestCase('Equal', 'qbcoEqual')]
+    [TestCase('Not Equal', 'qbcoNotEqual')]
+    [TestCase('Greater Than', 'qbcoGreaterThan')]
+    [TestCase('Greater Than Or Equal', 'qbcoGreaterThanOrEqual')]
+    [TestCase('Less Than', 'qbcoLessThan')]
+    [TestCase('Less Than Or Equal', 'qbcoLessThanOrEqual')]
+    [TestCase('Null', 'qbcoNull')]
+    [TestCase('Not Null', 'qbcoNotNull')]
+    procedure WhenComparingEnumeratorTheComparisonMustHappenAsExpected(Operation: TQueryBuilderComparisonOperator);
   end;
 
   TDatabaseTest = class(TInterfacedObject, IDatabaseConnection)
@@ -1489,9 +1500,6 @@ end;
 
 procedure TQueryBuilderWhereTest.TheComparisonOfTheValuesMustOccurAsExpected(TypeToConvert, ValueToCompare: String);
 begin
-  var FormatSettings := TFormatSettings.Invariant;
-  FormatSettings.LongTimeFormat := 'hh":"mm":"ss';
-  FormatSettings.ShortDateFormat := 'yyyy-mm-dd';
   var From := TQueryBuilderFrom.Create(nil, 1);
   var Value: TValue;
   var Prefix := EmptyStr;
@@ -1621,6 +1629,40 @@ begin
   var Where := From.From<TWhereClassTest>.Where(Field('Value') = 1234);
 
   Assert.AreEqual(' where T1.Value=1234', Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.WhenComparingEnumeratorTheComparisonMustHappenAsExpected(Operation: TQueryBuilderComparisonOperator);
+const
+  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '');
+
+begin
+  var Comparison: TQueryBuilderComparisonRecord;
+  var Field := Field('Enumerator');
+
+  case Operation of
+    qbcoEqual: Comparison := Field = Enum2;
+    qbcoGreaterThan: Comparison := Field > Enum2;
+    qbcoGreaterThanOrEqual: Comparison := Field >= Enum2;
+    qbcoLessThan: Comparison := Field < Enum2;
+    qbcoLessThanOrEqual: Comparison := Field <= Enum2;
+    qbcoNotEqual: Comparison := Field <> Enum2;
+    qbcoNone, qbcoNull, qbcoNotNull, qbcoBetween:
+    begin
+      Field.Value.Free;
+
+      Assert.IsTrue(True);
+
+      Exit;
+    end;
+    else raise Exception.Create('Test not implemented');
+  end;
+
+  var From := TQueryBuilderFrom.Create(nil, 1);
+  var Where := From.From<TMyEntityWithAllTypeOfFields>.Where(Comparison);
+
+  Assert.AreEqual(Format(' where T1.Enumerator%s1', [COMPARISON_OPERATOR[Operation]]), Where.GetSQL);
 
   From.Free;
 end;
