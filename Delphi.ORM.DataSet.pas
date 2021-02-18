@@ -149,7 +149,7 @@ type
 
 implementation
 
-uses Delphi.ORM.Nullable, {$IFDEF PAS2JS}Pas2JS.JS, {$ENDIF}Delphi.ORM.Rtti.Helper;
+uses {$IFDEF DCC}System.SysConst, {$ENDIF}Delphi.ORM.Nullable, {$IFDEF PAS2JS}Pas2JS.JS, {$ENDIF}Delphi.ORM.Rtti.Helper;
 
 { TORMDataSet }
 
@@ -327,6 +327,16 @@ begin
             Move(PAnsiChar(@StringData[1])^, PAnsiChar(@Buffer[0])^, StringSize);
 
           Buffer[StringSize] := 0;
+        end
+        else if Field is TDateTimeField then
+        begin
+          var DataTimeValue: TValueBuffer;
+
+          SetLength(DataTimeValue, SizeOf(Double));
+
+          Value.ExtractRawData(@DataTimeValue[0]);
+
+          DataConvert(Field, DataTimeValue, Buffer, True);
         end
         else
           Value.ExtractRawData(@Buffer[0]);

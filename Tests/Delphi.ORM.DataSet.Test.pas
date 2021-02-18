@@ -185,6 +185,8 @@ type
     procedure WhenFillANullableFieldWithTheNullValueMustMarkThePropertyWithIsNullTrue;
     [Test]
     procedure WhenFillANullableFieldWithAnValueMustFillThePropertyWithTheValue;
+    [Test]
+    procedure GetADateTimeFieldMustReturnTheValueAsExpected;
   end;
 
   TAnotherObject = class
@@ -349,6 +351,21 @@ begin
   DestroyObjectArray(DataSet.ObjectList);
 
   DataSet.Free;
+end;
+
+procedure TORMDataSetTest.GetADateTimeFieldMustReturnTheValueAsExpected;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyObject := TMyTestClassTypes.Create;
+  MyObject.DateTime := EncodeDate(2020, 02, 18) + EncodeTime(12, 34, 56, 0);
+
+  DataSet.OpenObject(MyObject);
+
+  Assert.AreEqual(MyObject.DateTime, DataSet.FieldByName('DateTime').AsDateTime);
+
+  DataSet.Free;
+
+  MyObject.Free;
 end;
 
 procedure TORMDataSetTest.OpenArrayMustLoadTheObjectListWithTheParamPassed;
