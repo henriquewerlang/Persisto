@@ -32,7 +32,7 @@ type
 
 implementation
 
-uses System.Variants, Delphi.ORM.Rtti.Helper;
+uses System.Variants, System.TypInfo, System.SysConst, Delphi.ORM.Rtti.Helper;
 
 { TClassLoader }
 
