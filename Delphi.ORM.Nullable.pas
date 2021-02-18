@@ -61,16 +61,17 @@ type
   end;
 {$ENDIF}
 
-{$IFDEF PAS2JS}
+function GetNullableRttiType(RttiType: TRttiType): TRttiType;
 function GetNullableTypeInfo(RttiType: TRttiType): PTypeInfo;
+{$IFDEF PAS2JS}
 function GetNullableValue(RttiType: TRttiType; const Instance: TValue): TValue;
 function IsNullableType(RttiType: TRttiType): Boolean;
 
 procedure SetNullableValue(RttiType: TRttiType; const Instance: TValue; const NullableValue: JSValue);
 {$ELSE}
-function GetNullableTypeInfo(RttiType: TRttiType): PTypeInfo;
 function GetNullableValue(RttiType: TRttiType; const Instance: TValue): TValue;
-function IsNullableType(RttiType: TRttiType): Boolean;
+function IsNullableType(Info: PTypeInfo): Boolean; overload;
+function IsNullableType(RttiType: TRttiType): Boolean; overload;
 
 procedure SetNullableValue(RttiType: TRttiType; const Instance, NullableValue: TValue);
 {$ENDIF}
@@ -79,9 +80,14 @@ implementation
 
 uses System.SysUtils{$IFDEF PAS2JS}, Pas2JS.JS{$ENDIF};
 
+function GetNullableRttiType(RttiType: TRttiType): TRttiType;
+begin
+  Result := RttiType.GetMethod('GetValue').ReturnType;
+end;
+
 function GetNullableTypeInfo(RttiType: TRttiType): PTypeInfo;
 begin
-  Result := RttiType.GetMethod('GetValue').ReturnType.Handle;
+  Result := GetNullableRttiType(RttiType).Handle;
 end;
 
 {$IFDEF PAS2JS}
@@ -137,9 +143,14 @@ begin
     Result := RttiType.GetMethod('GetValue').Invoke(Instance, []);
 end;
 
+function IsNullableType(Info: PTypeInfo): Boolean;
+begin
+  Result := Info.NameFld.ToString.StartsWith('Nullable<');
+end;
+
 function IsNullableType(RttiType: TRttiType): Boolean;
 begin
-  Result := RttiType.QualifiedName.StartsWith('Delphi.ORM.Nullable.Nullable<');
+  Result := IsNullableType(RttiType.Handle);
 end;
 
 procedure SetNullableValue(RttiType: TRttiType; const Instance, NullableValue: TValue);

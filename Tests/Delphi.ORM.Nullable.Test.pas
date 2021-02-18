@@ -32,6 +32,10 @@ type
     procedure WhenCallTheSetValueFunctionMustLoadTheValueOfTheRecordWithTheValueInTheParam;
     [Test]
     procedure WhenSendTheRttiTypeOfANullableTypeMustReturnTheTypeInfoOfTheGenericType;
+    [Test]
+    procedure WhenCheckWithTypeInfoIfTheTypeIfNullableMustReturnTrueIfIsAnNullableType;
+    [Test]
+    procedure GetNullableRttiTypeMustReturnTheRttiTypeOfTheNullable;
   end;
 
 implementation
@@ -39,6 +43,14 @@ implementation
 uses System.Rtti, System.TypInfo, Delphi.ORM.Nullable;
 
 { TNullableTest }
+
+procedure TNullableTest.GetNullableRttiTypeMustReturnTheRttiTypeOfTheNullable;
+begin
+  var Context := TRttiContext.Create;
+  var RttiType := Context.GetType(TypeInfo(String));
+
+  Assert.AreEqual(RttiType, GetNullableRttiType(Context.GetType(TypeInfo(Nullable<String>))));
+end;
 
 procedure TNullableTest.SetupFixture;
 begin
@@ -138,6 +150,11 @@ begin
   var RttiType := TRttiContext.Create.GetType(TypeInfo(Nullable<Integer>));
 
   Assert.IsTrue(IsNullableType(RttiType));
+end;
+
+procedure TNullableTest.WhenCheckWithTypeInfoIfTheTypeIfNullableMustReturnTrueIfIsAnNullableType;
+begin
+  Assert.IsTrue(IsNullableType(TypeInfo(Nullable<Integer>)));
 end;
 
 procedure TNullableTest.WhenFillTheValuePropertyOfNullableMustSetTheNullToFalse;
