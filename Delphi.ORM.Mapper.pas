@@ -464,11 +464,11 @@ begin
 
       tkFloat:
       begin
-        if TypeInfo.PropertyType.Handle = System.TypeInfo(TDate) then
+        if Value.TypeInfo = System.TypeInfo(TDate) then
           Result := QuotedStr(DateToStr(Value.AsExtended, FormatSettings))
-        else if TypeInfo.PropertyType.Handle = System.TypeInfo(TDateTime) then
+        else if Value.TypeInfo = System.TypeInfo(TDateTime) then
           Result := QuotedStr(DateTimeToStr(Value.AsExtended, FormatSettings))
-        else if TypeInfo.PropertyType.Handle = System.TypeInfo(TTime) then
+        else if Value.TypeInfo = System.TypeInfo(TTime) then
           Result := QuotedStr(TimeToStr(Value.AsExtended, FormatSettings))
         else
           Result := FloatToStr(Value.AsExtended, FormatSettings);
