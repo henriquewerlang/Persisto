@@ -54,6 +54,7 @@ type
     procedure SetValue(const Value: T);
 
     class operator Initialize(out Dest: Nullable<T>);
+    class operator Implicit(const Value: Nullable<T>): T; overload;
     class operator Implicit(const Value: T): Nullable<T>; overload;
     class operator Implicit(const Value: TNullEnumerator): Nullable<T>; overload;
 
@@ -166,6 +167,11 @@ end;
 class operator Nullable<T>.Initialize(out Dest: Nullable<T>);
 begin
   Dest.FValue := TNullableValue<T>.Create;
+end;
+
+class operator Nullable<T>.Implicit(const Value: Nullable<T>): T;
+begin
+  Result := Value.Value;
 end;
 
 class operator Nullable<T>.Implicit(const Value: T): Nullable<T>;

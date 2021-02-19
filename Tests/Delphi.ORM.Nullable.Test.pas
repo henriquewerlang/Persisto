@@ -36,6 +36,10 @@ type
     procedure WhenCheckWithTypeInfoIfTheTypeIfNullableMustReturnTrueIfIsAnNullableType;
     [Test]
     procedure GetNullableRttiTypeMustReturnTheRttiTypeOfTheNullable;
+    [Test]
+    procedure TheImplicitConversionMustReturnTheValueOfTheNullableType;
+    [Test]
+    procedure WhenFillWithNullTheValueMustReturnTheDefaultValueInTheValueProperty;
   end;
 
 implementation
@@ -61,6 +65,15 @@ begin
   RttiType.GetFields;
 
   RttiType.GetMethods;
+end;
+
+procedure TNullableTest.TheImplicitConversionMustReturnTheValueOfTheNullableType;
+begin
+  var NullValue: Nullable<String>;
+  NullValue := 'abc';
+  var Value: String := NullValue;
+
+  Assert.AreEqual('abc', Value);
 end;
 
 procedure TNullableTest.TheImplictOperatorMustLoadTheValueOfTheNullableValue;
@@ -166,6 +179,16 @@ begin
   Value.Value := 'abc';
 
   Assert.IsFalse(Value.IsNull);
+end;
+
+procedure TNullableTest.WhenFillWithNullTheValueMustReturnTheDefaultValueInTheValueProperty;
+begin
+  var NullValue: Nullable<Integer>;
+  NullValue := 1234;
+
+  NullValue := NULL;
+
+  Assert.AreEqual(0, NullValue.Value);
 end;
 
 procedure TNullableTest.WhenSendTheRttiTypeOfANullableTypeMustReturnTheTypeInfoOfTheGenericType;
