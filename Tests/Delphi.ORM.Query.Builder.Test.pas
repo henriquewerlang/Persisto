@@ -257,6 +257,8 @@ type
     [TestCase('Null', 'qbcoNull')]
     [TestCase('Not Null', 'qbcoNotNull')]
     procedure WhenComparingEnumeratorTheComparisonMustHappenAsExpected(Operation: TQueryBuilderComparisonOperator);
+    [Test]
+    procedure WhenTheClassIsRecursiveInItselfHasToPutTheRightAlias;
   end;
 
   TDatabaseTest = class(TInterfacedObject, IDatabaseConnection)
@@ -1718,6 +1720,16 @@ begin
   var Where := From.From<TWhereClassTest>.Where((Field('Field1') = 1) and ((Field('Field2') = 2) or (Field('Field3') = 3)));
 
   Assert.AreEqual(' where (T1.Field1=1 and (T1.Field2=2 or T1.Field3=3))', Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.WhenTheClassIsRecursiveInItselfHasToPutTheRightAlias;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 5);
+  var Where := From.From<TClassRecursiveItself>.Where(Field('Recursive1.Recursive1.Recursive1.Recursive1.Recursive1') = 1);
+
+  Assert.AreEqual(' where T5.IdRecursive1=1', Where.GetSQL);
 
   From.Free;
 end;

@@ -624,19 +624,18 @@ begin
   begin
     CurrentJoin := FFrom.Join;
 
-    for var FieldName in QueryField.FieldNames do
-      if FieldName <> FieldNameToFind then
-      begin
-        FieldNameToFind := FieldName;
+    for var A := Low(QueryField.FieldNames) to Pred(High(QueryField.FieldNames)) do
+    begin
+      var FieldName := QueryField.FieldNames[A];
 
-        for var Join in CurrentJoin.Links do
-          if Join.Field.TypeInfo.Name = FieldNameToFind then
-          begin
-            CurrentJoin := Join;
+      for var Join in CurrentJoin.Links do
+        if Join.Field.TypeInfo.Name = FieldName then
+        begin
+          CurrentJoin := Join;
 
-            Break;
-          end;
-      end;
+          Break;
+        end;
+    end;
 
     Table := CurrentJoin.Table;
   end
