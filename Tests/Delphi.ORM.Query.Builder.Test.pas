@@ -2,7 +2,7 @@ unit Delphi.ORM.Query.Builder.Test;
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Query.Builder, Delphi.ORM.Database.Connection, Delphi.ORM.Attributes, Delphi.ORM.Query.Builder.Test.Entity;
+uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Query.Builder, Delphi.ORM.Database.Connection, Delphi.ORM.Attributes, Delphi.ORM.Test.Entity;
 
 type
   [TestFixture]

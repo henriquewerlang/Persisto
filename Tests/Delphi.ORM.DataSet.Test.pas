@@ -282,7 +282,7 @@ type
 
 implementation
 
-uses System.Rtti, System.Generics.Collections, System.SysUtils, System.Classes, System.Variants, Data.DBConsts, Delphi.ORM.DataSet, Delphi.ORM.Query.Builder.Test.Entity;
+uses System.Rtti, System.Generics.Collections, System.SysUtils, System.Classes, System.Variants, Data.DBConsts, Delphi.ORM.DataSet, Delphi.ORM.Test.Entity;
 
 { TORMDataSetTest }
 

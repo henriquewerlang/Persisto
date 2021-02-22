@@ -170,7 +170,7 @@ type
 
 implementation
 
-uses System.Variants, System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder.Test.Entity;
+uses System.Variants, System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Test.Entity;
 
 { TMapperTest }
 

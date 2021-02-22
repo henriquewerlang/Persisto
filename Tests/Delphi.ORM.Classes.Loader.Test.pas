@@ -60,7 +60,7 @@ type
 
 implementation
 
-uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Query.Builder.Test.Entity, Delphi.ORM.Cursor.Mock;
+uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Test.Entity, Delphi.ORM.Cursor.Mock;
 
 { TClassLoaderTest }
 
