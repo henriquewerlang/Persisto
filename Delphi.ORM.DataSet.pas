@@ -33,6 +33,9 @@ type
     property AsObject: TObject read GetAsObject write SetAsObject;
   end;
 
+  {$IFDEF DCC}
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
+  {$ENDIF}
   TORMDataSet = class(TDataSet)
   private
     FObjectList: TArray<TObject>;
