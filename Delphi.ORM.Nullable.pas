@@ -64,17 +64,13 @@ type
 
 function GetNullableRttiType(RttiType: TRttiType): TRttiType;
 function GetNullableTypeInfo(RttiType: TRttiType): PTypeInfo;
-{$IFDEF PAS2JS}
 function GetNullableValue(RttiType: TRttiType; const Instance: TValue): TValue;
-function IsNullableType(RttiType: TRttiType): Boolean;
-
-procedure SetNullableValue(RttiType: TRttiType; const Instance: TValue; const NullableValue: JSValue);
-{$ELSE}
-function GetNullableValue(RttiType: TRttiType; const Instance: TValue): TValue;
-function IsNullableType(Info: PTypeInfo): Boolean; overload;
 function IsNullableType(RttiType: TRttiType): Boolean; overload;
 
-procedure SetNullableValue(RttiType: TRttiType; const Instance, NullableValue: TValue);
+procedure SetNullableValue(RttiType: TRttiType; const Instance: TValue; const NullableValue: {$IFDEF PAS2JS}JSValue{$ELSE}TValue{$ENDIF});
+
+{$IFDEF DCC}
+function IsNullableType(Info: PTypeInfo): Boolean; overload;
 {$ENDIF}
 
 implementation
@@ -91,28 +87,46 @@ begin
   Result := GetNullableRttiType(RttiType).Handle;
 end;
 
-{$IFDEF PAS2JS}
 function GetNullableValue(RttiType: TRttiType; const Instance: TValue): TValue;
 begin
+{$IFDEF PAS2JS}
   if TJSFunction(TJSObject(Instance.AsJSValue)['IsNull']).apply(TJSObject(Instance.AsJSValue), nil) then
     Result := TValue.Empty
   else
     Result := TValue.FromJSValue(TJSFunction(TJSObject(Instance.AsJSValue)['GetValue']).apply(TJSObject(Instance.AsJSValue), nil));
+{$ELSE}
+  if RttiType.GetMethod('IsNull').Invoke(Instance, []).AsBoolean then
+    Result := TValue.Empty
+  else
+    Result := RttiType.GetMethod('GetValue').Invoke(Instance, []);
+{$ENDIF}
 end;
 
-function IsNullableType(RttiType: TRttiType): Boolean;
+procedure SetNullableValue(RttiType: TRttiType; const Instance: TValue; const NullableValue: {$IFDEF PAS2JS}JSValue{$ELSE}TValue{$ENDIF});
 begin
-  Result := RttiType.Name.StartsWith('Nullable<');
-end;
-
-procedure SetNullableValue(RttiType: TRttiType; const Instance: TValue; const NullableValue: JSValue);
-begin
+{$IFDEF PAS2JS}
   if NullableValue = NULL then
     TJSFunction(TJSObject(Instance.AsJSValue)['Clear']).apply(TJSObject(Instance.AsJSValue), nil)
   else
     TJSFunction(TJSObject(Instance.AsJSValue)['SetValue']).apply(TJSObject(Instance.AsJSValue), [NullableValue]);
+{$ELSE}
+  if NullableValue.IsEmpty then
+    RttiType.GetMethod('Clear').Invoke(Instance, [])
+  else
+    RttiType.GetMethod('SetValue').Invoke(Instance, [NullableValue]);
+{$ENDIF}
 end;
 
+function IsNullableType(RttiType: TRttiType): Boolean;
+begin
+{$IFDEF PAS2JS}
+  Result := RttiType.Name.StartsWith('Nullable<');
+{$ELSE}
+  Result := IsNullableType(RttiType.Handle);
+{$ENDIF}
+end;
+
+{$IFDEF PAS2JS}
 { Nullable<T> }
 
 procedure Nullable<T>.Clear;
@@ -136,30 +150,9 @@ begin
 end;
 
 {$ELSE}
-function GetNullableValue(RttiType: TRttiType; const Instance: TValue): TValue;
-begin
-  if RttiType.GetMethod('IsNull').Invoke(Instance, []).AsBoolean then
-    Result := TValue.Empty
-  else
-    Result := RttiType.GetMethod('GetValue').Invoke(Instance, []);
-end;
-
 function IsNullableType(Info: PTypeInfo): Boolean;
 begin
   Result := Info.NameFld.ToString.StartsWith('Nullable<');
-end;
-
-function IsNullableType(RttiType: TRttiType): Boolean;
-begin
-  Result := IsNullableType(RttiType.Handle);
-end;
-
-procedure SetNullableValue(RttiType: TRttiType; const Instance, NullableValue: TValue);
-begin
-  if NullableValue.IsEmpty then
-    RttiType.GetMethod('Clear').Invoke(Instance, [])
-  else
-    RttiType.GetMethod('SetValue').Invoke(Instance, [NullableValue]);
 end;
 
 { Nullable<T> }
