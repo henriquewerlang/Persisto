@@ -42,6 +42,8 @@ contains
   Delphi.ORM in '..\Delphi.ORM.pas',
   Delphi.ORM.Query.Builder in '..\Delphi.ORM.Query.Builder.pas',
   Delphi.ORM.Rtti.Helper in '..\Delphi.ORM.Rtti.Helper.pas',
-  Delphi.ORM.Nullable in '..\Delphi.ORM.Nullable.pas';
+  Delphi.ORM.Nullable in '..\Delphi.ORM.Nullable.pas',
+  Delphi.ORM.Lazy in '..\Delphi.ORM.Lazy.pas',
+  Delphi.ORM.Lazy.Loader in '..\Delphi.ORM.Lazy.Loader.pas';
 
 end.

@@ -9,6 +9,7 @@ type
   private
     FCache: TDictionary<String, TObject>;
     FContext: TRttiContext;
+    FConnection: IDatabaseConnection;
     FCursor: IDatabaseCursor;
     FFields: TArray<TFieldAlias>;
     FJoin: TQueryBuilderJoin;
@@ -22,7 +23,7 @@ type
     function LoadClassJoin(Join: TQueryBuilderJoin): TObject;
     function LoadClassLink(Join: TQueryBuilderJoin; var FieldIndexStart: Integer): TObject;
   public
-    constructor Create(Cursor: IDatabaseCursor; Join: TQueryBuilderJoin; const Fields: TArray<TFieldAlias>);
+    constructor Create(Connection: IDatabaseConnection; From: TQueryBuilderFrom);
 
     destructor Destroy; override;
 
@@ -32,19 +33,20 @@ type
 
 implementation
 
-uses System.Variants, System.TypInfo, System.SysConst, Delphi.ORM.Rtti.Helper;
+uses System.Variants, System.TypInfo, System.SysConst, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy, Delphi.ORM.Lazy.Loader;
 
 { TClassLoader }
 
-constructor TClassLoader.Create(Cursor: IDatabaseCursor; Join: TQueryBuilderJoin; const Fields: TArray<TFieldAlias>);
+constructor TClassLoader.Create(Connection: IDatabaseConnection; From: TQueryBuilderFrom);
 begin
   inherited Create;
 
   FCache := TDictionary<String, TObject>.Create;
   FContext := TRttiContext.Create;
-  FCursor := Cursor;
-  FFields := Fields;
-  FJoin := Join;
+  FConnection := Connection;
+  FCursor := Connection.OpenCursor(From.Builder.GetSQL);
+  FFields := From.Fields;
+  FJoin := From.Join;
 end;
 
 function TClassLoader.CreateObject(Table: TTable; const FieldIndexStart: Integer): TObject;
@@ -153,11 +155,18 @@ function TClassLoader.LoadClassLink(Join: TQueryBuilderJoin; var FieldIndexStart
 begin
   Result := CreateObject(Join.Table, FieldIndexStart);
 
-  for var A := Low(Join.Table.Fields) to High(Join.Table.Fields) do
-    if not Join.Table.Fields[A].IsJoinLink then
+  for var Field in Join.Table.Fields do
+    if not Field.IsJoinLink or Field.IsLazy then
     begin
       if Assigned(Result) then
-        FFields[FieldIndexStart].Field.SetValue(Result, GetFieldValueVariant(FieldIndexStart));
+      begin
+        var FieldValue := GetFieldValueVariant(FieldIndexStart);
+
+        if Field.IsLazy then
+          GetLazyLoadingAccess(Field.GetValue(Result)).SetLazyLoader(TLazyLoader.Create(FConnection, Field.ForeignKey.ParentTable, TValue.FromVariant(FieldValue)))
+        else
+          Field.SetValue(Result, FieldValue);
+      end;
 
       Inc(FieldIndexStart);
     end;

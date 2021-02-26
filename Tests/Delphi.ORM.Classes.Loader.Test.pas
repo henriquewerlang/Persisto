@@ -8,10 +8,11 @@ type
   [TestFixture]
   TClassLoaderTest = class
   private
-    FFrom: TQueryBuilderFrom;
+    FBuilder: TQueryBuilder;
 
-    function CreateFieldList<T: class>: TArray<TFieldAlias>;
-    function CreateLoader<T: class>(CursorValues: TArray<TArray<Variant>>): TClassLoader;
+    function CreateCursor(const CursorValues: TArray<TArray<Variant>>): IDatabaseCursor;
+    function CreateLoader<T: class>(const CursorValues: TArray<TArray<Variant>>): TClassLoader;
+    function CreateLoaderConnection<T: class>(Connection: IDatabaseConnection): TClassLoader;
     function CreateLoaderCursor<T: class>(Cursor: IDatabaseCursor): TClassLoader;
   public
     [TearDown]
@@ -56,6 +57,8 @@ type
     procedure WhenLoadAllIsCallWithTheSamePrimaryKeyValueMustReturnASingleObject;
     [Test]
     procedure WhenAClassHasManyValueAssociationsInChildClassesMustGroupTheValuesByThePrimaryKey;
+    [Test]
+    procedure WhenTheFieldIsLazyLoadingMustReturnTheValueOfThePropertyAsExpected;
   end;
 
 implementation
@@ -64,26 +67,33 @@ uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock,
 
 { TClassLoaderTest }
 
-function TClassLoaderTest.CreateFieldList<T>: TArray<TFieldAlias>;
+function TClassLoaderTest.CreateCursor(const CursorValues: TArray<TArray<Variant>>): IDatabaseCursor;
 begin
-  var AllFields := TQueryBuilderAllFields.Create(FFrom);
-  Result := AllFields.GetFields;
-
-  AllFields.Free;
+  Result := TCursorMock.Create(CursorValues);
 end;
 
-function TClassLoaderTest.CreateLoader<T>(CursorValues: TArray<TArray<Variant>>): TClassLoader;
+function TClassLoaderTest.CreateLoader<T>(const CursorValues: TArray<TArray<Variant>>): TClassLoader;
 begin
-  Result := CreateLoaderCursor<T>(TCursorMock.Create(CursorValues));
+  Result := CreateLoaderCursor<T>(CreateCursor(CursorValues));
 end;
 
 function TClassLoaderTest.CreateLoaderCursor<T>(Cursor: IDatabaseCursor): TClassLoader;
 begin
-  FFrom := TQueryBuilderFrom.Create(nil, 1);
+  var Connection := TMock.CreateInterface<IDatabaseConnection>;
 
-  FFrom.From<T>;
+  Connection.Setup.WillReturn(TValue.From(Cursor)).When.OpenCursor(It.IsAny<String>);
 
-  Result := TClassLoader.Create(Cursor, FFrom.Join, CreateFieldList<T>);
+  Result := CreateLoaderConnection<T>(Connection.Instance);
+end;
+
+function TClassLoaderTest.CreateLoaderConnection<T>(Connection: IDatabaseConnection): TClassLoader;
+begin
+  FBuilder := TQueryBuilder.Create(Connection);
+  var From := FBuilder.Select.All;
+
+  From.From<T>;
+
+  Result := TClassLoader.Create(Connection, From);
 end;
 
 procedure TClassLoaderTest.EvenIfTheCursorReturnsMoreThanOneRecordTheLoadClassHasToReturnOnlyOneClass;
@@ -133,7 +143,7 @@ end;
 
 procedure TClassLoaderTest.TearDown;
 begin
-  FFrom.Free;
+  FBuilder.Free;
 end;
 
 procedure TClassLoaderTest.TheChildFieldInManyValueAssociationMustBeLoadedWithTheReferenceOfTheParentClass;
@@ -328,6 +338,25 @@ begin
   Assert.AreEqual(MyGuid.ToString, MyClass.Guid.ToString);
 
   MyClass.Free;
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenTheFieldIsLazyLoadingMustReturnTheValueOfThePropertyAsExpected;
+begin
+  var Connection := TMock.CreateInterface<IDatabaseConnection>;
+
+  Connection.Setup.WillReturn(TValue.From(CreateCursor([[1, 222]]))).When.OpenCursor(It.IsEqualTo('select T1.Id F1,T1.IdLazy F2 from LazyClass T1'));
+
+  Connection.Setup.WillReturn(TValue.From(CreateCursor([[222, 'A name', 123.456]]))).When.OpenCursor(It.IsEqualTo('select T1.Id F1,T1.Name F2,T1.Value F3 from MyEntity T1 where T1.Id=222'));
+
+  var Loader := CreateLoaderConnection<TLazyClass>(Connection.Instance);
+
+  var MyLazy := Loader.Load<TLazyClass>;
+
+  Assert.AreEqual(222, MyLazy.Lazy.Value.Id);
+
+  MyLazy.Free;
 
   Loader.Free;
 end;

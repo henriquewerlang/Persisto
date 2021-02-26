@@ -31,10 +31,6 @@ type
     [Test]
     procedure WhenCallTheSetValueFunctionMustLoadTheValueOfTheRecordWithTheValueInTheParam;
     [Test]
-    procedure WhenSendTheRttiTypeOfANullableTypeMustReturnTheTypeInfoOfTheGenericType;
-    [Test]
-    procedure WhenCheckWithTypeInfoIfTheTypeIfNullableMustReturnTrueIfIsAnNullableType;
-    [Test]
     procedure GetNullableRttiTypeMustReturnTheRttiTypeOfTheNullable;
     [Test]
     procedure TheImplicitConversionMustReturnTheValueOfTheNullableType;
@@ -165,11 +161,6 @@ begin
   Assert.IsTrue(IsNullableType(RttiType));
 end;
 
-procedure TNullableTest.WhenCheckWithTypeInfoIfTheTypeIfNullableMustReturnTrueIfIsAnNullableType;
-begin
-  Assert.IsTrue(IsNullableType(TypeInfo(Nullable<Integer>)));
-end;
-
 procedure TNullableTest.WhenFillTheValuePropertyOfNullableMustSetTheNullToFalse;
 begin
   var Value: Nullable<String>;
@@ -189,13 +180,6 @@ begin
   NullValue := NULL;
 
   Assert.AreEqual(0, NullValue.Value);
-end;
-
-procedure TNullableTest.WhenSendTheRttiTypeOfANullableTypeMustReturnTheTypeInfoOfTheGenericType;
-begin
-  var RttiType := TRttiContext.Create.GetType(TypeInfo(Nullable<String>));
-
-  Assert.AreEqual<PTypeInfo>(TypeInfo(String), GetNullableTypeInfo(RttiType));
 end;
 
 end.

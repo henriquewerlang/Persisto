@@ -64,7 +64,6 @@ type
     function BuildJoinSQL: String;
     function GetBuilder: TQueryBuilder;
     function GetFields: TArray<TFieldAlias>;
-    function GetJoin: TQueryBuilderJoin;
     function MakeJoinSQL(Join: TQueryBuilderJoin): String;
 
     procedure BuildJoin;
@@ -74,9 +73,12 @@ type
 
     destructor Destroy; override;
 
-    function From<T: class>: TQueryBuilderWhere<T>;
+    function From<T: class>: TQueryBuilderWhere<T>; overload;
+    function From<T: class>(Table: TTable): TQueryBuilderWhere<T>; overload;
     function GetSQL: String;
 
+    property Builder: TQueryBuilder read GetBuilder;
+    property Fields: TArray<TFieldAlias> read GetFields;
     property Join: TQueryBuilderJoin read FJoin;
   end;
 
@@ -104,10 +106,11 @@ type
 
   TQueryBuilderOpen<T: class> = class
   private
-    FCursor: IDatabaseCursor;
-    FFrom: TQueryBuilderFrom;
+    FLoader: TObject;
   public
     constructor Create(From: TQueryBuilderFrom);
+
+    destructor Destroy; override;
 
     function All: TArray<T>;
     function One: T;
@@ -441,14 +444,19 @@ begin
   inherited;
 end;
 
-function TQueryBuilderFrom.From<T>: TQueryBuilderWhere<T>;
+function TQueryBuilderFrom.From<T>(Table: TTable): TQueryBuilderWhere<T>;
 begin
-  FJoin := TQueryBuilderJoin.Create(TMapper.Default.FindTable(T));
+  FJoin := TQueryBuilderJoin.Create(Table);
   Result := TQueryBuilderWhere<T>.Create(Self);
 
   FWhere := Result;
 
   BuildJoin;
+end;
+
+function TQueryBuilderFrom.From<T>: TQueryBuilderWhere<T>;
+begin
+  Result := From<T>(TMapper.Default.FindTable(T));
 end;
 
 function TQueryBuilderFrom.GetBuilder: TQueryBuilder;
@@ -459,11 +467,6 @@ end;
 function TQueryBuilderFrom.GetFields: TArray<TFieldAlias>;
 begin
   Result := FSelect.GetFields;
-end;
-
-function TQueryBuilderFrom.GetJoin: TQueryBuilderJoin;
-begin
-  Result := FJoin;
 end;
 
 function TQueryBuilderFrom.GetSQL: String;
@@ -481,7 +484,7 @@ begin
   Inc(TableIndex);
 
   for var ForeignKey in Join.Table.ForeignKeys do
-    if not Assigned(ManyValueAssociationToIgnore) or (ForeignKey <> ManyValueAssociationToIgnore.ForeignKey) then
+    if not ForeignKey.Field.IsLazy and (not Assigned(ManyValueAssociationToIgnore) or (ForeignKey <> ManyValueAssociationToIgnore.ForeignKey)) then
     begin
       if not RecursionControl.ContainsKey(ForeignKey.ParentTable) then
         RecursionControl.Add(ForeignKey.ParentTable, 0);
@@ -739,29 +742,26 @@ end;
 
 function TQueryBuilderOpen<T>.All: TArray<T>;
 begin
-  var Loader := TClassLoader.Create(FCursor, FFrom.GetJoin, FFrom.GetFields);
-
-  Result := Loader.LoadAll<T>;
-
-  Loader.Free;
+  Result := TClassLoader(FLoader).LoadAll<T>;
 end;
 
 constructor TQueryBuilderOpen<T>.Create(From: TQueryBuilderFrom);
 begin
   inherited Create;
 
-  FFrom := From;
+  FLoader := TClassLoader.Create(From.GetBuilder.GetConnection, From);
+end;
 
-  FCursor := FFrom.GetBuilder.GetConnection.OpenCursor(FFrom.GetBuilder.GetSQL);
+destructor TQueryBuilderOpen<T>.Destroy;
+begin
+  FLoader.Free;
+
+  inherited;
 end;
 
 function TQueryBuilderOpen<T>.One: T;
 begin
-  var Loader := TClassLoader.Create(FCursor, FFrom.GetJoin, FFrom.GetFields);
-
-  Result := Loader.Load<T>;
-
-  Loader.Free;
+  Result := TClassLoader(FLoader).Load<T>;
 end;
 
 { TQueryBuilderAllFields }
@@ -777,11 +777,8 @@ function TQueryBuilderAllFields.GetAllFields(Join: TQueryBuilderJoin): TArray<TF
 begin
   Result := nil;
 
-  if Assigned(Join.Table.PrimaryKey) then
-    Result := Result + [TFieldAlias.Create(Join.Alias, Join.Table.PrimaryKey)];
-
   for var Field in Join.Table.Fields do
-    if not Field.InPrimaryKey and not Field.IsJoinLink then
+    if not Field.IsJoinLink or Field.IsLazy then
       Result := Result + [TFieldAlias.Create(Join.Alias, Field)];
 
   for var Link in Join.Links do
@@ -790,7 +787,7 @@ end;
 
 function TQueryBuilderAllFields.GetFields: TArray<TFieldAlias>;
 begin
-  Result := GetAllFields(FFrom.GetJoin);
+  Result := GetAllFields(FFrom.Join);
 end;
 
 { TQueryBuilderJoin }

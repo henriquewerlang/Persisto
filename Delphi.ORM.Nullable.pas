@@ -63,15 +63,10 @@ type
 {$ENDIF}
 
 function GetNullableRttiType(RttiType: TRttiType): TRttiType;
-function GetNullableTypeInfo(RttiType: TRttiType): PTypeInfo;
 function GetNullableValue(RttiType: TRttiType; const Instance: TValue): TValue;
-function IsNullableType(RttiType: TRttiType): Boolean; overload;
+function IsNullableType(RttiType: TRttiType): Boolean;
 
 procedure SetNullableValue(RttiType: TRttiType; const Instance: TValue; const NullableValue: {$IFDEF PAS2JS}JSValue{$ELSE}TValue{$ENDIF});
-
-{$IFDEF DCC}
-function IsNullableType(Info: PTypeInfo): Boolean; overload;
-{$ENDIF}
 
 implementation
 
@@ -119,11 +114,7 @@ end;
 
 function IsNullableType(RttiType: TRttiType): Boolean;
 begin
-{$IFDEF PAS2JS}
   Result := RttiType.Name.StartsWith('Nullable<');
-{$ELSE}
-  Result := IsNullableType(RttiType.Handle);
-{$ENDIF}
 end;
 
 {$IFDEF PAS2JS}
@@ -150,11 +141,6 @@ begin
 end;
 
 {$ELSE}
-function IsNullableType(Info: PTypeInfo): Boolean;
-begin
-  Result := Info.NameFld.ToString.StartsWith('Nullable<');
-end;
-
 { Nullable<T> }
 
 class operator Nullable<T>.Initialize(out Dest: Nullable<T>);

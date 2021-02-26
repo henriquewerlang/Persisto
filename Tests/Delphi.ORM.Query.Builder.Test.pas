@@ -180,6 +180,8 @@ type
     procedure TheRecursivelyMustBeRespectedAndLoadAllFieldFromTheClasses;
     [Test]
     procedure WhenThePropertyIsAnArrayCantLoadTheFieldInTheList;
+    [Test]
+    procedure WhenAFieldIsLazyLoadingThisMustLoadInFieldList;
   end;
 
   [TestFixture]
@@ -259,6 +261,8 @@ type
     procedure WhenComparingEnumeratorTheComparisonMustHappenAsExpected(Operation: TQueryBuilderComparisonOperator);
     [Test]
     procedure WhenTheClassIsRecursiveInItselfHasToPutTheRightAlias;
+    [Test]
+    procedure WhenAPropertyIsLazyLoadingCantAppearInTheFromClause;
   end;
 
   TDatabaseTest = class(TInterfacedObject, IDatabaseConnection)
@@ -1086,6 +1090,21 @@ begin
   FieldList.Free;
 end;
 
+procedure TQueryBuilderAllFieldsTest.WhenAFieldIsLazyLoadingThisMustLoadInFieldList;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+
+  var Fields := TQueryBuilderAllFields.Create(From);
+
+  From.From<TLazyClass>;
+
+  Assert.AreEqual(2, Length(Fields.GetFields));
+
+  From.Free;
+
+  Fields.Free;
+end;
+
 procedure TQueryBuilderAllFieldsTest.WhenTheClassHaveForeignKeyMustLoadAllFieldsOfAllClassesInvolved;
 begin
   var From := TQueryBuilderFrom.Create(nil, 1);
@@ -1611,6 +1630,17 @@ begin
   var Where := From.From<TWhereClassTest>.Where(Field('Where') = 1);
 
   Assert.AreEqual(' where T1.IdWhere=1', Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.WhenAPropertyIsLazyLoadingCantAppearInTheFromClause;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+
+  From.From<TLazyClass>;
+
+  Assert.AreEqual(' from LazyClass T1', From.GetSQL);
 
   From.Free;
 end;

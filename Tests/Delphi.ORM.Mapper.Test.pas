@@ -166,6 +166,16 @@ type
     procedure WhenTheNullablePropertyIsFilledWithTheNullValueMustMarkAsNullTheValue;
     [Test]
     procedure WhenTheNullablePropertyIsFilledWithAValueMustLoadTheValue;
+    [Test]
+    procedure WhenThePropertyIsLazyMustFillWithTrueTheIsLazyPropertyInTheField;
+    [Test]
+    procedure WhenThePropertyIsLazyMustCreateTheForeignKeyToThisProperty;
+    [Test]
+    procedure TheFieldThatGenerateAForignKeyMustLoadThisInfoInTheField;
+    [Test]
+    procedure WhenTheFieldIsAForeignKeyMustAppendTheIdInTheDatabaseNameOfTheField;
+    [Test]
+    procedure TheFieldsMustBeOrderedByPriorityFirstPrimaryKeyThenRegularFieldsThenForeignKeysThenManyValueAssociations;
   end;
 
 implementation
@@ -329,6 +339,39 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.TheFieldsMustBeOrderedByPriorityFirstPrimaryKeyThenRegularFieldsThenForeignKeysThenManyValueAssociations;
+begin
+  var Mapper := TMapper.Create;
+
+  var Table := Mapper.LoadClass(TUnorderedClass);
+
+  Assert.AreEqual('Id', Table.Fields[0].DatabaseName);
+  Assert.AreEqual('AField', Table.Fields[1].DatabaseName);
+  Assert.AreEqual('BField', Table.Fields[2].DatabaseName);
+  Assert.AreEqual('LastField', Table.Fields[5].DatabaseName);
+  Assert.AreEqual('IdALazy', Table.Fields[3].DatabaseName);
+  Assert.AreEqual('IdBLazy', Table.Fields[4].DatabaseName);
+  Assert.AreEqual('IdAForeignKey', Table.Fields[6].DatabaseName);
+  Assert.AreEqual('IdBForeignKey', Table.Fields[7].DatabaseName);
+  Assert.AreEqual('AManyValue', Table.Fields[8].DatabaseName);
+  Assert.AreEqual('BManyValue', Table.Fields[9].DatabaseName);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.TheFieldThatGenerateAForignKeyMustLoadThisInfoInTheField;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TClassWithForeignKey);
+
+  Assert.IsNotNull(Table.Fields[1].ForeignKey);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.TheFunctionGetValueFromFieldMustReturnTheValueOfThePropertyOfTheField;
 begin
   var Mapper := TMapper.Create;
@@ -338,7 +381,7 @@ begin
   Mapper.LoadAll;
 
   var Table := Mapper.FindTable(TMyEntityWithAllTypeOfFields);
-  var Field := Table.Fields[8];
+  var Field := Table.Fields[10];
 
   Assert.AreEqual('My Field', Field.GetValue(MyClass).AsString);
 
@@ -919,6 +962,19 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.WhenTheFieldIsAForeignKeyMustAppendTheIdInTheDatabaseNameOfTheField;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TLazyClass);
+
+  Assert.AreEqual('IdLazy', Table.Fields[1].DatabaseName);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.WhenTheFieldIsMappedMustLoadTheReferenceToTheTableOfTheField;
 begin
   var Mapper := TMapper.Create;
@@ -949,7 +1005,7 @@ begin
 
   var Table := Mapper.FindTable(TMyEntityWithAllTypeOfFields);
 
-  var Field := Table.Fields[3];
+  var Field := Table.Fields[6];
 
   Field.SetValue(MyClass, NULL);
 
@@ -1047,6 +1103,26 @@ begin
   Mapper.Free;
 
   MyClass.Free;
+end;
+
+procedure TMapperTest.WhenThePropertyIsLazyMustCreateTheForeignKeyToThisProperty;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TLazyClass);
+
+  Assert.AreEqual(1, Length(Table.ForeignKeys));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenThePropertyIsLazyMustFillWithTrueTheIsLazyPropertyInTheField;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TLazyClass);
+
+  Assert.IsTrue(Table.Fields[1].IsLazy);
+
+  Mapper.Free;
 end;
 
 procedure TMapperTest.WhenThePropertyIsNullableMustMarkTheFieldAsNullable;

@@ -57,6 +57,7 @@ type
     function GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
 
     procedure CheckObjectTypeLoaded;
+    procedure GetPropertyValue(const &Property: TRttiProperty; const Instance: TValue; var Value: TValue);
     procedure LoadDetailInfo;
     procedure LoadFieldDefsFromClass;
     procedure LoadObjectListFromParentDataSet;
@@ -152,7 +153,7 @@ type
 
 implementation
 
-uses {$IFDEF DCC}System.SysConst, {$ENDIF}Delphi.ORM.Nullable, {$IFDEF PAS2JS}Pas2JS.JS, {$ENDIF}Delphi.ORM.Rtti.Helper;
+uses {$IFDEF DCC}System.SysConst, {$ENDIF}Delphi.ORM.Nullable, {$IFDEF PAS2JS}Pas2JS.JS, {$ENDIF}Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy;
 
 { TORMDataSet }
 
@@ -310,10 +311,7 @@ begin
 
   if GetPropertyAndObjectFromField(Field, Value, &Property) then
   begin
-    Value := &Property.GetValue(Value.AsObject);
-
-    if IsNullableType(&Property.PropertyType) then
-      Value := GetNullableValue(&Property.PropertyType, Value);
+    GetPropertyValue(&Property, Value, Value);
 
     if not Value.IsEmpty then
 {$IFDEF PAS2JS}
@@ -353,7 +351,9 @@ end;
 function TORMDataSet.GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
 begin
   if IsNullableType(&Property.PropertyType) then
-    Result := GetFieldInfoFromTypeInfo(GetNullableTypeInfo(&Property.PropertyType), Size)
+    Result := GetFieldInfoFromTypeInfo(GetNullableRttiType(&Property.PropertyType).Handle, Size)
+  else if IsLazyLoading(&Property.PropertyType) then
+    Result := GetFieldInfoFromTypeInfo(GetLazyLoadingRttiType(&Property.PropertyType).Handle, Size)
   else
     Result := GetFieldInfoFromTypeInfo(&Property.PropertyType.Handle, Size);
 end;
@@ -469,13 +469,23 @@ begin
   for A := Low(PropertyList) to High(PropertyList) do
   begin
     if A > 0 then
-      Instance := &Property.GetValue(Instance.AsObject);
+      GetPropertyValue(&Property, Instance, Instance);
 
     &Property := PropertyList[A];
 
     if Instance.IsEmpty then
       Exit(False);
   end;
+end;
+
+procedure TORMDataSet.GetPropertyValue(const &Property: TRttiProperty; const Instance: TValue; var Value: TValue);
+begin
+  Value := &Property.GetValue(Instance.AsObject);
+
+  if IsNullableType(&Property.PropertyType) then
+    Value := GetNullableValue(&Property.PropertyType, Instance)
+  else if IsLazyLoading(&Property.PropertyType) then
+    Value := GetLazyLoadingAccess(Instance).GetValue;
 end;
 
 function TORMDataSet.GetRecNo: Integer;
@@ -784,7 +794,9 @@ begin
       PropertyList := PropertyList + [&Property];
 
       if &Property.PropertyType.IsInstance then
-        CurrentObjectType := &Property.PropertyType as TRttiInstanceType;
+        CurrentObjectType := &Property.PropertyType as TRttiInstanceType
+      else if IsLazyLoading(&Property.PropertyType) then
+        CurrentObjectType := GetLazyLoadingRttiType(&Property.PropertyType) as TRttiInstanceType;
     end;
 
 {$IFDEF DCC}
@@ -912,6 +924,8 @@ begin
 
   if IsNullableType(&Property.PropertyType) then
     SetNullableValue(&Property.PropertyType, &Property.GetValue(Instance.AsObject), Value)
+  else if IsLazyLoading(&Property.PropertyType) then
+    GetLazyLoadingAccess(&Property.GetValue(Instance.AsObject)).SetValue({$IFDEF PAS2JS}TValue.From{$ENDIF}(Value))
   else
     &Property.SetValue(Instance.AsObject, Value);
 

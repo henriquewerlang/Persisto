@@ -33,7 +33,9 @@ uses
   Delphi.ORM.Rtti.Helper.Test in 'Delphi.ORM.Rtti.Helper.Test.pas',
   Delphi.ORM.Nullable in '..\Delphi.ORM.Nullable.pas',
   Delphi.ORM.Nullable.Test in 'Delphi.ORM.Nullable.Test.pas',
-  Delphi.ORM.Lazy.Test in 'Delphi.ORM.Lazy.Test.pas';
+  Delphi.ORM.Lazy in '..\Delphi.ORM.Lazy.pas',
+  Delphi.ORM.Lazy.Test in 'Delphi.ORM.Lazy.Test.pas',
+  Delphi.ORM.Lazy.Loader in '..\Delphi.ORM.Lazy.Loader.pas';
 
 // Para não remover o valor abaixo
 {$IFNDEF TESTINSIGHT}

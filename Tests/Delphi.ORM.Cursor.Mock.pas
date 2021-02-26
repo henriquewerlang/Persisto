@@ -13,7 +13,7 @@ type
     function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
   public
-    constructor Create(Values: TArray<TArray<Variant>>);
+    constructor Create(const Values: TArray<TArray<Variant>>);
 
     property CurrentRecord: Integer read FCurrentRecord;
   end;
@@ -22,7 +22,7 @@ implementation
 
 { TCursorMock }
 
-constructor TCursorMock.Create(Values: TArray<TArray<Variant>>);
+constructor TCursorMock.Create(const Values: TArray<TArray<Variant>>);
 begin
   inherited Create;
 

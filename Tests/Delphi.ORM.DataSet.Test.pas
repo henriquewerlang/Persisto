@@ -187,6 +187,16 @@ type
     procedure WhenFillANullableFieldWithAnValueMustFillThePropertyWithTheValue;
     [Test]
     procedure GetADateTimeFieldMustReturnTheValueAsExpected;
+    [Test]
+    procedure WhenThePropertyOfTheClassIsLazyLoadingMustCreateTheField;
+    [Test]
+    procedure WhenThePropertyOfTheClassIsLazyLoadingMustCreateTheFieldWithTheGenericTypeOfTheLazyRecord;
+    [Test]
+    procedure WhenGetTheValueOfALazyPropertyMustReturnTheValueInsideTheLazyRecord;
+    [Test]
+    procedure WhenFillAFieldOfALazyPropertyMustFieldTheLazyStructure;
+    [Test]
+    procedure WhenTryToGetAComposeFieldNameFromALazyPropertyMustLoadAsExpected;
   end;
 
   TAnotherObject = class
@@ -409,6 +419,7 @@ end;
 
 procedure TORMDataSetTest.Setup;
 begin
+Exit;
   var DataSet := TORMDataSet.Create(nil);
 
   DataSet.OpenClass<TMyTestClassTypes>;
@@ -788,6 +799,25 @@ begin
   DataSet.Free;
 end;
 
+procedure TORMDataSetTest.WhenFillAFieldOfALazyPropertyMustFieldTheLazyStructure;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyClass := TLazyClass.Create;
+  var TheValue := TMyEntity.Create;
+
+  DataSet.OpenObject(MyClass);
+
+  DataSet.Edit;
+
+  TORMObjectField(DataSet.FindField('Lazy')).AsObject := TheValue;
+
+  Assert.AreEqual<TObject>(TheValue, MyClass.Lazy.Value);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
 procedure TORMDataSetTest.WhenFillANullableFieldWithAnValueMustFillThePropertyWithTheValue;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -913,6 +943,23 @@ begin
   DataSet.OpenObject(MyClass);
 
   Assert.AreEqual<TObject>(MyClass.AnotherObject, (DataSet.FieldByName('AnotherObject') as TORMObjectField).AsObject);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
+procedure TORMDataSetTest.WhenGetTheValueOfALazyPropertyMustReturnTheValueInsideTheLazyRecord;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyClass := TLazyClass.Create;
+  var TheValue := TMyEntity.Create;
+
+  MyClass.Lazy := TheValue;
+
+  DataSet.OpenObject(MyClass);
+
+  Assert.AreEqual<TObject>(TheValue, TORMObjectField(DataSet.FindField('Lazy')).AsObject);
 
   DataSet.Free;
 
@@ -1450,6 +1497,36 @@ begin
   MyClass.Free;
 end;
 
+procedure TORMDataSetTest.WhenThePropertyOfTheClassIsLazyLoadingMustCreateTheField;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  var MyClass := TLazyClass.Create;
+
+  DataSet.OpenObject(MyClass);
+
+  Assert.IsTrue(DataSet.FindField('Lazy') <> nil);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
+procedure TORMDataSetTest.WhenThePropertyOfTheClassIsLazyLoadingMustCreateTheFieldWithTheGenericTypeOfTheLazyRecord;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  var MyClass := TLazyClass.Create;
+
+  DataSet.OpenObject(MyClass);
+
+  Assert.AreEqual(ftVariant, DataSet.FindField('Lazy').DataType);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
 procedure TORMDataSetTest.WhenTryOpenADataSetWithoutAObjectDefinitionMustRaiseAnError;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -1461,6 +1538,24 @@ begin
     end, EDataSetWithoutObjectDefinition);
 
   DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenTryToGetAComposeFieldNameFromALazyPropertyMustLoadAsExpected;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyObject := TLazyClass.Create;
+  MyObject.Lazy := TMyEntity.Create;
+  MyObject.Lazy.Value.Name := 'Test';
+
+  DataSet.FieldDefs.Add('Lazy.Name', ftString, 50);
+
+  DataSet.OpenObject(MyObject);
+
+  Assert.AreEqual('Test', DataSet.FieldByName('Lazy.Name').AsString);
+
+  DataSet.Free;
+
+  MyObject.Free;
 end;
 
 procedure TORMDataSetTest.WhenTryToGetAFieldValueFromAEmptyDataSetCantRaiseAnError;

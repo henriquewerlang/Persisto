@@ -2,7 +2,7 @@ unit Delphi.ORM.Test.Entity;
 
 interface
 
-uses Delphi.ORM.Attributes, Delphi.ORM.Nullable;
+uses Delphi.ORM.Attributes, Delphi.ORM.Nullable, Delphi.ORM.Lazy;
 
 type
   [Entity]
@@ -582,6 +582,44 @@ type
     FId: Nullable<Integer>;
   published
     property Id: Nullable<Integer> read FId write FId;
+  end;
+
+  [Entity]
+  TLazyClass = class
+  private
+    FId: Integer;
+    FLazy: Lazy<TMyEntity>;
+  published
+    property Id: Integer read FId write FId;
+    property Lazy: Lazy<TMyEntity> read FLazy write FLazy;
+  end;
+
+  [Entity]
+  TUnorderedClass = class
+  private
+    FAField: String;
+    FBField: Integer;
+    FId: Integer;
+    FAManyValue: TArray<TUnorderedClass>;
+    FBManyValue: TArray<TUnorderedClass>;
+    FBForeignKey: TUnorderedClass;
+    FAForeignKey: TUnorderedClass;
+    FALazy: Lazy<TUnorderedClass>;
+    FBLazy: Lazy<TUnorderedClass>;
+    FLastField: String;
+  published
+    property BField: Integer read FBField write FBField;
+    property AField: String read FAField write FAField;
+    property Id: Integer read FId write FId;
+    [ManyValueAssociationLinkName('BForeignKey')]
+    property BManyValue: TArray<TUnorderedClass> read FBManyValue write FBManyValue;
+    [ManyValueAssociationLinkName('AForeignKey')]
+    property AManyValue: TArray<TUnorderedClass> read FAManyValue write FAManyValue;
+    property BLazy: Lazy<TUnorderedClass> read FBLazy write FBLazy;
+    property ALazy: Lazy<TUnorderedClass> read FALazy write FALazy;
+    property BForeignKey: TUnorderedClass read FBForeignKey write FBForeignKey;
+    property AForeignKey: TUnorderedClass read FAForeignKey write FAForeignKey;
+    property LastField: String read FLastField write FLastField;
   end;
 
 implementation
