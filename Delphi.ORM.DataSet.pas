@@ -925,7 +925,7 @@ begin
   if IsNullableType(&Property.PropertyType) then
     SetNullableValue(&Property.PropertyType, &Property.GetValue(Instance.AsObject), Value)
   else if IsLazyLoading(&Property.PropertyType) then
-    GetLazyLoadingAccess(&Property.GetValue(Instance.AsObject)).SetValue({$IFDEF PAS2JS}TValue.From{$ENDIF}(Value))
+    GetLazyLoadingAccess(&Property.GetValue(Instance.AsObject)).SetValue({$IFDEF PAS2JS}TValue.FromJSValue{$ENDIF}(Value))
   else
     &Property.SetValue(Instance.AsObject, Value);
 
