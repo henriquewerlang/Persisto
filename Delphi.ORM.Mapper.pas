@@ -542,7 +542,16 @@ begin
   Result := TypeInfo.GetValue(Instance);
 
   if IsNullable then
-    Result := GetNullableValue(TypeInfo.PropertyType, Result);
+    Result := GetNullableValue(TypeInfo.PropertyType, Result)
+  else if IsLazy then
+  begin
+    var LazyAccess := GetLazyLoadingAccess(Result);
+
+    if LazyAccess.Loaded then
+      Result := LazyAccess.GetValue
+    else
+      Result := LazyAccess.GetKey;
+  end;
 end;
 
 procedure TField.SetValue(Instance: TObject; const Value: TValue);

@@ -176,11 +176,15 @@ type
     procedure WhenTheFieldIsAForeignKeyMustAppendTheIdInTheDatabaseNameOfTheField;
     [Test]
     procedure TheFieldsMustBeOrderedByPriorityFirstPrimaryKeyThenRegularFieldsThenForeignKeysThenManyValueAssociations;
+    [Test]
+    procedure WhenThePropertyIsLazyLoadingAndIsntLoadedMustReturnTheKeyValueInTheGetValue;
+    [Test]
+    procedure WhenTheLazyPropertyIsLoadedMustReturnTheInternalValue;
   end;
 
 implementation
 
-uses System.Variants, System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Test.Entity;
+uses System.Variants, System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Test.Entity, Delphi.ORM.Lazy, Delphi.Mock;
 
 { TMapperTest }
 
@@ -1040,6 +1044,26 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.WhenTheLazyPropertyIsLoadedMustReturnTheInternalValue;
+begin
+  var Mapper := TMapper.Create;
+  var MyClass := TLazyClass.Create;
+  var TheClass := TMyEntity.Create;
+
+  MyClass.Lazy := TheClass;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TLazyClass);
+  var Field := Table.Fields[1];
+
+  Assert.AreEqual<TObject>(TheClass, Field.GetValue(MyClass).AsObject);
+
+  Mapper.Free;
+
+  MyClass.Free;
+end;
+
 procedure TMapperTest.WhenTheLinkBetweenTheManyValueAssociationAndTheChildTableForeignKeyDontExistsMustRaiseAnError;
 begin
   var Mapper := TMapper.Create;
@@ -1099,6 +1123,28 @@ begin
   var Field := Table.Fields[1];
 
   Assert.AreEqual(123456, Field.GetValue(MyClass).AsInteger);
+
+  Mapper.Free;
+
+  MyClass.Free;
+end;
+
+procedure TMapperTest.WhenThePropertyIsLazyLoadingAndIsntLoadedMustReturnTheKeyValueInTheGetValue;
+begin
+  var Loader := TMock.CreateInterface<ILazyLoader>;
+  var Mapper := TMapper.Create;
+  var MyClass := TLazyClass.Create;
+
+  Loader.Setup.WillReturn(12345).When.GetKey;
+
+  GetLazyLoadingAccess(TValue.From(MyClass.Lazy)).SetLazyLoader(Loader.Instance);
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TLazyClass);
+  var Field := Table.Fields[1];
+
+  Assert.AreEqual(12345, Field.GetValue(MyClass).AsInteger);
 
   Mapper.Free;
 
