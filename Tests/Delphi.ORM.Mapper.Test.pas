@@ -180,6 +180,14 @@ type
     procedure WhenThePropertyIsLazyLoadingAndIsntLoadedMustReturnTheKeyValueInTheGetValue;
     [Test]
     procedure WhenTheLazyPropertyIsLoadedMustReturnTheInternalValue;
+    [Test]
+    procedure WhenGetTheStringValueOfANullableTypeAndTheValueIsNullMustReturnTheNullStringValue;
+    [Test]
+    procedure WhenGetTheStringValueOfANullableTypeAndTheValueIsFilledMustReturnTheValue;
+    [Test]
+    procedure WhenGetTheStringValueOfLazyPropertyMustReturnTheKeyValueIfIsNotLoaded;
+    [Test]
+    procedure WhenGetTheStringValueOfLazyPropertyMustReturnThePrimaryKeyValueOfLoadedValue;
   end;
 
 implementation
@@ -244,9 +252,6 @@ begin
   var FieldToCompare: TField := nil;
   var Mapper := TMapper.Create;
   var Table := Mapper.LoadClass(TMyEntityWithAllTypeOfFields);
-  var FormatSettings := TFormatSettings.Invariant;
-  FormatSettings.LongTimeFormat := 'hh":"mm":"ss';
-  FormatSettings.ShortDateFormat := 'yyyy-mm-dd';
   var Value: TValue;
 
   for var Field in Table.Fields do
@@ -261,8 +266,8 @@ begin
     Value := TValue.From(Char('C'))
   else if TypeToConvert = 'Class' then
   begin
-    var Obj := TMyEntityWithAllTypeOfFields.Create;
-    Obj.Integer := 1234;
+    var Obj := TMyEntityWithPrimaryKey.Create;
+    Obj.Value := 1234;
     Value := Obj;
   end
   else if TypeToConvert = 'EmptyClass' then
@@ -288,7 +293,7 @@ begin
   else
     raise Exception.Create('Test not mapped!');
 
-  Assert.AreEqual(ValueToCompare, FieldToCompare.GetAsString(Value, FormatSettings));
+  Assert.AreEqual(ValueToCompare, FieldToCompare.GetAsString(Value));
 
   if Value.IsObject then
     Value.AsObject.Free;
@@ -641,6 +646,58 @@ begin
   Mapper.LoadAll;
 
   Assert.IsTrue(Length(Mapper.Tables) > 0, 'No entities loaded!');
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenGetTheStringValueOfANullableTypeAndTheValueIsFilledMustReturnTheValue;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TClassWithNullableProperty);
+  var TheValue := TClassWithNullableProperty.Create;
+  TheValue.Nullable := 123456;
+
+  Assert.AreEqual('123456', Table.Fields[1].GetAsString(TheValue));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenGetTheStringValueOfANullableTypeAndTheValueIsNullMustReturnTheNullStringValue;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TClassWithNullableProperty);
+  var TheValue := TClassWithNullableProperty.Create;
+
+  Assert.AreEqual('null', Table.Fields[1].GetAsString(TheValue));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenGetTheStringValueOfLazyPropertyMustReturnTheKeyValueIfIsNotLoaded;
+begin
+  var LazyLoader := TMock.CreateInterface<ILazyLoader>;
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TLazyClass);
+  var TheValue := TLazyClass.Create;
+
+  LazyLoader.Setup.WillReturn(123456).When.GetKey;
+
+  GetLazyLoadingAccess(TValue.From(TheValue.Lazy)).SetLazyLoader(LazyLoader.Instance);
+
+  Assert.AreEqual('123456', Table.Fields[1].GetAsString(TheValue));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenGetTheStringValueOfLazyPropertyMustReturnThePrimaryKeyValueOfLoadedValue;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TLazyClass);
+  var TheValue := TLazyClass.Create;
+  TheValue.Lazy := TMyEntity.Create;
+  TheValue.Lazy.Value.Id := 123456;
+
+  Assert.AreEqual('123456', Table.Fields[1].GetAsString(TheValue));
 
   Mapper.Free;
 end;

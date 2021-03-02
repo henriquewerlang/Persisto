@@ -263,6 +263,27 @@ type
     procedure WhenTheClassIsRecursiveInItselfHasToPutTheRightAlias;
     [Test]
     procedure WhenAPropertyIsLazyLoadingCantAppearInTheFromClause;
+    [TestCase('Equal', 'qbcoEqual')]
+    [TestCase('Not Equal', 'qbcoNotEqual')]
+    [TestCase('Greater Than', 'qbcoGreaterThan')]
+    [TestCase('Greater Than Or Equal', 'qbcoGreaterThanOrEqual')]
+    [TestCase('Less Than', 'qbcoLessThan')]
+    [TestCase('Less Than Or Equal', 'qbcoLessThanOrEqual')]
+    procedure WhenTheComparisionWithADateMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
+    [TestCase('Equal', 'qbcoEqual')]
+    [TestCase('Not Equal', 'qbcoNotEqual')]
+    [TestCase('Greater Than', 'qbcoGreaterThan')]
+    [TestCase('Greater Than Or Equal', 'qbcoGreaterThanOrEqual')]
+    [TestCase('Less Than', 'qbcoLessThan')]
+    [TestCase('Less Than Or Equal', 'qbcoLessThanOrEqual')]
+    procedure WhenTheComparisionWithADateTimeMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
+    [TestCase('Equal', 'qbcoEqual')]
+    [TestCase('Not Equal', 'qbcoNotEqual')]
+    [TestCase('Greater Than', 'qbcoGreaterThan')]
+    [TestCase('Greater Than Or Equal', 'qbcoGreaterThanOrEqual')]
+    [TestCase('Less Than', 'qbcoLessThan')]
+    [TestCase('Less Than Or Equal', 'qbcoLessThanOrEqual')]
+    procedure WhenTheComparisionWithATimeMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
   end;
 
   TDatabaseTest = class(TInterfacedObject, IDatabaseConnection)
@@ -1533,8 +1554,8 @@ begin
     Value := TValue.From(Char('C'))
   else if TypeToConvert = 'Class' then
   begin
-    var Obj := TMyEntityWithAllTypeOfFields.Create;
-    Obj.Integer := 1234;
+    var Obj := TMyEntityWithPrimaryKey.Create;
+    Obj.Value := 1234;
     Prefix := 'Id';
     Value := Obj;
   end
@@ -1586,8 +1607,8 @@ begin
   case Operation of
     qbcoBetween:
     begin
-      Comparison := Field.Between('abc', 'efd');
-      ValueString := ' between ''abc'' and ''efd''';
+      Comparison := Field.Between<Integer>(123, 456);
+      ValueString := ' between 123 and 456';
     end;
     qbcoEqual: Comparison := Field = 1;
     qbcoGreaterThan: Comparison := Field > 1;
@@ -1760,6 +1781,87 @@ begin
   var Where := From.From<TClassRecursiveItself>.Where(Field('Recursive1.Recursive1.Recursive1.Recursive1.Recursive1') = 1);
 
   Assert.AreEqual(' where T5.IdRecursive1=1', Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.WhenTheComparisionWithADateMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
+const
+  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '');
+
+begin
+  var Comparison: TQueryBuilderComparisonRecord;
+  var Field := Field('Date');
+  var From := TQueryBuilderFrom.Create(nil, 1);
+  var DateVar: TDate := EncodeDate(2021, 01, 01);
+
+  case Operation of
+    qbcoEqual: Comparison := Field = DateVar;
+    qbcoGreaterThan: Comparison := Field > DateVar;
+    qbcoGreaterThanOrEqual: Comparison := Field >= DateVar;
+    qbcoLessThan: Comparison := Field < DateVar;
+    qbcoLessThanOrEqual: Comparison := Field <= DateVar;
+    qbcoNotEqual: Comparison := Field <> DateVar;
+    else raise Exception.Create('Test not implemented');
+  end;
+
+  var Where := From.From<TMyEntityWithAllTypeOfFields>.Where(Comparison);
+
+  Assert.AreEqual(Format(' where T1.Date%s''2021-01-01''', [COMPARISON_OPERATOR[Operation]]), Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.WhenTheComparisionWithADateTimeMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
+const
+  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '');
+
+begin
+  var Comparison: TQueryBuilderComparisonRecord;
+  var Field := Field('DateTime');
+  var From := TQueryBuilderFrom.Create(nil, 1);
+  var DateVar: TDateTime := EncodeDateTime(2021, 01, 01, 12, 34, 56, 0);
+
+  case Operation of
+    qbcoEqual: Comparison := Field = DateVar;
+    qbcoGreaterThan: Comparison := Field > DateVar;
+    qbcoGreaterThanOrEqual: Comparison := Field >= DateVar;
+    qbcoLessThan: Comparison := Field < DateVar;
+    qbcoLessThanOrEqual: Comparison := Field <= DateVar;
+    qbcoNotEqual: Comparison := Field <> DateVar;
+    else raise Exception.Create('Test not implemented');
+  end;
+
+  var Where := From.From<TMyEntityWithAllTypeOfFields>.Where(Comparison);
+
+  Assert.AreEqual(Format(' where T1.DateTime%s''2021-01-01 12:34:56''', [COMPARISON_OPERATOR[Operation]]), Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.WhenTheComparisionWithATimeMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
+const
+  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '');
+
+begin
+  var Comparison: TQueryBuilderComparisonRecord;
+  var Field := Field('Time');
+  var From := TQueryBuilderFrom.Create(nil, 1);
+  var DateVar: TTime := EncodeTime(12, 34, 56, 0);
+
+  case Operation of
+    qbcoEqual: Comparison := Field = DateVar;
+    qbcoGreaterThan: Comparison := Field > DateVar;
+    qbcoGreaterThanOrEqual: Comparison := Field >= DateVar;
+    qbcoLessThan: Comparison := Field < DateVar;
+    qbcoLessThanOrEqual: Comparison := Field <= DateVar;
+    qbcoNotEqual: Comparison := Field <> DateVar;
+    else raise Exception.Create('Test not implemented');
+  end;
+
+  var Where := From.From<TMyEntityWithAllTypeOfFields>.Where(Comparison);
+
+  Assert.AreEqual(Format(' where T1.Time%s''12:34:56''', [COMPARISON_OPERATOR[Operation]]), Where.GetSQL);
 
   From.Free;
 end;

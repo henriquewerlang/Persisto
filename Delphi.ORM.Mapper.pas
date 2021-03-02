@@ -63,7 +63,6 @@ type
     function GetValue(Instance: TObject): TValue;
     function GetAsString(Instance: TObject): String; overload;
     function GetAsString(const Value: TValue): String; overload;
-    function GetAsString(const Value: TValue; const FormatSettings: TFormatSettings): String; overload;
 
     procedure SetValue(Instance: TObject; const Value: TValue); overload;
     procedure SetValue(Instance: TObject; const Value: Variant); overload;
@@ -480,15 +479,23 @@ end;
 
 function TField.GetAsString(Instance: TObject): String;
 begin
-  Result := GetAsString(GetValue(Instance), GDateTimeFormat);
+  Result := GetAsString(GetValue(Instance));
 end;
 
-function TField.GetAsString(const Value: TValue; const FormatSettings: TFormatSettings): String;
+function TField.GetAsString(const Value: TValue): String;
 begin
   if Value.IsEmpty then
     Result := 'null'
   else
-    case Value.Kind of
+  begin
+    var Info := TypeInfo.PropertyType;
+
+    if IsNullable then
+      Info := GetNullableRttiType(Info)
+    else if IsLazy then
+      Info := GetLazyLoadingRttiType(Info);
+
+    case Info.TypeKind of
       tkChar,
       tkLString,
       tkString,
@@ -498,23 +505,26 @@ begin
 
       tkClass:
       begin
-        var Obj := Value.AsObject;
+        var PrimaryKey := Table.Mapper.FindTable(Info.AsInstance.MetaclassType).PrimaryKey;
 
-        Result := Table.Mapper.FindTable(Obj.ClassType).PrimaryKey.GetAsString(Obj);
+        if Value.Kind = tkClass then
+          Result := PrimaryKey.GetAsString(Value.AsObject)
+        else
+          Result := PrimaryKey.GetAsString(Value);
       end;
 
       tkEnumeration: Result := Value.AsOrdinal.ToString;
 
       tkFloat:
       begin
-        if Value.TypeInfo = System.TypeInfo(TDate) then
-          Result := QuotedStr(DateToStr(Value.AsExtended, FormatSettings))
-        else if Value.TypeInfo = System.TypeInfo(TDateTime) then
-          Result := QuotedStr(DateTimeToStr(Value.AsExtended, FormatSettings))
-        else if Value.TypeInfo = System.TypeInfo(TTime) then
-          Result := QuotedStr(TimeToStr(Value.AsExtended, FormatSettings))
+        if Info.Handle = System.TypeInfo(TDate) then
+          Result := QuotedStr(DateToStr(Value.AsExtended, GDateTimeFormat))
+        else if Info.Handle = System.TypeInfo(TDateTime) then
+          Result := QuotedStr(DateTimeToStr(Value.AsExtended, GDateTimeFormat))
+        else if Info.Handle = System.TypeInfo(TTime) then
+          Result := QuotedStr(TimeToStr(Value.AsExtended, GDateTimeFormat))
         else
-          Result := FloatToStr(Value.AsExtended, FormatSettings);
+          Result := FloatToStr(Value.AsExtended, GDateTimeFormat);
       end;
 
       tkInteger: Result := IntToStr(Value.AsInteger);
@@ -525,11 +535,7 @@ begin
 
       else raise Exception.Create('Type not mapped!');
     end;
-end;
-
-function TField.GetAsString(const Value: TValue): String;
-begin
-  Result := GetAsString(Value, GDateTimeFormat);
+  end;
 end;
 
 function TField.GetIsJoinLink: Boolean;
