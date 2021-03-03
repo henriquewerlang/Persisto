@@ -13,9 +13,12 @@ type
   EPropertyWithDifferentType = class(Exception);
 
 {$IFDEF PAS2JS}
+  TFieldBuffer = TDataRecord;
   TRecBuf = TDataRecord;
   TRecordBuffer = TDataRecord;
   TValueBuffer = JSValue;
+{$ELSE}
+  TFieldBuffer = TValueBuffer;
 {$ENDIF}
 
   TORMObjectField = class(TField)
@@ -104,13 +107,7 @@ type
     function ConvertToDateTime(Field: TField; Value: JSValue; ARaiseException: Boolean): TDateTime; override;
 {$ENDIF}
     function GetCurrentObject<T: class>: T;
-    function GetFieldData(Field: TField;
-{$IFDEF PAS2JS}
-      Buffer: TDataRecord): JSValue;
-{$ELSE}
-      var Buffer: TValueBuffer): Boolean;
-{$ENDIF}
-      override;
+    function GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TFieldBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF}; override;
 
     procedure OpenArray<T: class>(List: TArray<T>);
     procedure OpenClass<T: class>;
@@ -153,13 +150,15 @@ type
 
 implementation
 
-uses {$IFDEF DCC}System.SysConst, {$ENDIF}Delphi.ORM.Nullable, {$IFDEF PAS2JS}Pas2JS.JS, {$ENDIF}Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy;
+uses {$IFDEF PAS2JS}Pas2JS.JS{$ELSE}System.SysConst{$ENDIF}, Delphi.ORM.Nullable, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy;
 
 { TORMDataSet }
 
 function TORMDataSet.AllocRecordBuffer: TRecordBuffer;
 begin
-{$IFDEF DCC}
+{$IFDEF PAS2JS}
+  Result := inherited;
+{$ELSE}
   Result := GetMemory(SizeOf(Integer));
 {$ENDIF}
 end;
@@ -296,11 +295,7 @@ begin
     Result := inherited GetFieldClass(FieldType);
 end;
 
-{$IFDEF PAS2JS}
-function TORMDataSet.GetFieldData(Field: TField; Buffer: TDataRecord): JSValue;
-{$ELSE}
-function TORMDataSet.GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean;
-{$ENDIF}
+function TORMDataSet.GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TFieldBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF};
 var
   &Property: TRttiProperty;
 
