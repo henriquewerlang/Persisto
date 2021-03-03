@@ -12,19 +12,14 @@ type
   EPropertyNameDoesNotExist = class(Exception);
   EPropertyWithDifferentType = class(Exception);
 
-{$IFDEF PAS2JS}
-  TFieldBuffer = TDataRecord;
-  TRecBuf = TDataRecord;
-  TRecordBuffer = TDataRecord;
-  TValueBuffer = JSValue;
-{$ELSE}
-  TFieldBuffer = TValueBuffer;
-{$ENDIF}
+  TORMFieldBuffer = {$IFDEF PAS2JS}TDataRecord{$ELSE}TValueBuffer{$ENDIF};
+  TORMRecordBuffer = {$IFDEF PAS2JS}TDataRecord{$ELSE}TRecordBuffer{$ENDIF};
+  TORMValueBuffer =  {$IFDEF PAS2JS}JSValue{$ELSE}TValueBuffer{$ENDIF};
 
   TORMObjectField = class(TField)
   private
     {$IFDEF DCC}
-    FBuffer: TValueBuffer;
+    FBuffer: TORMValueBuffer;
     {$ENDIF}
 
     function GetAsObject: TObject;
@@ -71,17 +66,17 @@ type
     procedure SetObjectClassName(const Value: String);
     procedure SetObjectType(const Value: TRttiInstanceType);
   protected
-    function AllocRecordBuffer: TRecordBuffer; override;
+    function AllocRecordBuffer: TORMRecordBuffer; override;
     function GetFieldClass(FieldType: TFieldType): TFieldClass; override;
-    function GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
+    function GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TORMRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function GetRecordCount: Integer; override;
     function GetRecNo: Integer; override;
     function IsCursorOpen: Boolean; override;
 
     procedure DataEvent(Event: TDataEvent; Info: {$IFDEF PAS2JS}JSValue{$ELSE}NativeInt{$ENDIF}); override;
     procedure DoAfterOpen; override;
-    procedure GetBookmarkData(Buffer: TRecBuf; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark); override;
-    procedure FreeRecordBuffer(var Buffer: TRecordBuffer); override;
+    procedure GetBookmarkData(Buffer: TORMRecordBuffer; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark); override;
+    procedure FreeRecordBuffer(var Buffer: TORMRecordBuffer); override;
     procedure InternalCancel; override;
     procedure InternalClose; override;
     procedure InternalEdit; override;
@@ -89,13 +84,13 @@ type
     procedure InternalGotoBookmark(Bookmark: TBookmark); override;
     procedure InternalHandleException{$IFDEF PAS2JS}(E: Exception){$ENDIF}; override;
     procedure InternalInitFieldDefs; override;
-    procedure InternalInitRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf); override;
+    procedure InternalInitRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TORMRecordBuffer); override;
     procedure InternalInsert; override;
     procedure InternalLast; override;
     procedure InternalOpen; override;
     procedure InternalPost; override;
-    procedure InternalSetToRecord(Buffer: TRecBuf); override;
-    procedure SetFieldData(Field: TField; Buffer: TValueBuffer); override;
+    procedure InternalSetToRecord(Buffer: TORMRecordBuffer); override;
+    procedure SetFieldData(Field: TField; Buffer: TORMValueBuffer); override;
     procedure SetDataSetField(const DataSetField: TDataSetField); override;
   public
     constructor Create(AOwner: TComponent); override;
@@ -107,7 +102,7 @@ type
     function ConvertToDateTime(Field: TField; Value: JSValue; ARaiseException: Boolean): TDateTime; override;
 {$ENDIF}
     function GetCurrentObject<T: class>: T;
-    function GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TFieldBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF}; override;
+    function GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TORMFieldBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF}; override;
 
     procedure OpenArray<T: class>(List: TArray<T>);
     procedure OpenClass<T: class>;
@@ -154,7 +149,7 @@ uses {$IFDEF PAS2JS}Pas2JS.JS{$ELSE}System.SysConst{$ENDIF}, Delphi.ORM.Nullable
 
 { TORMDataSet }
 
-function TORMDataSet.AllocRecordBuffer: TRecordBuffer;
+function TORMDataSet.AllocRecordBuffer: TORMRecordBuffer;
 begin
 {$IFDEF PAS2JS}
   Result := inherited;
@@ -231,7 +226,7 @@ begin
   inherited;
 end;
 
-procedure TORMDataSet.FreeRecordBuffer(var Buffer: TRecordBuffer);
+procedure TORMDataSet.FreeRecordBuffer(var Buffer: TORMRecordBuffer);
 begin
 {$IFDEF DCC}
   FreeMem(Buffer);
@@ -247,7 +242,7 @@ begin
 {$ENDIF}
 end;
 
-procedure TORMDataSet.GetBookmarkData(Buffer: TRecBuf; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark);
+procedure TORMDataSet.GetBookmarkData(Buffer: TORMRecordBuffer; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark);
 begin
 {$IFDEF PAS2JS}
   Data.Data := FArrayPosition;
@@ -295,7 +290,7 @@ begin
     Result := inherited GetFieldClass(FieldType);
 end;
 
-function TORMDataSet.GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TFieldBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF};
+function TORMDataSet.GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TORMFieldBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF};
 var
   &Property: TRttiProperty;
 
@@ -326,7 +321,7 @@ begin
         end
         else if Field is TDateTimeField then
         begin
-          var DataTimeValue: TValueBuffer;
+          var DataTimeValue: TORMValueBuffer;
 
           SetLength(DataTimeValue, SizeOf(Double));
 
@@ -488,7 +483,7 @@ begin
   Result := GetActiveRecordNumber;
 end;
 
-function TORMDataSet.GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
+function TORMDataSet.GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TORMRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
 {$IFDEF DCC}
 var
   ObjectBuffer: PInteger absolute Buffer;
@@ -524,7 +519,7 @@ begin
   Result := Length(ObjectList);
 end;
 
-procedure TORMDataSet.InternalInitRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf);
+procedure TORMDataSet.InternalInitRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TORMRecordBuffer);
 {$IFDEF DCC}
 var
   ObjectBuffer: PInteger absolute Buffer;
@@ -675,7 +670,7 @@ begin
   ReleaseOldValueObject;
 end;
 
-procedure TORMDataSet.InternalSetToRecord(Buffer: TRecBuf);
+procedure TORMDataSet.InternalSetToRecord(Buffer: TORMRecordBuffer);
 {$IFDEF DCC}
 var
   ObjectBuffer: PInteger absolute Buffer;
@@ -857,7 +852,7 @@ begin
   inherited;
 end;
 
-procedure TORMDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer);
+procedure TORMDataSet.SetFieldData(Field: TField; Buffer: TORMValueBuffer);
 var
 {$IFDEF DCC}
   Value: TValue;
@@ -895,7 +890,7 @@ begin
       ftDateTime,
       ftTime:
       begin
-        var DataTimeValue: TValueBuffer;
+        var DataTimeValue: TORMValueBuffer;
 
         SetLength(DataTimeValue, SizeOf(Double));
 
