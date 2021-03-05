@@ -209,6 +209,7 @@ type
     [TestCase('Greater Than Or Equal', 'qbcoGreaterThanOrEqual')]
     [TestCase('Less Than', 'qbcoLessThan')]
     [TestCase('Less Than Or Equal', 'qbcoLessThanOrEqual')]
+    [TestCase('Like', 'qbcoLike')]
     [TestCase('Null', 'qbcoNull')]
     [TestCase('Not Null', 'qbcoNotNull')]
     procedure TheComparisonOperatorsMustBeGeneratedAsExpected(Operation: TQueryBuilderComparisonOperator);
@@ -309,6 +310,9 @@ implementation
 
 uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Cursor.Mock, Delphi.ORM.Nullable;
 
+const
+  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '', '');
+  
 { TDelphiORMQueryBuilderTest }
 
 procedure TDelphiORMQueryBuilderTest.AllTheDirectForeignKeyMustBeGeneratedInTheResultingSQL;
@@ -1234,7 +1238,7 @@ begin
       qbcoGreaterThanOrEqual: Comparison := Field >= Value;
       qbcoLessThan: Comparison := Field < Value;
       qbcoLessThanOrEqual: Comparison := Field <= Value;
-      qbcoNone, qbcoNull, qbcoNotNull, qbcoBetween:
+      qbcoNone, qbcoNull, qbcoNotNull, qbcoBetween, qbcoLike:
       begin
         Field.Value.Free;
 
@@ -1269,7 +1273,7 @@ begin
       qbcoGreaterThanOrEqual: Comparison := Field >= Value;
       qbcoLessThan: Comparison := Field < Value;
       qbcoLessThanOrEqual: Comparison := Field <= Value;
-      qbcoNone, qbcoNull, qbcoNotNull, qbcoBetween:
+      qbcoNone, qbcoNull, qbcoNotNull, qbcoBetween, qbcoLike:
       begin
         Field.Value.Free;
 
@@ -1596,9 +1600,6 @@ begin
 end;
 
 procedure TQueryBuilderWhereTest.TheComparisonOperatorsMustBeGeneratedAsExpected(Operation: TQueryBuilderComparisonOperator);
-const
-  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '');
-
 begin
   var Comparison: TQueryBuilderComparisonRecord;
   var Field := Field('MyField');
@@ -1615,6 +1616,11 @@ begin
     qbcoGreaterThanOrEqual: Comparison := Field >= 1;
     qbcoLessThan: Comparison := Field < 1;
     qbcoLessThanOrEqual: Comparison := Field <= 1;
+    qbcoLike:
+    begin
+      Comparison := Field.Like('%like operator%');
+      ValueString := ' like ''%like operator%''';
+    end;
     qbcoNone:
     begin
       Field.Value.Free;
@@ -1687,9 +1693,6 @@ begin
 end;
 
 procedure TQueryBuilderWhereTest.WhenComparingEnumeratorTheComparisonMustHappenAsExpected(Operation: TQueryBuilderComparisonOperator);
-const
-  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '');
-
 begin
   var Comparison: TQueryBuilderComparisonRecord;
   var Field := Field('Enumerator');
@@ -1721,9 +1724,6 @@ begin
 end;
 
 procedure TQueryBuilderWhereTest.WhenComparingFieldMustBuildTheFilterAsExpected(Operation: TQueryBuilderComparisonOperator);
-const
-  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '');
-
 begin
   var Comparison: TQueryBuilderComparisonRecord;
   var FieldLeft := Field('MyField');
@@ -1786,9 +1786,6 @@ begin
 end;
 
 procedure TQueryBuilderWhereTest.WhenTheComparisionWithADateMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
-const
-  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '');
-
 begin
   var Comparison: TQueryBuilderComparisonRecord;
   var Field := Field('Date');
@@ -1813,9 +1810,6 @@ begin
 end;
 
 procedure TQueryBuilderWhereTest.WhenTheComparisionWithADateTimeMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
-const
-  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '');
-
 begin
   var Comparison: TQueryBuilderComparisonRecord;
   var Field := Field('DateTime');
@@ -1840,9 +1834,6 @@ begin
 end;
 
 procedure TQueryBuilderWhereTest.WhenTheComparisionWithATimeMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
-const
-  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '');
-
 begin
   var Comparison: TQueryBuilderComparisonRecord;
   var Field := Field('Time');

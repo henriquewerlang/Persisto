@@ -180,7 +180,8 @@ type
     property Value: TValue read FValue write FValue;
   end;
 
-  TQueryBuilderComparisonOperator = (qbcoNone, qbcoEqual, qbcoNotEqual, qbcoGreaterThan, qbcoGreaterThanOrEqual, qbcoLessThan, qbcoLessThanOrEqual, qbcoNull, qbcoNotNull, qbcoBetween);
+  TQueryBuilderComparisonOperator = (qbcoNone, qbcoEqual, qbcoNotEqual, qbcoGreaterThan, qbcoGreaterThanOrEqual, qbcoLessThan, qbcoLessThanOrEqual, qbcoNull, qbcoNotNull, 
+    qbcoBetween, qbcoLike);
 
   TQueryBuilderComparison = class
   private
@@ -245,6 +246,7 @@ type
     class procedure MakeLogicalOperation(const Left, Right: TQueryBuilderComparisonRecord; const Operation: TQueryBuilderLogicalOperator; out Result: TQueryBuilderLogicalOperationHelper); static;
   public
     function Between<T>(const ValueStart, ValueEnd: T): TQueryBuilderComparisonRecord;
+    function Like(const Condition: String): TQueryBuilderComparisonRecord;
 
     class operator BitwiseAnd(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderLogicalOperationHelper;
     class operator BitwiseOr(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderLogicalOperationHelper;
@@ -672,6 +674,7 @@ function TQueryBuilderWhere<T>.GetFieldValue(const Comparison: TQueryBuilderComp
 begin
   case Comparison.Operation of
     qbcoBetween: Result := Format(' between %s and %s', [Field.GetAsString(Comparison.Right.Value.GetArrayElement(0).AsType<TValue>), Field.GetAsString(Comparison.Right.Value.GetArrayElement(1).AsType<TValue>)]);
+    qbcoLike: Result := Format(' like ''%s''', [Comparison.Right.Value.AsString]);
     qbcoNull: Result := ' is null';
     qbcoNotNull: Result := ' is not null';
     else Result := Field.GetAsString(Comparison.Right.Value);
@@ -693,7 +696,7 @@ end;
 
 function TQueryBuilderWhere<T>.MakeComparison(const Comparison: TQueryBuilderComparison): String;
 const
-  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '');
+  COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '', '');
 
 begin
   var Field: TField;
@@ -998,6 +1001,11 @@ end;
 class operator TQueryBuilderComparisonHelper.LessThanOrEqual(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
 begin
   Left.MakeLessThanOrEqual(TValue.FromVariant(Value), Result);
+end;
+
+function TQueryBuilderComparisonHelper.Like(const Condition: String): TQueryBuilderComparisonRecord;
+begin
+  MakeCompareOperation(qbcoLike, Condition, Result);
 end;
 
 { TQueryBuilderLogicalOperationHelper }
