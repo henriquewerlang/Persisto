@@ -2,7 +2,7 @@
 
 interface
 
-uses Data.DB, DUnitX.TestFramework;
+uses System.SysUtils, Data.DB, Delphi.ORM.DataSet, DUnitX.TestFramework;
 
 type
   [TestFixture]
@@ -197,6 +197,18 @@ type
     procedure WhenFillAFieldOfALazyPropertyMustFieldTheLazyStructure;
     [Test]
     procedure WhenTryToGetAComposeFieldNameFromALazyPropertyMustLoadAsExpected;
+    [Test]
+    procedure WhenOpenADataSetWithCalculatedFieldCantRaiseAnyError;
+    [Test]
+    procedure WhenTryToGetTheValueOfACalculatedFieldCantRaiseAnyError;
+    [Test]
+    procedure WhenADataSetNotInEditingStateMustRaiseAnErrorIfTryToFillAFieldValue;
+    [Test]
+    procedure WhenFillTheValueOfACalculatedFieldCantRaiseAnyError;
+    [Test]
+    procedure WhenToCalculateAFieldMustReturnTheValueExpected;
+    [Test]
+    procedure WhenExitsMoreThenOneCalculatedFieldMustReturnTheValueAsExpected;
   end;
 
   TAnotherObject = class
@@ -290,9 +302,18 @@ type
     property MyClass: TMyTestClassTypes read FMyClass write FMyClass;
   end;
 
+  TCallbackClass = class
+  private
+    FCallbackProc: TProc<TORMDataSet>;
+  public
+    constructor Create(CallbackProc: TProc<TORMDataSet>);
+
+    procedure OnCalcFields(DataSet: TDataSet);
+  end;
+
 implementation
 
-uses System.Rtti, System.Generics.Collections, System.SysUtils, System.Classes, System.Variants, Data.DBConsts, Delphi.ORM.DataSet, Delphi.ORM.Test.Entity;
+uses System.Rtti, System.Generics.Collections, System.Classes, System.Variants, Data.DBConsts, Delphi.ORM.Test.Entity;
 
 { TORMDataSetTest }
 
@@ -550,6 +571,24 @@ begin
   DataSet.Free;
 end;
 
+procedure TORMDataSetTest.WhenADataSetNotInEditingStateMustRaiseAnErrorIfTryToFillAFieldValue;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyClass := TMyTestClass.Create;
+
+  DataSet.OpenObject(MyClass);
+
+  Assert.WillRaise(
+    procedure
+    begin
+      DataSet.FieldByName('Name').AsString := 'Another Name';
+    end, EDataSetNotInEditingState);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
+
 procedure TORMDataSetTest.WhenAFieldIsACreateTheFieldMustHaveTheMinimalSizeDefined(FieldName: String; Size: Integer);
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -799,6 +838,53 @@ begin
   DataSet.Free;
 end;
 
+procedure TORMDataSetTest.WhenExitsMoreThenOneCalculatedFieldMustReturnTheValueAsExpected;
+begin
+  var CallbackClass := TCallbackClass.Create(
+    procedure (DataSet: TORMDataSet)
+    begin
+      DataSet.FieldByName('Calculated1').AsInteger := 1;
+      DataSet.FieldByName('Calculated2').AsInteger := 2;
+      DataSet.FieldByName('Calculated3').AsInteger := 3;
+    end);
+  var DataSet := TORMDataSet.Create(nil);
+  DataSet.OnCalcFields := CallbackClass.OnCalcFields;
+  var Field: TField := TIntegerField.Create(nil);
+  Field.FieldName := 'Calculated1';
+  Field.FieldKind := fkCalculated;
+
+  Field.SetParentComponent(DataSet);
+
+  Field := TIntegerField.Create(nil);
+  Field.FieldName := 'Calculated2';
+  Field.FieldKind := fkCalculated;
+
+  Field.SetParentComponent(DataSet);
+
+  Field := TIntegerField.Create(nil);
+  Field.FieldName := 'Calculated3';
+  Field.FieldKind := fkCalculated;
+
+  Field.SetParentComponent(DataSet);
+
+  Field := TFloatField.Create(nil);
+  Field.FieldName := 'Value';
+
+  Field.SetParentComponent(DataSet);
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  DataSet.Edit;
+
+  DataSet.FieldByName('Value').AsInteger := 20;
+
+  Assert.AreEqual(1, DataSet.FieldByName('Calculated1').AsInteger);
+  Assert.AreEqual(2, DataSet.FieldByName('Calculated2').AsInteger);
+  Assert.AreEqual(3, DataSet.FieldByName('Calculated3').AsInteger);
+
+  DataSet.Free;
+end;
+
 procedure TORMDataSetTest.WhenFillAFieldOfALazyPropertyMustFieldTheLazyStructure;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -930,6 +1016,28 @@ begin
   Assert.AreEqual(DataSet, DataSetDetail.ParentDataSet);
 
   DataSetDetail.Free;
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenFillTheValueOfACalculatedFieldCantRaiseAnyError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var Field := TIntegerField.Create(nil);
+  Field.FieldName := 'Calculated';
+  Field.FieldKind := fkCalculated;
+
+  Field.SetParentComponent(DataSet);
+
+  DataSet.OpenClass<TParentClass>;
+
+  DataSet.Edit;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.FieldByName('Calculated').AsInteger := 20;
+    end);
 
   DataSet.Free;
 end;
@@ -1085,6 +1193,24 @@ begin
   DataSet.OpenClass<TMyTestClassChild>;
 
   Assert.AreEqual(6, DataSet.FieldCount);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenOpenADataSetWithCalculatedFieldCantRaiseAnyError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var Field := TIntegerField.Create(nil);
+  Field.FieldName := 'Calculated';
+  Field.FieldKind := fkCalculated;
+
+  Field.SetParentComponent(DataSet);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.OpenClass<TParentClass>;
+    end);
 
   DataSet.Free;
 end;
@@ -1573,6 +1699,26 @@ begin
   DataSet.Free;
 end;
 
+procedure TORMDataSetTest.WhenTryToGetTheValueOfACalculatedFieldCantRaiseAnyError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var Field := TIntegerField.Create(nil);
+  Field.FieldName := 'Calculated';
+  Field.FieldKind := fkCalculated;
+
+  Field.SetParentComponent(DataSet);
+
+  DataSet.OpenClass<TParentClass>;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.FieldByName('Calculated').AsInteger;
+    end);
+
+  DataSet.Free;
+end;
+
 procedure TORMDataSetTest.WhenUseQualifiedClassNameHasToLoadTheDataSetWithoutErrors;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -1633,6 +1779,37 @@ begin
   DataSet.Free;
 
   MyList.Free;
+end;
+
+procedure TORMDataSetTest.WhenToCalculateAFieldMustReturnTheValueExpected;
+begin
+  var CallbackClass := TCallbackClass.Create(
+    procedure (DataSet: TORMDataSet)
+    begin
+      DataSet.FieldByName('Calculated').AsInteger := 12345;
+    end);
+  var DataSet := TORMDataSet.Create(nil);
+  DataSet.OnCalcFields := CallbackClass.OnCalcFields;
+  var Field: TField := TIntegerField.Create(nil);
+  Field.FieldName := 'Calculated';
+  Field.FieldKind := fkCalculated;
+
+  Field.SetParentComponent(DataSet);
+
+  Field := TFloatField.Create(nil);
+  Field.FieldName := 'Value';
+
+  Field.SetParentComponent(DataSet);
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  DataSet.Edit;
+
+  DataSet.FieldByName('Value').AsInteger := 20;
+
+  Assert.AreEqual(12345, DataSet.FieldByName('Calculated').AsInteger);
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenChangeTheObjectTypeOfTheDataSetMustBeClosedToAcceptTheChange;
@@ -1752,6 +1929,21 @@ begin
   FAnotherObject.Free;
 
   inherited;
+end;
+
+{ TCallbackClass }
+
+constructor TCallbackClass.Create(CallbackProc: TProc<TORMDataSet>);
+begin
+  FCallbackProc := CallbackProc;
+end;
+
+procedure TCallbackClass.OnCalcFields(DataSet: TDataSet);
+var
+  ORMDataSet: TORMDataSet absolute DataSet;
+
+begin
+  FCallbackProc(ORMDataSet);
 end;
 
 end.
