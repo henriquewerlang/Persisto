@@ -209,6 +209,8 @@ type
     procedure WhenToCalculateAFieldMustReturnTheValueExpected;
     [Test]
     procedure WhenExitsMoreThenOneCalculatedFieldMustReturnTheValueAsExpected;
+    [Test]
+    procedure WhenOpenADataSetWithAnEmptyArrayCantRaiseAnyError;
   end;
 
   TAnotherObject = class
@@ -1193,6 +1195,25 @@ begin
   DataSet.OpenClass<TMyTestClassChild>;
 
   Assert.AreEqual(6, DataSet.FieldCount);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenOpenADataSetWithAnEmptyArrayCantRaiseAnyError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.OpenArray<TMyTestClass>(nil);
+    end);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.FieldByName('Value').AsString;
+    end);
 
   DataSet.Free;
 end;

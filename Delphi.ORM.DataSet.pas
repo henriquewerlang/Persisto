@@ -169,14 +169,14 @@ var
 begin
   NewRecordInfo := TORMRecordInfo.Create;
 
-  SetLength(NewRecordInfo.CalculedFieldBuffer, FCalculatedFields.Count);
-
 {$IFDEF PAS2JS}
   Result := inherited;
   Result.Data := NewRecordInfo;
 {$ELSE}
   Result := TORMRecordBuffer(NewRecordInfo);
 {$ENDIF}
+
+  InternalInitRecord(Result);
 end;
 
 procedure TORMDataSet.CheckCalculatedFields;
@@ -518,11 +518,7 @@ begin
 end;
 
 function TORMDataSet.GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TORMRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
-var
-  RecordInfo: TORMRecordInfo;
-
 begin
-  RecordInfo := GetRecordInfoFromBuffer(Buffer);
   Result := grOK;
 
   case GetMode of
@@ -541,7 +537,8 @@ begin
         Result := grBOF;
   end;
 
-  RecordInfo.ArrayPosition := FArrayPosition;
+  if Result = grOK then
+    GetRecordInfoFromBuffer(Buffer).ArrayPosition := FArrayPosition;
 end;
 
 function TORMDataSet.GetRecordCount: Integer;
@@ -566,6 +563,8 @@ var
 begin
   RecordInfo := GetRecordInfoFromBuffer(Buffer);
   RecordInfo.ArrayPosition := -1;
+
+  SetLength(RecordInfo.CalculedFieldBuffer, FCalculatedFields.Count);
 end;
 
 procedure TORMDataSet.InternalInsert;
