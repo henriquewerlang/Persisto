@@ -59,6 +59,8 @@ type
     procedure WhenAClassHasManyValueAssociationsInChildClassesMustGroupTheValuesByThePrimaryKey;
     [Test]
     procedure WhenTheFieldIsLazyLoadingMustReturnTheValueOfThePropertyAsExpected;
+    [Test]
+    procedure WhenTheManyValueAssociationReturnTheValuesOutOfOrderMustGroupAllValuesInTheSingleObjectReference;
   end;
 
 implementation
@@ -124,7 +126,6 @@ begin
 
   for var Obj in Result do
     Obj.Free;
-
   Loader.Free;
 end;
 
@@ -169,9 +170,7 @@ begin
   Assert.IsNotNull(Result.AnotherClass);
 
   Result.AnotherClass.Free;
-
   Result.Free;
-
   Loader.Free;
 end;
 
@@ -184,9 +183,7 @@ begin
   Assert.AreEqual(789, Result.AnotherClass.Value);
 
   Result.AnotherClass.Free;
-
   Result.Free;
-
   Loader.Free;
 end;
 
@@ -257,17 +254,13 @@ begin
 
   for var Obj in Result do
     Obj.Free;
-
   Loader.Free;
 end;
-
 procedure TClassLoaderTest.WhenLoadAllIsCallWithTheSamePrimaryKeyValueMustReturnASingleObject;
 begin
   var Loader := CreateLoader<TMyClass>([['aaa', 222], ['aaa', 222], ['aaa', 222]]);
   var Result := Loader.LoadAll<TMyClass>;
-
   Assert.AreEqual<Integer>(1, Length(Result));
-
   Result[0].Free;
 
   Loader.Free;
@@ -357,6 +350,24 @@ begin
   Assert.AreEqual(222, MyLazy.Lazy.Value.Id);
 
   MyLazy.Free;
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenTheManyValueAssociationReturnTheValuesOutOfOrderMustGroupAllValuesInTheSingleObjectReference;
+begin
+  var Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[111, 222], [111, 333], [222, 444], [222, 333], [111, 444]]);
+  var Result := Loader.LoadAll<TMyEntityWithManyValueAssociation>;
+
+  Assert.AreEqual<Integer>(2, Length(Result));
+
+  for var ParentObj in Result do
+  begin
+    for var Obj in ParentObj.ManyValueAssociationList do
+      Obj.Free;
+
+    ParentObj.Free;
+  end;
 
   Loader.Free;
 end;

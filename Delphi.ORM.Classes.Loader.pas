@@ -14,14 +14,13 @@ type
     FFields: TArray<TFieldAlias>;
     FJoin: TQueryBuilderJoin;
 
-    function CreateObject(Table: TTable; const FieldIndexStart: Integer): TObject;
+    function CreateObject(Table: TTable; const FieldIndexStart: Integer; var ObjectCreated: Boolean): TObject;
     function FieldValueToString(Field: TField; const FieldValue: Variant): String;
     function GetFieldValueVariant(const Index: Integer): Variant;
-    function GetObjectFromCache(const Key: String; CreateFunction: TFunc<TObject>): TObject;
+    function GetObjectFromCache(const Key: String; var ObjectCreated: Boolean; CreateFunction: TFunc<TObject>): TObject;
     function GetPrimaryKeyFromTable(Table: TTable; const FieldIndexStart: Integer): String;
-    function LoadClass: TObject;
-    function LoadClassJoin(Join: TQueryBuilderJoin): TObject;
-    function LoadClassLink(Join: TQueryBuilderJoin; var FieldIndexStart: Integer): TObject;
+    function LoadClass(var ObjectCreated: Boolean): TObject;
+    function LoadClassJoin(Join: TQueryBuilderJoin; var FieldIndexStart: Integer; var ObjectCreated: Boolean): TObject;
   public
     constructor Create(Connection: IDatabaseConnection; From: TQueryBuilderFrom);
 
@@ -49,14 +48,15 @@ begin
   FJoin := From.Join;
 end;
 
-function TClassLoader.CreateObject(Table: TTable; const FieldIndexStart: Integer): TObject;
+function TClassLoader.CreateObject(Table: TTable; const FieldIndexStart: Integer; var ObjectCreated: Boolean): TObject;
 begin
+  ObjectCreated := False;
   var PrimaryKeyValue := GetPrimaryKeyFromTable(Table, FieldIndexStart);
 
   if PrimaryKeyValue.IsEmpty then
     Result := nil
   else
-    Result := GetObjectFromCache(PrimaryKeyValue,
+    Result := GetObjectFromCache(PrimaryKeyValue, ObjectCreated,
       function: TObject
       begin
         Result := Table.TypeInfo.MetaclassType.Create;
@@ -87,9 +87,11 @@ begin
     Result := FieldValue;
 end;
 
-function TClassLoader.GetObjectFromCache(const Key: String; CreateFunction: TFunc<TObject>): TObject;
+function TClassLoader.GetObjectFromCache(const Key: String; var ObjectCreated: Boolean; CreateFunction: TFunc<TObject>): TObject;
 begin
-  if not FCache.ContainsKey(Key) then
+  ObjectCreated := not FCache.ContainsKey(Key);
+
+  if ObjectCreated then
     FCache.Add(Key, CreateFunction);
 
   Result := FCache[Key];
@@ -124,36 +126,28 @@ end;
 
 function TClassLoader.LoadAll<T>: TArray<T>;
 begin
-  var CurrentObject: TObject := nil;
-  var LastObjectLoaded: TObject := nil;
+  var ObjectCreated := False;
+  var ObjectLoaded: TObject := nil;
   Result := nil;
 
   while FCursor.Next do
   begin
-    LastObjectLoaded := LoadClass;
+    ObjectLoaded := LoadClass(ObjectCreated);
 
-    if LastObjectLoaded <> CurrentObject then
-    begin
-      CurrentObject := LastObjectLoaded;
-      Result := Result + [LastObjectLoaded as T];
-    end;
+    if ObjectCreated then
+      Result := Result + [ObjectLoaded as T];
   end;
 end;
 
-function TClassLoader.LoadClass: TObject;
+function TClassLoader.LoadClass(var ObjectCreated: Boolean): TObject;
 begin
-  Result := LoadClassJoin(FJoin);
+  var FieldIndex := Low(FJoin.Table.Fields);
+  Result := LoadClassJoin(FJoin, FieldIndex, ObjectCreated);
 end;
 
-function TClassLoader.LoadClassJoin(Join: TQueryBuilderJoin): TObject;
+function TClassLoader.LoadClassJoin(Join: TQueryBuilderJoin; var FieldIndexStart: Integer; var ObjectCreated: Boolean): TObject;
 begin
-  var FieldIndex := Low(Join.Table.Fields);
-  Result := LoadClassLink(FJoin, FieldIndex);
-end;
-
-function TClassLoader.LoadClassLink(Join: TQueryBuilderJoin; var FieldIndexStart: Integer): TObject;
-begin
-  Result := CreateObject(Join.Table, FieldIndexStart);
+  Result := CreateObject(Join.Table, FieldIndexStart, ObjectCreated);
 
   for var Field in Join.Table.Fields do
     if not Field.IsJoinLink or Field.IsLazy then
@@ -173,16 +167,16 @@ begin
 
   for var Link in Join.Links do
   begin
+    var WasObjectCreated := False;
     var Value: TValue;
 
     if Link.Field.IsForeignKey then
-      Value := LoadClassLink(Link, FieldIndexStart)
+      Value := LoadClassJoin(Link, FieldIndexStart, WasObjectCreated)
     else
     begin
-      var AlreadyExists := FCache.ContainsKey(GetPrimaryKeyFromTable(Link.Table, FieldIndexStart));
-      var ChildObject := LoadClassLink(Link, FieldIndexStart);
+      var ChildObject := LoadClassJoin(Link, FieldIndexStart, WasObjectCreated);
 
-      if AlreadyExists then
+      if not WasObjectCreated then
         Continue
       else if Assigned(ChildObject) then
       begin
