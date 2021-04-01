@@ -29,8 +29,6 @@ type
     FLoader: ILazyLoader;
     FValue: TValue;
   public
-    destructor Destroy; override;
-
     function GetKey: TValue;
     function GetLoaded: Boolean;
     function GetValue: TValue;
@@ -177,18 +175,6 @@ end;
 {$ENDIF}
 
 { TLazyAccess }
-
-destructor TLazyAccess.Destroy;
-var
-  Obj: TObject;
-
-begin
-  Obj := FValue.AsObject;
-
-  Obj.Free;
-
-  inherited;
-end;
 
 function TLazyAccess.GetKey: TValue;
 begin

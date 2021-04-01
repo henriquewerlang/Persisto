@@ -99,6 +99,8 @@ begin
   Lazy := TheValue;
 
   Assert.AreEqual(TheValue, Lazy.Value);
+
+  TheValue.Free;
 end;
 
 procedure TLazyTest.WhenCallTheFunctionGetLazyLoadingAccessMustReturnTheInternalInterfaceToAccessTheLazyValue;
@@ -136,6 +138,8 @@ begin
   Lazy.Value;
 
   Assert.AreEqual(EmptyStr, LazyLoader.CheckExpectations);
+
+  TheValue.Free;
 end;
 
 procedure TLazyTest.WhenFillTheValueMustReturnTheValueFilled;
@@ -146,6 +150,8 @@ begin
   Lazy.Value := TheValue;
 
   Assert.AreEqual(TheValue, Lazy.Value);
+
+  TheValue.Free;
 end;
 
 procedure TLazyTest.WhenGetTheLoadedInTheLazyAcessMustReturnTrueIfIsLoaded;
@@ -156,6 +162,8 @@ begin
   Lazy := TheValue;
 
   Assert.IsTrue(GetLazyLoadingAccess(TValue.From(Lazy)).Loaded);
+
+  TheValue.Free;
 end;
 
 procedure TLazyTest.WhenTheLazyIsLoadedMustReturnTheInternalValueUsingTheLazyAccess;
@@ -166,6 +174,8 @@ begin
   Lazy := TheValue;
 
   Assert.AreEqual<TObject>(TheValue, GetLazyLoadingAccess(TValue.From(Lazy)).GetValue.AsObject);
+
+  TheValue.Free;
 end;
 
 procedure TLazyTest.WhenTheLazyIsntLoadedAndCallTheGetKeyFunctionMustReturnTheKeyFilledByLoader;
@@ -192,6 +202,8 @@ begin
   GetLazyLoadingAccess(TValue.From(Lazy)).SetLazyLoader(LazyLoader.Instance);
 
   Assert.AreEqual(TheValue, Lazy.Value);
+
+  TheValue.Free;
 end;
 
 procedure TLazyTest.WhenUsingTheImplicitOperatorMustLoadWithTheValueFilled;
@@ -202,6 +214,8 @@ begin
   Lazy := TheValue;
 
   Assert.AreEqual(TheValue, Lazy.Value);
+
+  TheValue.Free;
 end;
 
 procedure TLazyTest.WhenUsingTheIMplicitOperatorToGetTheValueMustTheReturnTheValueExpected;
@@ -212,6 +226,8 @@ begin
   Lazy := TheValue;
 
   Assert.AreEqual<TMyEntity>(TheValue, Lazy);
+
+  TheValue.Free;
 end;
 
 end.
