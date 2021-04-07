@@ -39,10 +39,15 @@ end;
 
 function TLazyLoader.GetValue: TValue;
 begin
-  var Builder := TQueryBuilder.Create(FConnection);
-  Result := Builder.Select.All.From<TObject>(FTable).Where(Field(FTable.PrimaryKey.TypeInfo.Name) = FKey).Open.One;
+  if FKey.IsEmpty then
+    Result := TValue.Empty
+  else
+  begin
+    var Builder := TQueryBuilder.Create(FConnection);
+    Result := Builder.Select.All.From<TObject>(FTable).Where(Field(FTable.PrimaryKey.TypeInfo.Name) = FKey).Open.One;
 
-  Builder.Free;
+    Builder.Free;
+  end;
 end;
 
 end.

@@ -42,10 +42,15 @@ end;
 
 function TLazyLoader.GetValue: TValue;
 begin
-  if not Assigned(GLazyLoadFunction) then
-    raise Exception.Create('You must load the GLazyLoadFunction variable to load the object!');
+  if FKey.IsEmpty then
+    Result := TValue.Empty
+  else
+  begin
+    if not Assigned(GLazyLoadFunction) then
+      raise Exception.Create('You must load the GLazyLoadFunction variable to load the object!');
 
-  Result := GLazyLoadFunction(FTypeName, FKey);
+    Result := GLazyLoadFunction(FTypeName, FKey);
+  end;
 end;
 
 end.
