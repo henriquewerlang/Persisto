@@ -14,8 +14,6 @@ uses
   {$ENDIF }
   DUnitX.TestFramework,
   DUnitX.MemoryLeakMonitor.FastMM5,
-  Delphi.ORM in '..\Delphi.ORM.pas',
-  Delphi.ORM.Test in 'Delphi.ORM.Test.pas',
   Delphi.ORM.DataSet.Test in 'Delphi.ORM.DataSet.Test.pas',
   Delphi.ORM.DataSet in '..\Delphi.ORM.DataSet.pas',
   Delphi.ORM.Database.Connection in '..\Delphi.ORM.Database.Connection.pas',

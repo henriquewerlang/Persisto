@@ -130,8 +130,6 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="..\Externals\FastMM5\FastMM5.pas"/>
-        <DCCReference Include="..\Delphi.ORM.pas"/>
-        <DCCReference Include="Delphi.ORM.Test.pas"/>
         <DCCReference Include="Delphi.ORM.DataSet.Test.pas"/>
         <DCCReference Include="..\Delphi.ORM.DataSet.pas"/>
         <DCCReference Include="..\Delphi.ORM.Database.Connection.pas"/>

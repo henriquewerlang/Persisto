@@ -111,7 +111,6 @@
         <DCCReference Include="..\Delphi.ORM.Database.Connection.pas"/>
         <DCCReference Include="..\Delphi.ORM.DataSet.pas"/>
         <DCCReference Include="..\Delphi.ORM.Mapper.pas"/>
-        <DCCReference Include="..\Delphi.ORM.pas"/>
         <DCCReference Include="..\Delphi.ORM.Query.Builder.pas"/>
         <DCCReference Include="..\Delphi.ORM.Rtti.Helper.pas"/>
         <DCCReference Include="..\Delphi.ORM.Nullable.pas"/>

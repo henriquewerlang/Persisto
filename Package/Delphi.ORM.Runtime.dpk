@@ -39,7 +39,6 @@ contains
   Delphi.ORM.Database.Connection in '..\Delphi.ORM.Database.Connection.pas',
   Delphi.ORM.DataSet in '..\Delphi.ORM.DataSet.pas',
   Delphi.ORM.Mapper in '..\Delphi.ORM.Mapper.pas',
-  Delphi.ORM in '..\Delphi.ORM.pas',
   Delphi.ORM.Query.Builder in '..\Delphi.ORM.Query.Builder.pas',
   Delphi.ORM.Rtti.Helper in '..\Delphi.ORM.Rtti.Helper.pas',
   Delphi.ORM.Nullable in '..\Delphi.ORM.Nullable.pas',
