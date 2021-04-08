@@ -442,7 +442,6 @@ end;
 
 procedure TORMDataSetTest.Setup;
 begin
-Exit;
   var DataSet := TORMDataSet.Create(nil);
 
   DataSet.OpenClass<TMyTestClassTypes>;

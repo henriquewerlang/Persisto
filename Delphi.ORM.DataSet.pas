@@ -9,16 +9,17 @@ type
   public
     constructor Create;
   end;
+
   EDataSetWithoutObjectDefinition = class(Exception)
   public
     constructor Create;
   end;
+
   EPropertyNameDoesNotExist = class(Exception);
   EPropertyWithDifferentType = class(Exception);
-
   TORMFieldBuffer = {$IFDEF PAS2JS}TDataRecord{$ELSE}TValueBuffer{$ENDIF};
   TORMRecordBuffer = {$IFDEF PAS2JS}TDataRecord{$ELSE}TRecordBuffer{$ENDIF};
-  TORMValueBuffer =  {$IFDEF PAS2JS}JSValue{$ELSE}TValueBuffer{$ENDIF};
+  TORMValueBuffer = {$IFDEF PAS2JS}JSValue{$ELSE}TValueBuffer{$ENDIF};
 
   TORMRecordInfo = class
   public
@@ -28,10 +29,9 @@ type
 
   TORMObjectField = class(TField)
   private
-    {$IFDEF DCC}
+{$IFDEF DCC}
     FBuffer: TORMValueBuffer;
-    {$ENDIF}
-
+{$ENDIF}
     function GetAsObject: TObject;
 
     procedure SetAsObject(const Value: TObject);
@@ -41,9 +41,9 @@ type
     property AsObject: TObject read GetAsObject write SetAsObject;
   end;
 
-  {$IFDEF DCC}
+{$IFDEF DCC}
   [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
-  {$ENDIF}
+{$ENDIF}
   TORMDataSet = class(TDataSet)
   private
     FObjectList: TArray<TObject>;
@@ -158,7 +158,7 @@ type
 
 implementation
 
-uses {$IFDEF PAS2JS}Pas2JS.JS{$ELSE}System.SysConst{$ENDIF}, Delphi.ORM.Nullable, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy;
+uses {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF}, Delphi.ORM.Nullable, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy;
 
 { TORMDataSet }
 
@@ -168,7 +168,6 @@ var
 
 begin
   NewRecordInfo := TORMRecordInfo.Create;
-
 {$IFDEF PAS2JS}
   Result := inherited;
   Result.Data := NewRecordInfo;
@@ -185,7 +184,7 @@ var
 
 begin
   FCalculatedFields.Clear;
-  
+
   for A := 0 to Pred(Fields.Count) do
     if Fields[A].FieldKind = fkCalculated then
       FCalculatedFields.Add(Fields[A], FCalculatedFields.Count);
@@ -265,7 +264,7 @@ end;
 procedure TORMDataSet.FreeRecordBuffer(var Buffer: TORMRecordBuffer);
 var
   RecordInfo: TORMRecordInfo;
-  
+
 begin
   RecordInfo := GetRecordInfoFromBuffer(Buffer);
 
@@ -292,21 +291,21 @@ begin
   case State of
     dsInsert: Result := FInsertingObject as T;
     dsOldValue: Result := FOldValueObject as T;
-//    dsInactive: ;
-//    dsBrowse: ;
-//    dsEdit: ;
-//    dsSetKey: ;
-//    dsCalcFields: ;
-//    dsFilter: ;
-//    dsNewValue: ;
-//    dsCurValue: ;
-//    dsBlockRead: ;
-//    dsInternalCalc: ;
-//    dsOpening: ;
-    else
+    // dsInactive: ;
+    // dsBrowse: ;
+    // dsEdit: ;
+    // dsSetKey: ;
+    // dsCalcFields: ;
+    // dsFilter: ;
+    // dsNewValue: ;
+    // dsCurValue: ;
+    // dsBlockRead: ;
+    // dsInternalCalc: ;
+    // dsOpening: ;
+  else
     begin
       ArrayPosition := GetRecordInfoFromActiveBuffer.ArrayPosition;
-      
+
       if ArrayPosition > -1 then
         Result := ObjectList[ArrayPosition] as T;
     end;
@@ -630,8 +629,8 @@ procedure TORMDataSet.InternalGotoBookmark(Bookmark: TBookmark);
 {$IFDEF DCC}
 var
   RecordIndex: PInteger absolute Bookmark;
-{$ENDIF}
 
+{$ENDIF}
 begin
 {$IFDEF PAS2JS}
   raise Exception.Create('Not implemented the bookmark control!');
@@ -824,8 +823,8 @@ begin
 
 {$IFDEF DCC}
       if GetFieldTypeFromProperty(&Property) <> Field.DataType then
-        raise EPropertyWithDifferentType.CreateFmt('The field %s as type %s and the expected field type is %s!',
-          [Field.FieldName, TRttiEnumerationType.GetName(Field.DataType), TRttiEnumerationType.GetName(GetFieldTypeFromProperty(&Property))]);
+        raise EPropertyWithDifferentType.CreateFmt('The field %s as type %s and the expected field type is %s!', [Field.FieldName, TRttiEnumerationType.GetName(Field.DataType),
+          TRttiEnumerationType.GetName(GetFieldTypeFromProperty(&Property))]);
 {$ENDIF}
 
       FPropertyMappingList[Field.Index] := PropertyList;
@@ -897,7 +896,6 @@ var
 {$ELSE}
   Value: JSValue absolute Buffer;
 {$ENDIF}
-
 begin
   if not (State in dsWriteModes) then
     raise EDataSetNotInEditingState.Create;
