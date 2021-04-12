@@ -8,7 +8,7 @@ type
   [TestFixture]
   TORMDataSetTest = class
   private
-    procedure DestroyObjectArray(Values: TArray<TObject>);
+    procedure DestroyObjects(DataSet: TORMDataSet);
   public
     [SetupFixture]
     procedure Setup;
@@ -158,8 +158,6 @@ type
     [Test]
     procedure WhenScrollTheParentDataSetMustLoadTheArrayInDetailDataSet;
     [Test]
-    procedure WhenCloseTheDataSetMustCleanUpTheObjectList;
-    [Test]
     procedure WhenPostTheDetailDataSetMustUpdateTheArrayValueFromParentDataSet;
     [Test]
     procedure WhenTheRecordBufferIsBiggerThenOneMustLoadTheBufferOfTheDataSetAsExpected;
@@ -211,6 +209,48 @@ type
     procedure WhenExitsMoreThenOneCalculatedFieldMustReturnTheValueAsExpected;
     [Test]
     procedure WhenOpenADataSetWithAnEmptyArrayCantRaiseAnyError;
+    [Test]
+    procedure WhenCloseTheDataSetMustUmbingTheFieldsAndCloseTheDataSetDetail;
+    [Test]
+    procedure WhenMoveTheMasterDataSetTheCountOfTheDetailRecordMustRepresentTheExatValueFromArrayOfMasterClass;
+    [Test]
+    procedure WhenTheDetailDataSetIsEmptyCantRaiseAnErrorWhenGetAFieldValue;
+    [Test]
+    procedure WhenMoveTheMasterDataSetTheDetailDataSetMustBeInTheFirstRecord;
+  end;
+
+  [TestFixture]
+  TORMListIteratorTest = class
+  private
+    function CreateCursor<T: class>(const Value: TArray<T>): IORMObjectIterator; overload;
+    function CreateCursor<T: class>(const Value: array of T): IORMObjectIterator; overload;
+  public
+    [Test]
+    procedure WhenTheArrayIsEmptyTheNextProcedureMustReturnFalse;
+    [Test]
+    procedure WhenTheArrayIsEmptyThePriorProcedureMustReturnFalse;
+    [Test]
+    procedure WhenTheArrayIsNotEmptyTheNextProcedureMustReturnTrue;
+    [Test]
+    procedure WhenTheIterationInCursorReachTheEndOfTheArrayTheNextFunctionMustReturnFalse;
+    [Test]
+    procedure AccessingTheObjectListMustReturnTheObjectInThePositionPassedInTheParam;
+    [Test]
+    procedure TheCurrentPositionOfRecordMustBeSaved;
+    [Test]
+    procedure TheRecordCountFunctionMustReturnTheTotalOfItensInTheList;
+    [Test]
+    procedure WhenAddAnObjectToCursorThisMustBeAddedToTheList;
+    [Test]
+    procedure WhenCallResetBeginMustPutTheIteratorInTheFirstPosition;
+    [Test]
+    procedure WhenClassResetEndMustPutTheIteratorInLastPosition;
+    [Test]
+    procedure WhenAddAnObjectTheCurrentPositionMustBeTheInsertedObjectPosition;
+    [Test]
+    procedure WhenCallClearProcedureMustCleanUpTheItensInTheInternalList;
+    [Test]
+    procedure WhenCallClearProcedureMustResetTheCurrentPositionOfTheIterator;
   end;
 
   TAnotherObject = class
@@ -337,9 +377,9 @@ begin
 
   DataSet.Post;
 
-  Assert.AreEqual('Name1', TMyTestClass(DataSet.ObjectList[0]).Name);
+  Assert.AreEqual('Name2', DataSet.GetCurrentObject<TMyTestClass>.Name);
 
-  DestroyObjectArray(DataSet.ObjectList);
+  DestroyObjects(DataSet);
 
   DataSet.Free;
 end;
@@ -363,10 +403,16 @@ begin
   MyObject.Free;
 end;
 
-procedure TORMDataSetTest.DestroyObjectArray(Values: TArray<TObject>);
+procedure TORMDataSetTest.DestroyObjects(DataSet: TORMDataSet);
 begin
-  for var Value in Values do
-    Value.Free;
+  DataSet.First;
+
+  while not DataSet.Eof do
+  begin
+    DataSet.GetCurrentObject<TObject>.Free;
+
+    DataSet.Next;
+  end;
 end;
 
 procedure TORMDataSetTest.EveryInsertedObjectMustGoToTheObjectList;
@@ -379,9 +425,9 @@ begin
 
   DataSet.Post;
 
-  Assert.IsNotNull(DataSet.ObjectList[0]);
+  Assert.IsNotNull(DataSet.GetCurrentObject<TObject>);
 
-  DestroyObjectArray(DataSet.ObjectList);
+  DestroyObjects(DataSet);
 
   DataSet.Free;
 end;
@@ -442,18 +488,21 @@ end;
 
 procedure TORMDataSetTest.Setup;
 begin
-  var DataSet := TORMDataSet.Create(nil);
+  if DebugHook = 0 then
+  begin
+    var DataSet := TORMDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClassTypes>;
+    DataSet.OpenClass<TMyTestClassTypes>;
 
-  DataSet.Free;
+    DataSet.Free;
 
-  for var &Type in TRttiContext.Create.GetTypes do
-    &Type.QualifiedName;
+    for var &Type in TRttiContext.Create.GetTypes do
+      &Type.QualifiedName;
 
-  try
-    DatabaseError(SDataSetOpen, nil);
-  except
+    try
+      DatabaseError(SDataSetOpen, nil);
+    except
+    end;
   end;
 end;
 
@@ -520,7 +569,7 @@ begin
 
   DataSet.Next;
 
-  Assert.AreEqual(2, DataSet.RecNo);
+  Assert.AreEqual(3, DataSet.RecNo);
 
   for var Item in List do
     Item.Free;
@@ -646,8 +695,6 @@ begin
   MyClass[0].MyClass := TMyTestClassTypes.Create;
   MyClass[0].MyClass.MyArray := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
 
-  DataSet.ObjectClassName := 'TParentClass';
-
   Field.FieldName := 'MyClass.MyArray';
 
   Field.SetParentComponent(DataSet);
@@ -679,17 +726,47 @@ begin
   var DataSetDetail := TORMDataSet.Create(nil);
   var Field := TDataSetField.Create(nil);
 
-  DataSet.ObjectClassName := 'TParentClass';
-
   Field.FieldName := 'MyClass.MyArray';
 
   Field.SetParentComponent(DataSet);
 
   DataSetDetail.DataSetField := Field;
 
-  DataSet.Open;
+  DataSet.OpenClass<TParentClass>;
 
   Assert.AreEqual('TMyTestClassTypes', DataSetDetail.ObjectType.Name);
+
+  DataSetDetail.Free;
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenTheDetailDataSetIsEmptyCantRaiseAnErrorWhenGetAFieldValue;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+  var MyClass: TArray<TMyTestClassTypes> := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+  MyClass[0].MyArray := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+
+  DataSet.OpenArray<TMyTestClassTypes>(MyClass);
+
+  DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
+
+  DataSet.Next;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSetDetail.FieldByName('Cardinal').AsInteger;
+    end);
+
+  MyClass[0].MyArray[0].Free;
+
+  MyClass[0].MyArray[1].Free;
+
+  MyClass[1].Free;
+
+  MyClass[0].Free;
 
   DataSetDetail.Free;
 
@@ -903,6 +980,8 @@ begin
   DataSet.Free;
 
   MyClass.Free;
+
+  TheValue.Free;
 end;
 
 procedure TORMDataSetTest.WhenFillANullableFieldWithAnValueMustFillThePropertyWithTheValue;
@@ -988,7 +1067,7 @@ begin
   var DataSet := TORMDataSet.Create(nil);
   var DataSetDetail := TORMDataSet.Create(nil);
 
-  DataSet.ObjectClassName := 'TMyTestClassTypes';
+  DataSet.OpenClass<TMyTestClassTypes>;
 
   DataSet.Open;
 
@@ -1008,9 +1087,7 @@ begin
   var DataSet := TORMDataSet.Create(nil);
   var DataSetDetail := TORMDataSet.Create(nil);
 
-  DataSet.ObjectClassName := 'TMyTestClassTypes';
-
-  DataSet.Open;
+  DataSet.OpenClass<TMyTestClassTypes>;
 
   DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
 
@@ -1073,6 +1150,8 @@ begin
   DataSet.Free;
 
   MyClass.Free;
+
+  TheValue.Free;
 end;
 
 procedure TORMDataSetTest.WhenHaveFieldDefDefinedCantLoadFieldsFromTheClass;
@@ -1119,6 +1198,74 @@ begin
   DataSet.OpenClass<TMyTestClass>;
 
   Assert.WillNotRaise(DataSet.Append);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenMoveTheMasterDataSetTheCountOfTheDetailRecordMustRepresentTheExatValueFromArrayOfMasterClass;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+  var MyClass: TArray<TMyTestClassTypes> := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+  MyClass[0].MyArray := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+
+  DataSet.OpenArray<TMyTestClassTypes>(MyClass);
+
+  DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
+
+  DataSet.Next;
+
+  DataSet.Prior;
+
+  DataSet.Next;
+
+  DataSet.Prior;
+
+  DataSet.Next;
+
+  Assert.AreEqual(0, DataSetDetail.RecordCount);
+
+  MyClass[0].MyArray[0].Free;
+
+  MyClass[0].MyArray[1].Free;
+
+  MyClass[1].Free;
+
+  MyClass[0].Free;
+
+  DataSetDetail.Free;
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenMoveTheMasterDataSetTheDetailDataSetMustBeInTheFirstRecord;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+  var MyClass := TMyTestClassTypes.Create;
+  MyClass.MyArray := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+  MyClass.MyArray[0].Cardinal := 10;
+  MyClass.MyArray[1].Cardinal := 20;
+
+  DataSet.OpenObject(MyClass);
+
+  DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
+
+  DataSet.Close;
+
+  DataSetDetail.Close;
+
+  DataSet.OpenObject(MyClass);
+
+  Assert.AreEqual(10, DataSetDetail.FieldByName('Cardinal').AsInteger);
+
+  MyClass.MyArray[0].Free;
+
+  MyClass.MyArray[1].Free;
+
+  MyClass.Free;
+
+  DataSetDetail.Free;
 
   DataSet.Free;
 end;
@@ -1408,7 +1555,7 @@ begin
 
   Assert.AreEqual(2, DataSet.RecordCount);
 
-  DestroyObjectArray(DataSet.ObjectList);
+  DestroyObjects(DataSet);
 
   DataSet.Free;
 end;
@@ -1701,6 +1848,8 @@ begin
 
   DataSet.Free;
 
+  MyObject.Lazy.Value.Free;
+
   MyObject.Free;
 end;
 
@@ -1872,7 +2021,7 @@ begin
   var DataSet := TORMDataSet.Create(nil);
   var DataSetDetail := TORMDataSet.Create(nil);
 
-  DataSet.ObjectClassName := 'TMyTestClassTypes';
+  DataSet.OpenClass<TMyTestClassTypes>;
 
   DataSet.Open;
 
@@ -1915,20 +2064,31 @@ begin
   DataSet.Free;
 end;
 
-procedure TORMDataSetTest.WhenCloseTheDataSetMustCleanUpTheObjectList;
+procedure TORMDataSetTest.WhenCloseTheDataSetMustUmbingTheFieldsAndCloseTheDataSetDetail;
 begin
   var DataSet := TORMDataSet.Create(nil);
-  var MyClass: TArray<TMyTestClassTypes> := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+  var DataSetDetail := TORMDataSet.Create(nil);
+  var Field := TDataSetField.Create(nil);
+  Field.FieldName := 'MyArray';
 
-  DataSet.OpenArray<TMyTestClassTypes>(MyClass);
+  Field.SetParentComponent(DataSet);
+
+  DataSetDetail.DataSetField := Field;
+
+  var AnotherField := TLongWordField.Create(nil);
+  AnotherField.FieldName := 'Cardinal';
+
+  AnotherField.SetParentComponent(DataSet);
+
+  DataSet.OpenClass<TMyTestClassTypes>;
 
   DataSet.Close;
 
-  Assert.AreEqual(0, DataSet.RecordCount);
+  Assert.AreEqual(0, AnotherField.FieldNo);
 
-  MyClass[1].Free;
+  Assert.IsFalse(DataSetDetail.Active);
 
-  MyClass[0].Free;
+  DataSetDetail.Free;
 
   DataSet.Free;
 end;
@@ -1964,6 +2124,133 @@ var
 
 begin
   FCallbackProc(ORMDataSet);
+end;
+
+{ TORMListIteratorTest }
+
+procedure TORMListIteratorTest.AccessingTheObjectListMustReturnTheObjectInThePositionPassedInTheParam;
+begin
+  var Value := [TObject(1), TObject(2), TObject(3)];
+
+  var Cursor := CreateCursor<TObject>(Value);
+
+  Assert.AreEqual<Pointer>(Value[1], Cursor.Objects[2]);
+end;
+
+function TORMListIteratorTest.CreateCursor<T>(const Value: TArray<T>): IORMObjectIterator;
+begin
+  Result := TORMListIterator<T>.Create(Value);
+end;
+
+function TORMListIteratorTest.CreateCursor<T>(const Value: array of T): IORMObjectIterator;
+begin
+  Result := TORMListIterator<T>.Create(Value);
+end;
+
+procedure TORMListIteratorTest.TheCurrentPositionOfRecordMustBeSaved;
+begin
+  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
+
+  Cursor.CurrentPosition := 1;
+
+  Assert.AreEqual<Cardinal>(1, Cursor.CurrentPosition);
+end;
+
+procedure TORMListIteratorTest.TheRecordCountFunctionMustReturnTheTotalOfItensInTheList;
+begin
+  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
+
+  Assert.AreEqual(3, Cursor.RecordCount);
+end;
+
+procedure TORMListIteratorTest.WhenAddAnObjectTheCurrentPositionMustBeTheInsertedObjectPosition;
+begin
+  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
+
+  Cursor.Add(TObject(4));
+
+  Assert.AreEqual(4, Cursor.CurrentPosition);
+end;
+
+procedure TORMListIteratorTest.WhenAddAnObjectToCursorThisMustBeAddedToTheList;
+begin
+  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
+
+  Cursor.Add(TObject(4));
+
+  Assert.AreEqual(4, Cursor.RecordCount);
+
+  Assert.AreEqual<Pointer>(TObject(4), Cursor.Objects[4]);
+end;
+
+procedure TORMListIteratorTest.WhenCallClearProcedureMustCleanUpTheItensInTheInternalList;
+begin
+  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
+
+  Cursor.Clear;
+
+  Assert.AreEqual(0, Cursor.RecordCount);
+end;
+
+procedure TORMListIteratorTest.WhenCallClearProcedureMustResetTheCurrentPositionOfTheIterator;
+begin
+  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
+
+  Cursor.Next;
+
+  Cursor.Next;
+
+  Cursor.Clear;
+
+  Assert.AreEqual(0, Cursor.CurrentPosition);
+end;
+
+procedure TORMListIteratorTest.WhenCallResetBeginMustPutTheIteratorInTheFirstPosition;
+begin
+  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
+
+  Cursor.ResetBegin;
+
+  Assert.AreEqual(0, Cursor.CurrentPosition);
+end;
+
+procedure TORMListIteratorTest.WhenClassResetEndMustPutTheIteratorInLastPosition;
+begin
+  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
+
+  Cursor.ResetEnd;
+
+  Assert.AreEqual(4, Cursor.CurrentPosition);
+end;
+
+procedure TORMListIteratorTest.WhenTheArrayIsEmptyTheNextProcedureMustReturnFalse;
+begin
+  var Cursor := CreateCursor<TObject>(nil);
+
+  Assert.IsFalse(Cursor.Next);
+end;
+
+procedure TORMListIteratorTest.WhenTheArrayIsEmptyThePriorProcedureMustReturnFalse;
+begin
+  var Cursor := CreateCursor<TObject>(nil);
+
+  Assert.IsFalse(Cursor.Prior);
+end;
+
+procedure TORMListIteratorTest.WhenTheArrayIsNotEmptyTheNextProcedureMustReturnTrue;
+begin
+  var Cursor := CreateCursor<TObject>([TObject(1)]);
+
+  Assert.IsTrue(Cursor.Next);
+end;
+
+procedure TORMListIteratorTest.WhenTheIterationInCursorReachTheEndOfTheArrayTheNextFunctionMustReturnFalse;
+begin
+  var Cursor := CreateCursor<TObject>([TObject(1)]);
+
+  Cursor.Next;
+
+  Assert.IsFalse(Cursor.Next);
 end;
 
 end.
