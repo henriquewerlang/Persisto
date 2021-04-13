@@ -112,6 +112,7 @@ type
     function GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
     function GetRecordInfoFromActiveBuffer: TORMRecordInfo;
     function GetRecordInfoFromBuffer(const Buffer: TORMRecordBuffer): TORMRecordInfo;
+    function GetCurrentActiveBuffer: TORMRecordBuffer;
 
     procedure CheckCalculatedFields;
     procedure CheckIterator;
@@ -438,6 +439,26 @@ begin
 {$IFDEF PAS2JS}Data.Data{$ELSE}PInteger(Data)^{$ENDIF} := RecordInfo.ArrayPosition;
 end;
 
+function TORMDataSet.GetCurrentActiveBuffer: TORMRecordBuffer;
+begin
+  case State of
+    // dsInsert:;
+    // dsOldValue:;
+    // dsInactive: ;
+    // dsBrowse: ;
+    // dsEdit: ;
+    // dsSetKey: ;
+     dsCalcFields: Result := TORMRecordBuffer(CalcBuffer);
+    // dsFilter: ;
+    // dsNewValue: ;
+    // dsCurValue: ;
+    // dsBlockRead: ;
+    // dsInternalCalc: ;
+    // dsOpening: ;
+    else Result := TORMRecordBuffer(ActiveBuffer);
+  end;
+end;
+
 function TORMDataSet.GetCurrentObject<T>: T;
 begin
   Result := nil;
@@ -688,7 +709,11 @@ begin
   end;
 
   if Result = grOK then
+  begin
     GetRecordInfoFromBuffer(Buffer).ArrayPosition := FIterator.CurrentPosition;
+
+    GetCalcFields(Buffer);
+  end;
 end;
 
 function TORMDataSet.GetRecordCount: Integer;
@@ -698,7 +723,7 @@ end;
 
 function TORMDataSet.GetRecordInfoFromActiveBuffer: TORMRecordInfo;
 begin
-  Result := GetRecordInfoFromBuffer(TORMRecordBuffer(ActiveBuffer));
+  Result := GetRecordInfoFromBuffer(GetCurrentActiveBuffer);
 end;
 
 function TORMDataSet.GetRecordInfoFromBuffer(const Buffer: TORMRecordBuffer): TORMRecordInfo;
@@ -1101,7 +1126,8 @@ begin
   else if Field.FieldKind = fkCalculated then
     GetRecordInfoFromActiveBuffer.CalculedFieldBuffer[FCalculatedFields[Field]] := {$IFDEF PAS2JS}TValue.FromJSValue{$ENDIF}(Value);
 
-  DataEvent(deFieldChange, {$IFDEF DCC}IntPtr{$ENDIF}(Field));
+  if not (State in [dsCalcFields, dsInternalCalc, dsFilter, dsNewValue]) then
+    DataEvent(deFieldChange, {$IFDEF DCC}IntPtr{$ENDIF}(Field));
 end;
 
 procedure TORMDataSet.SetObjectClassName(const Value: String);

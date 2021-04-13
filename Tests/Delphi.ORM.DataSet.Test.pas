@@ -221,6 +221,10 @@ type
     procedure WhenDeleteARecordFromADataSetMustRemoveTheValueFromTheDataSet;
     [Test]
     procedure WhenRemoveARecordFromDetailMustUpdateTheArrayOfTheParentClass;
+    [Test]
+    procedure WhenScrollTheDataSetMustCalculateTheFields;
+    [Test]
+    procedure WhenPutTheDataSetInInsertStateMustClearTheCalculatedFields;
   end;
 
   [TestFixture]
@@ -968,6 +972,8 @@ begin
   Assert.AreEqual(2, DataSet.FieldByName('Calculated2').AsInteger);
   Assert.AreEqual(3, DataSet.FieldByName('Calculated3').AsInteger);
 
+  CallbackClass.Free;
+
   DataSet.Free;
 end;
 
@@ -1601,6 +1607,35 @@ begin
   MyClass.Free;
 end;
 
+procedure TORMDataSetTest.WhenPutTheDataSetInInsertStateMustClearTheCalculatedFields;
+begin
+  var CallbackClass := TCallbackClass.Create(
+    procedure (DataSet: TORMDataSet)
+    begin
+      DataSet.FieldByName('Calculated').AsInteger := 200;
+    end);
+  var DataSet := TORMDataSet.Create(nil);
+  DataSet.OnCalcFields := CallbackClass.OnCalcFields;
+  var Field: TField := TIntegerField.Create(nil);
+  Field.FieldName := 'Calculated';
+  Field.FieldKind := fkCalculated;
+  var MyClass := TMyTestClass.Create;
+
+  Field.SetParentComponent(DataSet);
+
+  DataSet.OpenObject<TMyTestClass>(MyClass);
+
+  DataSet.Insert;
+
+  Assert.IsTrue(DataSet.FieldByName('Calculated').IsNull);
+
+  CallbackClass.Free;
+
+  MyClass.Free;
+
+  DataSet.Free;
+end;
+
 procedure TORMDataSetTest.WhenRemoveARecordFromDetailMustUpdateTheArrayOfTheParentClass;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -1624,6 +1659,39 @@ begin
   MyClass.Free;
 
   DataSetDetail.Free;
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenScrollTheDataSetMustCalculateTheFields;
+begin
+  var CallbackClass := TCallbackClass.Create(
+    procedure (DataSet: TORMDataSet)
+    begin
+      DataSet.FieldByName('Calculated').AsInteger := DataSet.RecNo;
+    end);
+  var DataSet := TORMDataSet.Create(nil);
+  DataSet.OnCalcFields := CallbackClass.OnCalcFields;
+  var Field: TField := TIntegerField.Create(nil);
+  Field.FieldName := 'Calculated';
+  Field.FieldKind := fkCalculated;
+  var MyArray: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create];
+
+  Field.SetParentComponent(DataSet);
+
+  DataSet.OpenArray<TMyTestClass>(MyArray);
+
+  DataSet.Next;
+
+  DataSet.Next;
+
+  Assert.AreEqual(2, DataSet.FieldByName('Calculated').AsInteger);
+
+  CallbackClass.Free;
+
+  MyArray[0].Free;
+
+  MyArray[1].Free;
 
   DataSet.Free;
 end;
@@ -2012,6 +2080,8 @@ begin
   DataSet.FieldByName('Value').AsInteger := 20;
 
   Assert.AreEqual(12345, DataSet.FieldByName('Calculated').AsInteger);
+
+  CallbackClass.Free;
 
   DataSet.Free;
 end;
