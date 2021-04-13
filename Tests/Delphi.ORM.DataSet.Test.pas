@@ -217,6 +217,10 @@ type
     procedure WhenTheDetailDataSetIsEmptyCantRaiseAnErrorWhenGetAFieldValue;
     [Test]
     procedure WhenMoveTheMasterDataSetTheDetailDataSetMustBeInTheFirstRecord;
+    [Test]
+    procedure WhenDeleteARecordFromADataSetMustRemoveTheValueFromTheDataSet;
+    [Test]
+    procedure WhenRemoveARecordFromDetailMustUpdateTheArrayOfTheParentClass;
   end;
 
   [TestFixture]
@@ -251,6 +255,10 @@ type
     procedure WhenCallClearProcedureMustCleanUpTheItensInTheInternalList;
     [Test]
     procedure WhenCallClearProcedureMustResetTheCurrentPositionOfTheIterator;
+    [Test]
+    procedure TheUpdateArrayMustFillTheValuesInThePropertyPassedInTheParam;
+    [Test]
+    procedure WhenCallRemoveMustRemoveTheCurrentValueFromTheList;
   end;
 
   TAnotherObject = class
@@ -1593,6 +1601,33 @@ begin
   MyClass.Free;
 end;
 
+procedure TORMDataSetTest.WhenRemoveARecordFromDetailMustUpdateTheArrayOfTheParentClass;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+  var MyClass := TMyTestClassTypes.Create;
+  var MyArray: TArray<TMyTestClassTypes> := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+  MyClass.MyArray := MyArray;
+
+  DataSet.OpenObject(MyClass);
+
+  DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
+
+  DataSetDetail.Delete;
+
+  Assert.AreEqual(1, Length(MyClass.MyArray));
+
+  MyArray[0].Free;
+
+  MyArray[1].Free;
+
+  MyClass.Free;
+
+  DataSetDetail.Free;
+
+  DataSet.Free;
+end;
+
 procedure TORMDataSetTest.WhenScrollTheParentDataSetMustLoadTheArrayInDetailDataSet;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -2093,6 +2128,24 @@ begin
   DataSet.Free;
 end;
 
+procedure TORMDataSetTest.WhenDeleteARecordFromADataSetMustRemoveTheValueFromTheDataSet;
+begin
+  var Context := TRttiContext.Create;
+  var DataSet := TORMDataSet.Create(nil);
+  var List: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  DataSet.OpenArray<TMyTestClass>(List);
+
+  DataSet.Delete;
+
+  Assert.AreEqual(4, DataSet.RecordCount);
+
+  for var Item in List do
+    Item.Free;
+
+  DataSet.Free;
+end;
+
 { TMyTestClass }
 
 destructor TMyTestClass.Destroy;
@@ -2163,6 +2216,24 @@ begin
   Assert.AreEqual(3, Cursor.RecordCount);
 end;
 
+procedure TORMListIteratorTest.TheUpdateArrayMustFillTheValuesInThePropertyPassedInTheParam;
+begin
+  var Context := TRttiContext.Create;
+  var &Property := Context.GetType(TMyTestClassTypes).GetProperty('MyArray') as TRttiProperty;
+  var Cursor := CreateCursor<TMyTestClassTypes>([TMyTestClassTypes.Create, TMyTestClassTypes.Create]);
+  var MyClass := TMyTestClassTypes.Create;
+
+  Cursor.UpdateArrayProperty(&Property, MyClass);
+
+  Assert.AreEqual(2, Length(MyClass.MyArray));
+
+  MyClass.MyArray[0].Free;
+
+  MyClass.MyArray[1].Free;
+
+  MyClass.Free;
+end;
+
 procedure TORMListIteratorTest.WhenAddAnObjectTheCurrentPositionMustBeTheInsertedObjectPosition;
 begin
   var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
@@ -2203,6 +2274,21 @@ begin
   Cursor.Clear;
 
   Assert.AreEqual(0, Cursor.CurrentPosition);
+end;
+
+procedure TORMListIteratorTest.WhenCallRemoveMustRemoveTheCurrentValueFromTheList;
+begin
+  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
+
+  Cursor.CurrentPosition := 2;
+
+  Cursor.Remove;
+
+  Assert.AreEqual(2, Cursor.RecordCount);
+
+  Assert.AreEqual<Pointer>(TObject(1), Cursor.GetObject(1));
+
+  Assert.AreEqual<Pointer>(TObject(3), Cursor.GetObject(2));
 end;
 
 procedure TORMListIteratorTest.WhenCallResetBeginMustPutTheIteratorInTheFirstPosition;

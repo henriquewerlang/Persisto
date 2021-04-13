@@ -54,6 +54,7 @@ type
     procedure ResetBegin;
     procedure ResetEnd;
     procedure SetCurrentPosition(const Value: Cardinal);
+    procedure UpdateArrayProperty(&Property: TRttiProperty; Instance: TObject);
 
     property CurrentPosition: Cardinal read GetCurrentPosition write SetCurrentPosition;
     property Objects[Index: Cardinal]: TObject read GetObject; default;
@@ -78,6 +79,9 @@ type
     procedure ResetBegin;
     procedure ResetEnd;
     procedure SetCurrentPosition(const Value: Cardinal);
+    procedure UpdateArrayProperty(&Property: TRttiProperty; Instance: TObject);
+
+    property CurrentPosition: Cardinal read GetCurrentPosition write SetCurrentPosition;
   public
     constructor Create(const Value: array of T); overload;
     constructor Create(const Value: TList<T>); overload;
@@ -122,6 +126,7 @@ type
     procedure ReleaseThenInsertingObject;
     procedure SetObjectClassName(const Value: String);
     procedure SetObjectType(const Value: TRttiInstanceType);
+    procedure UpdateParentObject;
   protected
     function AllocRecordBuffer: TORMRecordBuffer; override;
     function GetFieldClass(FieldType: TFieldType): TFieldClass; override;
@@ -136,6 +141,7 @@ type
     procedure FreeRecordBuffer(var Buffer: TORMRecordBuffer); override;
     procedure InternalCancel; override;
     procedure InternalClose; override;
+    procedure InternalDelete; override;
     procedure InternalEdit; override;
     procedure InternalFirst; override;
     procedure InternalGotoBookmark(Bookmark: TBookmark); override;
@@ -273,6 +279,7 @@ end;
 
 procedure TORMListIterator<T>.Remove;
 begin
+  FList.Delete(Pred(CurrentPosition));
 end;
 
 procedure TORMListIterator<T>.ResetBegin;
@@ -288,6 +295,22 @@ end;
 procedure TORMListIterator<T>.SetCurrentPosition(const Value: Cardinal);
 begin
   FCurrentPosition := Value;
+end;
+
+procedure TORMListIterator<T>.UpdateArrayProperty(&Property: TRttiProperty; Instance: TObject);
+var
+  A: Integer;
+
+  ValueArray: TValue;
+
+begin
+  ValueArray := &Property.GetValue(Instance);
+  ValueArray.ArrayLength := FList.Count;
+
+  for A := 0 to Pred(FList.Count) do
+    ValueArray.ArrayElement[A] := TValue.From<T>(FList[A]);
+
+  &Property.SetValue(Instance, ValueArray);
 end;
 
 { TORMDataSet }
@@ -728,6 +751,13 @@ begin
   BindFields(False);
 end;
 
+procedure TORMDataSet.InternalDelete;
+begin
+  FIterator.Remove;
+
+  UpdateParentObject;
+end;
+
 procedure TORMDataSet.InternalEdit;
 var
   &Property: TRttiProperty;
@@ -806,9 +836,6 @@ begin
 end;
 
 procedure TORMDataSet.InternalPost;
-var
-  Value: TValue;
-
 begin
   inherited;
 
@@ -816,16 +843,7 @@ begin
   begin
     FIterator.Add(FInsertingObject);
 
-    if Assigned(DataSetField) then
-    begin
-      Value := FDataSetFieldProperty.GetValue(ParentDataSet.GetCurrentObject<TObject>);
-
-      Value.ArrayLength := Succ(Value.ArrayLength);
-
-      Value.ArrayElement[Pred(Value.ArrayLength)] := TValue.From(FInsertingObject);
-
-      FDataSetFieldProperty.SetValue(ParentDataSet.GetCurrentObject<TObject>, Value);
-    end;
+    UpdateParentObject;
   end;
 
   FInsertingObject := nil;
@@ -1102,6 +1120,12 @@ begin
   CheckInactive;
 
   FObjectType := Value;
+end;
+
+procedure TORMDataSet.UpdateParentObject;
+begin
+  if Assigned(DataSetField) then
+    FIterator.UpdateArrayProperty(FDataSetFieldProperty, ParentDataSet.GetCurrentObject<TObject>);
 end;
 
 { TORMObjectField }
