@@ -91,7 +91,7 @@ function IsLazyLoading(RttiType: TRttiType): Boolean;
 
 implementation
 
-uses System.SysUtils;
+uses System.SysUtils, System.TypInfo;
 
 function GetLazyLoadingAccess(const Instance: TValue): {$IFDEF PAS2JS}TLazyAccess{$ELSE}ILazyAccess{$ENDIF};
 var
