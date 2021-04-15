@@ -178,7 +178,10 @@ end;
 
 function TLazyAccess.GetKey: TValue;
 begin
-  Result := FLoader.GetKey;
+  if Assigned(FLoader) then
+    Result := FLoader.GetKey
+  else
+    Result := TValue.Empty;
 end;
 
 function TLazyAccess.GetLoaded: Boolean;

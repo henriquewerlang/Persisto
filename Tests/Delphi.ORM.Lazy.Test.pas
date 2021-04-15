@@ -40,6 +40,8 @@ type
     procedure WhenTheLazyIsntLoadedAndCallTheGetKeyFunctionMustReturnTheKeyFilledByLoader;
     [Test]
     procedure WhenAssignALazyVariableToAnotherMustCopyTheInternalAccess;
+    [Test]
+    procedure WhenCreateAClassTheGetKeyMustReturnAnEmptyValue;
   end;
 
 implementation
@@ -117,6 +119,16 @@ begin
   var RttiType := TRttiContext.Create.GetType(TMyEntity);
 
   Assert.AreEqual(RttiType, GetLazyLoadingRttiType(TRttiContext.Create.GetType(TypeInfo(Lazy<TMyEntity>))));
+end;
+
+procedure TLazyTest.WhenCreateAClassTheGetKeyMustReturnAnEmptyValue;
+begin
+  var Lazy := TLazyClass.Create;
+  var LazyAccess := GetLazyLoadingAccess(TValue.From(Lazy.Lazy));
+
+  Assert.AreEqual(TValue.Empty, LazyAccess.GetKey);
+
+  Lazy.Free;
 end;
 
 procedure TLazyTest.WhenFillTheValueCantCallTheLazyLoaderValue;
