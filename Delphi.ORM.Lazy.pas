@@ -2,7 +2,7 @@ unit Delphi.ORM.Lazy;
 
 interface
 
-uses System.Rtti;
+uses System.Rtti, System.TypInfo;
 
 type
   ILazyLoader = interface
@@ -39,61 +39,36 @@ type
     property Loaded: Boolean read GetLoaded;
   end;
 
-{$IFDEF PAS2JS}
-  Lazy<T: class> = record
-  private
-    FAccess: TLazyAccess;
-
-    function GetAccess: TLazyAccess;
-
-    procedure SetValue(const Value: T);
-  public
-    function GetValue: T;
-
-    property Access: TLazyAccess read GetAccess;
-    property Value: T read GetValue write SetValue;
-  end;
-
-{$ELSE}
-  ILazyAccessTyped<T> = interface(ILazyAccess)
-    ['{BDF2E5FA-5ECE-47FA-9EE3-C70A29779112}']
-    function GetTypedValue: T;
-
-    procedure SetTypedValue(const Value: T);
-  end;
-
-  TLazyAccessTyped<T> = class(TLazyAccess, ILazyAccessTyped<T>)
-  private
-    function GetTypedValue: T;
-
-    procedure SetTypedValue(const Value: T);
-  end;
+  TLazyAccessType = {$IFDEF PAS2JS}TLazyAccess{$ELSE}ILazyAccess{$ENDIF};
 
   Lazy<T: class> = record
   private
-    FAccess: ILazyAccessTyped<T>;
+    FAccess: TLazyAccessType;
 
     procedure SetValue(const Value: T);
   public
+    function GetAccess: TLazyAccessType;
     function GetValue: T;
 
+{$IFDEF DCC}
     class operator Initialize(out Dest: Lazy<T>);
     class operator Implicit(const Value: Lazy<T>): T;
     class operator Implicit(const Value: T): Lazy<T>;
-
-    property Value: T read GetValue write SetValue;
-  end;
 {$ENDIF}
 
-function GetLazyLoadingAccess(const Instance: TValue): {$IFDEF PAS2JS}TLazyAccess{$ELSE}ILazyAccess{$ENDIF};
+    property Access: TLazyAccessType read GetAccess;
+    property Value: T read GetValue write SetValue;
+  end;
+
+function GetLazyLoadingAccess(const Instance: TValue): TLazyAccessType;
 function GetLazyLoadingRttiType(RttiType: TRttiType): TRttiType;
 function IsLazyLoading(RttiType: TRttiType): Boolean;
 
 implementation
 
-uses System.SysUtils, System.TypInfo;
+uses System.SysUtils;
 
-function GetLazyLoadingAccess(const Instance: TValue): {$IFDEF PAS2JS}TLazyAccess{$ELSE}ILazyAccess{$ENDIF};
+function GetLazyLoadingAccess(const Instance: TValue): TLazyAccessType;
 var
   RttiType: TRttiType;
 
@@ -101,9 +76,9 @@ begin
   RttiType := TRttiContext.Create.GetType(Instance.TypeInfo);
 
 {$IFDEF PAS2JS}
-  Result := RttiType.GetProperty('Access').GetValue(Instance.AsJSValue).AsObject as TLazyAccess;
+  Result := RttiType.GetProperty('Access').GetValue(Instance.AsJSValue).AsType<TLazyAccessType>;
 {$ELSE}
-  Result := RttiType.GetField('FAccess').GetValue(Instance.GetReferenceToRawData).AsType<ILazyAccess>;
+  Result := RttiType.GetMethod('GetAccess').Invoke(Instance, []).AsType<TLazyAccessType>;
 {$ENDIF}
 end;
 
@@ -119,36 +94,28 @@ end;
 
 { Lazy<T> }
 
-function Lazy<T>.GetValue: T;
-begin
-{$IFDEF PAS2JS}
-  Result := Access.GetValue.AsType<T>;
-{$ELSE}
-  Result := FAccess.GetTypedValue;
-{$ENDIF}
-end;
-
-procedure Lazy<T>.SetValue(const Value: T);
-begin
-{$IFDEF PAS2JS}
-  Access.SetValue(TValue.From(Value));
-{$ELSE}
-  FAccess.SetTypedValue(Value);
-{$ENDIF}
-end;
-
-{$IFDEF PAS2JS}
-function Lazy<T>.GetAccess: TLazyAccess;
+function Lazy<T>.GetAccess: TLazyAccessType;
 begin
   if not Assigned(FAccess) then
     FAccess := TLazyAccess.Create;
 
   Result := FAccess;
 end;
-{$ELSE}
+
+function Lazy<T>.GetValue: T;
+begin
+  Result := GetAccess.GetValue.AsType<T>;
+end;
+
+procedure Lazy<T>.SetValue(const Value: T);
+begin
+  GetAccess.SetValue(TValue.From<T>(Value));
+end;
+
+{$IFDEF DCC}
 class operator Lazy<T>.Initialize(out Dest: Lazy<T>);
 begin
-  Dest.FAccess := TLazyAccessTyped<T>.Create;
+  Dest.GetAccess;
 end;
 
 class operator Lazy<T>.Implicit(const Value: T): Lazy<T>;
@@ -159,18 +126,6 @@ end;
 class operator Lazy<T>.Implicit(const Value: Lazy<T>): T;
 begin
   Result := Value.Value;
-end;
-
-{ TLazyAccessTyped<T> }
-
-function TLazyAccessTyped<T>.GetTypedValue: T;
-begin
-  Result := GetValue.AsType<T>;
-end;
-
-procedure TLazyAccessTyped<T>.SetTypedValue(const Value: T);
-begin
-  SetValue(TValue.From<T>(Value));
 end;
 {$ENDIF}
 
