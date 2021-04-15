@@ -103,6 +103,7 @@ type
     FParentDataSet: TORMDataSet;
     FDataSetFieldProperty: TRttiProperty;
     FCalculatedFields: TDictionary<TField, Integer>;
+    FIndexFieldNames: String;
 
     function GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
     function GetFieldInfoFromTypeInfo(PropertyType: PTypeInfo; var Size: Integer): TFieldType;
@@ -197,6 +198,7 @@ type
     property BeforeRefresh;
     property BeforeScroll;
     property DataSetField;
+    property IndexFieldNames: String read FIndexFieldNames write FIndexFieldNames;
     property ObjectClassName: String read GetObjectClassName write SetObjectClassName;
     property OnCalcFields;
     property OnDeleteError;
