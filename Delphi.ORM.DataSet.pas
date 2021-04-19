@@ -283,6 +283,8 @@ end;
 procedure TORMListIterator<T>.Remove;
 begin
   FList.Delete(Pred(CurrentPosition));
+
+  Prior;
 end;
 
 procedure TORMListIterator<T>.ResetBegin;

@@ -225,6 +225,8 @@ type
     procedure WhenScrollTheDataSetMustCalculateTheFields;
     [Test]
     procedure WhenPutTheDataSetInInsertStateMustClearTheCalculatedFields;
+    [Test]
+    procedure WhenRemoveAnItemFromTheListTheResyncCantRaiseAnError;
   end;
 
   [TestFixture]
@@ -263,6 +265,8 @@ type
     procedure TheUpdateArrayMustFillTheValuesInThePropertyPassedInTheParam;
     [Test]
     procedure WhenCallRemoveMustRemoveTheCurrentValueFromTheList;
+    [Test]
+    procedure WhenRemoveTheLastPositionInTheListMustUpdateTheCurrentPositionOfTheIterator;
   end;
 
   TAnotherObject = class
@@ -1636,6 +1640,49 @@ begin
   DataSet.Free;
 end;
 
+procedure TORMDataSetTest.WhenRemoveAnItemFromTheListTheResyncCantRaiseAnError;
+begin
+  var DataLink := TDataLink.Create;
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSource := TDataSource.Create(nil);
+
+  DataLink.BufferCount := 15;
+  DataLink.DataSource := DataSource;
+  DataSource.DataSet := DataSet;
+
+  var MyList := TObjectList<TMyTestClass>.Create;
+
+  for var A := 1 to 5 do
+  begin
+    var MyObject := TMyTestClass.Create;
+    MyObject.Id := A;
+    MyObject.Name := Format('Name%d', [A]);
+    MyObject.Value := A + A;
+
+    MyList.Add(MyObject);
+  end;
+
+  DataSet.OpenList<TMyTestClass>(MyList);
+
+  DataSet.Last;
+
+  DataSet.Delete;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.GetCurrentObject<TObject>;
+    end);
+
+  DataLink.Free;
+
+  DataSource.Free;
+
+  DataSet.Free;
+
+  MyList.Free;
+end;
+
 procedure TORMDataSetTest.WhenRemoveARecordFromDetailMustUpdateTheArrayOfTheParentClass;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -2377,6 +2424,19 @@ begin
   Cursor.ResetEnd;
 
   Assert.AreEqual(4, Cursor.CurrentPosition);
+end;
+
+procedure TORMListIteratorTest.WhenRemoveTheLastPositionInTheListMustUpdateTheCurrentPositionOfTheIterator;
+begin
+  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
+
+  Cursor.ResetEnd;
+
+  Cursor.Prior;
+
+  Cursor.Remove;
+
+  Assert.AreEqual(2, Cursor.CurrentPosition);
 end;
 
 procedure TORMListIteratorTest.WhenTheArrayIsEmptyTheNextProcedureMustReturnFalse;
