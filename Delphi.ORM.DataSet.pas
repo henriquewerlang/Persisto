@@ -53,6 +53,7 @@ type
     procedure Remove;
     procedure ResetBegin;
     procedure ResetEnd;
+    procedure Resync;
     procedure SetCurrentPosition(const Value: Cardinal);
     procedure UpdateArrayProperty(&Property: TRttiProperty; Instance: TObject);
 
@@ -78,6 +79,7 @@ type
     procedure Remove;
     procedure ResetBegin;
     procedure ResetEnd;
+    procedure Resync;
     procedure SetCurrentPosition(const Value: Cardinal);
     procedure UpdateArrayProperty(&Property: TRttiProperty; Instance: TObject);
 
@@ -174,6 +176,7 @@ type
     procedure OpenList<T: class>(List: TList<T>);
     procedure OpenObject<T: class>(&Object: T);
     procedure OpenObjectArray(ObjectClass: TClass; List: TArray<TObject>);
+    procedure Resync(Mode: TResyncMode); override;
 
     property ObjectType: TRttiInstanceType read FObjectType write SetObjectType;
     property ParentDataSet: TORMDataSet read FParentDataSet;
@@ -210,7 +213,7 @@ type
 
 implementation
 
-uses {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF}, Delphi.ORM.Nullable, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy;
+uses {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF}, System.Math, Delphi.ORM.Nullable, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy;
 
 { TORMListIterator<T> }
 
@@ -284,7 +287,7 @@ procedure TORMListIterator<T>.Remove;
 begin
   FList.Delete(Pred(CurrentPosition));
 
-  Prior;
+  Resync;
 end;
 
 procedure TORMListIterator<T>.ResetBegin;
@@ -295,6 +298,11 @@ end;
 procedure TORMListIterator<T>.ResetEnd;
 begin
   FCurrentPosition := Succ(FList.Count);
+end;
+
+procedure TORMListIterator<T>.Resync;
+begin
+  FCurrentPosition := Min(FCurrentPosition, GetRecordCount);
 end;
 
 procedure TORMListIterator<T>.SetCurrentPosition(const Value: Cardinal);
@@ -1054,6 +1062,13 @@ end;
 procedure TORMDataSet.ReleaseThenInsertingObject;
 begin
   FreeAndNil(FInsertingObject);
+end;
+
+procedure TORMDataSet.Resync(Mode: TResyncMode);
+begin
+  FIterator.Resync;
+
+  inherited;
 end;
 
 procedure TORMDataSet.SetDataSetField(const DataSetField: TDataSetField);

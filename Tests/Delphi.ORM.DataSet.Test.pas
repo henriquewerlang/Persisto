@@ -2,7 +2,7 @@
 
 interface
 
-uses System.SysUtils, Data.DB, Delphi.ORM.DataSet, DUnitX.TestFramework;
+uses System.SysUtils, Data.DB, System.Generics.Collections, Delphi.ORM.DataSet, DUnitX.TestFramework;
 
 type
   [TestFixture]
@@ -226,9 +226,11 @@ type
     [Test]
     procedure WhenPutTheDataSetInInsertStateMustClearTheCalculatedFields;
     [Test]
-    procedure WhenRemoveAnItemFromTheListTheResyncCantRaiseAnError;
+    procedure WhenIsRemovedTheLastRecordFromDataSetCantRaiseAnError;
     [Test]
     procedure WhenRemoveAComposeDetailFieldNameMustUpdateTheParentClassWithTheNewValues;
+    [Test]
+    procedure WhenOpenTheDataSetWithAListAndTheListIsChangedTheResyncCantRaiseAnyError;
   end;
 
   [TestFixture]
@@ -236,6 +238,7 @@ type
   private
     function CreateCursor<T: class>(const Value: TArray<T>): IORMObjectIterator; overload;
     function CreateCursor<T: class>(const Value: array of T): IORMObjectIterator; overload;
+    function CreateCursorList<T: class>(const Value: TList<T>): IORMObjectIterator; overload;
   public
     [Test]
     procedure WhenTheArrayIsEmptyTheNextProcedureMustReturnFalse;
@@ -269,6 +272,8 @@ type
     procedure WhenCallRemoveMustRemoveTheCurrentValueFromTheList;
     [Test]
     procedure WhenRemoveTheLastPositionInTheListMustUpdateTheCurrentPositionOfTheIterator;
+    [Test]
+    procedure WhenAValueIsRemovedFromTheListTheResyncMustPutTheCurrentPositionInAValidPosition;
   end;
 
   TAnotherObject = class
@@ -373,7 +378,7 @@ type
 
 implementation
 
-uses System.Rtti, System.Generics.Collections, System.Classes, System.Variants, Data.DBConsts, Delphi.ORM.Test.Entity;
+uses System.Rtti, System.Classes, System.Variants, Data.DBConsts, Delphi.ORM.Test.Entity;
 
 { TORMDataSetTest }
 
@@ -1493,6 +1498,40 @@ begin
   MyObject.Free;
 end;
 
+procedure TORMDataSetTest.WhenOpenTheDataSetWithAListAndTheListIsChangedTheResyncCantRaiseAnyError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyList := TObjectList<TMyTestClass>.Create;
+
+  MyList.Add(TMyTestClass.Create);
+
+  MyList.Add(TMyTestClass.Create);
+
+  MyList.Add(TMyTestClass.Create);
+
+  MyList.Add(TMyTestClass.Create);
+
+  DataSet.OpenList<TMyTestClass>(MyList);
+
+  DataSet.Last;
+
+  MyList.Delete(0);
+
+  MyList.Delete(0);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.Resync([]);
+
+      DataSet.GetCurrentObject<TObject>;
+    end);
+
+  DataSet.Free;
+
+  MyList.Free;
+end;
+
 procedure TORMDataSetTest.WhenOpenTheDataSetWithAListTheRecordCountMustBeTheSizeOfTheList;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -1679,7 +1718,7 @@ begin
   DataSet.Free;
 end;
 
-procedure TORMDataSetTest.WhenRemoveAnItemFromTheListTheResyncCantRaiseAnError;
+procedure TORMDataSetTest.WhenIsRemovedTheLastRecordFromDataSetCantRaiseAnError;
 begin
   var DataLink := TDataLink.Create;
   var DataSet := TORMDataSet.Create(nil);
@@ -2356,6 +2395,11 @@ begin
   Result := TORMListIterator<T>.Create(Value);
 end;
 
+function TORMListIteratorTest.CreateCursorList<T>(const Value: TList<T>): IORMObjectIterator;
+begin
+  Result := TORMListIterator<T>.Create(Value);
+end;
+
 procedure TORMListIteratorTest.TheCurrentPositionOfRecordMustBeSaved;
 begin
   var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
@@ -2408,6 +2452,33 @@ begin
   Assert.AreEqual(4, Cursor.RecordCount);
 
   Assert.AreEqual<Pointer>(TObject(4), Cursor.Objects[4]);
+end;
+
+procedure TORMListIteratorTest.WhenAValueIsRemovedFromTheListTheResyncMustPutTheCurrentPositionInAValidPosition;
+begin
+  var List := TList<TObject>.Create;
+
+  var Cursor := CreateCursorList<TObject>(List);
+
+  List.Add(TObject(1));
+
+  List.Add(TObject(1));
+
+  List.Add(TObject(1));
+
+  List.Add(TObject(1));
+
+  Cursor.ResetEnd;
+
+  List.Delete(0);
+
+  List.Delete(0);
+
+  Cursor.Resync;
+
+  Assert.AreEqual(2, Cursor.CurrentPosition);
+
+  List.Free;
 end;
 
 procedure TORMListIteratorTest.WhenCallClearProcedureMustCleanUpTheItensInTheInternalList;
