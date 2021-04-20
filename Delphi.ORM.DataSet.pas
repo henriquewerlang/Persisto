@@ -101,7 +101,6 @@ type
     FInsertingObject: TObject;
     FOldValueObject: TObject;
     FParentDataSet: TORMDataSet;
-    FDataSetFieldProperty: TRttiProperty;
     FCalculatedFields: TDictionary<TField, Integer>;
     FIndexFieldNames: String;
 
@@ -114,6 +113,7 @@ type
     function GetRecordInfoFromActiveBuffer: TORMRecordInfo;
     function GetRecordInfoFromBuffer(const Buffer: TORMRecordBuffer): TORMRecordInfo;
     function GetCurrentActiveBuffer: TORMRecordBuffer;
+    function GetObjectAndPropertyFromParentDataSet(var Instance: TValue; var &Property: TRttiProperty): Boolean;
 
     procedure CheckCalculatedFields;
     procedure CheckIterator;
@@ -645,6 +645,18 @@ begin
   Result := GetFieldInfoFromProperty(&Property, Size);
 end;
 
+function TORMDataSet.GetObjectAndPropertyFromParentDataSet(var Instance: TValue; var &Property: TRttiProperty): Boolean;
+begin
+  Result := Assigned(ParentDataSet) and not ParentDataSet.IsEmpty;
+
+  if Result then
+  begin
+    Instance := TValue.From(ParentDataSet.GetCurrentObject<TObject>);
+
+    Result := ParentDataSet.GetPropertyAndObjectFromField(DataSetField, Instance, &Property);
+  end;
+end;
+
 function TORMDataSet.GetObjectClass<T>: TClass;
 begin
   Result := {$IFDEF PAS2JS}(FContext.GetType(TypeInfo(T)) as TRttiInstanceType).MetaclassType{$ELSE}T{$ENDIF};
@@ -899,8 +911,7 @@ begin
   begin
     Properties := ParentDataSet.FPropertyMappingList[Pred(DataSetField.FieldNo)];
 
-    FDataSetFieldProperty := Properties[High(Properties)];
-    ObjectType := (FDataSetFieldProperty.PropertyType as TRttiDynamicArrayType).ElementType as TRttiInstanceType;
+    ObjectType := (Properties[High(Properties)].PropertyType as TRttiDynamicArrayType).ElementType as TRttiInstanceType;
   end;
 end;
 
@@ -933,21 +944,16 @@ var
   &Property: TRttiProperty;
 
 begin
-  if Assigned(ParentDataSet) and not ParentDataSet.IsEmpty then
+  if GetObjectAndPropertyFromParentDataSet(Value, &Property) then
   begin
-    Value := TValue.From(ParentDataSet.GetCurrentObject<TObject>);
-
     FIterator.Clear;
 
-    if ParentDataSet.GetPropertyAndObjectFromField(DataSetField, Value, &Property) then
-    begin
-      Value := &Property.GetValue(Value.AsObject);
+    Value := &Property.GetValue(Value.AsObject);
 
-      for A := 0 to Pred(Value.GetArrayLength) do
-        FIterator.Add(Value.GetArrayElement(A).AsObject);
+    for A := 0 to Pred(Value.GetArrayLength) do
+      FIterator.Add(Value.GetArrayElement(A).AsObject);
 
-      FIterator.ResetBegin;
-    end;
+    FIterator.ResetBegin;
   end;
 end;
 
@@ -1153,9 +1159,18 @@ begin
 end;
 
 procedure TORMDataSet.UpdateParentObject;
+var
+  Instance: TValue;
+
+  &Property: TRttiProperty;
+
 begin
   if Assigned(DataSetField) then
-    FIterator.UpdateArrayProperty(FDataSetFieldProperty, ParentDataSet.GetCurrentObject<TObject>);
+  begin
+    GetObjectAndPropertyFromParentDataSet(Instance, &Property);
+
+    FIterator.UpdateArrayProperty(&Property, Instance.AsObject);
+  end;
 end;
 
 { TORMObjectField }

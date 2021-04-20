@@ -227,6 +227,8 @@ type
     procedure WhenPutTheDataSetInInsertStateMustClearTheCalculatedFields;
     [Test]
     procedure WhenRemoveAnItemFromTheListTheResyncCantRaiseAnError;
+    [Test]
+    procedure WhenRemoveAComposeDetailFieldNameMustUpdateTheParentClassWithTheNewValues;
   end;
 
   [TestFixture]
@@ -1636,6 +1638,43 @@ begin
   CallbackClass.Free;
 
   MyClass.Free;
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenRemoveAComposeDetailFieldNameMustUpdateTheParentClassWithTheNewValues;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+  var Field := TDataSetField.Create(nil);
+  var MyArray: TArray<TMyTestClassTypes> := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+  var MyClass: TArray<TParentClass> := [TParentClass.Create, TParentClass.Create];
+  MyClass[0].MyClass := TMyTestClassTypes.Create;
+  MyClass[0].MyClass.MyArray := MyArray;
+
+  Field.FieldName := 'MyClass.MyArray';
+
+  Field.SetParentComponent(DataSet);
+
+  DataSetDetail.DataSetField := Field;
+
+  DataSet.OpenArray<TParentClass>(MyClass);
+
+  DataSetDetail.Delete;
+
+  Assert.AreEqual(1, DataSetDetail.RecordCount);
+
+  MyArray[0].Free;
+
+  MyArray[1].Free;
+
+  MyClass[0].MyClass.Free;
+
+  MyClass[1].Free;
+
+  MyClass[0].Free;
+
+  DataSetDetail.Free;
 
   DataSet.Free;
 end;
