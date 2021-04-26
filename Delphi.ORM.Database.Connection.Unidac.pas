@@ -34,7 +34,7 @@ type
 
 implementation
 
-uses SQLServerUniProvider;
+uses Winapi.ActiveX, SQLServerUniProvider;
 
 { TDatabaseCursorUnidac }
 
@@ -74,6 +74,8 @@ end;
 constructor TDatabaseConnectionUnidac.Create;
 begin
   inherited;
+
+  CoInitialize(nil);
 
   FConnection := TUniConnection.Create(nil);
 end;
