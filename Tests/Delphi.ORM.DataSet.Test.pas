@@ -720,7 +720,7 @@ begin
 
   Field.FieldName := 'MyClass.MyArray';
 
-  Field.SetParentComponent(DataSet);
+  Field.DataSet := DataSet;
 
   DataSetDetail.DataSetField := Field;
 
@@ -751,7 +751,7 @@ begin
 
   Field.FieldName := 'MyClass.MyArray';
 
-  Field.SetParentComponent(DataSet);
+  Field.DataSet := DataSet;
 
   DataSetDetail.DataSetField := Field;
 
@@ -930,7 +930,7 @@ begin
   var Field := TStringField.Create(DataSet);
   Field.FieldName := 'Name';
 
-  Field.SetParentComponent(DataSet);
+  Field.DataSet := DataSet;
 
   DataSet.OpenClass<TMyTestClass>;
 
@@ -954,24 +954,24 @@ begin
   Field.FieldName := 'Calculated1';
   Field.FieldKind := fkCalculated;
 
-  Field.SetParentComponent(DataSet);
+  Field.DataSet := DataSet;
 
   Field := TIntegerField.Create(nil);
   Field.FieldName := 'Calculated2';
   Field.FieldKind := fkCalculated;
 
-  Field.SetParentComponent(DataSet);
+  Field.DataSet := DataSet;
 
   Field := TIntegerField.Create(nil);
   Field.FieldName := 'Calculated3';
   Field.FieldKind := fkCalculated;
 
-  Field.SetParentComponent(DataSet);
+  Field.DataSet := DataSet;
 
   Field := TFloatField.Create(nil);
   Field.FieldName := 'Value';
 
-  Field.SetParentComponent(DataSet);
+  Field.DataSet := DataSet;
 
   DataSet.OpenClass<TMyTestClass>;
 
@@ -1130,7 +1130,7 @@ begin
   Field.FieldName := 'Calculated';
   Field.FieldKind := fkCalculated;
 
-  Field.SetParentComponent(DataSet);
+  Field.DataSet := DataSet;
 
   DataSet.OpenClass<TParentClass>;
 
@@ -1396,7 +1396,7 @@ begin
   Field.FieldName := 'Calculated';
   Field.FieldKind := fkCalculated;
 
-  Field.SetParentComponent(DataSet);
+  Field.DataSet := DataSet;
 
   Assert.WillNotRaise(
     procedure
@@ -1666,7 +1666,7 @@ begin
   Field.FieldKind := fkCalculated;
   var MyClass := TMyTestClass.Create;
 
-  Field.SetParentComponent(DataSet);
+  Field.DataSet := DataSet;
 
   DataSet.OpenObject<TMyTestClass>(MyClass);
 
@@ -1693,7 +1693,7 @@ begin
 
   Field.FieldName := 'MyClass.MyArray';
 
-  Field.SetParentComponent(DataSet);
+  Field.DataSet := DataSet;
 
   DataSetDetail.DataSetField := Field;
 
@@ -1802,7 +1802,7 @@ begin
   Field.FieldKind := fkCalculated;
   var MyArray: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create];
 
-  Field.SetParentComponent(DataSet);
+  Field.DataSet := DataSet;
 
   DataSet.OpenArray<TMyTestClass>(MyArray);
 
@@ -2103,7 +2103,7 @@ begin
   Field.FieldName := 'Calculated';
   Field.FieldKind := fkCalculated;
 
-  Field.SetParentComponent(DataSet);
+  Field.DataSet := DataSet;
 
   DataSet.OpenClass<TParentClass>;
 
@@ -2191,12 +2191,12 @@ begin
   Field.FieldName := 'Calculated';
   Field.FieldKind := fkCalculated;
 
-  Field.SetParentComponent(DataSet);
+  Field.DataSet := DataSet;
 
   Field := TFloatField.Create(nil);
   Field.FieldName := 'Value';
 
-  Field.SetParentComponent(DataSet);
+  Field.DataSet := DataSet;
 
   DataSet.OpenClass<TMyTestClass>;
 
@@ -2301,14 +2301,14 @@ begin
   var Field := TDataSetField.Create(nil);
   Field.FieldName := 'MyArray';
 
-  Field.SetParentComponent(DataSet);
+  Field.DataSet := DataSet;
 
   DataSetDetail.DataSetField := Field;
 
   var AnotherField := TLongWordField.Create(nil);
   AnotherField.FieldName := 'Cardinal';
 
-  AnotherField.SetParentComponent(DataSet);
+  AnotherField.DataSet := DataSet;
 
   DataSet.OpenClass<TMyTestClassTypes>;
 
