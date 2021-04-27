@@ -8,17 +8,19 @@ type
   [TestFixture]
   TClassLoaderTest = class
   private
-    FBuilder: TQueryBuilder;
+    FBuilderInterface: IInterface;
 
     function CreateCursor(const CursorValues: TArray<TArray<Variant>>): IDatabaseCursor;
     function CreateLoader<T: class>(const CursorValues: TArray<TArray<Variant>>): TClassLoader;
     function CreateLoaderConnection<T: class>(Connection: IDatabaseConnection): TClassLoader;
     function CreateLoaderCursor<T: class>(Cursor: IDatabaseCursor): TClassLoader;
   public
-    [TearDown]
-    procedure TearDown;
+    [Setup]
+    procedure Setup;
     [SetupFixture]
     procedure SetupFixture;
+    [TearDown]
+    procedure TearDown;
     [Test]
     procedure MustLoadThePropertiesOfTheClassWithTheValuesOfCursor;
     [Test]
@@ -90,12 +92,14 @@ end;
 
 function TClassLoaderTest.CreateLoaderConnection<T>(Connection: IDatabaseConnection): TClassLoader;
 begin
-  FBuilder := TQueryBuilder.Create(Connection);
-  var From := FBuilder.Select.All;
+  var Builder := TQueryBuilder.Create(Connection);
+  var From := Builder.Select.All;
 
   From.From<T>;
 
   Result := TClassLoader.Create(Connection, From);
+
+  FBuilderInterface := Builder;
 end;
 
 procedure TClassLoaderTest.EvenIfTheCursorReturnsMoreThanOneRecordTheLoadClassHasToReturnOnlyOneClass;
@@ -144,7 +148,7 @@ end;
 
 procedure TClassLoaderTest.TearDown;
 begin
-  FBuilder.Free;
+  FBuilderInterface := nil;
 end;
 
 procedure TClassLoaderTest.TheChildFieldInManyValueAssociationMustBeLoadedWithTheReferenceOfTheParentClass;
@@ -185,6 +189,11 @@ begin
   Result.AnotherClass.Free;
   Result.Free;
   Loader.Free;
+end;
+
+procedure TClassLoaderTest.Setup;
+begin
+  CreateLoader<TMyClass>(nil).Free;
 end;
 
 procedure TClassLoaderTest.SetupFixture;
@@ -348,6 +357,8 @@ begin
   var MyLazy := Loader.Load<TLazyClass>;
 
   Assert.AreEqual(222, MyLazy.Lazy.Value.Id);
+
+  MyLazy.Lazy.Value.Free;
 
   MyLazy.Free;
 

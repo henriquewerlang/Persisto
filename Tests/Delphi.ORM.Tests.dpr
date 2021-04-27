@@ -44,8 +44,10 @@ var
   nunitLogger : ITestLogger;
 {$ENDIF}
 begin
+  FastMM_EnterDebugMode;
+
   FastMM_OutputDebugStringEvents := [];
-  FastMM_LogToFileEvents := [mmetUnexpectedMemoryLeakSummary];
+  FastMM_LogToFileEvents := [mmetDebugBlockDoubleFree, mmetUnexpectedMemoryLeakSummary, mmetUnexpectedMemoryLeakDetail];
   FastMM_MessageBoxEvents := [mmetDebugBlockDoubleFree, mmetDebugBlockReallocOfFreedBlock, mmetVirtualMethodCallOnFreedObject];
 
   FastMM_DeleteEventLogFile;

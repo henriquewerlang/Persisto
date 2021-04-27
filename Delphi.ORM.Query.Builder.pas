@@ -32,7 +32,7 @@ type
     function GetFields: TArray<TFieldAlias>; virtual; abstract;
   end;
 
-  TQueryBuilder = class
+  TQueryBuilder = class(TInterfacedObject)
   private
     FConnection: IDatabaseConnection;
     FCommand: TQueryBuilderCommand;
