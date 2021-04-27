@@ -17,6 +17,7 @@ type
 
   EPropertyNameDoesNotExist = class(Exception);
   EPropertyWithDifferentType = class(Exception);
+  TORMCalcFieldBuffer = {$IFDEF PAS2JS}TDataRecord{$ELSE}TRecBuf{$ENDIF};
   TORMFieldBuffer = {$IFDEF PAS2JS}TDataRecord{$ELSE}TValueBuffer{$ENDIF};
   TORMRecordBuffer = {$IFDEF PAS2JS}TDataRecord{$ELSE}TRecordBuffer{$ENDIF};
   TORMValueBuffer = {$IFDEF PAS2JS}JSValue{$ELSE}TValueBuffer{$ENDIF};
@@ -139,6 +140,7 @@ type
     function GetRecNo: Integer; override;
     function IsCursorOpen: Boolean; override;
 
+    procedure ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TORMCalcFieldBuffer); override;
     procedure DataEvent(Event: TDataEvent; Info: {$IFDEF PAS2JS}JSValue{$ELSE}NativeInt{$ENDIF}); override;
     procedure DoAfterOpen; override;
     procedure GetBookmarkData(Buffer: TORMRecordBuffer; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark); override;
@@ -366,6 +368,19 @@ procedure TORMDataSet.CheckObjectTypeLoaded;
 begin
   if not Assigned(ObjectType) then
     raise EDataSetWithoutObjectDefinition.Create;
+end;
+
+procedure TORMDataSet.ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TORMCalcFieldBuffer);
+var
+  A: Integer;
+
+  CalcBuffer: TArray<TValue>;
+
+begin
+  CalcBuffer := GetRecordInfoFromActiveBuffer.CalculedFieldBuffer;
+
+  for A := Low(CalcBuffer) to High(CalcBuffer) do
+    CalcBuffer[A] := TValue.Empty;
 end;
 
 {$IFDEF PAS2JS}
@@ -736,7 +751,7 @@ begin
   begin
     GetRecordInfoFromBuffer(Buffer).ArrayPosition := FIterator.CurrentPosition;
 
-    GetCalcFields(Buffer);
+    GetCalcFields(TORMCalcFieldBuffer(Buffer));
   end;
 end;
 

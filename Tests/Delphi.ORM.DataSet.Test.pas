@@ -231,6 +231,8 @@ type
     procedure WhenRemoveAComposeDetailFieldNameMustUpdateTheParentClassWithTheNewValues;
     [Test]
     procedure WhenOpenTheDataSetWithAListAndTheListIsChangedTheResyncCantRaiseAnyError;
+    [Test]
+    procedure TheCalcBufferMustBeClearedOnScrollingTheDataSet;
   end;
 
   [TestFixture]
@@ -527,6 +529,71 @@ begin
     except
     end;
   end;
+end;
+
+procedure TORMDataSetTest.TheCalcBufferMustBeClearedOnScrollingTheDataSet;
+begin
+  var CallbackClass := TCallbackClass.Create(
+    procedure (DataSet: TORMDataSet)
+    begin
+      if DataSet.RecNo = 1 then
+      begin
+        DataSet.FieldByName('Calculated1').AsInteger := 20;
+        DataSet.FieldByName('Calculated2').AsInteger := 20;
+        DataSet.FieldByName('Calculated3').AsInteger := 20;
+      end
+      else if DataSet.RecNo = 2 then
+        DataSet.FieldByName('Calculated2').AsInteger := 10;
+    end);
+  var DataSet := TORMDataSet.Create(nil);
+  DataSet.OnCalcFields := CallbackClass.OnCalcFields;
+  var DataLink := TDataLink.Create;
+  DataLink.BufferCount := 5;
+  var DataSource := TDataSource.Create(DataSet);
+  var Field: TField := TIntegerField.Create(DataSet);
+  Field.FieldName := 'Calculated1';
+  Field.FieldKind := fkCalculated;
+  var List: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  DataLink.DataSource := DataSource;
+  DataSource.DataSet := DataSet;
+
+  Field.DataSet := DataSet;
+
+  Field := TIntegerField.Create(DataSet);
+  Field.FieldName := 'Calculated2';
+  Field.FieldKind := fkCalculated;
+
+  Field.DataSet := DataSet;
+
+  Field := TIntegerField.Create(DataSet);
+  Field.FieldName := 'Calculated3';
+  Field.FieldKind := fkCalculated;
+
+  Field.DataSet := DataSet;
+
+  DataSet.OpenArray<TMyTestClass>(List);
+
+  DataSet.Next;
+
+  DataSet.Next;
+
+  DataSet.Resync([]);
+
+  DataSet.Prior;
+
+  Assert.AreEqual(0, DataSet.FieldByName('Calculated1').AsInteger);
+  Assert.AreEqual(10, DataSet.FieldByName('Calculated2').AsInteger);
+  Assert.AreEqual(0, DataSet.FieldByName('Calculated3').AsInteger);
+
+  CallbackClass.Free;
+
+  DataSet.Free;
+
+  DataLink.Free;
+
+  for var Item in List do
+    Item.Free;
 end;
 
 procedure TORMDataSetTest.TheFieldTypeMustMatchWithPropertyType(FieldName: String; TypeToCompare: TFieldType);
