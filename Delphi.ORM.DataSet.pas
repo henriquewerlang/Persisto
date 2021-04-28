@@ -215,7 +215,7 @@ type
 
 implementation
 
-uses {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF}, System.Math, Delphi.ORM.Nullable, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy;
+uses Delphi.ORM.Nullable, System.Math, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy, {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF};
 
 { TORMListIterator<T> }
 
