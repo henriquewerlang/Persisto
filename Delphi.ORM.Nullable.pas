@@ -7,109 +7,75 @@ uses System.Rtti, System.TypInfo;
 type
   TNullEnumerator = (NULL);
 
-{$IFDEF PAS2JS}
-  Nullable<T> = record
+  INullableAccess = interface
+    ['{B8A61E24-B4A1-400E-A1F9-293C14E30CA4}']
+    function GetValue: TValue;
+    function IsNull: Boolean;
+
+    procedure Clear;
+    procedure SetValue(const Value: TValue);
+  end;
+
+  TNullableAccess = class(TInterfacedObject, INullableAccess)
   private
-    FValue: JSValue;
+    FValue: TValue;
   public
-    function GetValue: T;
+    function GetValue: TValue;
     function IsNull: Boolean;
 
     procedure Clear;
-    procedure SetValue(const Value: T);
-
-    property Value: T read GetValue write SetValue;
-  end;
-{$ElSE}
-  INullableValue<T> = interface
-    function GetValue: T;
-    function IsNull: Boolean;
-
-    procedure Clear;
-    procedure SetValue(const Value: T);
-
-    property Value: T read GetValue write SetValue;
+    procedure SetValue(const Value: TValue);
   end;
 
-  TNullableValue<T> = class(TInterfacedObject, INullableValue<T>)
-  private
-    FIsLoaded: Boolean;
-    FValue: T;
-
-    function GetValue: T;
-    function IsNull: Boolean;
-
-    procedure Clear;
-    procedure SetValue(const Value: T);
-  end;
+  TNullableAccessType = {$IFDEF PAS2JS}TNullableAccess{$ELSE}INullableAccess{$ENDIF};
 
   Nullable<T> = record
   private
-    FValue: INullableValue<T>;
+    FAccess: TNullableAccessType;
   public
+    function GetAccess: TNullableAccessType;
     function GetValue: T;
     function IsNull: Boolean;
 
     procedure Clear;
     procedure SetValue(const Value: T);
 
+{$IFDEF DCC}
     class operator Initialize(out Dest: Nullable<T>);
     class operator Implicit(const Value: Nullable<T>): T; overload;
     class operator Implicit(const Value: T): Nullable<T>; overload;
     class operator Implicit(const Value: TNullEnumerator): Nullable<T>; overload;
-
-    property Value: T read GetValue write SetValue;
-  end;
 {$ENDIF}
 
-function GetNullableRttiType(RttiType: TRttiType): TRttiType;
-function GetNullableValue(RttiType: TRttiType; const Instance: TValue): TValue;
-function IsNullableType(RttiType: TRttiType): Boolean;
+    property Access: TNullableAccessType read GetAccess;
+    property Value: T read GetValue write SetValue;
+  end;
 
-procedure SetNullableValue(RttiType: TRttiType; const Instance: TValue; const NullableValue: {$IFDEF PAS2JS}JSValue{$ELSE}TValue{$ENDIF});
+function GetNullableAccess(const Instance: TValue): TNullableAccessType;
+function GetNullableRttiType(RttiType: TRttiType): TRttiType;
+function IsNullableType(RttiType: TRttiType): Boolean;
 
 implementation
 
-uses System.SysUtils{$IFDEF PAS2JS}, Pas2JS.JS{$ENDIF};
+uses System.SysUtils;
+
+function GetNullableAccess(const Instance: TValue): TNullableAccessType;
+var
+  RttiType: TRttiType;
+
+begin
+  RttiType := TRttiContext.Create.GetType(Instance.TypeInfo);
+
+{$IFDEF PAS2JS}
+  Result := RttiType.GetProperty('Access').GetValue(Instance.AsJSValue).AsType<TNullableAccessType>;
+{$ELSE}
+  Result := RttiType.GetMethod('GetAccess').Invoke(Instance, []).AsType<TNullableAccessType>;
+{$ENDIF}
+end;
 
 function GetNullableRttiType(RttiType: TRttiType): TRttiType;
 begin
   Result := RttiType.GetMethod('GetValue').ReturnType;
-end;
-
-function GetNullableTypeInfo(RttiType: TRttiType): PTypeInfo;
-begin
-  Result := GetNullableRttiType(RttiType).Handle;
-end;
-
-function GetNullableValue(RttiType: TRttiType; const Instance: TValue): TValue;
-begin
-{$IFDEF PAS2JS}
-  if TJSFunction(TJSObject(Instance.AsJSValue)['IsNull']).apply(TJSObject(Instance.AsJSValue), nil) then
-    Result := TValue.Empty
-  else
-    Result := TValue.FromJSValue(TJSFunction(TJSObject(Instance.AsJSValue)['GetValue']).apply(TJSObject(Instance.AsJSValue), nil));
-{$ELSE}
-  if RttiType.GetMethod('IsNull').Invoke(Instance, []).AsBoolean then
-    Result := TValue.Empty
-  else
-    Result := RttiType.GetMethod('GetValue').Invoke(Instance, []);
-{$ENDIF}
-end;
-
-procedure SetNullableValue(RttiType: TRttiType; const Instance: TValue; const NullableValue: {$IFDEF PAS2JS}JSValue{$ELSE}TValue{$ENDIF});
-begin
-{$IFDEF PAS2JS}
-  if NullableValue = NULL then
-    TJSFunction(TJSObject(Instance.AsJSValue)['Clear']).apply(TJSObject(Instance.AsJSValue), nil)
-  else
-    TJSFunction(TJSObject(Instance.AsJSValue)['SetValue']).apply(TJSObject(Instance.AsJSValue), [NullableValue]);
-{$ELSE}
-  if NullableValue.IsEmpty then
-    RttiType.GetMethod('Clear').Invoke(Instance, [])
-  else
-    RttiType.GetMethod('SetValue').Invoke(Instance, [NullableValue]);
-{$ENDIF}
 end;
 
 function IsNullableType(RttiType: TRttiType): Boolean;
@@ -117,35 +83,12 @@ begin
   Result := RttiType.Name.StartsWith('Nullable<');
 end;
 
-{$IFDEF PAS2JS}
 { Nullable<T> }
 
-procedure Nullable<T>.Clear;
-begin
-  FValue := NULL;
-end;
-
-function Nullable<T>.GetValue: T;
-begin
-  Result := T(FValue);
-end;
-
-function Nullable<T>.IsNull: Boolean;
-begin
-  Result := Pas2JS.JS.isNull(FValue) or isUndefined(FValue);
-end;
-
-procedure Nullable<T>.SetValue(const Value: T);
-begin
-  FValue := Value;
-end;
-
-{$ELSE}
-{ Nullable<T> }
-
+{$IFDEF DCC}
 class operator Nullable<T>.Initialize(out Dest: Nullable<T>);
 begin
-  Dest.FValue := TNullableValue<T>.Create;
+  Dest.GetAccess;
 end;
 
 class operator Nullable<T>.Implicit(const Value: Nullable<T>): T;
@@ -158,54 +101,61 @@ begin
   Result.Value := Value;
 end;
 
-procedure Nullable<T>.Clear;
-begin
-  FValue.Clear;
-end;
-
-function Nullable<T>.GetValue: T;
-begin
-  Result := FValue.Value;
-end;
-
 class operator Nullable<T>.Implicit(const Value: TNullEnumerator): Nullable<T>;
 begin
   Result.Clear;
 end;
+{$ENDIF}
+
+procedure Nullable<T>.Clear;
+begin
+  FAccess.Clear;
+end;
+
+function Nullable<T>.GetAccess: TNullableAccessType;
+begin
+  if not Assigned(FAccess) then
+    FAccess := TNullableAccess.Create;
+
+  Result := FAccess;
+end;
+
+function Nullable<T>.GetValue: T;
+begin
+  Result := FAccess.GetValue.AsType<T>;
+end;
 
 function Nullable<T>.IsNull: Boolean;
 begin
-  Result := FValue.IsNull;
+  Result := FAccess.IsNull;
 end;
 
 procedure Nullable<T>.SetValue(const Value: T);
 begin
-  FValue.Value := Value;
+  FAccess.SetValue(TValue.From<T>(Value));
 end;
 
-{ TNullableValue<T> }
+{ TNullableAccess }
 
-procedure TNullableValue<T>.Clear;
+procedure TNullableAccess.Clear;
 begin
-  FIsLoaded := False;
+  FValue := TValue.Empty;
 end;
 
-function TNullableValue<T>.GetValue: T;
+function TNullableAccess.GetValue: TValue;
 begin
   Result := FValue;
 end;
 
-function TNullableValue<T>.IsNull: Boolean;
+function TNullableAccess.IsNull: Boolean;
 begin
-  Result := not FIsLoaded;
+  Result := FValue.IsEmpty;
 end;
 
-procedure TNullableValue<T>.SetValue(const Value: T);
+procedure TNullableAccess.SetValue(const Value: TValue);
 begin
-  FIsLoaded := True;
   FValue := Value;
 end;
-{$ENDIF}
 
 end.
 

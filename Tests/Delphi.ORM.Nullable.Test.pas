@@ -103,53 +103,48 @@ end;
 
 procedure TNullableTest.WhenCallTheGetValueFunctionMustReturnAEmptyTValueIfTheValueIsNull;
 begin
-  var RttiType := TRttiContext.Create.GetType(TypeInfo(Nullable<String>));
   var Value: Nullable<String>;
 
   Value := NULL;
 
-  Assert.IsTrue(GetNullableValue(RttiType, TValue.From(Value)).IsEmpty);
+  Assert.IsTrue(GetNullableAccess(TValue.From(Value)).GetValue.IsEmpty);
 end;
 
 procedure TNullableTest.WhenCallTheGetValueFunctionMustReturnTheValue;
 begin
-  var RttiType := TRttiContext.Create.GetType(TypeInfo(Nullable<String>));
   var Value: Nullable<String>;
 
   Value := 'abcde';
 
-  Assert.AreEqual('abcde', GetNullableValue(RttiType, TValue.From(Value)).AsString);
+  Assert.AreEqual('abcde', GetNullableAccess(TValue.From(Value)).GetValue.AsString);
 end;
 
 procedure TNullableTest.WhenCallTheSetValueFunctionMustLoadTheValueOfTheRecordWithTheValueInTheParam;
 begin
-  var RttiType := TRttiContext.Create.GetType(TypeInfo(Nullable<String>));
   var Value: Nullable<String>;
   Value := NULL;
 
-  SetNullableValue(RttiType, TValue.From(Value), 'abcde');
+  GetNullableAccess(TValue.From(Value)).SetValue('abcde');
 
-  Assert.AreEqual('abcde', GetNullableValue(RttiType, TValue.From(Value)).AsString);
+  Assert.AreEqual('abcde', GetNullableAccess(TValue.From(Value)).GetValue.AsString);
 end;
 
 procedure TNullableTest.WhenCallTheSetValueFunctionMustReturnFalseToIsNullIfTheValueIsNotEmpty;
 begin
-  var RttiType := TRttiContext.Create.GetType(TypeInfo(Nullable<String>));
   var Value: Nullable<String>;
   Value := NULL;
 
-  SetNullableValue(RttiType, TValue.From(Value), 'abcde');
+  GetNullableAccess(TValue.From(Value)).SetValue('abcde');
 
   Assert.IsFalse(Value.IsNull);
 end;
 
 procedure TNullableTest.WhenCallTheSetValueFunctionMustReturnTrueToIsNullIfTheValueIsEmpty;
 begin
-  var RttiType := TRttiContext.Create.GetType(TypeInfo(Nullable<String>));
   var Value: Nullable<String>;
   Value := 'abcde';
 
-  SetNullableValue(RttiType, TValue.From(Value), TValue.Empty);
+  GetNullableAccess(TValue.From(Value)).SetValue(TValue.Empty);
 
   Assert.IsTrue(Value.IsNull);
 end;

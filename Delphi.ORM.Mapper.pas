@@ -548,7 +548,7 @@ begin
   Result := TypeInfo.GetValue(Instance);
 
   if IsNullable then
-    Result := GetNullableValue(TypeInfo.PropertyType, Result)
+    Result := GetNullableAccess(Result).GetValue
   else if IsLazy then
   begin
     var LazyAccess := GetLazyLoadingAccess(Result);
@@ -563,7 +563,7 @@ end;
 procedure TField.SetValue(Instance: TObject; const Value: TValue);
 begin
   if IsNullable then
-    SetNullableValue(TypeInfo.PropertyType, TypeInfo.GetValue(Instance), Value)
+    GetNullableAccess(TypeInfo.GetValue(Instance)).SetValue(Value)
   else
     TypeInfo.SetValue(Instance, Value);
 end;
