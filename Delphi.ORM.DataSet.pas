@@ -17,6 +17,8 @@ type
 
   EPropertyNameDoesNotExist = class(Exception);
   EPropertyWithDifferentType = class(Exception);
+  ESelfFieldDifferentObjectType = class(Exception);
+  ESelfFieldNotAllowEmptyValue = class(Exception);
   ESelfFieldTypeWrong = class(Exception);
   TORMCalcFieldBuffer = {$IFDEF PAS2JS}TDataRecord{$ELSE}TRecBuf{$ENDIF};
   TORMFieldBuffer = {$IFDEF PAS2JS}TDataRecord{$ELSE}TValueBuffer{$ENDIF};
@@ -1124,6 +1126,11 @@ end;
 
 procedure TORMDataSet.SetCurrentObject(const NewObject: TObject);
 begin
+  if not Assigned(NewObject) then
+    raise ESelfFieldNotAllowEmptyValue.Create('Empty value isn''t allowed in Self field!')
+  else if NewObject.ClassType <> FObjectType.MetaclassType then
+    raise ESelfFieldDifferentObjectType.Create('Can''t fill the Self field with an object with different type!');
+
   case State of
     dsInsert:
     begin

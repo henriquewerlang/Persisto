@@ -247,6 +247,12 @@ type
     procedure WhenFillTheCurrentObjectMustReplaceTheCurrentValueInTheInternalList;
     [Test]
     procedure WhenInsertingMustTheSelfFieldMustReplaceTheCurrentObjectHasExpected;
+    [Test]
+    procedure WhenFillANilValueToSelfFieldMustRaiseAnError;
+    [Test]
+    procedure WhenTryToFillAnObjectWithDifferentTypeMustRaiseAnError;
+    [Test]
+    procedure WhenChangeTheSelfFieldMustNotifyTheChangeOfAllFieldsInDataSet;
   end;
 
   [TestFixture]
@@ -392,6 +398,15 @@ type
     constructor Create(CallbackProc: TProc<TORMDataSet>);
 
     procedure OnCalcFields(DataSet: TDataSet);
+  end;
+
+  TDataLinkMock = class(TDataLink)
+  private
+    FMethodCalled: String;
+  protected
+    procedure RecordChanged(Field: TField); override;
+  public
+    property MethodCalled: String read FMethodCalled write FMethodCalled;
   end;
 
 implementation
@@ -1137,6 +1152,23 @@ begin
   MyClass.Free;
 
   TheValue.Free;
+end;
+
+procedure TORMDataSetTest.WhenFillANilValueToSelfFieldMustRaiseAnError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  DataSet.Insert;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      TORMObjectField(DataSet.FieldByName('Self')).AsObject := nil;
+    end, ESelfFieldNotAllowEmptyValue);
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenFillANullableFieldWithAnValueMustFillThePropertyWithTheValue;
@@ -1972,7 +2004,7 @@ begin
 
   DataSetDetail.Delete;
 
-  Assert.AreEqual(1, Length(MyClass.MyArray));
+  Assert.AreEqual<Integer>(1, Length(MyClass.MyArray));
 
   MyArray[0].Free;
 
@@ -2258,6 +2290,29 @@ begin
   DataSet.Free;
 end;
 
+procedure TORMDataSetTest.WhenTryToFillAnObjectWithDifferentTypeMustRaiseAnError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  DataSet.Insert;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      var MyObject := TAnotherObject.Create;
+
+      try
+        TORMObjectField(DataSet.FieldByName('Self')).AsObject := MyObject;
+      finally
+        MyObject.Free;
+      end;
+    end, ESelfFieldDifferentObjectType);
+
+  DataSet.Free;
+end;
+
 procedure TORMDataSetTest.WhenTryToGetAComposeFieldNameFromALazyPropertyMustLoadAsExpected;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -2421,6 +2476,27 @@ begin
     begin
       DataSet.ObjectClassName := 'TMyTestClass';
     end);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenChangeTheSelfFieldMustNotifyTheChangeOfAllFieldsInDataSet;
+begin
+  var DataLink := TDataLinkMock.Create;
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSource := TDataSource.Create(DataSet);
+  var MyObject := TMyTestClass.Create;
+
+  DataLink.DataSource := DataSource;
+  DataSource.DataSet := DataSet;
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  DataSet.Insert;
+
+  TORMObjectField(DataSet.FieldByName('Self')).AsObject := MyObject;
+
+  Assert.AreEqual('RecordChanged', DataLink.FMethodCalled);
 
   DataSet.Free;
 end;
@@ -2622,7 +2698,7 @@ begin
 
   Cursor.UpdateArrayProperty(&Property, MyClass);
 
-  Assert.AreEqual(2, Length(MyClass.MyArray));
+  Assert.AreEqual<Integer>(2, Length(MyClass.MyArray));
 
   MyClass.MyArray[0].Free;
 
@@ -2783,6 +2859,15 @@ begin
   Cursor.Next;
 
   Assert.IsFalse(Cursor.Next);
+end;
+
+{ TDataLinkMock }
+
+procedure TDataLinkMock.RecordChanged(Field: TField);
+begin
+  inherited;
+
+  MethodCalled := 'RecordChanged';
 end;
 
 end.

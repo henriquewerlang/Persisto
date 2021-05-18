@@ -1123,7 +1123,7 @@ begin
 
   From.From<TLazyClass>;
 
-  Assert.AreEqual(2, Length(Fields.GetFields));
+  Assert.AreEqual<Integer>(2, Length(Fields.GetFields));
 
   From.Free;
 

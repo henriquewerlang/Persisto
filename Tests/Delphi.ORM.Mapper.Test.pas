@@ -1213,7 +1213,7 @@ begin
   var Mapper := TMapper.Create;
   var Table := Mapper.LoadClass(TLazyClass);
 
-  Assert.AreEqual(1, Length(Table.ForeignKeys));
+  Assert.AreEqual<Integer>(1, Length(Table.ForeignKeys));
 
   Mapper.Free;
 end;
