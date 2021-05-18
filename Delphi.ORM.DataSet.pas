@@ -128,7 +128,7 @@ type
     procedure CheckIterator;
     procedure CheckObjectTypeLoaded;
     procedure CheckSelfFieldType;
-    procedure GetPropertyValue(const &Property: TRttiProperty; const Instance: TValue; var Value: TValue);
+    procedure GetPropertyValue(const &Property: TRttiProperty; var Instance: TValue);
     procedure LoadDetailInfo;
     procedure LoadFieldDefsFromClass;
     procedure LoadObjectListFromParentDataSet;
@@ -559,7 +559,7 @@ begin
   else if Field.FieldKind = fkData then
   begin
     if GetPropertyAndObjectFromField(Field, Value, &Property) then
-      GetPropertyValue(&Property, Value, Value);
+      GetPropertyValue(&Property, Value);
   end
   else if not IsEmpty and (Field.FieldKind = fkCalculated) then
     Value := GetRecordInfoFromActiveBuffer.CalculedFieldBuffer[FCalculatedFields[Field]];
@@ -736,7 +736,7 @@ begin
   for A := Low(PropertyList) to High(PropertyList) do
   begin
     if A > 0 then
-      GetPropertyValue(&Property, Instance, Instance);
+      GetPropertyValue(&Property, Instance);
 
     &Property := PropertyList[A];
 
@@ -745,14 +745,14 @@ begin
   end;
 end;
 
-procedure TORMDataSet.GetPropertyValue(const &Property: TRttiProperty; const Instance: TValue; var Value: TValue);
+procedure TORMDataSet.GetPropertyValue(const &Property: TRttiProperty; var Instance: TValue);
 begin
-  Value := &Property.GetValue(Instance.AsObject);
+  Instance := &Property.GetValue(Instance.AsObject);
 
   if IsNullableType(&Property.PropertyType) then
-    Value := GetNullableAccess(Instance).GetValue
+    Instance := GetNullableAccess(Instance).GetValue
   else if IsLazyLoading(&Property.PropertyType) then
-    Value := GetLazyLoadingAccess(Instance).GetValue;
+    Instance := GetLazyLoadingAccess(Instance).GetValue;
 end;
 
 function TORMDataSet.GetRecNo: Integer;
