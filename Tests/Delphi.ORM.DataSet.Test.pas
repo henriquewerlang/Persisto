@@ -233,6 +233,20 @@ type
     procedure WhenOpenTheDataSetWithAListAndTheListIsChangedTheResyncCantRaiseAnyError;
     [Test]
     procedure TheCalcBufferMustBeClearedOnScrollingTheDataSet;
+    [Test]
+    procedure WhenOpenADataSetWithoutFieldsMustAddTheSelfFieldToDataSet;
+    [Test]
+    procedure WhenAddTheSelfFieldCantRaiseAnyError;
+    [Test]
+    procedure TheSelfFieldTypeMustBeVariant;
+    [Test]
+    procedure WhenAddTheSelfFieldMustBeOfTheVariantType;
+    [Test]
+    procedure WhenGetTheValueOfTheSelfFieldMustReturnTheCurrentObjectOfThDataSet;
+    [Test]
+    procedure WhenFillTheCurrentObjectMustReplaceTheCurrentValueInTheInternalList;
+    [Test]
+    procedure WhenInsertingMustTheSelfFieldMustReplaceTheCurrentObjectHasExpected;
   end;
 
   [TestFixture]
@@ -276,6 +290,8 @@ type
     procedure WhenRemoveTheLastPositionInTheListMustUpdateTheCurrentPositionOfTheIterator;
     [Test]
     procedure WhenAValueIsRemovedFromTheListTheResyncMustPutTheCurrentPositionInAValidPosition;
+    [Test]
+    procedure WhenSetObjectToTheIteratorMustReplaceTheObjectInTheIndex;
   end;
 
   TAnotherObject = class
@@ -667,6 +683,20 @@ begin
   DataSet.Free;
 end;
 
+procedure TORMDataSetTest.TheSelfFieldTypeMustBeVariant;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyObject := TMyTestClass.Create;
+
+  DataSet.OpenObject(MyObject);
+
+  Assert.AreEqual(ftVariant, DataSet.FieldByName('Self').DataType);
+
+  DataSet.Free;
+
+  MyObject.Free;
+end;
+
 procedure TORMDataSetTest.UsingBookmarkHaveToWorkLikeSpected;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -727,6 +757,39 @@ begin
   DataSet.Free;
 
   MyClass.Free;
+end;
+
+procedure TORMDataSetTest.WhenAddTheSelfFieldCantRaiseAnyError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyObject := TMyTestClass.Create;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.OpenObject(MyObject);
+    end);
+
+  DataSet.Free;
+
+  MyObject.Free;
+end;
+
+procedure TORMDataSetTest.WhenAddTheSelfFieldMustBeOfTheVariantType;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var Field := TStringField.Create(DataSet);
+  Field.FieldName := 'Self';
+
+  Field.DataSet := DataSet;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      DataSet.OpenClass<TMyTestClass>;
+    end, ESelfFieldTypeWrong);
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenAFieldIsACreateTheFieldMustHaveTheMinimalSizeDefined(FieldName: String; Size: Integer);
@@ -1154,6 +1217,29 @@ begin
   MyObject.Free;
 end;
 
+procedure TORMDataSetTest.WhenFillTheCurrentObjectMustReplaceTheCurrentValueInTheInternalList;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyObject := TMyTestClass.Create;
+  var MyNewObject := TMyTestClass.Create;
+
+  DataSet.OpenObject(MyObject);
+
+  DataSet.Edit;
+
+  TORMObjectField(DataSet.FieldByName('Self')).AsObject := MyNewObject;
+
+  DataSet.Post;
+
+  Assert.AreEqual<TObject>(DataSet.GetCurrentObject<TObject>, MyNewObject);
+
+  DataSet.Free;
+
+  MyObject.Free;
+
+  MyNewObject.Free;
+end;
+
 procedure TORMDataSetTest.WhenFillTheDataSetFieldMustLoadTheObjectTypeFromThePropertyOfTheField;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -1246,6 +1332,20 @@ begin
   TheValue.Free;
 end;
 
+procedure TORMDataSetTest.WhenGetTheValueOfTheSelfFieldMustReturnTheCurrentObjectOfThDataSet;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyObject := TMyTestClass.Create;
+
+  DataSet.OpenObject(MyObject);
+
+  Assert.AreEqual(DataSet.GetCurrentObject<TObject>, TORMObjectField(DataSet.FieldByName('Self')).AsObject);
+
+  DataSet.Free;
+
+  MyObject.Free;
+end;
+
 procedure TORMDataSetTest.WhenHaveFieldDefDefinedCantLoadFieldsFromTheClass;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -1279,6 +1379,22 @@ begin
   DataSet.Append;
 
   Assert.AreEqual(EmptyStr, DataSet.FieldByName('Name').AsString);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenInsertingMustTheSelfFieldMustReplaceTheCurrentObjectHasExpected;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyObject := TMyTestClass.Create;
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  DataSet.Insert;
+
+  TORMObjectField(DataSet.FieldByName('Self')).AsObject := MyObject;
+
+  Assert.AreEqual<TObject>(DataSet.GetCurrentObject<TObject>, MyObject);
 
   DataSet.Free;
 end;
@@ -1432,7 +1548,7 @@ begin
 
   DataSet.OpenClass<TMyTestClassChild>;
 
-  Assert.AreEqual(6, DataSet.FieldCount);
+  Assert.AreEqual(7, DataSet.FieldCount);
 
   DataSet.Free;
 end;
@@ -1500,6 +1616,20 @@ begin
   DataSet.Free;
 end;
 
+procedure TORMDataSetTest.WhenOpenADataSetWithoutFieldsMustAddTheSelfFieldToDataSet;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyObject := TMyTestClass.Create;
+
+  DataSet.OpenObject(MyObject);
+
+  Assert.IsNotNull(DataSet.FindField('Self'));
+
+  DataSet.Free;
+
+  MyObject.Free;
+end;
+
 procedure TORMDataSetTest.WhenOpenAnEmptyDataSetCantRaiseAnError;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -1544,7 +1674,7 @@ begin
 
   DataSet.OpenList<TMyTestClass>(MyObject);
 
-  Assert.AreEqual(4, DataSet.FieldCount);
+  Assert.AreEqual(5, DataSet.FieldCount);
 
   DataSet.Free;
 
@@ -1558,7 +1688,7 @@ begin
 
   DataSet.OpenObject(MyObject);
 
-  Assert.AreEqual(4, DataSet.FieldCount);
+  Assert.AreEqual(5, DataSet.FieldCount);
 
   DataSet.Free;
 
@@ -2200,7 +2330,7 @@ begin
 
   DataSet.OpenClass<TMyTestClass>;
 
-  Assert.AreEqual(4, DataSet.FieldCount);
+  Assert.AreEqual(5, DataSet.FieldCount);
 
   DataSet.Free;
 end;
@@ -2614,6 +2744,15 @@ begin
   Cursor.Remove;
 
   Assert.AreEqual(2, Cursor.CurrentPosition);
+end;
+
+procedure TORMListIteratorTest.WhenSetObjectToTheIteratorMustReplaceTheObjectInTheIndex;
+begin
+  var Cursor := CreateCursor<TObject>([TObject(1)]);
+
+  Cursor.SetObject(1, TObject(2));
+
+  Assert.AreEqual<Pointer>(TObject(2), Cursor.GetObject(1));
 end;
 
 procedure TORMListIteratorTest.WhenTheArrayIsEmptyTheNextProcedureMustReturnFalse;
