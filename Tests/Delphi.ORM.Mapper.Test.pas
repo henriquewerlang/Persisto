@@ -188,6 +188,10 @@ type
     procedure WhenGetTheStringValueOfLazyPropertyMustReturnTheKeyValueIfIsNotLoaded;
     [Test]
     procedure WhenGetTheStringValueOfLazyPropertyMustReturnThePrimaryKeyValueOfLoadedValue;
+    [Test]
+    procedure WhenSetValueToALazyPropertyCantRaiseAnyError;
+    [Test]
+    procedure WhenSetValueToALazyPropertyMustLoadTheValueInTheProperty;
   end;
 
 implementation
@@ -887,6 +891,54 @@ begin
   Mapper.Free;
 
   MyClass.Free;
+end;
+
+procedure TMapperTest.WhenSetValueToALazyPropertyCantRaiseAnyError;
+begin
+  var LazyValue := TMyEntity.Create;
+  var Mapper := TMapper.Create;
+  var MyClass := TLazyClass.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TLazyClass);
+
+  var Field := Table.Fields[1];
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Field.SetValue(MyClass, LazyValue);
+    end);
+
+  Mapper.Free;
+
+  MyClass.Free;
+
+  LazyValue.Free;
+end;
+
+procedure TMapperTest.WhenSetValueToALazyPropertyMustLoadTheValueInTheProperty;
+begin
+  var LazyValue := TMyEntity.Create;
+  var Mapper := TMapper.Create;
+  var MyClass := TLazyClass.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TLazyClass);
+
+  var Field := Table.Fields[1];
+
+  Field.SetValue(MyClass, LazyValue);
+
+  Assert.AreEqual<TObject>(LazyValue, Field.GetValue(MyClass).AsObject);
+
+  Mapper.Free;
+
+  MyClass.Free;
+
+  LazyValue.Free;
 end;
 
 procedure TMapperTest.WhenTheChildClassIsDeclaredBeforeTheParentClassTheLinkBetweenOfTablesMustBeCreated;
