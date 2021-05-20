@@ -140,6 +140,11 @@ type
     procedure SetObjectClassName(const Value: String);
     procedure SetObjectType(const Value: TRttiInstanceType);
     procedure UpdateParentObject;
+
+{$IFDEF PAS2JS}
+    procedure GetLazyDisplayText(Sender: TField; var Text: String; DisplayText: Boolean);
+    procedure LoadLazyGetTextFields;
+{$ENDIF}
   protected
     function AllocRecordBuffer: TORMRecordBuffer; override;
     function GetFieldClass(FieldType: TFieldType): TFieldClass; override;
@@ -697,6 +702,77 @@ begin
   Result := GetFieldInfoFromProperty(&Property, Size);
 end;
 
+{$IFDEF PAS2JS}
+type
+  TFieldHack = class(TField)
+  end;
+
+procedure TORMDataSet.GetLazyDisplayText(Sender: TField; var Text: String; DisplayText: Boolean);
+var
+  &Property: TRttiProperty;
+
+  Value: TValue;
+
+  LazyAccess: TLazyAccessType;
+
+  CurrentRecord: Integer;
+
+begin
+  if DisplayText then
+  begin
+    Value := TValue.From(GetCurrentObject<TObject>);
+
+    for &Property in FPropertyMappingList[Sender.Index] do
+      if Value.IsEmpty then
+        Break
+      else
+      begin
+        Value := &Property.GetValue(Value.AsObject);
+
+        if IsLazyLoading(&Property.PropertyType) then
+        begin
+          LazyAccess := GetLazyLoadingAccess(Value);
+
+          if LazyAccess.Loaded then
+            Value := LazyAccess.GetValue
+          else
+          begin
+            CurrentRecord := ActiveRecord;
+            Text := 'Loading....';
+
+            LazyAccess.GetValueAsync._then(
+              function(Value: JSValue): JSValue
+              begin
+                DataEvent(deRecordChange, CurrentRecord);
+              end);
+
+            Exit;
+          end;
+        end;
+      end;
+  end;
+
+  TFieldHack(Sender).GetText(Text, DisplayText);
+end;
+
+procedure TORMDataSet.LoadLazyGetTextFields;
+var
+  Field: TField;
+
+  &Property: TRttiProperty;
+
+begin
+  for Field in Fields do
+    for &Property in FPropertyMappingList[Field.Index] do
+      if IsLazyLoading(&Property.PropertyType) then
+      begin
+        Field.OnGetText := GetLazyDisplayText;
+
+        Break;
+      end;
+end;
+{$ENDIF}
+
 function TORMDataSet.GetObjectAndPropertyFromParentDataSet(var Instance: TValue; var &Property: TRttiProperty): Boolean;
 begin
   Result := Assigned(ParentDataSet) and not ParentDataSet.IsEmpty;
@@ -922,6 +998,10 @@ begin
   CheckSelfFieldType;
 
   LoadPropertiesFromFields;
+
+{$IFDEF PAS2JS}
+  LoadLazyGetTextFields;
+{$ENDIF}
 
   BindFields(True);
 

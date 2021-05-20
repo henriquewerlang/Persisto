@@ -2,7 +2,7 @@ unit Delphi.ORM.Lazy;
 
 interface
 
-uses System.Rtti, System.TypInfo;
+uses System.Rtti, System.TypInfo{$IFDEF PAS2JS}, JS, Web{$ENDIF};
 
 type
   ILazyLoader = interface
@@ -16,6 +16,9 @@ type
     function GetKey: TValue;
     function GetLoaded: Boolean;
     function GetValue: TValue;
+{$IFDEF PAS2JS}
+    function GetValueAsync: TJSPromise;
+{$ENDIF}
 
     procedure SetValue(const Value: TValue);
     procedure SetLazyLoader(const Loader: ILazyLoader);
@@ -32,6 +35,9 @@ type
     function GetKey: TValue;
     function GetLoaded: Boolean;
     function GetValue: TValue;
+{$IFDEF PAS2JS}
+    function GetValueAsync: TJSPromise;
+{$ENDIF}
 
     procedure SetLazyLoader(const Loader: ILazyLoader);
     procedure SetValue(const Value: TValue);
@@ -49,6 +55,9 @@ type
   public
     function GetAccess: TLazyAccessType;
     function GetValue: T;
+{$IFDEF PAS2JS}
+    function GetValueAsync: TJSPromise;
+{$ENDIF}
 
 {$IFDEF DCC}
     class operator Initialize(out Dest: Lazy<T>);
@@ -107,6 +116,13 @@ begin
   Result := GetAccess.GetValue.AsType<T>;
 end;
 
+{$IFDEF PAS2JS}
+function Lazy<T>.GetValueAsync: TJSPromise;
+begin
+  Result := GetAccess.GetValueAsync;
+end;
+{$ENDIF}
+
 procedure Lazy<T>.SetValue(const Value: T);
 begin
   GetAccess.SetValue(TValue.From<T>(Value));
@@ -151,6 +167,21 @@ begin
 
   Result := FValue;
 end;
+
+{$IFDEF PAS2JS}
+function TLazyAccess.GetValueAsync: TJSPromise;
+begin
+  Result := TJSPromise.new(
+    procedure (Resolve, Reject: TJSPromiseResolver)
+    begin
+      Window.RequestIdleCallback(
+        procedure (IdleDeadline: TJSIdleDeadline)
+        begin
+          Resolve(GetValue);
+        end);
+    end);
+end;
+{$ENDIF}
 
 procedure TLazyAccess.SetLazyLoader(const Loader: ILazyLoader);
 begin

@@ -5,17 +5,17 @@ interface
 uses System.Rtti, Delphi.ORM.Lazy;
 
 type
-  TLazyLoadFunction = function(const TypeName: String; const Key: TValue): TValue;
+  TLazyLoadFunction = function(RttiType: TRttiType; const Key: TValue): TValue;
 
   TLazyLoader = class(TInterfacedObject, ILazyLoader)
   private
     FKey: TValue;
-    FTypeName: String;
+    FRttiType: TRttiType;
 
     function GetKey: TValue;
     function GetValue: TValue;
   public
-    constructor Create(const TypeName: String; const Key: TValue);
+    constructor Create(RttiType: TRttiType; const Key: TValue);
   end;
 
 var
@@ -27,12 +27,12 @@ uses System.SysUtils;
 
 { TLazyLoader }
 
-constructor TLazyLoader.Create(const TypeName: String; const Key: TValue);
+constructor TLazyLoader.Create(RttiType: TRttiType; const Key: TValue);
 begin
   inherited Create;
 
   FKey := Key;
-  FTypeName := TypeName;
+  FRttiType := RttiType;
 end;
 
 function TLazyLoader.GetKey: TValue;
@@ -49,7 +49,7 @@ begin
     if not Assigned(GLazyLoadFunction) then
       raise Exception.Create('You must load the GLazyLoadFunction variable to load the object!');
 
-    Result := GLazyLoadFunction(FTypeName, FKey);
+    Result := GLazyLoadFunction(FRttiType, FKey);
   end;
 end;
 
