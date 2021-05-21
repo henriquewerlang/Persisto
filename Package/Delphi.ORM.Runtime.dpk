@@ -43,6 +43,6 @@ contains
   Delphi.ORM.Rtti.Helper in '..\Delphi.ORM.Rtti.Helper.pas',
   Delphi.ORM.Nullable in '..\Delphi.ORM.Nullable.pas',
   Delphi.ORM.Lazy in '..\Delphi.ORM.Lazy.pas',
-  Delphi.ORM.Lazy.Loader in '..\Delphi.ORM.Lazy.Loader.pas';
+  Delphi.ORM.Lazy.Loader.Impl in '..\Delphi.ORM.Lazy.Loader.Impl.pas';
 
 end.

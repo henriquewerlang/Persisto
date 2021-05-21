@@ -33,7 +33,7 @@ uses
   Delphi.ORM.Nullable.Test in 'Delphi.ORM.Nullable.Test.pas',
   Delphi.ORM.Lazy in '..\Delphi.ORM.Lazy.pas',
   Delphi.ORM.Lazy.Test in 'Delphi.ORM.Lazy.Test.pas',
-  Delphi.ORM.Lazy.Loader in '..\Delphi.ORM.Lazy.Loader.pas';
+  Delphi.ORM.Lazy.Loader.Impl in '..\Delphi.ORM.Lazy.Loader.Impl.pas';
 
 // Para não remover o valor abaixo
 {$IFNDEF TESTINSIGHT}

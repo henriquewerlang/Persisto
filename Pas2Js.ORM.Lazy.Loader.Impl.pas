@@ -1,4 +1,4 @@
-unit Delphi.ORM.Lazy.Loader.Pas2Js;
+unit Pas2Js.ORM.Lazy.Loader.Impl;
 
 interface
 
