@@ -23,7 +23,7 @@ var
 
 implementation
 
-uses System.SysUtils;
+uses System.SysUtils, Delphi.ORM.Cache;
 
 { TLazyLoader }
 
@@ -44,13 +44,16 @@ function TLazyLoader.GetValue: TValue;
 begin
   if FKey.IsEmpty then
     Result := TValue.Empty
-  else
+  else if not TCache.Instance.Get(FRttiType, FKey, Result) then
   begin
     if not Assigned(GLazyLoadFunction) then
       raise Exception.Create('You must load the GLazyLoadFunction variable to load the object!');
 
     Result := GLazyLoadFunction(FRttiType, FKey);
+
+    TCache.Instance.Add(FRttiType, FKey, Result);
   end;
 end;
 
 end.
+

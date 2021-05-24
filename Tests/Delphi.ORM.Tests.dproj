@@ -181,6 +181,7 @@
         <DCCReference Include="..\Delphi.ORM.Lazy.pas"/>
         <DCCReference Include="Delphi.ORM.Lazy.Test.pas"/>
         <DCCReference Include="..\Delphi.ORM.Lazy.Loader.Impl.pas"/>
+        <DCCReference Include="Delphi.ORM.Cache.Test.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -227,6 +228,12 @@
                 </DeployFile>
                 <DeployFile LocalName="$(BDS)\Redist\iossimulator\libpcre.dylib" Class="DependencyModule">
                     <Platform Name="iOSSimulator">
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Win64\Debug\Delphi.ORM.Tests.rsm" Configuration="Debug" Class="DebugSymbols">
+                    <Platform Name="Win64">
+                        <RemoteName>Delphi_ORM_Tests.rsm</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
