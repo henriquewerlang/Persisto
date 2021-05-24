@@ -1,4 +1,4 @@
-unit Delphi.ORM.Lazy.Loader.Impl;
+unit Delphi.ORM.Lazy.Loader;
 
 interface
 

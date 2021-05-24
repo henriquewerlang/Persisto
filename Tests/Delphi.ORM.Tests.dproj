@@ -180,7 +180,6 @@
         <DCCReference Include="Delphi.ORM.Nullable.Test.pas"/>
         <DCCReference Include="..\Delphi.ORM.Lazy.pas"/>
         <DCCReference Include="Delphi.ORM.Lazy.Test.pas"/>
-        <DCCReference Include="..\Delphi.ORM.Lazy.Loader.Impl.pas"/>
         <DCCReference Include="Delphi.ORM.Cache.Test.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>

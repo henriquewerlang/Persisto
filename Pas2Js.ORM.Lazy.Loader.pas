@@ -1,4 +1,4 @@
-unit Pas2Js.ORM.Lazy.Loader.Impl;
+unit Pas2Js.ORM.Lazy.Loader;
 
 interface
 
