@@ -160,9 +160,6 @@ implementation
 
 uses System.TypInfo, System.Variants, Delphi.ORM.Rtti.Helper, Delphi.ORM.Nullable, Delphi.ORM.Lazy;
 
-var
-  GDateTimeFormat: TFormatSettings;
-
 function SortFieldFunction(const Left, Right: TField): Integer;
 
   function FieldPriority(const Field: TField): Integer;
@@ -497,11 +494,12 @@ begin
 
     case Info.TypeKind of
       tkChar,
-      tkLString,
+      tkRecord,
       tkString,
+      tkLString,
       tkUString,
       tkWChar,
-      tkWString: Result := QuotedStr(Value.AsString);
+      tkWString: Result := QuotedStr(Value.GetAsString);
 
       tkClass:
       begin
@@ -513,25 +511,22 @@ begin
           Result := PrimaryKey.GetAsString(Value);
       end;
 
-      tkEnumeration: Result := Value.AsOrdinal.ToString;
-
       tkFloat:
       begin
         if Info.Handle = System.TypeInfo(TDate) then
-          Result := QuotedStr(DateToStr(Value.AsExtended, GDateTimeFormat))
+          Result := QuotedStr(DateToStr(Value.AsExtended, TValue.FormatSettings))
         else if Info.Handle = System.TypeInfo(TDateTime) then
-          Result := QuotedStr(DateTimeToStr(Value.AsExtended, GDateTimeFormat))
+          Result := QuotedStr(DateTimeToStr(Value.AsExtended, TValue.FormatSettings))
         else if Info.Handle = System.TypeInfo(TTime) then
-          Result := QuotedStr(TimeToStr(Value.AsExtended, GDateTimeFormat))
+          Result := QuotedStr(TimeToStr(Value.AsExtended, TValue.FormatSettings))
         else
-          Result := FloatToStr(Value.AsExtended, GDateTimeFormat);
+          Result := FloatToStr(Value.AsExtended, TValue.FormatSettings);
       end;
 
-      tkInteger: Result := IntToStr(Value.AsInteger);
-
-      tkInt64: Result := IntToStr(Value.AsInt64);
-
-      tkRecord: Result := QuotedStr(Value.AsType<TGUID>.ToString);
+      tkEnumeration,
+      tkInteger,
+      tkInt64:
+        Result := Value.GetAsString;
 
       else raise Exception.Create('Type not mapped!');
     end;
@@ -600,11 +595,6 @@ constructor EClassWithPrimaryKeyNullable.Create(Table: TTable);
 begin
   inherited CreateFmt('The primary key of the class %s is nullable, it''s not accepted!', [Table.TypeInfo.Name]);
 end;
-
-initialization
-  GDateTimeFormat := TFormatSettings.Invariant;
-  GDateTimeFormat.ShortDateFormat := 'yyyy-mm-dd';
-  GDateTimeFormat.LongTimeFormat := 'hh":"mm":"ss';
 
 end.
 

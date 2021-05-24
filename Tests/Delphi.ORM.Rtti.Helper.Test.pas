@@ -20,6 +20,20 @@ type
     procedure WhenGetAnArrayElementMustReturnTheValueExpected;
     [Test]
     procedure WhenSetAnArrayElementMustChangeTheValueAsExpected;
+    [TestCase('AnsiChar', 'AnsiChar,C')]
+    [TestCase('AnsiString', 'AnsiString,AnsiString')]
+    [TestCase('Char', 'Char,C')]
+    [TestCase('Enumerator', 'Enumerator,1')]
+    [TestCase('Empty Value', 'EmptyValue,')]
+    [TestCase('Float', 'Float,1234.456')]
+    [TestCase('Date', 'Date,2020-01-31')]
+    [TestCase('DateTime', 'DateTime,2020-01-31 12:34:56')]
+    [TestCase('GUID', 'GUID,{BD2BBA84-C691-4C5E-ABD3-4F32937C53F8}')]
+    [TestCase('Integer', 'Integer,1234')]
+    [TestCase('Int64', 'Int64,1234')]
+    [TestCase('String', 'String,String')]
+    [TestCase('Time', 'Time,12:34:56')]
+    procedure TheConversionOfTheTValueMustBeLikeExpected(TypeToConvert, ValueToCompare: String);
   end;
 
   [TestFixture]
@@ -42,7 +56,7 @@ type
 
 implementation
 
-uses System.Rtti, Delphi.ORM.Rtti.Helper;
+uses System.Rtti, System.SysUtils, System.DateUtils, Delphi.ORM.Rtti.Helper, Delphi.ORM.Test.Entity;
 
 const
   MyConstArray: array[0..2] of Integer = (1, 2, 3);
@@ -86,6 +100,42 @@ begin
     TValue.From(MyConstArray).ArrayLength := 4;
   except
   end;
+end;
+
+procedure TValueHelperTest.TheConversionOfTheTValueMustBeLikeExpected(TypeToConvert, ValueToCompare: String);
+begin
+  var Value: TValue;
+
+  if TypeToConvert = 'AnsiChar' then
+    Value := TValue.From(AnsiChar('C'))
+  else if TypeToConvert = 'AnsiString' then
+    Value := TValue.From(AnsiString('AnsiString'))
+  else if TypeToConvert = 'Char' then
+    Value := TValue.From(Char('C'))
+  else if TypeToConvert = 'EmptyValue' then
+    Value := TValue.Empty
+  else if TypeToConvert = 'Enumerator' then
+    Value := TValue.From(Enum2)
+  else if TypeToConvert = 'Float' then
+    Value := 1234.456
+  else if TypeToConvert = 'Date' then
+    Value := TValue.From(EncodeDate(2020, 1, 31))
+  else if TypeToConvert = 'DateTime' then
+    Value := TValue.From(EncodeDateTime(2020, 1, 31, 12, 34, 56, 0))
+  else if TypeToConvert = 'GUID' then
+    Value := TValue.From(StringToGUID('{BD2BBA84-C691-4C5E-ABD3-4F32937C53F8}'))
+  else if TypeToConvert = 'Integer' then
+    Value := 1234
+  else if TypeToConvert = 'Int64' then
+    Value := Int64(1234)
+  else if TypeToConvert = 'String' then
+    Value := 'String'
+  else if TypeToConvert = 'Time' then
+    Value := TValue.From(TTime(EncodeTime(12, 34, 56, 0)))
+  else
+    raise Exception.Create('Test not mapped!');
+
+  Assert.AreEqual(ValueToCompare, Value.GetAsString);
 end;
 
 procedure TValueHelperTest.WhenChangeTheArraySizeOfTheValueMustChangeTheSizeOfArrayOfValues;
