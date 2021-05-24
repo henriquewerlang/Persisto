@@ -45,6 +45,7 @@ begin
   FQuery := TUniQuery.Create(nil);
   FQuery.Connection := Connection;
   FQuery.SQL.Text := SQL;
+  FQuery.UniDirectional := True;
 end;
 
 destructor TDatabaseCursorUnidac.Destroy;
