@@ -2,7 +2,7 @@ unit Delphi.ORM.Lazy;
 
 interface
 
-uses System.Rtti, System.TypInfo{$IFDEF PAS2JS}, JS, Web{$ENDIF};
+uses System.Rtti, System.TypInfo, Delphi.ORM.Cache{$IFDEF PAS2JS}, JS, Web{$ENDIF};
 
 type
   ILazyLoader = interface
@@ -24,6 +24,24 @@ type
     procedure SetLazyLoader(const Loader: ILazyLoader);
 
     property Loaded: Boolean read GetLoaded;
+  end;
+
+  TLazyLoader = class(TInterfacedObject, ILazyLoader)
+  private
+    FKey: TValue;
+    FCache: ICache;
+    FRttiType: TRttiType;
+
+    function GetKey: TValue;
+    function GetValue: TValue;
+  protected
+    function LoadValue: TValue; virtual; abstract;
+  public
+    constructor Create(const RttiType: TRttiType; const Key: TValue);
+
+    property Cache: ICache read FCache write FCache;
+    property Key: TValue read GetKey;
+    property RttiType: TRttiType read FRttiType;
   end;
 
   TLazyAccess = class(TInterfacedObject, ILazyAccess)
@@ -192,6 +210,34 @@ procedure TLazyAccess.SetValue(const Value: TValue);
 begin
   FLoaded := True;
   FValue := Value;
+end;
+
+{ TLazyLoader }
+
+constructor TLazyLoader.Create(const RttiType: TRttiType; const Key: TValue);
+begin
+  inherited Create;
+
+  FCache := TCache.Instance;
+  FKey := Key;
+  FRttiType := RttiType;
+end;
+
+function TLazyLoader.GetKey: TValue;
+begin
+  Result := FKey;
+end;
+
+function TLazyLoader.GetValue: TValue;
+begin
+  if FKey.IsEmpty then
+    Result := TValue.Empty
+  else if not Cache.Get(FRttiType, FKey, Result) then
+  begin
+    Result := LoadValue;
+
+    Cache.Add(FRttiType, FKey, Result);
+  end;
 end;
 
 end.

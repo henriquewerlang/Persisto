@@ -5,14 +5,12 @@ interface
 uses System.Rtti, Delphi.ORM.Mapper, Delphi.ORM.Lazy, Delphi.ORM.Database.Connection;
 
 type
-  TLazyLoader = class(TInterfacedObject, ILazyLoader)
+  TLazyLoaderImpl = class(TLazyLoader)
   private
     FConnection: IDatabaseConnection;
-    FKey: TValue;
     FTable: TTable;
-
-    function GetKey: TValue;
-    function GetValue: TValue;
+  protected
+    function LoadValue: TValue; override;
   public
     constructor Create(const Connection: IDatabaseConnection; const Table: TTable; const Key: TValue);
   end;
@@ -21,33 +19,22 @@ implementation
 
 uses Delphi.ORM.Query.Builder;
 
-{ TLazyLoader }
+{ TLazyLoaderImpl }
 
-constructor TLazyLoader.Create(const Connection: IDatabaseConnection; const Table: TTable; const Key: TValue);
+constructor TLazyLoaderImpl.Create(const Connection: IDatabaseConnection; const Table: TTable; const Key: TValue);
 begin
-  inherited Create;
+  inherited Create(Table.TypeInfo, Key);
 
   FConnection := Connection;
-  FKey := Key;
   FTable := Table;
 end;
 
-function TLazyLoader.GetKey: TValue;
+function TLazyLoaderImpl.LoadValue: TValue;
 begin
-  Result := FKey;
-end;
+  var Builder := TQueryBuilder.Create(FConnection);
+  Result := Builder.Select.All.From<TObject>(FTable).Where(Field(FTable.PrimaryKey.TypeInfo.Name) = Key).Open.One;
 
-function TLazyLoader.GetValue: TValue;
-begin
-  if FKey.IsEmpty then
-    Result := TValue.Empty
-  else
-  begin
-    var Builder := TQueryBuilder.Create(FConnection);
-    Result := Builder.Select.All.From<TObject>(FTable).Where(Field(FTable.PrimaryKey.TypeInfo.Name) = FKey).Open.One;
-
-    Builder.Free;
-  end;
+  Builder.Free;
 end;
 
 end.

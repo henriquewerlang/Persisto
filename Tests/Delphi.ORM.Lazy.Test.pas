@@ -2,7 +2,7 @@ unit Delphi.ORM.Lazy.Test;
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework;
+uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Lazy, Delphi.ORM.Cache;
 
 type
   [TestFixture]
@@ -44,9 +44,55 @@ type
     procedure WhenCreateAClassTheGetKeyMustReturnAnEmptyValue;
   end;
 
+  [TestFixture]
+  TLazyLoaderTest = class
+  public
+    [SetupFixture]
+    procedure Setup;
+    [Test]
+    procedure WhenTheKeyIsEmptyTheGetValueMustReturnAEmptyValue;
+    [Test]
+    procedure WhenCallTheGetKeyMustReturnTheValueFilledInTheConstructor;
+    [Test]
+    procedure WhenTheKeyIsFilledMustTryToGetTheValueFromCache;
+    [Test]
+    procedure WhenTheValueNotExitstInCacheTheLoaderMustCallTheLoadFunctionOfImplentationClass;
+    [Test]
+    procedure WhenCallTheLoadFunctionMustReturnTheValueLoaded;
+    [Test]
+    procedure AfterLoadTheValueMustAddTheValueInTheCacheList;
+  end;
+
+  TCacheMock = class(TInterfacedObject, ICache)
+  private
+    FMethodCalled: String;
+    FGetReturnValue: TValue;
+  public
+    constructor Create(GetReturnValue: TValue);
+
+    function Get(RttiType: TRttiType; const PrimaryKey: TValue; var Value: TValue): Boolean;
+
+    procedure Add(RttiType: TRttiType; const PrimaryKey, Value: TValue);
+
+    property MethodCalled: String read FMethodCalled write FMethodCalled;
+  end;
+
+  TLazyLoaderMock = class(TLazyLoader)
+  private
+    FMethodCalled: String;
+    FValue: TValue;
+  protected
+    function LoadValue: TValue; override;
+  public
+    constructor Create(const RttiType: TRttiType; const Key: TValue); overload;
+    constructor Create(const RttiType: TRttiType; const Key, Value: TValue); overload;
+
+    property MethodCalled: String read FMethodCalled write FMethodCalled;
+  end;
+
 implementation
 
-uses System.SysUtils, Delphi.Mock, Delphi.ORM.Lazy, Delphi.ORM.Test.Entity;
+uses System.SysUtils, Delphi.Mock, Delphi.ORM.Test.Entity;
 
 { TLazyTest }
 
@@ -240,6 +286,115 @@ begin
   Assert.AreEqual<TMyEntity>(TheValue, Lazy);
 
   TheValue.Free;
+end;
+
+{ TLazyLoaderTest }
+
+procedure TLazyLoaderTest.AfterLoadTheValueMustAddTheValueInTheCacheList;
+begin
+  var Cache := TCacheMock.Create(nil);
+  var LazyLoader := TLazyLoaderMock.Create(nil, 12345, 5555);
+  LazyLoader.Cache := Cache;
+  var LazyLoaderIntf := LazyLoader as ILazyLoader;
+
+  var Value := LazyLoaderIntf.GetValue;
+
+  Assert.AreEqual('Add', Cache.MethodCalled);
+end;
+
+procedure TLazyLoaderTest.Setup;
+begin
+  TCache.Instance;
+end;
+
+procedure TLazyLoaderTest.WhenCallTheGetKeyMustReturnTheValueFilledInTheConstructor;
+begin
+  var LazyLoader: ILazyLoader := TLazyLoaderMock.Create(nil, 1234);
+
+  Assert.AreEqual(1234, LazyLoader.GetKey.AsInteger)
+end;
+
+procedure TLazyLoaderTest.WhenCallTheLoadFunctionMustReturnTheValueLoaded;
+begin
+  var Cache := TCacheMock.Create(nil);
+  var LazyLoader := TLazyLoaderMock.Create(nil, 12345, 5555);
+  LazyLoader.Cache := Cache;
+  var LazyLoaderIntf := LazyLoader as ILazyLoader;
+
+  var Value := LazyLoaderIntf.GetValue;
+
+  Assert.AreEqual(5555, Value.AsInteger);
+end;
+
+procedure TLazyLoaderTest.WhenTheKeyIsEmptyTheGetValueMustReturnAEmptyValue;
+begin
+  var LazyLoader: ILazyLoader := TLazyLoaderMock.Create(nil, nil);
+
+  Assert.IsTrue(LazyLoader.GetValue.IsEmpty)
+end;
+
+procedure TLazyLoaderTest.WhenTheKeyIsFilledMustTryToGetTheValueFromCache;
+begin
+  var Cache := TCacheMock.Create(1234);
+  var LazyLoader := TLazyLoaderMock.Create(nil, 12345);
+  LazyLoader.Cache := Cache;
+  var LazyLoaderIntf := LazyLoader as ILazyLoader;
+
+  LazyLoaderIntf.GetValue;
+
+  Assert.AreEqual('Get', Cache.MethodCalled);
+end;
+
+procedure TLazyLoaderTest.WhenTheValueNotExitstInCacheTheLoaderMustCallTheLoadFunctionOfImplentationClass;
+begin
+  var Cache := TCacheMock.Create(nil);
+  var LazyLoader := TLazyLoaderMock.Create(nil, 12345);
+  LazyLoader.Cache := Cache;
+  var LazyLoaderIntf := LazyLoader as ILazyLoader;
+
+  LazyLoaderIntf.GetValue;
+
+  Assert.AreEqual('LoadValue', LazyLoader.MethodCalled);
+end;
+
+{ TCacheMock }
+
+procedure TCacheMock.Add(RttiType: TRttiType; const PrimaryKey, Value: TValue);
+begin
+  MethodCalled := 'Add';
+end;
+
+constructor TCacheMock.Create(GetReturnValue: TValue);
+begin
+  inherited Create;
+
+  FGetReturnValue := GetReturnValue;
+end;
+
+function TCacheMock.Get(RttiType: TRttiType; const PrimaryKey: TValue; var Value: TValue): Boolean;
+begin
+  MethodCalled := 'Get';
+  Result := not FGetReturnValue.IsEmpty;
+end;
+
+{ TLazyLoaderMock }
+
+constructor TLazyLoaderMock.Create(const RttiType: TRttiType; const Key, Value: TValue);
+begin
+  Create(RttiType, Key);
+
+  FValue := Value;
+end;
+
+constructor TLazyLoaderMock.Create(const RttiType: TRttiType; const Key: TValue);
+begin
+  inherited;
+end;
+
+function TLazyLoaderMock.LoadValue: TValue;
+begin
+  MethodCalled := 'LoadValue';
+  Result := FValue;
 end;
 
 end.
