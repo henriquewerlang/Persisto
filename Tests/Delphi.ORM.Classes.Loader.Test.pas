@@ -63,11 +63,21 @@ type
     procedure WhenTheFieldIsLazyLoadingMustReturnTheValueOfThePropertyAsExpected;
     [Test]
     procedure WhenTheManyValueAssociationReturnTheValuesOutOfOrderMustGroupAllValuesInTheSingleObjectReference;
+    [Test]
+    procedure WhenThePrimaryKeyDontChangeCantReloadTheFieldPropertiesOfTheClassBeingLoaded;
+    [Test]
+    procedure WhenTheClassDontHaveAPrimaryKeyTheLoaderMustReturnTheLoadedClass;
+    [Test]
+    procedure WhenThePrimaryKeyDontChangeCantReloadTheForeignKeysOfTheClass;
+    [Test]
+    procedure WhenTheObjectAlreadyInCacheMustGetThisInstanceToLoadTheData;
+    [Test]
+    procedure WhenTheLoaderCreateANewObjectMustAddItToTheCacheControl;
   end;
 
 implementation
 
-uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Test.Entity, Delphi.ORM.Cursor.Mock;
+uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Test.Entity, Delphi.ORM.Cursor.Mock, Delphi.ORM.Cache;
 
 { TClassLoaderTest }
 
@@ -98,6 +108,7 @@ begin
   From.From<T>;
 
   Result := TClassLoader.Create(Connection, From);
+  Result.Cache := TCache.Create;
 
   FBuilderInterface := Builder;
 end;
@@ -344,6 +355,19 @@ begin
   Loader.Free;
 end;
 
+procedure TClassLoaderTest.WhenTheClassDontHaveAPrimaryKeyTheLoaderMustReturnTheLoadedClass;
+begin
+  var Loader := CreateLoader<TMyEntityWithoutPrimaryKey>([['Value']]);
+
+  var MyClass := Loader.Load<TMyEntityWithoutPrimaryKey>;
+
+  Assert.IsNotNull(MyClass);
+
+  MyClass.Free;
+
+  Loader.Free;
+end;
+
 procedure TClassLoaderTest.WhenTheFieldIsLazyLoadingMustReturnTheValueOfThePropertyAsExpected;
 begin
   var Connection := TMock.CreateInterface<IDatabaseConnection>;
@@ -365,6 +389,23 @@ begin
   Loader.Free;
 end;
 
+procedure TClassLoaderTest.WhenTheLoaderCreateANewObjectMustAddItToTheCacheControl;
+begin
+  var Cache := TCache.Create;
+  var Context := TRttiContext.Create;
+  var Cursor := TCursorMock.Create([['aaa', 333]]);
+  var Loader := CreateLoaderCursor<TMyClass>(Cursor);
+  Loader.Cache := Cache;
+
+  var MyClass := Loader.Load<TMyClass>;
+
+  Assert.AreEqual(1, Cache.Values.Count);
+
+  Loader.Free;
+
+  MyClass.Free;
+end;
+
 procedure TClassLoaderTest.WhenTheManyValueAssociationReturnTheValuesOutOfOrderMustGroupAllValuesInTheSingleObjectReference;
 begin
   var Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[111, 222], [111, 333], [222, 444], [222, 333], [111, 444]]);
@@ -381,6 +422,28 @@ begin
   end;
 
   Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenTheObjectAlreadyInCacheMustGetThisInstanceToLoadTheData;
+begin
+  var Context := TRttiContext.Create;
+  var Cursor := TCursorMock.Create([['aaa', 333]]);
+  var Loader := CreateLoaderCursor<TMyClass>(Cursor);
+  var MyClass := TMyClass.Create;
+  MyClass.Name := 'aaa';
+  MyClass.Value := 111;
+
+  Loader.Cache := TCache.Create;
+
+  Loader.Cache.Add(Context.GetType(TMyClass), 'aaa', MyClass);
+
+  Loader.Load<TMyClass>;
+
+  Assert.AreEqual(333, MyClass.Value);
+
+  Loader.Free;
+
+  MyClass.Free;
 end;
 
 procedure TClassLoaderTest.WhenThePrimaryKeyOfAForeignKeyIsNullCantLoadTheEntireObject;
@@ -401,6 +464,33 @@ begin
   var Result := Loader.Load<TMyEntityWithManyValueAssociation>;
 
   Assert.AreEqual<Integer>(0, Length(Result.ManyValueAssociationList));
+
+  Result.Free;
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenThePrimaryKeyDontChangeCantReloadTheFieldPropertiesOfTheClassBeingLoaded;
+begin
+  var Cursor := TCursorMock.Create([['aaa', 111], ['aaa', 222], ['aaa', 333]]);
+  var Loader := CreateLoaderCursor<TMyClass>(Cursor);
+  var Result := Loader.Load<TMyClass>;
+
+  Assert.AreEqual(111, Result.Value);
+
+  Loader.Free;
+
+  Result.Free;
+end;
+
+procedure TClassLoaderTest.WhenThePrimaryKeyDontChangeCantReloadTheForeignKeysOfTheClass;
+begin
+  var Loader := CreateLoader<TClassWithForeignKey>([[111, 222, 333], [111, 333, 444]]);
+  var Result := Loader.Load<TClassWithForeignKey>;
+
+  Assert.AreEqual(222, Result.AnotherClass.Id);
+
+  Result.AnotherClass.Free;
 
   Result.Free;
 
