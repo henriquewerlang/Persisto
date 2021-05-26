@@ -59,8 +59,6 @@ type
     procedure WhenTheValueNotExitstInCacheTheLoaderMustCallTheLoadFunctionOfImplentationClass;
     [Test]
     procedure WhenCallTheLoadFunctionMustReturnTheValueLoaded;
-    [Test]
-    procedure AfterLoadTheValueMustAddTheValueInTheCacheList;
   end;
 
   TCacheMock = class(TInterfacedObject, ICache)
@@ -289,18 +287,6 @@ begin
 end;
 
 { TLazyLoaderTest }
-
-procedure TLazyLoaderTest.AfterLoadTheValueMustAddTheValueInTheCacheList;
-begin
-  var Cache := TCacheMock.Create(nil);
-  var LazyLoader := TLazyLoaderMock.Create(nil, 12345, 5555);
-  LazyLoader.Cache := Cache;
-  var LazyLoaderIntf := LazyLoader as ILazyLoader;
-
-  var Value := LazyLoaderIntf.GetValue;
-
-  Assert.AreEqual('Add', Cache.MethodCalled);
-end;
 
 procedure TLazyLoaderTest.Setup;
 begin

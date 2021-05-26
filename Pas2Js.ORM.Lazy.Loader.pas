@@ -24,7 +24,11 @@ uses System.SysUtils, Delphi.ORM.Cache;
 function TLazyLoaderImpl.LoadValue: TValue;
 begin
   if Assigned(GLazyLoadFunction) then
-    Result := GLazyLoadFunction(RttiType, Key)
+  begin
+    Result := GLazyLoadFunction(RttiType, Key);
+
+    Cache.Add(RttiType, Key, Result);
+  end
   else
     raise Exception.Create('You must load the GLazyLoadFunction variable to load the object!');
 end;

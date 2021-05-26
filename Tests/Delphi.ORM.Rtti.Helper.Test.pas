@@ -34,6 +34,10 @@ type
     [TestCase('String', 'String,String')]
     [TestCase('Time', 'Time,12:34:56')]
     procedure TheConversionOfTheTValueMustBeLikeExpected(TypeToConvert, ValueToCompare: String);
+    [Test]
+    procedure WhenConvertANullVariantInATValueMustGenerateAEmptyTValue;
+    [Test]
+    procedure ANormalVariantMustBeLoadedByTheDefaultFunction;
   end;
 
   [TestFixture]
@@ -56,7 +60,7 @@ type
 
 implementation
 
-uses System.Rtti, System.SysUtils, System.DateUtils, Delphi.ORM.Rtti.Helper, Delphi.ORM.Test.Entity;
+uses System.Rtti, System.SysUtils, System.DateUtils, System.Variants, Delphi.ORM.Rtti.Helper, Delphi.ORM.Test.Entity;
 
 const
   MyConstArray: array[0..2] of Integer = (1, 2, 3);
@@ -93,6 +97,13 @@ begin
 end;
 
 { TValueHelperTest }
+
+procedure TValueHelperTest.ANormalVariantMustBeLoadedByTheDefaultFunction;
+begin
+  var MyValue := TValue.FromVariantNull(Variant('abc'));
+
+  Assert.AreEqual('abc', MyValue.AsString);
+end;
 
 procedure TValueHelperTest.Setup;
 begin
@@ -146,6 +157,13 @@ begin
   Value.ArrayLength := 4;
 
   Assert.AreEqual<Integer>(4, Length(Value.AsType<TArray<Integer>>));
+end;
+
+procedure TValueHelperTest.WhenConvertANullVariantInATValueMustGenerateAEmptyTValue;
+begin
+  var MyValue := TValue.FromVariantNull(NULL);
+
+  Assert.IsTrue(MyValue.IsEmpty);
 end;
 
 procedure TValueHelperTest.WhenGetAnArrayElementMustReturnTheValueExpected;

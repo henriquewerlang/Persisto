@@ -233,11 +233,7 @@ begin
   if FKey.IsEmpty then
     Result := TValue.Empty
   else if not Cache.Get(FRttiType, FKey, Result) then
-  begin
     Result := LoadValue;
-
-    Cache.Add(FRttiType, FKey, Result);
-  end;
 end;
 
 end.

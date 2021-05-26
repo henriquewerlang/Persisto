@@ -5,6 +5,10 @@ interface
 uses System.SysUtils, System.Rtti;
 
 type
+  {$IFDEF PAS2JS}
+  Variant = JSValue;
+  {$ENDIF}
+
   TRttiTypeHelper = class helper for TRttiObject
   public
     function AsArray: TRttiDynamicArrayType;
@@ -24,6 +28,8 @@ type
   public
     function GetAsString: String;
 
+    class function FromVariantNull(const Value: Variant): TValue; static;
+
     property ArrayElement[Index: Integer]: TValue read GetArrayElementInternal write SetArrayElementInternal;
     property ArrayLength: Integer read GetArrayLengthInternal write SetArrayLengthInternal;
 
@@ -32,7 +38,7 @@ type
 
 implementation
 
-uses System.TypInfo, {$IFDEF PAS2JS}RTLConsts{$ELSE}System.SysConst{$ENDIF};
+uses System.TypInfo, {$IFDEF PAS2JS}RTLConsts, JS{$ELSE}System.Variants, System.SysConst{$ENDIF};
 
 { TRttiTypeHelper }
 
@@ -59,6 +65,14 @@ begin
 end;
 
 { TValueHelper }
+
+class function TValueHelper.FromVariantNull(const Value: Variant): TValue;
+begin
+  if Value = NULL then
+    Result := TValue.Empty
+  else
+    Result := {$IFDEF PAS2JS}FromJSValue{$ELSE}FromVariant{$ENDIF}(Value);
+end;
 
 function TValueHelper.GetArrayElementInternal(Index: Integer): TValue;
 begin

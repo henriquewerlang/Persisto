@@ -78,7 +78,7 @@ begin
     var FieldValue := GetFieldValueVariant(FieldIndexStart);
 
     if not VarIsNull(FieldValue) then
-      Result := TValue.FromVariant(FieldValue);
+      Result := TValue.FromVariantNull(FieldValue);
   end
   else
     Result := 'E';
@@ -127,7 +127,7 @@ begin
         var FieldValue := GetFieldValueVariant(FieldIndexStart);
 
         if Field.IsLazy then
-          GetLazyLoadingAccess(Field.TypeInfo.GetValue(Result)).SetLazyLoader(TLazyLoaderImpl.Create(FConnection, Field.ForeignKey.ParentTable, TValue.FromVariant(FieldValue)))
+          GetLazyLoadingAccess(Field.TypeInfo.GetValue(Result)).SetLazyLoader(TLazyLoaderImpl.Create(FConnection, Field.ForeignKey.ParentTable, TValue.FromVariantNull(FieldValue)))
         else
           Field.SetValue(Result, FieldValue);
       end;
