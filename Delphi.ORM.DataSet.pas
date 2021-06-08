@@ -163,6 +163,7 @@ type
     procedure ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TORMCalcFieldBuffer); override;
     procedure DataEvent(Event: TDataEvent; Info: {$IFDEF PAS2JS}JSValue{$ELSE}NativeInt{$ENDIF}); override;
     procedure DoAfterOpen; override;
+    procedure DoAfterPost; override;
     procedure GetBookmarkData(Buffer: TORMRecordBuffer; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark); override;
     procedure FreeRecordBuffer(var Buffer: TORMRecordBuffer); override;
     procedure InternalCancel; override;
@@ -501,6 +502,11 @@ begin
   end;
 
   inherited;
+end;
+
+procedure TORMDataSet.DoAfterPost;
+begin
+  Sort;
 end;
 
 procedure TORMDataSet.FreeRecordBuffer(var Buffer: TORMRecordBuffer);

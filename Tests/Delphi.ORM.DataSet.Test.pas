@@ -261,6 +261,8 @@ type
     procedure WhenPutTheMinusSymbolBeforeTheFieldNameInIndexMustSortDescending;
     [Test]
     procedure WhenChangeTheIndexFieldNamesWithDataSetOpenMustSortTheValues;
+    [Test]
+    procedure AfterChangeAnRecordMustSortTheDataSetAgain;
   end;
 
   [TestFixture]
@@ -424,6 +426,38 @@ implementation
 uses System.Rtti, System.Classes, System.Variants, Data.DBConsts, Delphi.ORM.Test.Entity;
 
 { TORMDataSetTest }
+
+procedure TORMDataSetTest.AfterChangeAnRecordMustSortTheDataSetAgain;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyArray: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+  var MyNewClass := TMyTestClass.Create;
+  MyNewClass.Id := -1;
+
+  for var A := 0 to High(MyArray) do
+    MyArray[A].Id := A;
+
+  DataSet.IndexFieldNames := 'Id';
+
+  DataSet.OpenArray<TMyTestClass>(MyArray);
+
+  DataSet.Insert;
+
+  (DataSet.FieldByName('Self') as TORMObjectField).AsObject := MyNewClass;
+
+  DataSet.Post;
+
+  DataSet.First;
+
+  Assert.AreEqual(-1, DataSet.FieldByName('Id').AsInteger);
+
+  DataSet.Free;
+
+  MyNewClass.Free;
+
+  for var Item in MyArray do
+    Item.Free;
+end;
 
 procedure TORMDataSetTest.AfterInsertAnObjectMustResetTheObjectToSaveTheNewInfo;
 begin
