@@ -60,6 +60,7 @@ type
     procedure Resync;
     procedure SetCurrentPosition(const Value: Cardinal);
     procedure SetObject(Index: Cardinal; const Value: TObject);
+    procedure Swap(Left, Right: Cardinal);
     procedure UpdateArrayProperty(&Property: TRttiProperty; Instance: TObject);
 
     property CurrentPosition: Cardinal read GetCurrentPosition write SetCurrentPosition;
@@ -87,6 +88,7 @@ type
     procedure Resync;
     procedure SetCurrentPosition(const Value: Cardinal);
     procedure SetObject(Index: Cardinal; const Value: TObject);
+    procedure Swap(Left, Right: Cardinal);
     procedure UpdateArrayProperty(&Property: TRttiProperty; Instance: TObject);
 
     property CurrentPosition: Cardinal read GetCurrentPosition write SetCurrentPosition;
@@ -95,6 +97,8 @@ type
     constructor Create(const Value: TList<T>); overload;
 
     destructor Destroy; override;
+
+    property Objects[Index: Cardinal]: TObject read GetObject write SetObject; default;
   end;
 
 {$IFDEF DCC}
@@ -118,6 +122,7 @@ type
     function GetObjectClass<T: class>: TClass;
     function GetObjectClassName: String;
     function GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
+    function GetPropertyAndObjectFromFieldWithInstance(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
     function GetRecordInfoFromActiveBuffer: TORMRecordInfo;
     function GetRecordInfoFromBuffer(const Buffer: TORMRecordBuffer): TORMRecordInfo;
     function GetCurrentActiveBuffer: TORMRecordBuffer;
@@ -137,8 +142,10 @@ type
     procedure ReleaseOldValueObject;
     procedure ReleaseTheInsertingObject;
     procedure SetCurrentObject(const NewObject: TObject);
+    procedure SetIndexFieldNames(const Value: String);
     procedure SetObjectClassName(const Value: String);
     procedure SetObjectType(const Value: TRttiInstanceType);
+    procedure Sort;
     procedure UpdateParentObject;
 
 {$IFDEF PAS2JS}
@@ -216,7 +223,7 @@ type
     property BeforeRefresh;
     property BeforeScroll;
     property DataSetField;
-    property IndexFieldNames: String read FIndexFieldNames write FIndexFieldNames;
+    property IndexFieldNames: String read FIndexFieldNames write SetIndexFieldNames;
     property ObjectClassName: String read GetObjectClassName write SetObjectClassName;
     property OnCalcFields;
     property OnDeleteError;
@@ -224,6 +231,12 @@ type
     property OnFilterRecord;
     property OnNewRecord;
     property OnPostError;
+  end;
+
+  TORMIndexField = record
+  public
+    Ascending: Boolean;
+    Field: TField;
   end;
 
 implementation
@@ -331,6 +344,18 @@ end;
 procedure TORMListIterator<T>.SetObject(Index: Cardinal; const Value: TObject);
 begin
   FList[Pred(Index)] := T(Value);
+end;
+
+procedure TORMListIterator<T>.Swap(Left, Right: Cardinal);
+var
+  Obj: TObject;
+
+begin
+  Obj := Objects[Left];
+
+  Objects[Left] := Objects[Right];
+
+  Objects[Right] := Obj;
 end;
 
 procedure TORMListIterator<T>.UpdateArrayProperty(&Property: TRttiProperty; Instance: TObject);
@@ -799,13 +824,18 @@ begin
 end;
 
 function TORMDataSet.GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
+begin
+  Instance := TValue.From(GetCurrentObject<TObject>);
+  Result := GetPropertyAndObjectFromFieldWithInstance(Field, Instance, &Property);
+end;
+
+function TORMDataSet.GetPropertyAndObjectFromFieldWithInstance(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
 var
   A: Integer;
 
   PropertyList: TArray<TRttiProperty>;
 
 begin
-  Instance := TValue.From(GetCurrentObject<TObject>);
   PropertyList := FPropertyMappingList[Field.Index];
   Result := True;
 
@@ -1008,6 +1038,8 @@ begin
   CheckCalculatedFields;
 
   LoadObjectListFromParentDataSet;
+
+  Sort;
 end;
 
 procedure TORMDataSet.InternalPost;
@@ -1327,6 +1359,14 @@ begin
     DataEvent(deFieldChange, {$IFDEF DCC}IntPtr{$ENDIF}(Field));
 end;
 
+procedure TORMDataSet.SetIndexFieldNames(const Value: String);
+begin
+  FIndexFieldNames := Value;
+
+  if Active then
+    Sort;
+end;
+
 procedure TORMDataSet.SetObjectClassName(const Value: String);
 begin
   ObjectType := nil;
@@ -1343,6 +1383,156 @@ begin
   CheckInactive;
 
   FObjectType := Value;
+end;
+
+procedure TORMDataSet.Sort;
+var
+  A: Integer;
+
+  IndexFields: TArray<TORMIndexField>;
+
+  Pivot, Values: TArray<TValue>;
+
+  FieldName: String;
+
+  FieldNames: TArray<String>;
+
+  procedure GetValues(Position: Cardinal; var Values: TArray<TValue>);
+  var
+    A: Integer;
+
+    Field: TField;
+
+    &Property: TRttiProperty;
+
+  begin
+    for A := Low(IndexFields) to High(IndexFields) do
+    begin
+      Field := IndexFields[A].Field;
+      Values[A] := TValue.From(FIterator.Objects[Position]);
+
+      if GetPropertyAndObjectFromFieldWithInstance(Field, Values[A], &Property) then
+        GetPropertyValue(&Property, Values[A])
+      else
+        Values[A] := TValue.Empty;
+    end;
+  end;
+
+  function CompareValue(const Left, Right: TArray<TValue>): Boolean;
+  var
+    A: Integer;
+
+    LeftValue, RightValue: TValue;
+
+  begin
+    Result := True;
+
+    for A := Low(IndexFields) to High(IndexFields) do
+    begin
+      if IndexFields[A].Ascending then
+      begin
+        LeftValue := Left[A];
+        RightValue := Right[A];
+      end
+      else
+      begin
+        LeftValue := Right[A];
+        RightValue := Left[A];
+      end;
+
+      case Left[A].Kind of
+{$IFDEF PAS2JS}
+        tkBool,
+{$ENDIF}
+{$IFDEF DCC}
+        tkInt64,
+{$ENDIF}
+        tkInteger,
+        tkEnumeration:
+          if RightValue.AsInteger < LeftValue.AsInteger then
+            Exit(False);
+
+{$IFDEF DCC}
+        tkWChar,
+        tkLString,
+        tkWString,
+        tkUString,
+{$ENDIF}
+        tkChar,
+        tkString:
+          if CompareStr(RightValue.AsString, LeftValue.AsString) < 0 then
+            Exit(False);
+
+        tkFloat:
+          if RightValue.AsExtended < LeftValue.AsExtended then
+            Exit(False);
+      end;
+    end;
+  end;
+
+  function Partition(Low, High: Cardinal): Cardinal;
+  var
+    A: Cardinal;
+
+  begin
+    Result := Low;
+
+    GetValues(High, Pivot);
+
+    for A := Low to Pred(High) do
+    begin
+      GetValues(A, Values);
+
+      if CompareValue(Values, Pivot) then
+      begin
+        FIterator.Swap(Result, A);
+
+        Inc(Result);
+      end;
+    end;
+
+    FIterator.Swap(Result, High);
+  end;
+
+  procedure QuickSort(Low, High: Cardinal);
+  var
+    Middle: Cardinal;
+
+  begin
+    if Low < High then
+    begin
+      Middle := Partition(Low, High);
+
+      QuickSort(Low, Pred(Middle));
+
+      QuickSort(Succ(Middle), High);
+    end;
+  end;
+
+begin
+  if not IndexFieldNames.IsEmpty then
+  begin
+    FieldNames := IndexFieldNames.Split([';']);
+
+    SetLength(IndexFields, Length(FieldNames));
+
+    for A := Low(FieldNames) to High(FieldNames) do
+    begin
+      FieldName := FieldNames[A];
+      IndexFields[A].Ascending := FieldName[1] <> '-';
+
+      if not IndexFields[A].Ascending then
+        FieldName := FieldName.Substring(1);
+
+      IndexFields[A].Field := FieldByName(FieldName);
+    end;
+
+    SetLength(Pivot, Length(IndexFields));
+
+    SetLength(Values, Length(IndexFields));
+
+    QuickSort(1, FIterator.RecordCount);
+  end;
 end;
 
 procedure TORMDataSet.UpdateParentObject;
