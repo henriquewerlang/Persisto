@@ -263,6 +263,12 @@ type
     procedure WhenChangeTheIndexFieldNamesWithDataSetOpenMustSortTheValues;
     [Test]
     procedure AfterChangeAnRecordMustSortTheDataSetAgain;
+    [Test]
+    procedure WhenSortACalculatedFieldCantRaiseAnyError;
+    [Test]
+    procedure WhenSortACalculatedFieldAsExpected;
+    [Test]
+    procedure WhenFillTheIndexFieldNamesMustRemainInTheCurrentPositionAfterTheSortCompletes;
   end;
 
   [TestFixture]
@@ -1378,6 +1384,28 @@ begin
     Item.Free;
 end;
 
+procedure TORMDataSetTest.WhenFillTheIndexFieldNamesMustRemainInTheCurrentPositionAfterTheSortCompletes;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyArray: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  for var A := 0 to High(MyArray) do
+    MyArray[A].Id := A + 1;
+
+  DataSet.OpenArray<TMyTestClass>(MyArray);
+
+  DataSet.Last;
+
+  DataSet.IndexFieldNames := '-Id';
+
+  Assert.AreEqual(1, DataSet.FieldByName('Id').AsInteger);
+
+  DataSet.Free;
+
+  for var Item in MyArray do
+    Item.Free;
+end;
+
 procedure TORMDataSetTest.WhenFillTheIndexFieldNamesWithMoreTheOnFieldMustOrderAsExpected;
 const
   SORTED_VALUE: array[0..4] of String = ('Name0', 'Name3', 'Name1', 'Name4', 'Name2');
@@ -2151,7 +2179,8 @@ begin
   var CallbackClass := TCallbackClass.Create(
     procedure (DataSet: TORMDataSet)
     begin
-      DataSet.FieldByName('Calculated').AsInteger := DataSet.RecNo;
+      DataSet.FieldByName('Calculated').AsInteger := DataSet.GetCurrentObject<TMyTestClass>.Id;
+//      DataSet.FieldByName('Calculated').AsInteger := DataSet.RecNo;
     end);
   var DataSet := TORMDataSet.Create(nil);
   DataSet.OnCalcFields := CallbackClass.OnCalcFields;
@@ -2161,6 +2190,9 @@ begin
   var MyArray: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create];
 
   Field.DataSet := DataSet;
+
+  for var A := 0 to 1 do
+    MyArray[A].Id := A + 1;
 
   DataSet.OpenArray<TMyTestClass>(MyArray);
 
@@ -2277,6 +2309,64 @@ begin
   Assert.IsTrue(Value = &Property.GetValue(DataSet.GetCurrentObject<TMyTestClassTypes>).AsVariant);
 
   DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenSortACalculatedFieldAsExpected;
+begin
+  var CallbackClass := TCallbackClass.Create(
+    procedure (DataSet: TORMDataSet)
+    begin
+      DataSet.FieldByName('Calculated').AsInteger := DataSet.GetCurrentObject<TMyTestClass>.Id * -1;
+    end);
+  var MyArray: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  var DataSet := TORMDataSet.Create(nil);
+  DataSet.OnCalcFields := CallbackClass.OnCalcFields;
+  var Field: TField := TIntegerField.Create(nil);
+  Field.FieldName := 'Calculated';
+  Field.FieldKind := fkCalculated;
+
+  Field.DataSet := DataSet;
+
+  DataSet.IndexFieldNames := 'Calculated';
+
+  for var A := 0 to 2 do
+    MyArray[A].Id := A + 1;
+
+  DataSet.OpenArray<TMyTestClass>(MyArray);
+
+  Assert.AreEqual(-3, DataSet.FieldByName('Calculated').AsInteger);
+
+  CallbackClass.Free;
+
+  DataSet.Free;
+
+  for var Item in MyArray do
+    Item.Free;
+end;
+
+procedure TORMDataSetTest.WhenSortACalculatedFieldCantRaiseAnyError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var Field: TField := TIntegerField.Create(nil);
+  Field.FieldName := 'Calculated';
+  Field.FieldKind := fkCalculated;
+  var MyArray: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  Field.DataSet := DataSet;
+
+  DataSet.IndexFieldNames := 'Calculated';
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.OpenArray<TMyTestClass>(MyArray);
+    end);
+
+  DataSet.Free;
+
+  for var Item in MyArray do
+    Item.Free;
 end;
 
 procedure TORMDataSetTest.WhenTheFieldAndPropertyTypeAreDifferentItHasToRaiseAnException;
@@ -2654,6 +2744,8 @@ begin
   Assert.AreEqual('RecordChanged', DataLink.FMethodCalled);
 
   DataSet.Free;
+
+  DataLink.Free;
 end;
 
 procedure TORMDataSetTest.WhenCheckingIfTheFieldIsNullCantRaiseAnError;

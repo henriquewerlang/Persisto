@@ -122,7 +122,6 @@ type
     function GetObjectClass<T: class>: TClass;
     function GetObjectClassName: String;
     function GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
-    function GetPropertyAndObjectFromFieldWithInstance(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
     function GetRecordInfoFromActiveBuffer: TORMRecordInfo;
     function GetRecordInfoFromBuffer(const Buffer: TORMRecordBuffer): TORMRecordInfo;
     function GetCurrentActiveBuffer: TORMRecordBuffer;
@@ -134,6 +133,8 @@ type
     procedure CheckObjectTypeLoaded;
     procedure CheckSelfFieldType;
     procedure GetPropertyValue(const &Property: TRttiProperty; var Instance: TValue);
+    procedure GoToPosition(const Position: Cardinal);
+    procedure InternalCalculateFields(const Buffer: TORMRecordBuffer);
     procedure LoadDetailInfo;
     procedure LoadFieldDefsFromClass;
     procedure LoadObjectListFromParentDataSet;
@@ -146,6 +147,7 @@ type
     procedure SetObjectClassName(const Value: String);
     procedure SetObjectType(const Value: TRttiInstanceType);
     procedure Sort;
+    procedure UpdateArrayPosition(const Buffer: TORMRecordBuffer);
     procedure UpdateParentObject;
 
 {$IFDEF PAS2JS}
@@ -501,6 +503,8 @@ begin
     NestedDataSet.DataEvent(deParentScroll, 0);
   end;
 
+  Sort;
+
   inherited;
 end;
 
@@ -597,7 +601,7 @@ begin
     if GetPropertyAndObjectFromField(Field, Value, &Property) then
       GetPropertyValue(&Property, Value);
   end
-  else if not IsEmpty and (Field.FieldKind = fkCalculated) then
+  else if Field.FieldKind = fkCalculated then
     Value := GetRecordInfoFromActiveBuffer.CalculedFieldBuffer[FCalculatedFields[Field]];
 
   if not Value.IsEmpty then
@@ -830,18 +834,13 @@ begin
 end;
 
 function TORMDataSet.GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
-begin
-  Instance := TValue.From(GetCurrentObject<TObject>);
-  Result := GetPropertyAndObjectFromFieldWithInstance(Field, Instance, &Property);
-end;
-
-function TORMDataSet.GetPropertyAndObjectFromFieldWithInstance(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
 var
   A: Integer;
 
   PropertyList: TArray<TRttiProperty>;
 
 begin
+  Instance := TValue.From(GetCurrentObject<TObject>);
   PropertyList := FPropertyMappingList[Field.Index];
   Result := True;
 
@@ -890,9 +889,9 @@ begin
 
   if Result = grOK then
   begin
-    GetRecordInfoFromBuffer(Buffer).ArrayPosition := FIterator.CurrentPosition;
+    UpdateArrayPosition(Buffer);
 
-    GetCalcFields(TORMCalcFieldBuffer(Buffer));
+    InternalCalculateFields(Buffer);
   end;
 end;
 
@@ -910,6 +909,15 @@ function TORMDataSet.GetRecordInfoFromBuffer(const Buffer: TORMRecordBuffer): TO
 begin
   Result := TORMRecordInfo(Buffer{$IFDEF PAS2JS}.Data{$ENDIF});
 end;
+
+procedure TORMDataSet.InternalCalculateFields(const Buffer: TORMRecordBuffer);
+var
+  ORMBuffer: TORMCalcFieldBuffer absolute Buffer;
+
+begin
+  GetCalcFields(ORMBuffer);
+end;
+
 
 procedure TORMDataSet.InternalInitRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TORMRecordBuffer);
 var
@@ -1044,8 +1052,6 @@ begin
   CheckCalculatedFields;
 
   LoadObjectListFromParentDataSet;
-
-  Sort;
 end;
 
 procedure TORMDataSet.InternalPost;
@@ -1077,6 +1083,15 @@ end;
 function TORMDataSet.IsSelfField(Field: TField): Boolean;
 begin
   Result := Field.FieldName = SELF_FIELD_NAME;
+end;
+
+procedure TORMDataSet.GoToPosition(const Position: Cardinal);
+begin
+  FIterator.CurrentPosition := Position;
+
+  UpdateArrayPosition(GetCurrentActiveBuffer);
+
+  InternalCalculateFields(GetCurrentActiveBuffer);
 end;
 
 procedure TORMDataSet.LoadDetailInfo;
@@ -1409,18 +1424,17 @@ var
 
     Field: TField;
 
-    &Property: TRttiProperty;
-
   begin
+    GoToPosition(Position);
+
     for A := Low(IndexFields) to High(IndexFields) do
     begin
       Field := IndexFields[A].Field;
-      Values[A] := TValue.From(FIterator.Objects[Position]);
 
-      if GetPropertyAndObjectFromFieldWithInstance(Field, Values[A], &Property) then
-        GetPropertyValue(&Property, Values[A])
+      if Field.IsNull then
+        Values[A] := TValue.Empty
       else
-        Values[A] := TValue.Empty;
+        Values[A] := TValue.{$IFDEF PAS2JS}FromJSValue{$ELSE}FromVariant{$ENDIF}(Field.Value);
     end;
   end;
 
@@ -1481,7 +1495,7 @@ var
     A: Cardinal;
 
   begin
-    Result := Low;
+    Result := Pred(Low);
 
     GetValues(High, Pivot);
 
@@ -1491,11 +1505,13 @@ var
 
       if CompareValue(Values, Pivot) then
       begin
-        FIterator.Swap(Result, A);
-
         Inc(Result);
+
+        FIterator.Swap(Result, A);
       end;
     end;
+
+    Inc(Result);
 
     FIterator.Swap(Result, High);
   end;
@@ -1515,10 +1531,14 @@ var
     end;
   end;
 
+var
+  CurrentPosition: Cardinal;
+
 begin
   if not IndexFieldNames.IsEmpty then
   begin
     FieldNames := IndexFieldNames.Split([';']);
+    CurrentPosition := FIterator.CurrentPosition;
 
     SetLength(IndexFields, Length(FieldNames));
 
@@ -1538,7 +1558,14 @@ begin
     SetLength(Values, Length(IndexFields));
 
     QuickSort(1, FIterator.RecordCount);
+
+    GoToPosition(CurrentPosition);
   end;
+end;
+
+procedure TORMDataSet.UpdateArrayPosition(const Buffer: TORMRecordBuffer);
+begin
+  GetRecordInfoFromBuffer(Buffer).ArrayPosition := FIterator.CurrentPosition;
 end;
 
 procedure TORMDataSet.UpdateParentObject;
