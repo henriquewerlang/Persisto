@@ -1258,6 +1258,8 @@ procedure TORMDataSet.Resync(Mode: TResyncMode);
 begin
   FIterator.Resync;
 
+  Sort;
+
   inherited;
 end;
 
@@ -1386,10 +1388,17 @@ end;
 
 procedure TORMDataSet.SetIndexFieldNames(const Value: String);
 begin
-  FIndexFieldNames := Value;
+  if FIndexFieldNames <> Value then
+  begin
+    FIndexFieldNames := Value;
 
-  if Active then
-    Sort;
+    if Active then
+    begin
+      Sort;
+
+      DataEvent(deDataSetChange, 0);
+    end;
+  end;
 end;
 
 procedure TORMDataSet.SetObjectClassName(const Value: String);
@@ -1543,7 +1552,7 @@ var
 begin
   if not IndexFieldNames.IsEmpty then
   begin
-    CurrentPosition := FIterator.CurrentPosition;
+    CurrentPosition := GetRecordInfoFromActiveBuffer.ArrayPosition;
     FieldNames := IndexFieldNames.Split([';']);
     NeedCalcFiels := False;
 
