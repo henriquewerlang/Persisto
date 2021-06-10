@@ -269,6 +269,8 @@ type
     procedure WhenSortACalculatedFieldAsExpected;
     [Test]
     procedure WhenFillTheIndexFieldNamesMustRemainInTheCurrentPositionAfterTheSortCompletes;
+    [Test]
+    procedure WhenNotUsingACalculatedFieldInTheIndexCantCallTheOnCalcFields;
   end;
 
   [TestFixture]
@@ -1703,6 +1705,48 @@ begin
   DataSet.Free;
 
   MyList.Free;
+end;
+
+procedure TORMDataSetTest.WhenNotUsingACalculatedFieldInTheIndexCantCallTheOnCalcFields;
+begin
+  var CalcCount := 0;
+  var CallbackClass := TCallbackClass.Create(
+    procedure (DataSet: TORMDataSet)
+    begin
+      Inc(CalcCount);
+    end);
+  var MyArray: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  var DataSet := TORMDataSet.Create(nil);
+  DataSet.OnCalcFields := CallbackClass.OnCalcFields;
+  var Field: TField := TIntegerField.Create(nil);
+  Field.FieldName := 'Calculated';
+  Field.FieldKind := fkCalculated;
+
+  Field.DataSet := DataSet;
+
+  Field := TIntegerField.Create(nil);
+  Field.FieldName := 'Id';
+  Field.FieldKind := fkData;
+
+  Field.DataSet := DataSet;
+
+  DataSet.IndexFieldNames := 'Id';
+
+  for var A := 0 to 2 do
+    MyArray[A].Id := A + 1;
+
+  DataSet.OpenArray<TMyTestClass>(MyArray);
+
+  // Calc on open, em after sort the values
+  Assert.AreEqual(2, CalcCount);
+
+  CallbackClass.Free;
+
+  DataSet.Free;
+
+  for var Item in MyArray do
+    Item.Free;
 end;
 
 procedure TORMDataSetTest.WhenOpenAClassWithDerivationMustLoadTheFieldFromTheBaseClassToo;

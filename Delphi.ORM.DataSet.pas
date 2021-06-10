@@ -133,7 +133,7 @@ type
     procedure CheckObjectTypeLoaded;
     procedure CheckSelfFieldType;
     procedure GetPropertyValue(const &Property: TRttiProperty; var Instance: TValue);
-    procedure GoToPosition(const Position: Cardinal);
+    procedure GoToPosition(const Position: Cardinal; const CalculateFields: Boolean);
     procedure InternalCalculateFields(const Buffer: TORMRecordBuffer);
     procedure LoadDetailInfo;
     procedure LoadFieldDefsFromClass;
@@ -354,11 +354,14 @@ var
   Obj: TObject;
 
 begin
-  Obj := Objects[Left];
+  if Left <> Right then
+  begin
+    Obj := Objects[Left];
 
-  Objects[Left] := Objects[Right];
+    Objects[Left] := Objects[Right];
 
-  Objects[Right] := Obj;
+    Objects[Right] := Obj;
+  end;
 end;
 
 procedure TORMListIterator<T>.UpdateArrayProperty(&Property: TRttiProperty; Instance: TObject);
@@ -1085,13 +1088,14 @@ begin
   Result := Field.FieldName = SELF_FIELD_NAME;
 end;
 
-procedure TORMDataSet.GoToPosition(const Position: Cardinal);
+procedure TORMDataSet.GoToPosition(const Position: Cardinal; const CalculateFields: Boolean);
 begin
   FIterator.CurrentPosition := Position;
 
   UpdateArrayPosition(GetCurrentActiveBuffer);
 
-  InternalCalculateFields(GetCurrentActiveBuffer);
+  if CalculateFields then
+    InternalCalculateFields(GetCurrentActiveBuffer);
 end;
 
 procedure TORMDataSet.LoadDetailInfo;
@@ -1418,6 +1422,8 @@ var
 
   FieldNames: TArray<String>;
 
+  NeedCalcFiels: Boolean;
+
   procedure GetValues(Position: Cardinal; var Values: TArray<TValue>);
   var
     A: Integer;
@@ -1425,7 +1431,7 @@ var
     Field: TField;
 
   begin
-    GoToPosition(Position);
+    GoToPosition(Position, NeedCalcFiels);
 
     for A := Low(IndexFields) to High(IndexFields) do
     begin
@@ -1537,8 +1543,9 @@ var
 begin
   if not IndexFieldNames.IsEmpty then
   begin
-    FieldNames := IndexFieldNames.Split([';']);
     CurrentPosition := FIterator.CurrentPosition;
+    FieldNames := IndexFieldNames.Split([';']);
+    NeedCalcFiels := False;
 
     SetLength(IndexFields, Length(FieldNames));
 
@@ -1551,6 +1558,7 @@ begin
         FieldName := FieldName.Substring(1);
 
       IndexFields[A].Field := FieldByName(FieldName);
+      NeedCalcFiels := NeedCalcFiels or (IndexFields[A].Field.FieldKind = fkCalculated);
     end;
 
     SetLength(Pivot, Length(IndexFields));
@@ -1559,7 +1567,7 @@ begin
 
     QuickSort(1, FIterator.RecordCount);
 
-    GoToPosition(CurrentPosition);
+    GoToPosition(CurrentPosition, True);
   end;
 end;
 
