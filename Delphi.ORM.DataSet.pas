@@ -107,6 +107,8 @@ type
   TORMDataSet = class(TDataSet)
   private
     FIterator: IORMObjectIterator;
+    FIteratorData: IORMObjectIterator;
+    FIteratorFilter: IORMObjectIterator;
     FContext: TRttiContext;
     FObjectType: TRttiInstanceType;
     FPropertyMappingList: TArray<TArray<TRttiProperty>>;
@@ -115,6 +117,7 @@ type
     FParentDataSet: TORMDataSet;
     FCalculatedFields: TDictionary<TField, Integer>;
     FIndexFieldNames: String;
+    FFilterFunction: TFunc<TORMDataSet, Boolean>;
 
     function GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
     function GetFieldInfoFromTypeInfo(PropertyType: PTypeInfo; var Size: Integer): TFieldType;
@@ -130,11 +133,13 @@ type
 
     procedure CheckCalculatedFields;
     procedure CheckIterator;
+    procedure CheckIteratorData(const NeedResync: Boolean);
     procedure CheckObjectTypeLoaded;
     procedure CheckSelfFieldType;
     procedure GetPropertyValue(const &Property: TRttiProperty; var Instance: TValue);
     procedure GoToPosition(const Position: Cardinal; const CalculateFields: Boolean);
     procedure InternalCalculateFields(const Buffer: TORMRecordBuffer);
+    procedure InternalFilter(const NeedResync: Boolean);
     procedure LoadDetailInfo;
     procedure LoadFieldDefsFromClass;
     procedure LoadObjectListFromParentDataSet;
@@ -142,6 +147,7 @@ type
     procedure OpenInternalIterator(ObjectClass: TClass; Iterator: IORMObjectIterator);
     procedure ReleaseOldValueObject;
     procedure ReleaseTheInsertingObject;
+    procedure ResetFilter;
     procedure SetCurrentObject(const NewObject: TObject);
     procedure SetIndexFieldNames(const Value: String);
     procedure SetObjectClassName(const Value: String);
@@ -165,7 +171,6 @@ type
     procedure ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TORMCalcFieldBuffer); override;
     procedure DataEvent(Event: TDataEvent; Info: {$IFDEF PAS2JS}JSValue{$ELSE}NativeInt{$ENDIF}); override;
     procedure DoAfterOpen; override;
-    procedure DoAfterPost; override;
     procedure GetBookmarkData(Buffer: TORMRecordBuffer; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark); override;
     procedure FreeRecordBuffer(var Buffer: TORMRecordBuffer); override;
     procedure InternalCancel; override;
@@ -196,6 +201,7 @@ type
     function GetCurrentObject<T: class>: T;
     function GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TORMFieldBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF}; override;
 
+    procedure Filter(Func: TFunc<TORMDataSet, Boolean>);
     procedure OpenArray<T: class>(List: TArray<T>);
     procedure OpenClass<T: class>;
     procedure OpenList<T: class>(List: TList<T>);
@@ -412,8 +418,19 @@ end;
 
 procedure TORMDataSet.CheckIterator;
 begin
-  if not Assigned(FIterator) then
-    FIterator := TORMListIterator<TObject>.Create([]);
+  if not Assigned(FIteratorData) then
+    FIteratorData := TORMListIterator<TObject>.Create([]);
+
+  FIterator := FIteratorData;
+end;
+
+procedure TORMDataSet.CheckIteratorData(const NeedResync: Boolean);
+begin
+  if Assigned(FFilterFunction) then
+    InternalFilter(NeedResync);
+
+  if not IndexFieldNames.IsEmpty then
+    Sort;
 end;
 
 procedure TORMDataSet.CheckObjectTypeLoaded;
@@ -445,18 +462,6 @@ begin
   for A := Low(CalcBuffer) to High(CalcBuffer) do
     CalcBuffer[A] := TValue.Empty;
 end;
-
-{$IFDEF PAS2JS}
-function TORMDataSet.ConvertDateTimeToNative(Field: TField; Value: TDateTime): JSValue;
-begin
-  Result := Value;
-end;
-
-function TORMDataSet.ConvertToDateTime(Field: TField; Value: JSValue; ARaiseException: Boolean): TDateTime;
-begin
-  Result := TDateTime(Value);
-end;
-{$ENDIF}
 
 constructor TORMDataSet.Create(AOwner: TComponent);
 begin
@@ -506,14 +511,19 @@ begin
     NestedDataSet.DataEvent(deParentScroll, 0);
   end;
 
-  Sort;
+  CheckIteratorData(True);
 
   inherited;
 end;
 
-procedure TORMDataSet.DoAfterPost;
+procedure TORMDataSet.Filter(Func: TFunc<TORMDataSet, Boolean>);
 begin
-  Sort;
+  FFilterFunction := Func;
+
+  ResetFilter;
+
+  if Active then
+    Resync([]);
 end;
 
 procedure TORMDataSet.FreeRecordBuffer(var Buffer: TORMRecordBuffer);
@@ -740,76 +750,10 @@ begin
   Result := GetFieldInfoFromProperty(&Property, Size);
 end;
 
-{$IFDEF PAS2JS}
-type
-  TFieldHack = class(TField)
-  end;
-
-procedure TORMDataSet.GetLazyDisplayText(Sender: TField; var Text: String; DisplayText: Boolean);
-var
-  &Property: TRttiProperty;
-
-  Value: TValue;
-
-  LazyAccess: TLazyAccessType;
-
-  CurrentRecord: Integer;
-
+procedure Filter(Func: TFunc<TORMDataSet, Boolean>);
 begin
-  if DisplayText then
-  begin
-    Value := TValue.From(GetCurrentObject<TObject>);
 
-    for &Property in FPropertyMappingList[Sender.Index] do
-      if Value.IsEmpty then
-        Break
-      else
-      begin
-        Value := &Property.GetValue(Value.AsObject);
-
-        if IsLazyLoading(&Property.PropertyType) then
-        begin
-          LazyAccess := GetLazyLoadingAccess(Value);
-
-          if LazyAccess.Loaded then
-            Value := LazyAccess.GetValue
-          else
-          begin
-            CurrentRecord := ActiveRecord;
-            Text := 'Loading....';
-
-            LazyAccess.GetValueAsync._then(
-              function(Value: JSValue): JSValue
-              begin
-                DataEvent(deRecordChange, CurrentRecord);
-              end);
-
-            Exit;
-          end;
-        end;
-      end;
-  end;
-
-  TFieldHack(Sender).GetText(Text, DisplayText);
 end;
-
-procedure TORMDataSet.LoadLazyGetTextFields;
-var
-  Field: TField;
-
-  &Property: TRttiProperty;
-
-begin
-  for Field in Fields do
-    for &Property in FPropertyMappingList[Field.Index] do
-      if IsLazyLoading(&Property.PropertyType) then
-      begin
-        Field.OnGetText := GetLazyDisplayText;
-
-        Break;
-      end;
-end;
-{$ENDIF}
 
 function TORMDataSet.GetObjectAndPropertyFromParentDataSet(var Instance: TValue; var &Property: TRttiProperty): Boolean;
 begin
@@ -992,6 +936,36 @@ begin
     &Property.SetValue(FOldValueObject, &Property.GetValue(CurrentObject));
 end;
 
+procedure TORMDataSet.InternalFilter(const NeedResync: Boolean);
+begin
+  if Active then
+  begin
+    ResetFilter;
+
+    if Assigned(FFilterFunction) then
+    begin
+      FIteratorFilter := TORMListIterator<TObject>.Create([]);
+
+      FIteratorData.ResetBegin;
+
+      while FIteratorData.Next do
+      begin
+        GoToPosition(FIteratorData.CurrentPosition, True);
+
+        if FFilterFunction(Self) then
+          FIteratorFilter.Add(FIteratorData[FIteratorData.CurrentPosition]);
+      end;
+
+      FIterator := FIteratorFilter;
+    end
+    else
+      FIteratorFilter := nil;
+
+    if NeedResync then
+      Resync([]);
+  end;
+end;
+
 procedure TORMDataSet.InternalFirst;
 begin
   FIterator.ResetBegin;
@@ -1063,7 +1037,7 @@ begin
 
   if State = dsInsert then
   begin
-    FIterator.Add(FInsertingObject);
+    FIteratorData.Add(FInsertingObject);
 
     UpdateParentObject;
   end;
@@ -1223,7 +1197,7 @@ end;
 
 procedure TORMDataSet.OpenInternalIterator(ObjectClass: TClass; Iterator: IORMObjectIterator);
 begin
-  FIterator := Iterator;
+  FIteratorData := Iterator;
   ObjectType := FContext.GetType(ObjectClass) as TRttiInstanceType;
 
   Open;
@@ -1254,11 +1228,16 @@ begin
   FreeAndNil(FInsertingObject);
 end;
 
+procedure TORMDataSet.ResetFilter;
+begin
+  FIterator := FIteratorData;
+end;
+
 procedure TORMDataSet.Resync(Mode: TResyncMode);
 begin
-  FIterator.Resync;
+  FIteratorData.Resync;
 
-  Sort;
+  CheckIteratorData(False);
 
   inherited;
 end;
@@ -1599,6 +1578,87 @@ begin
     FIterator.UpdateArrayProperty(&Property, Instance.AsObject);
   end;
 end;
+
+{$IFDEF PAS2JS}
+function TORMDataSet.ConvertDateTimeToNative(Field: TField; Value: TDateTime): JSValue;
+begin
+  Result := Value;
+end;
+
+function TORMDataSet.ConvertToDateTime(Field: TField; Value: JSValue; ARaiseException: Boolean): TDateTime;
+begin
+  Result := TDateTime(Value);
+end;
+
+type
+  TFieldHack = class(TField)
+  end;
+
+procedure TORMDataSet.GetLazyDisplayText(Sender: TField; var Text: String; DisplayText: Boolean);
+var
+  &Property: TRttiProperty;
+
+  Value: TValue;
+
+  LazyAccess: TLazyAccessType;
+
+  CurrentRecord: Integer;
+
+begin
+  if DisplayText then
+  begin
+    Value := TValue.From(GetCurrentObject<TObject>);
+
+    for &Property in FPropertyMappingList[Sender.Index] do
+      if Value.IsEmpty then
+        Break
+      else
+      begin
+        Value := &Property.GetValue(Value.AsObject);
+
+        if IsLazyLoading(&Property.PropertyType) then
+        begin
+          LazyAccess := GetLazyLoadingAccess(Value);
+
+          if LazyAccess.Loaded then
+            Value := LazyAccess.GetValue
+          else
+          begin
+            CurrentRecord := ActiveRecord;
+            Text := 'Loading....';
+
+            LazyAccess.GetValueAsync._then(
+              function(Value: JSValue): JSValue
+              begin
+                DataEvent(deRecordChange, CurrentRecord);
+              end);
+
+            Exit;
+          end;
+        end;
+      end;
+  end;
+
+  TFieldHack(Sender).GetText(Text, DisplayText);
+end;
+
+procedure TORMDataSet.LoadLazyGetTextFields;
+var
+  Field: TField;
+
+  &Property: TRttiProperty;
+
+begin
+  for Field in Fields do
+    for &Property in FPropertyMappingList[Field.Index] do
+      if IsLazyLoading(&Property.PropertyType) then
+      begin
+        Field.OnGetText := GetLazyDisplayText;
+
+        Break;
+      end;
+end;
+{$ENDIF}
 
 { TORMObjectField }
 

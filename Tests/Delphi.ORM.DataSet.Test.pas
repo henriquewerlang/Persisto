@@ -273,6 +273,16 @@ type
     procedure WhenNotUsingACalculatedFieldInTheIndexCantCallTheOnCalcFields;
     [Test]
     procedure WhenCallTheResyncMustReorderTheDataSet;
+    [Test]
+    procedure WhenFilterTheDataSetMustStayOnlyTheFilteredRecords;
+    [Test]
+    procedure WhenApplyAFilterBeforeOpenTheDataSetMustFilterTheRecordAfterOpen;
+    [Test]
+    procedure WhenRemoveTheFilterMustReturnTheOriginalRecordsToTheDataSet;
+    [Test]
+    procedure WhenInsertingARecordInAFilteredDataSetMustCheckTheFilterToAddTheRecordToTheDataSet;
+    [Test]
+    procedure WhenEditingARecordAndTheFilterBecameInvalidMustRemoveTheRecordFromDataSet;
   end;
 
   [TestFixture]
@@ -891,6 +901,32 @@ begin
   MyObject.Free;
 end;
 
+procedure TORMDataSetTest.WhenApplyAFilterBeforeOpenTheDataSetMustFilterTheRecordAfterOpen;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyArray: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  for var A := 0 to High(MyArray) do
+    MyArray[A].Id := Succ(A);
+
+  DataSet.Filter(
+    function (DataSet: TORMDataSet): Boolean
+    begin
+      Result := DataSet.FieldByName('Id').AsInteger = 5;
+    end);
+
+  DataSet.OpenArray<TMyTestClass>(MyArray);
+
+  Assert.AreEqual(1, DataSet.RecordCount);
+
+  Assert.AreEqual(5, DataSet.FieldByName('Id').AsInteger);
+
+  DataSet.Free;
+
+  for var Item in MyArray do
+    Item.Free;
+end;
+
 procedure TORMDataSetTest.WhenTheDataSetIsEmptyCantRaiseAnErrorWhenGetAFieldFromASubPropertyThatIsAnObject;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -1106,6 +1142,33 @@ begin
 
   for var Item in MyArray do
     Item.Free;end;
+
+procedure TORMDataSetTest.WhenEditingARecordAndTheFilterBecameInvalidMustRemoveTheRecordFromDataSet;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyClass := TMyTestClass.Create;
+  MyClass.Id := 5;
+
+  DataSet.Filter(
+    function (DataSet: TORMDataSet): Boolean
+    begin
+      Result := DataSet.FieldByName('Id').AsInteger = 5;
+    end);
+
+  DataSet.OpenObject(MyClass);
+
+  DataSet.Edit;
+
+  DataSet.FieldByName('Id').AsInteger := 4;
+
+  DataSet.Post;
+
+  Assert.AreEqual(0, DataSet.RecordCount);
+
+  DataSet.Free;
+
+  MyClass.Free;
+end;
 
 procedure TORMDataSetTest.WhenEditingCantIncreseTheRecordCountWhenPostTheRecord;
 begin
@@ -1488,6 +1551,32 @@ begin
   DataSet.Free;
 end;
 
+procedure TORMDataSetTest.WhenFilterTheDataSetMustStayOnlyTheFilteredRecords;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyArray: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  for var A := 0 to High(MyArray) do
+    MyArray[A].Id := Succ(A);
+
+  DataSet.OpenArray<TMyTestClass>(MyArray);
+
+  DataSet.Filter(
+    function (DataSet: TORMDataSet): Boolean
+    begin
+      Result := DataSet.FieldByName('Id').AsInteger = 5;
+    end);
+
+  Assert.AreEqual(1, DataSet.RecordCount);
+
+  Assert.AreEqual(5, DataSet.FieldByName('Id').AsInteger);
+
+  DataSet.Free;
+
+  for var Item in MyArray do
+    Item.Free;
+end;
+
 procedure TORMDataSetTest.WhenGetAValueFromAFieldAndIsAnObjectMustReturnTheObjectFromTheClass;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -1569,6 +1658,31 @@ begin
   DataSet.Append;
 
   Assert.AreEqual(EmptyStr, DataSet.FieldByName('Name').AsString);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenInsertingARecordInAFilteredDataSetMustCheckTheFilterToAddTheRecordToTheDataSet;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  DataSet.Filter(
+    function (DataSet: TORMDataSet): Boolean
+    begin
+      Result := DataSet.FieldByName('Id').AsInteger = 5;
+    end);
+
+  DataSet.OpenClass<TMyTestClass>;
+
+  DataSet.Insert;
+
+  DataSet.FieldByName('Id').AsInteger := 5;
+
+  DataSet.Post;
+
+  Assert.AreEqual(1, DataSet.RecordCount);
+
+  DataSet.GetCurrentObject<TMyTestClass>.Free;
 
   DataSet.Free;
 end;
@@ -1763,7 +1877,7 @@ begin
 
   DataSet.OpenArray<TMyTestClass>(MyArray);
 
-  // Calc on open, em after sort the values
+  // Calc on open and after sort
   Assert.AreEqual(2, CalcCount);
 
   CallbackClass.Free;
@@ -2243,13 +2357,38 @@ begin
   DataSet.Free;
 end;
 
+procedure TORMDataSetTest.WhenRemoveTheFilterMustReturnTheOriginalRecordsToTheDataSet;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyArray: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  for var A := 0 to High(MyArray) do
+    MyArray[A].Id := Succ(A);
+
+  DataSet.OpenArray<TMyTestClass>(MyArray);
+
+  DataSet.Filter(
+    function (DataSet: TORMDataSet): Boolean
+    begin
+      Result := False;
+    end);
+
+  DataSet.Filter(nil);
+
+  Assert.AreEqual(5, DataSet.RecordCount);
+
+  DataSet.Free;
+
+  for var Item in MyArray do
+    Item.Free;
+end;
+
 procedure TORMDataSetTest.WhenScrollTheDataSetMustCalculateTheFields;
 begin
   var CallbackClass := TCallbackClass.Create(
     procedure (DataSet: TORMDataSet)
     begin
       DataSet.FieldByName('Calculated').AsInteger := DataSet.GetCurrentObject<TMyTestClass>.Id;
-//      DataSet.FieldByName('Calculated').AsInteger := DataSet.RecNo;
     end);
   var DataSet := TORMDataSet.Create(nil);
   DataSet.OnCalcFields := CallbackClass.OnCalcFields;
