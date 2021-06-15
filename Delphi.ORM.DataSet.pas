@@ -1372,11 +1372,7 @@ begin
     FIndexFieldNames := Value;
 
     if Active then
-    begin
-      Sort;
-
-      DataEvent(deDataSetChange, 0);
-    end;
+      Resync([]);
   end;
 end;
 
