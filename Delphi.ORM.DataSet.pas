@@ -1449,8 +1449,10 @@ var
 
     LeftValue, RightValue: TValue;
 
+    ComparedValue: Double;
+
   begin
-    Result := True;
+    ComparedValue := 0;
 
     for A := Low(IndexFields) to High(IndexFields) do
     begin
@@ -1465,34 +1467,43 @@ var
         RightValue := Left[A];
       end;
 
-      case Left[A].Kind of
+      if LeftValue.IsEmpty and RightValue.IsEmpty then
+        Continue
+      else if not LeftValue.IsEmpty and RightValue.IsEmpty then
+        ComparedValue := 1
+      else if LeftValue.IsEmpty and not RightValue.IsEmpty then
+        ComparedValue := -1
+      else
+        case LeftValue.Kind of
 {$IFDEF PAS2JS}
-        tkBool,
+          tkBool,
 {$ENDIF}
 {$IFDEF DCC}
-        tkInt64,
+          tkInt64,
 {$ENDIF}
-        tkInteger,
-        tkEnumeration:
-          if RightValue.AsInteger < LeftValue.AsInteger then
-            Exit(False);
+          tkInteger,
+          tkEnumeration:
+            ComparedValue := LeftValue.AsInteger - RightValue.AsInteger;
 
 {$IFDEF DCC}
-        tkWChar,
-        tkLString,
-        tkWString,
-        tkUString,
+          tkWChar,
+          tkLString,
+          tkWString,
+          tkUString,
 {$ENDIF}
-        tkChar,
-        tkString:
-          if CompareStr(RightValue.AsString, LeftValue.AsString) < 0 then
-            Exit(False);
+          tkChar,
+          tkString:
+            ComparedValue := CompareStr(LeftValue.AsString, RightValue.AsString);
 
-        tkFloat:
-          if RightValue.AsExtended < LeftValue.AsExtended then
-            Exit(False);
-      end;
+          tkFloat:
+            ComparedValue := LeftValue.AsExtended - RightValue.AsExtended;
+        end;
+
+      if ComparedValue <> 0 then
+        Break;
     end;
+
+    Result := ComparedValue < 0;
   end;
 
   function Partition(Low, High: Cardinal): Cardinal;

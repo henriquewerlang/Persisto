@@ -283,6 +283,12 @@ type
     procedure WhenEditingARecordAndTheFilterBecameInvalidMustRemoveTheRecordFromDataSet;
     [Test]
     procedure WhenSortAFilteredDataSetCantRaiseAnyError;
+    [Test]
+    procedure WhenOrderingANullFieldValueItMustBeTheFirstRecordInTheSortedDataSet;
+    [Test]
+    procedure WhenExistsMoreTheOneNullValueMustBeTheFirstRecordsAnThenTheFieldsWithValue;
+    [Test]
+    procedure WhenOrderingANullFieldValueInDescendingOrderItMustBeTheLastRecordInTheSortedDataSet;
   end;
 
   [TestFixture]
@@ -1224,6 +1230,34 @@ begin
   DataSet.Free;
 end;
 
+procedure TORMDataSetTest.WhenExistsMoreTheOneNullValueMustBeTheFirstRecordsAnThenTheFieldsWithValue;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyArray: TArray<TClassWithNullableProperty> := [TClassWithNullableProperty.Create, TClassWithNullableProperty.Create, TClassWithNullableProperty.Create,
+    TClassWithNullableProperty.Create, TClassWithNullableProperty.Create];
+
+  for var A := 0 to High(MyArray) do
+    if A in [0, 2, 4] then
+      MyArray[A].Nullable := Succ(A) * -1;
+
+  DataSet.IndexFieldNames := 'Nullable';
+
+  DataSet.OpenArray<TClassWithNullableProperty>(MyArray);
+
+  DataSet.First;
+
+  Assert.IsTrue(DataSet.FieldByName('Nullable').IsNull);
+
+  DataSet.Next;
+
+  Assert.IsTrue(DataSet.FieldByName('Nullable').IsNull);
+
+  DataSet.Free;
+
+  for var Item in MyArray do
+    Item.Free;
+end;
+
 procedure TORMDataSetTest.WhenExitsMoreThenOneCalculatedFieldMustReturnTheValueAsExpected;
 begin
   var CallbackClass := TCallbackClass.Create(
@@ -2117,6 +2151,52 @@ begin
   DataSetDetail.Free;
 
   DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenOrderingANullFieldValueInDescendingOrderItMustBeTheLastRecordInTheSortedDataSet;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyArray: TArray<TClassWithNullableProperty> := [TClassWithNullableProperty.Create, TClassWithNullableProperty.Create, TClassWithNullableProperty.Create,
+    TClassWithNullableProperty.Create, TClassWithNullableProperty.Create];
+
+  for var A := 0 to Pred(High(MyArray)) do
+    MyArray[A].Nullable := Succ(A) * -1;
+
+  DataSet.IndexFieldNames := '-Nullable';
+
+  DataSet.OpenArray<TClassWithNullableProperty>(MyArray);
+
+  DataSet.Last;
+
+  Assert.IsTrue(DataSet.FieldByName('Nullable').IsNull);
+
+  DataSet.Free;
+
+  for var Item in MyArray do
+    Item.Free;
+end;
+
+procedure TORMDataSetTest.WhenOrderingANullFieldValueItMustBeTheFirstRecordInTheSortedDataSet;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyArray: TArray<TClassWithNullableProperty> := [TClassWithNullableProperty.Create, TClassWithNullableProperty.Create, TClassWithNullableProperty.Create,
+    TClassWithNullableProperty.Create, TClassWithNullableProperty.Create];
+
+  for var A := 0 to Pred(High(MyArray)) do
+    MyArray[A].Nullable := Succ(A) * -1;
+
+  DataSet.IndexFieldNames := 'Nullable';
+
+  DataSet.OpenArray<TClassWithNullableProperty>(MyArray);
+
+  DataSet.First;
+
+  Assert.IsTrue(DataSet.FieldByName('Nullable').IsNull);
+
+  DataSet.Free;
+
+  for var Item in MyArray do
+    Item.Free;
 end;
 
 procedure TORMDataSetTest.WhenPostARecordMustAppendToListOfObjects;
