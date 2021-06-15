@@ -268,8 +268,6 @@ type
     [Test]
     procedure WhenSortACalculatedFieldAsExpected;
     [Test]
-    procedure WhenFillTheIndexFieldNamesMustRemainInTheCurrentPositionAfterTheSortCompletes;
-    [Test]
     procedure WhenNotUsingACalculatedFieldInTheIndexCantCallTheOnCalcFields;
     [Test]
     procedure WhenCallTheResyncMustReorderTheDataSet;
@@ -283,6 +281,8 @@ type
     procedure WhenInsertingARecordInAFilteredDataSetMustCheckTheFilterToAddTheRecordToTheDataSet;
     [Test]
     procedure WhenEditingARecordAndTheFilterBecameInvalidMustRemoveTheRecordFromDataSet;
+    [Test]
+    procedure WhenSortAFilteredDataSetCantRaiseAnyError;
   end;
 
   [TestFixture]
@@ -1474,28 +1474,6 @@ begin
     Item.Free;
 end;
 
-procedure TORMDataSetTest.WhenFillTheIndexFieldNamesMustRemainInTheCurrentPositionAfterTheSortCompletes;
-begin
-  var DataSet := TORMDataSet.Create(nil);
-  var MyArray: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
-
-  for var A := 0 to High(MyArray) do
-    MyArray[A].Id := A + 1;
-
-  DataSet.OpenArray<TMyTestClass>(MyArray);
-
-  DataSet.Last;
-
-  DataSet.IndexFieldNames := '-Id';
-
-  Assert.AreEqual(1, DataSet.FieldByName('Id').AsInteger);
-
-  DataSet.Free;
-
-  for var Item in MyArray do
-    Item.Free;
-end;
-
 procedure TORMDataSetTest.WhenFillTheIndexFieldNamesWithMoreTheOnFieldMustOrderAsExpected;
 const
   SORTED_VALUE: array[0..4] of String = ('Name0', 'Name3', 'Name1', 'Name4', 'Name2');
@@ -2577,6 +2555,34 @@ begin
     Item.Free;
 end;
 
+procedure TORMDataSetTest.WhenSortAFilteredDataSetCantRaiseAnyError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var MyArray: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  for var A := 0 to High(MyArray) do
+    MyArray[A].Id := Succ(A) * -1;
+
+  DataSet.Filter(
+    function (DataSet: TORMDataSet): Boolean
+    begin
+      Result := DataSet.FieldByName('Id').AsInteger in [1, 3, 5];
+    end);
+
+  DataSet.OpenArray<TMyTestClass>(MyArray);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.IndexFieldNames := 'Id';
+    end);
+
+  DataSet.Free;
+
+  for var Item in MyArray do
+    Item.Free;
+end;
+
 procedure TORMDataSetTest.WhenTheFieldAndPropertyTypeAreDifferentItHasToRaiseAnException;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -2902,6 +2908,8 @@ begin
   DataSet.OpenArray<TMyTestClass>(MyArray);
 
   DataSet.IndexFieldNames := '-Id';
+
+  DataSet.First;
 
   for var A := Pred(DataSet.RecordCount) downto 0 do
   begin

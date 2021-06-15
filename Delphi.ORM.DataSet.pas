@@ -133,7 +133,7 @@ type
 
     procedure CheckCalculatedFields;
     procedure CheckIterator;
-    procedure CheckIteratorData(const NeedResync: Boolean);
+    procedure CheckIteratorData(const NeedResync, GoFirstRecord: Boolean);
     procedure CheckObjectTypeLoaded;
     procedure CheckSelfFieldType;
     procedure GetPropertyValue(const &Property: TRttiProperty; var Instance: TValue);
@@ -166,6 +166,7 @@ type
     function GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TORMRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function GetRecordCount: Integer; override;
     function GetRecNo: Integer; override;
+    function GetInternalCurrentObject: TObject;
     function IsCursorOpen: Boolean; override;
 
     procedure ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TORMCalcFieldBuffer); override;
@@ -424,13 +425,16 @@ begin
   FIterator := FIteratorData;
 end;
 
-procedure TORMDataSet.CheckIteratorData(const NeedResync: Boolean);
+procedure TORMDataSet.CheckIteratorData(const NeedResync, GoFirstRecord: Boolean);
 begin
   if Assigned(FFilterFunction) then
     InternalFilter(NeedResync);
 
   if not IndexFieldNames.IsEmpty then
     Sort;
+
+  if GoFirstRecord and (Assigned(FFilterFunction) or not IndexFieldNames.IsEmpty) then
+    First;
 end;
 
 procedure TORMDataSet.CheckObjectTypeLoaded;
@@ -504,14 +508,14 @@ var
   NestedDataSet: TORMDataSet;
 
 begin
+  CheckIteratorData(True, True);
+
   for A := 0 to Pred(NestedDataSets.Count) do
   begin
     NestedDataSet := TORMDataSet(NestedDataSets[A]);
 
     NestedDataSet.DataEvent(deParentScroll, 0);
   end;
-
-  CheckIteratorData(True);
 
   inherited;
 end;
@@ -568,26 +572,7 @@ end;
 
 function TORMDataSet.GetCurrentObject<T>: T;
 begin
-  Result := nil;
-
-  case State of
-    dsInsert: Result := FInsertingObject as T;
-    dsOldValue: Result := FOldValueObject as T;
-    // dsInactive: ;
-    // dsBrowse: ;
-    // dsEdit: ;
-    // dsSetKey: ;
-    // dsCalcFields: ;
-    // dsFilter: ;
-    // dsNewValue: ;
-    // dsCurValue: ;
-    // dsBlockRead: ;
-    // dsInternalCalc: ;
-    // dsOpening: ;
-    else
-      if FIterator.RecordCount > 0 then
-        Result := FIterator[GetRecordInfoFromActiveBuffer.ArrayPosition] as T;
-  end;
+  Result := GetInternalCurrentObject as T;
 end;
 
 function TORMDataSet.GetFieldClass(FieldType: TFieldType): TFieldClass;
@@ -608,7 +593,7 @@ begin
   Result := {$IFDEF PAS2JS}NULL{$ELSE}False{$ENDIF};
 
   if IsSelfField(Field) then
-    Value := TValue.From(GetCurrentObject<TObject>)
+    Value := TValue.From(GetInternalCurrentObject)
   else if Field.FieldKind = fkData then
   begin
     if GetPropertyAndObjectFromField(Field, Value, &Property) then
@@ -750,6 +735,30 @@ begin
   Result := GetFieldInfoFromProperty(&Property, Size);
 end;
 
+function TORMDataSet.GetInternalCurrentObject: TObject;
+begin
+  Result := nil;
+
+  case State of
+    dsInsert: Result := FInsertingObject;
+    dsOldValue: Result := FOldValueObject;
+    // dsInactive: ;
+    // dsBrowse: ;
+    // dsEdit: ;
+    // dsSetKey: ;
+    // dsCalcFields: ;
+    // dsFilter: ;
+    // dsNewValue: ;
+    // dsCurValue: ;
+    // dsBlockRead: ;
+    // dsInternalCalc: ;
+    // dsOpening: ;
+    else
+      if FIterator.RecordCount > 0 then
+        Result := FIterator[GetRecordInfoFromActiveBuffer.ArrayPosition];
+  end;
+end;
+
 procedure Filter(Func: TFunc<TORMDataSet, Boolean>);
 begin
 
@@ -761,7 +770,7 @@ begin
 
   if Result then
   begin
-    Instance := TValue.From(ParentDataSet.GetCurrentObject<TObject>);
+    Instance := TValue.From(ParentDataSet.GetInternalCurrentObject);
 
     Result := ParentDataSet.GetPropertyAndObjectFromField(DataSetField, Instance, &Property);
   end;
@@ -787,7 +796,7 @@ var
   PropertyList: TArray<TRttiProperty>;
 
 begin
-  Instance := TValue.From(GetCurrentObject<TObject>);
+  Instance := TValue.From(GetInternalCurrentObject);
   PropertyList := FPropertyMappingList[Field.Index];
   Result := True;
 
@@ -893,7 +902,7 @@ var
 begin
   if Assigned(FOldValueObject) then
   begin
-    CurrentObject := GetCurrentObject<TObject>;
+    CurrentObject := GetInternalCurrentObject;
 
     for &Property in ObjectType.GetProperties do
       &Property.SetValue(CurrentObject, &Property.GetValue(FOldValueObject));
@@ -927,7 +936,7 @@ var
 begin
   inherited;
 
-  CurrentObject := GetCurrentObject<TObject>;
+  CurrentObject := GetInternalCurrentObject;
 
   if not Assigned(FOldValueObject) then
     FOldValueObject := ObjectType.MetaclassType.Create;
@@ -1237,7 +1246,7 @@ procedure TORMDataSet.Resync(Mode: TResyncMode);
 begin
   FIteratorData.Resync;
 
-  CheckIteratorData(False);
+  CheckIteratorData(False, False);
 
   inherited;
 end;
@@ -1521,13 +1530,9 @@ var
     end;
   end;
 
-var
-  CurrentPosition: Cardinal;
-
 begin
   if not IndexFieldNames.IsEmpty then
   begin
-    CurrentPosition := GetRecordInfoFromActiveBuffer.ArrayPosition;
     FieldNames := IndexFieldNames.Split([';']);
     NeedCalcFiels := False;
 
@@ -1550,8 +1555,6 @@ begin
     SetLength(Values, Length(IndexFields));
 
     QuickSort(1, FIterator.RecordCount);
-
-    GoToPosition(CurrentPosition, True);
   end;
 end;
 
@@ -1603,7 +1606,7 @@ var
 begin
   if DisplayText then
   begin
-    Value := TValue.From(GetCurrentObject<TObject>);
+    Value := TValue.From(GetInternalCurrentObject);
 
     for &Property in FPropertyMappingList[Sender.Index] do
       if Value.IsEmpty then
