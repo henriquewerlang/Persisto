@@ -195,10 +195,6 @@ type
 
     destructor Destroy; override;
 
-{$IFDEF PAS2JS}
-    function ConvertDateTimeToNative(Field: TField; Value: TDateTime): JSValue; override;
-    function ConvertToDateTime(Field: TField; Value: JSValue; ARaiseException: Boolean): TDateTime; override;
-{$ENDIF}
     function GetCurrentObject<T: class>: T;
     function GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TORMFieldBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF}; override;
 
@@ -606,6 +602,9 @@ begin
   begin
 {$IFDEF PAS2JS}
     Result := Value.AsJSValue;
+
+    if Field is TDateTimeField then
+      Result := ConvertDateTimeToNative(Field, Double(Result));
 {$ELSE}
     Result := True;
 
@@ -1313,13 +1312,16 @@ begin
       ftWord,
 {$ENDIF}
       ftInteger: Value := TValue.From({$IFDEF PAS2JS}Integer(Buffer){$ELSE}PInteger(Buffer)^{$ENDIF});
+
       ftString: Value := TValue.From({$IFDEF PAS2JS}String(Buffer){$ELSE}String(AnsiString(PAnsiChar(Buffer))){$ENDIF});
+
       ftBoolean: Value := TValue.From({$IFDEF PAS2JS}Boolean(Buffer){$ELSE}PWordBool(Buffer)^{$ENDIF});
+
       ftDate,
       ftDateTime,
       ftTime:
 {$IFDEF PAS2JS}
-        Value := TValue.From(TDateTime(Buffer));
+        Value := TValue.From(ConvertToDateTime(Field, Buffer, True));
 {$ELSE}
       begin
         var DataTimeValue: TORMValueBuffer;
@@ -1432,6 +1434,10 @@ var
 
       if Field.IsNull then
         Values[A] := TValue.Empty
+{$IFDEF PAS2JS}
+      else if Field is TDateTimeField then
+        Values[A] := TValue.From(Field.AsFloat)
+{$ENDIF}
       else
         Values[A] := TValue.{$IFDEF PAS2JS}FromJSValue{$ELSE}FromVariant{$ENDIF}(Field.Value);
     end;
@@ -1579,16 +1585,6 @@ begin
 end;
 
 {$IFDEF PAS2JS}
-function TORMDataSet.ConvertDateTimeToNative(Field: TField; Value: TDateTime): JSValue;
-begin
-  Result := Value;
-end;
-
-function TORMDataSet.ConvertToDateTime(Field: TField; Value: JSValue; ARaiseException: Boolean): TDateTime;
-begin
-  Result := TDateTime(Value);
-end;
-
 type
   TFieldHack = class(TField)
   end;
