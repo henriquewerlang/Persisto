@@ -146,7 +146,6 @@
         <DCCReference Include="..\Delphi.ORM.Rtti.Helper.pas"/>
         <DCCReference Include="..\Delphi.ORM.Nullable.pas"/>
         <DCCReference Include="..\Delphi.ORM.Lazy.pas"/>
-        <DCCReference Include="..\Delphi.ORM.Lazy.Loader.pas"/>
         <DCCReference Include="..\Delphi.ORM.Cache.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>

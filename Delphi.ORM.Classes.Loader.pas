@@ -8,7 +8,6 @@ type
   TClassLoader = class
   private
     FLoadedObjects: ICache;
-    FConnection: IDatabaseConnection;
     FCursor: IDatabaseCursor;
     FFrom: TQueryBuilderFrom;
     FCache: ICache;
@@ -19,7 +18,7 @@ type
     function LoadClass(var NewObject: Boolean): TObject;
     function LoadClassJoin(Join: TQueryBuilderJoin; var FieldIndexStart: Integer; var NewObject: Boolean): TObject;
   public
-    constructor Create(Connection: IDatabaseConnection; From: TQueryBuilderFrom);
+    constructor Create(Cursor: IDatabaseCursor; From: TQueryBuilderFrom);
 
     function Load<T: class>: T;
     function LoadAll<T: class>: TArray<T>;
@@ -29,17 +28,16 @@ type
 
 implementation
 
-uses System.Variants, System.TypInfo, System.SysConst, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy, Delphi.ORM.Lazy.Loader;
+uses System.Variants, System.TypInfo, System.SysConst, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy;
 
 { TClassLoader }
 
-constructor TClassLoader.Create(Connection: IDatabaseConnection; From: TQueryBuilderFrom);
+constructor TClassLoader.Create(Cursor: IDatabaseCursor; From: TQueryBuilderFrom);
 begin
   inherited Create;
 
   FCache := TCache.Instance;
-  FConnection := Connection;
-  FCursor := Connection.OpenCursor(From.Builder.GetSQL);
+  FCursor := Cursor;
   FFrom := From;
   FLoadedObjects := TCache.Create;
 end;
@@ -127,7 +125,7 @@ begin
         var FieldValue := GetFieldValueVariant(FieldIndexStart);
 
         if Field.IsLazy then
-          GetLazyLoadingAccess(Field.TypeInfo.GetValue(Result)).SetLazyLoader(TLazyLoaderImpl.Create(FConnection, Field.ForeignKey.ParentTable, TValue.FromVariantNull(FieldValue)))
+          GetLazyLoadingAccess(Field.TypeInfo.GetValue(Result)).SetLazyLoader(TLazyLoader.Create(Field.TypeInfo.PropertyType, TValue.FromVariantNull(FieldValue)))
         else
           Field.SetValue(Result, FieldValue);
       end;

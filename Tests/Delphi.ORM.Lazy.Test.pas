@@ -59,6 +59,10 @@ type
     procedure WhenTheValueNotExitstInCacheTheLoaderMustCallTheLoadFunctionOfImplentationClass;
     [Test]
     procedure WhenCallTheLoadFunctionMustReturnTheValueLoaded;
+    [Test]
+    procedure WhenTheFactoryIsntLoadedAndTheGlobalReferenceIsEmptyTooMustRaiseAnError;
+    [Test]
+    procedure WhenTheFactoryIsntLoadedMustGetTheGlobalReferenceOfTheFactory;
   end;
 
   TCacheMock = class(TInterfacedObject, ICache)
@@ -71,19 +75,6 @@ type
     function Get(RttiType: TRttiType; const PrimaryKey: TValue; var Value: TValue): Boolean;
 
     procedure Add(RttiType: TRttiType; const PrimaryKey, Value: TValue);
-
-    property MethodCalled: String read FMethodCalled write FMethodCalled;
-  end;
-
-  TLazyLoaderMock = class(TLazyLoader)
-  private
-    FMethodCalled: String;
-    FValue: TValue;
-  protected
-    function LoadValue: TValue; override;
-  public
-    constructor Create(const RttiType: TRttiType; const Key: TValue); overload;
-    constructor Create(const RttiType: TRttiType; const Key, Value: TValue); overload;
 
     property MethodCalled: String read FMethodCalled write FMethodCalled;
   end;
@@ -291,30 +282,65 @@ end;
 procedure TLazyLoaderTest.Setup;
 begin
   TCache.Instance;
+
+  TMock.CreateInterface<ILazyFactory>;
 end;
 
 procedure TLazyLoaderTest.WhenCallTheGetKeyMustReturnTheValueFilledInTheConstructor;
 begin
-  var LazyLoader: ILazyLoader := TLazyLoaderMock.Create(nil, 1234);
+  var LazyLoader: ILazyLoader := TLazyLoader.Create(nil, 1234);
 
   Assert.AreEqual(1234, LazyLoader.GetKey.AsInteger)
 end;
 
 procedure TLazyLoaderTest.WhenCallTheLoadFunctionMustReturnTheValueLoaded;
 begin
-  var Cache := TCacheMock.Create(nil);
-  var LazyLoader := TLazyLoaderMock.Create(nil, 12345, 5555);
-  LazyLoader.Cache := Cache;
+  var Factory := TMock.CreateInterface<ILazyFactory>;
+  var LazyLoader := TLazyLoader.Create(nil, 12345);
+  LazyLoader.Cache := TCacheMock.Create(nil);
+  LazyLoader.Factory := Factory.Instance;
   var LazyLoaderIntf := LazyLoader as ILazyLoader;
+
+  Factory.Setup.WillReturn(5555).When.Load(It.IsAny<TRttiType>, It.IsAny<TValue>);
 
   var Value := LazyLoaderIntf.GetValue;
 
   Assert.AreEqual(5555, Value.AsInteger);
 end;
 
+procedure TLazyLoaderTest.WhenTheFactoryIsntLoadedAndTheGlobalReferenceIsEmptyTooMustRaiseAnError;
+begin
+  var LazyLoader := TLazyLoader.Create(nil, 12345);
+  LazyLoader.Cache := TCacheMock.Create(nil);
+  var LazyLoaderIntf := LazyLoader as ILazyLoader;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      LazyLoaderIntf.GetValue;
+    end, ELazyFactoryNotLoaded);
+end;
+
+procedure TLazyLoaderTest.WhenTheFactoryIsntLoadedMustGetTheGlobalReferenceOfTheFactory;
+begin
+  var Factory := TMock.CreateInterface<ILazyFactory>;
+  var LazyLoader := TLazyLoader.Create(nil, 12345);
+  LazyLoader.Cache := TCacheMock.Create(nil);
+  LazyLoader.GlobalFactory := Factory.Instance;
+  var LazyLoaderIntf := LazyLoader as ILazyLoader;
+
+  Factory.Expect.Once.When.Load(It.IsAny<TRttiType>, It.IsAny<TValue>);
+
+  LazyLoaderIntf.GetValue;
+
+  Assert.AreEqual(EmptyStr, Factory.CheckExpectations);
+
+  LazyLoader.GlobalFactory := nil;
+end;
+
 procedure TLazyLoaderTest.WhenTheKeyIsEmptyTheGetValueMustReturnAEmptyValue;
 begin
-  var LazyLoader: ILazyLoader := TLazyLoaderMock.Create(nil, nil);
+  var LazyLoader: ILazyLoader := TLazyLoader.Create(nil, nil);
 
   Assert.IsTrue(LazyLoader.GetValue.IsEmpty)
 end;
@@ -322,7 +348,7 @@ end;
 procedure TLazyLoaderTest.WhenTheKeyIsFilledMustTryToGetTheValueFromCache;
 begin
   var Cache := TCacheMock.Create(1234);
-  var LazyLoader := TLazyLoaderMock.Create(nil, 12345);
+  var LazyLoader := TLazyLoader.Create(nil, 12345);
   LazyLoader.Cache := Cache;
   var LazyLoaderIntf := LazyLoader as ILazyLoader;
 
@@ -333,14 +359,17 @@ end;
 
 procedure TLazyLoaderTest.WhenTheValueNotExitstInCacheTheLoaderMustCallTheLoadFunctionOfImplentationClass;
 begin
-  var Cache := TCacheMock.Create(nil);
-  var LazyLoader := TLazyLoaderMock.Create(nil, 12345);
-  LazyLoader.Cache := Cache;
+  var Factory := TMock.CreateInterface<ILazyFactory>;
+  var LazyLoader := TLazyLoader.Create(nil, 12345);
+  LazyLoader.Cache := TCacheMock.Create(nil);
+  LazyLoader.Factory := Factory.Instance;
   var LazyLoaderIntf := LazyLoader as ILazyLoader;
+
+  Factory.Expect.Once.When.Load(It.IsAny<TRttiType>, It.IsAny<TValue>);
 
   LazyLoaderIntf.GetValue;
 
-  Assert.AreEqual('LoadValue', LazyLoader.MethodCalled);
+  Assert.AreEqual(EmptyStr, Factory.CheckExpectations);
 end;
 
 { TCacheMock }
@@ -363,25 +392,6 @@ begin
   Result := not FGetReturnValue.IsEmpty;
 end;
 
-{ TLazyLoaderMock }
-
-constructor TLazyLoaderMock.Create(const RttiType: TRttiType; const Key, Value: TValue);
-begin
-  Create(RttiType, Key);
-
-  FValue := Value;
-end;
-
-constructor TLazyLoaderMock.Create(const RttiType: TRttiType; const Key: TValue);
-begin
-  inherited;
-end;
-
-function TLazyLoaderMock.LoadValue: TValue;
-begin
-  MethodCalled := 'LoadValue';
-  Result := FValue;
-end;
-
 end.
+
 

@@ -308,7 +308,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Cursor.Mock, Delphi.ORM.Nullable;
+uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Cursor.Mock, Delphi.ORM.Nullable, Delphi.ORM.Cache;
 
 const
   COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '', '');
@@ -439,6 +439,8 @@ end;
 procedure TDelphiORMQueryBuilderTest.Setup;
 begin
   TMapper.Default.LoadAll;
+
+  TCache.Instance;
 end;
 
 procedure TDelphiORMQueryBuilderTest.TheClassBeingSelectedMustHaveTheAliasDefined;

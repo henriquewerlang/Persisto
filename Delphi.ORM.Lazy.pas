@@ -2,13 +2,21 @@ unit Delphi.ORM.Lazy;
 
 interface
 
-uses System.Rtti, System.TypInfo, Delphi.ORM.Cache{$IFDEF PAS2JS}, JS, Web{$ENDIF};
+uses System.Rtti, System.TypInfo, System.SysUtils, Delphi.ORM.Cache{$IFDEF PAS2JS}, JS, Web{$ENDIF};
 
 type
+  ELazyFactoryNotLoaded = class(Exception)
+  public
+    constructor Create;
+  end;
+
   ILazyLoader = interface
     ['{FADB37E1-82F4-41F4-8659-A54A3DD4EDFA}']
     function GetKey: TValue;
     function GetValue: TValue;
+{$IFDEF PAS2JS}
+    function GetValueAsync: TValue; async;
+{$ENDIF}
   end;
 
   ILazyAccess = interface
@@ -17,7 +25,7 @@ type
     function GetLoaded: Boolean;
     function GetValue: TValue;
 {$IFDEF PAS2JS}
-    function GetValueAsync: TJSPromise;
+    function GetValueAsync: TValue; async;
 {$ENDIF}
 
     procedure SetValue(const Value: TValue);
@@ -26,22 +34,39 @@ type
     property Loaded: Boolean read GetLoaded;
   end;
 
+  ILazyFactory = interface
+    ['{62C671EE-2C9E-4753-BD86-924EA20B904F}']
+    function Load(const RttiType: TRttiType; const Key: TValue): TValue;
+{$IFDEF PAS2JS}
+    function LoadAsync(const RttiType: TRttiType; const Key: TValue): TValue; async;
+{$ENDIF}
+  end;
+
   TLazyLoader = class(TInterfacedObject, ILazyLoader)
   private
     FKey: TValue;
     FCache: ICache;
     FRttiType: TRttiType;
+    FFactory: ILazyFactory;
 
+    class var FGlobalFactory: ILazyFactory;
+
+    function CheckValue(var Value: TValue): Boolean;
+    function GetFactory: ILazyFactory;
     function GetKey: TValue;
     function GetValue: TValue;
-  protected
-    function LoadValue: TValue; virtual; abstract;
+{$IFDEF PAS2JS}
+    function GetValueAsync: TValue; async;
+{$ENDIF}
   public
     constructor Create(const RttiType: TRttiType; const Key: TValue);
 
     property Cache: ICache read FCache write FCache;
+    property Factory: ILazyFactory read GetFactory write FFactory;
     property Key: TValue read GetKey;
     property RttiType: TRttiType read FRttiType;
+
+    class property GlobalFactory: ILazyFactory read FGlobalFactory write FGlobalFactory;
   end;
 
   TLazyAccess = class(TInterfacedObject, ILazyAccess)
@@ -50,11 +75,12 @@ type
     FLoader: ILazyLoader;
     FValue: TValue;
   public
+    function CanLoadValue: Boolean;
     function GetKey: TValue;
     function GetLoaded: Boolean;
     function GetValue: TValue;
 {$IFDEF PAS2JS}
-    function GetValueAsync: TJSPromise;
+    function GetValueAsync: TValue; async;
 {$ENDIF}
 
     procedure SetLazyLoader(const Loader: ILazyLoader);
@@ -74,7 +100,7 @@ type
     function GetAccess: TLazyAccessType;
     function GetValue: T;
 {$IFDEF PAS2JS}
-    function GetValueAsync: TJSPromise;
+    function GetValueAsync: TValue; async;
 {$ENDIF}
 
 {$IFDEF DCC}
@@ -92,8 +118,6 @@ function GetLazyLoadingRttiType(RttiType: TRttiType): TRttiType;
 function IsLazyLoading(RttiType: TRttiType): Boolean;
 
 implementation
-
-uses System.SysUtils;
 
 function GetLazyLoadingAccess(const Instance: TValue): TLazyAccessType;
 var
@@ -135,9 +159,9 @@ begin
 end;
 
 {$IFDEF PAS2JS}
-function Lazy<T>.GetValueAsync: TJSPromise;
+function Lazy<T>.GetValueAsync: TValue;
 begin
-  Result := GetAccess.GetValueAsync;
+  Result := await(GetAccess.GetValueAsync);
 end;
 {$ENDIF}
 
@@ -165,6 +189,11 @@ end;
 
 { TLazyAccess }
 
+function TLazyAccess.CanLoadValue: Boolean;
+begin
+  Result := Assigned(FLoader) and not FLoaded;
+end;
+
 function TLazyAccess.GetKey: TValue;
 begin
   if Assigned(FLoader) then
@@ -180,24 +209,19 @@ end;
 
 function TLazyAccess.GetValue: TValue;
 begin
-  if Assigned(FLoader) and not FLoaded then
+  if CanLoadValue then
     SetValue(FLoader.GetValue);
 
   Result := FValue;
 end;
 
 {$IFDEF PAS2JS}
-function TLazyAccess.GetValueAsync: TJSPromise;
+function TLazyAccess.GetValueAsync: TValue;
 begin
-  Result := TJSPromise.new(
-    procedure (Resolve, Reject: TJSPromiseResolver)
-    begin
-      Window.RequestIdleCallback(
-        procedure (IdleDeadline: TJSIdleDeadline)
-        begin
-          Resolve(GetValue);
-        end);
-    end);
+  if CanLoadValue then
+    SetValue(await(FLoader.GetValueAsync));
+
+  Result := FValue;
 end;
 {$ENDIF}
 
@@ -214,6 +238,16 @@ end;
 
 { TLazyLoader }
 
+function TLazyLoader.CheckValue(var Value: TValue): Boolean;
+begin
+  Result := True;
+
+  if FKey.IsEmpty then
+    Value := TValue.Empty
+  else if not Cache.Get(FRttiType, FKey, Value) then
+    Result := False;
+end;
+
 constructor TLazyLoader.Create(const RttiType: TRttiType; const Key: TValue);
 begin
   inherited Create;
@@ -223,6 +257,17 @@ begin
   FRttiType := RttiType;
 end;
 
+function TLazyLoader.GetFactory: ILazyFactory;
+begin
+  if not Assigned(FFactory) then
+    if Assigned(GlobalFactory) then
+      FFactory := GlobalFactory
+    else
+      raise ELazyFactoryNotLoaded.Create;
+
+  Result := FFactory;
+end;
+
 function TLazyLoader.GetKey: TValue;
 begin
   Result := FKey;
@@ -230,10 +275,23 @@ end;
 
 function TLazyLoader.GetValue: TValue;
 begin
-  if FKey.IsEmpty then
-    Result := TValue.Empty
-  else if not Cache.Get(FRttiType, FKey, Result) then
-    Result := LoadValue;
+  if not CheckValue(Result) then
+    Result := Factory.Load(FRttiType, FKey);
+end;
+
+{$IFDEF PAS2JS}
+function TLazyLoader.GetValueAsync: TValue;
+begin
+  if not CheckValue(Result) then
+    Result := await(Factory.LoadAsync(FRttiType, FKey));
+end;
+{$ENDIF}
+
+{ ELazyFactoryNotLoaded }
+
+constructor ELazyFactoryNotLoaded.Create;
+begin
+  inherited Create('To use the lazy loading, you must load the global factory, the class variable "GlobalFactory"!');
 end;
 
 end.

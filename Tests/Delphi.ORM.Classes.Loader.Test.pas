@@ -8,7 +8,7 @@ type
   [TestFixture]
   TClassLoaderTest = class
   private
-    FBuilderInterface: IInterface;
+    FBuilderInterface: TObject;
 
     function CreateCursor(const CursorValues: TArray<TArray<Variant>>): IDatabaseCursor;
     function CreateLoader<T: class>(const CursorValues: TArray<TArray<Variant>>): TClassLoader;
@@ -60,7 +60,7 @@ type
     [Test]
     procedure WhenAClassHasManyValueAssociationsInChildClassesMustGroupTheValuesByThePrimaryKey;
     [Test]
-    procedure WhenTheFieldIsLazyLoadingMustReturnTheValueOfThePropertyAsExpected;
+    procedure WhenTheFieldIsLazyLoadingMustCallTheLazyFactoryToLoadTheValue;
     [Test]
     procedure WhenTheManyValueAssociationReturnTheValuesOutOfOrderMustGroupAllValuesInTheSingleObjectReference;
     [Test]
@@ -77,7 +77,7 @@ type
 
 implementation
 
-uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Test.Entity, Delphi.ORM.Cursor.Mock, Delphi.ORM.Cache;
+uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Test.Entity, Delphi.ORM.Cursor.Mock, Delphi.ORM.Cache, Delphi.ORM.Lazy;
 
 { TClassLoaderTest }
 
@@ -107,8 +107,10 @@ begin
 
   From.From<T>;
 
-  Result := TClassLoader.Create(Connection, From);
+  Result := TClassLoader.Create(Connection.OpenCursor(Builder.GetSQL), From);
   Result.Cache := TCache.Create;
+
+  FreeAndNil(FBuilderInterface);
 
   FBuilderInterface := Builder;
 end;
@@ -159,7 +161,7 @@ end;
 
 procedure TClassLoaderTest.TearDown;
 begin
-  FBuilderInterface := nil;
+  FreeAndNil(FBuilderInterface);
 end;
 
 procedure TClassLoaderTest.TheChildFieldInManyValueAssociationMustBeLoadedWithTheReferenceOfTheParentClass;
@@ -368,19 +370,21 @@ begin
   Loader.Free;
 end;
 
-procedure TClassLoaderTest.WhenTheFieldIsLazyLoadingMustReturnTheValueOfThePropertyAsExpected;
+procedure TClassLoaderTest.WhenTheFieldIsLazyLoadingMustCallTheLazyFactoryToLoadTheValue;
 begin
   var Connection := TMock.CreateInterface<IDatabaseConnection>;
-
+  var LazyFactory := TMock.CreateInterface<ILazyFactory>(True);
+  TLazyLoader.GlobalFactory := LazyFactory.Instance;
   Connection.Setup.WillReturn(TValue.From(CreateCursor([[1, 222]]))).When.OpenCursor(It.IsEqualTo('select T1.Id F1,T1.IdLazy F2 from LazyClass T1'));
 
-  Connection.Setup.WillReturn(TValue.From(CreateCursor([[222, 'A name', 123.456]]))).When.OpenCursor(It.IsEqualTo('select T1.Id F1,T1.Name F2,T1.Value F3 from MyEntity T1 where T1.Id=222'));
-
   var Loader := CreateLoaderConnection<TLazyClass>(Connection.Instance);
-
   var MyLazy := Loader.Load<TLazyClass>;
 
-  Assert.AreEqual(222, MyLazy.Lazy.Value.Id);
+  LazyFactory.Expect.Once.When.Load(It.IsAny<TRttiType>, It.IsAny<TValue>);
+
+  MyLazy.Lazy.Value;
+
+  Assert.AreEqual(EmptyStr, LazyFactory.CheckExpectations);
 
   MyLazy.Lazy.Value.Free;
 

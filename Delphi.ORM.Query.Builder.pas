@@ -32,7 +32,7 @@ type
     function GetFields: TArray<TFieldAlias>; virtual; abstract;
   end;
 
-  TQueryBuilder = class(TInterfacedObject)
+  TQueryBuilder = class
   private
     FConnection: IDatabaseConnection;
     FCommand: TQueryBuilderCommand;
@@ -752,7 +752,7 @@ constructor TQueryBuilderOpen<T>.Create(From: TQueryBuilderFrom);
 begin
   inherited Create;
 
-  FLoader := TClassLoader.Create(From.GetBuilder.GetConnection, From);
+  FLoader := TClassLoader.Create(From.GetBuilder.GetConnection.OpenCursor(From.Builder.GetSQL), From);
 end;
 
 destructor TQueryBuilderOpen<T>.Destroy;
