@@ -125,7 +125,7 @@ begin
         var FieldValue := GetFieldValueVariant(FieldIndexStart);
 
         if Field.IsLazy then
-          GetLazyLoadingAccess(Field.TypeInfo.GetValue(Result)).SetLazyLoader(TLazyLoader.Create(Field.TypeInfo.PropertyType, TValue.FromVariantNull(FieldValue)))
+          GetLazyLoadingAccess(Field.TypeInfo.GetValue(Result)).SetLazyLoader(TLazyLoader.Create(Field.ForeignKey.ParentTable.TypeInfo, TValue.FromVariantNull(FieldValue)))
         else
           Field.SetValue(Result, FieldValue);
       end;

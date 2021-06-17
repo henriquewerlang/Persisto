@@ -73,6 +73,8 @@ type
     procedure WhenTheObjectAlreadyInCacheMustGetThisInstanceToLoadTheData;
     [Test]
     procedure WhenTheLoaderCreateANewObjectMustAddItToTheCacheControl;
+    [Test]
+    procedure WhenCallLoadOfTheLazyFactoryMustCallWithTheForeignKeyRttiType;
   end;
 
 implementation
@@ -263,6 +265,30 @@ begin
 
   for var Obj in Result do
     Obj.Free;
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenCallLoadOfTheLazyFactoryMustCallWithTheForeignKeyRttiType;
+begin
+  var Connection := TMock.CreateInterface<IDatabaseConnection>;
+  var Context := TRttiContext.Create;
+  var LazyFactory := TMock.CreateInterface<ILazyFactory>(True);
+  TLazyLoader.GlobalFactory := LazyFactory.Instance;
+  Connection.Setup.WillReturn(TValue.From(CreateCursor([[1, 222]]))).When.OpenCursor(It.IsEqualTo('select T1.Id F1,T1.IdLazy F2 from LazyClass T1'));
+
+  var Loader := CreateLoaderConnection<TLazyClass>(Connection.Instance);
+  var MyLazy := Loader.Load<TLazyClass>;
+
+  LazyFactory.Expect.Once.When.Load(It.IsEqualTo<TRttiType>(Context.GetType(TMyEntity)), It.IsAny<TValue>);
+
+  MyLazy.Lazy.Value;
+
+  Assert.AreEqual(EmptyStr, LazyFactory.CheckExpectations);
+
+  MyLazy.Lazy.Value.Free;
+
+  MyLazy.Free;
 
   Loader.Free;
 end;
