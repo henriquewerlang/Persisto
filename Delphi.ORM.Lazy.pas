@@ -82,6 +82,7 @@ type
 {$IFDEF PAS2JS}
     function GetValueAsync: TValue; async;
 {$ENDIF}
+    function FlagAsLoaded: Boolean;
 
     procedure SetLazyLoader(const Loader: ILazyLoader);
     procedure SetValue(const Value: TValue);
@@ -191,7 +192,14 @@ end;
 
 function TLazyAccess.CanLoadValue: Boolean;
 begin
-  Result := Assigned(FLoader) and not FLoaded;
+  Result := not FLoaded and Assigned(FLoader);
+end;
+
+function TLazyAccess.FlagAsLoaded: Boolean;
+begin
+  Result := CanLoadValue;
+
+  FLoaded := not Result;
 end;
 
 function TLazyAccess.GetKey: TValue;
@@ -209,7 +217,7 @@ end;
 
 function TLazyAccess.GetValue: TValue;
 begin
-  if CanLoadValue then
+  if FlagAsLoaded then
     SetValue(FLoader.GetValue);
 
   Result := FValue;
@@ -218,7 +226,7 @@ end;
 {$IFDEF PAS2JS}
 function TLazyAccess.GetValueAsync: TValue;
 begin
-  if CanLoadValue then
+  if FlagAsLoaded then
     SetValue(await(FLoader.GetValueAsync));
 
   Result := FValue;

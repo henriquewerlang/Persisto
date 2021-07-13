@@ -42,6 +42,8 @@ type
     procedure WhenAssignALazyVariableToAnotherMustCopyTheInternalAccess;
     [Test]
     procedure WhenCreateAClassTheGetKeyMustReturnAnEmptyValue;
+    [Test]
+    procedure WhenGetValueAndTheLoaderNotExistsMustReturnLoadedAsTrue;
   end;
 
   [TestFixture]
@@ -211,6 +213,15 @@ begin
   Assert.IsTrue(GetLazyLoadingAccess(TValue.From(Lazy)).Loaded);
 
   TheValue.Free;
+end;
+
+procedure TLazyTest.WhenGetValueAndTheLoaderNotExistsMustReturnLoadedAsTrue;
+begin
+  var Lazy: Lazy<TMyEntity>;
+
+  Lazy.Value;
+
+  Assert.IsTrue(Lazy.Access.Loaded);
 end;
 
 procedure TLazyTest.WhenTheLazyIsLoadedMustReturnTheInternalValueUsingTheLazyAccess;
