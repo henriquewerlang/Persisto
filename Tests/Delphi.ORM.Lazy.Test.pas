@@ -323,6 +323,7 @@ procedure TLazyLoaderTest.WhenTheFactoryIsntLoadedAndTheGlobalReferenceIsEmptyTo
 begin
   var LazyLoader := TLazyLoader.Create(nil, 12345);
   LazyLoader.Cache := TCacheMock.Create(nil);
+  LazyLoader.GlobalFactory := nil;
   var LazyLoaderIntf := LazyLoader as ILazyLoader;
 
   Assert.WillRaise(

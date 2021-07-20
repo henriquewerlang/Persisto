@@ -280,7 +280,7 @@ begin
   var Loader := CreateLoaderConnection<TLazyClass>(Connection.Instance);
   var MyLazy := Loader.Load<TLazyClass>;
 
-  LazyFactory.Expect.Once.When.Load(It.IsEqualTo<TRttiType>(Context.GetType(TMyEntity)), It.IsAny<TValue>);
+  LazyFactory.Expect.Once.When.Load(It(0).IsEqualTo<TRttiType>(Context.GetType(TMyEntity)), It(1).IsAny<TValue>);
 
   MyLazy.Lazy.Value;
 
