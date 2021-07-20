@@ -299,6 +299,8 @@ type
     procedure WhenGetTheCurrentObjectOfAClosedDataSetCantRaiseAnyError;
     [Test]
     procedure WhenGetValueOfAnFieldInAClosedDataSetCantRaiseAnyError;
+    [Test]
+    procedure WhenTheDataLinkTryToGetAFieldValueInTheDetailDataSetCantRaiseAnyError;
   end;
 
   [TestFixture]
@@ -451,10 +453,13 @@ type
   TDataLinkMock = class(TDataLink)
   private
     FMethodCalled: String;
+    FOnActiveChanged: TProc;
   protected
+    procedure ActiveChanged; override;
     procedure RecordChanged(Field: TField); override;
   public
     property MethodCalled: String read FMethodCalled write FMethodCalled;
+    property OnActiveChanged: TProc read FOnActiveChanged write FOnActiveChanged;
   end;
 
 implementation
@@ -941,6 +946,55 @@ begin
 
   for var Item in MyArray do
     Item.Free;
+end;
+
+procedure TORMDataSetTest.WhenTheDataLinkTryToGetAFieldValueInTheDetailDataSetCantRaiseAnyError;
+begin
+  var DataLink := TDataLinkMock.Create;
+  var DataSet := TORMDataSet.Create(nil);
+  DataSet.Name := 'Pai';
+  var DataSetDetail := TORMDataSet.Create(nil);
+  DataSetDetail.Name := 'Filho';
+  var DataSetField := TDataSetField.Create(nil);
+  DataSetField.FieldName := 'MyArray';
+  DataSetField.DataSet := DataSet;
+  var DataSource := TDataSource.Create(nil);
+  var DetailField := TStringField.Create(nil);
+  DetailField.FieldName := 'Str';
+  DetailField.DataSet := DataSetDetail;
+  var MyClass := TMyTestClassTypes.Create;
+  MyClass.MyArray := [TMyTestClassTypes.Create];
+
+  DataLink.DataSource := DataSource;
+  DataLink.OnActiveChanged :=
+    procedure
+    begin
+      DataSetDetail.FieldByName('Str').DisplayText;
+    end;
+  DataSetDetail.DataSetField := DataSetField;
+  DataSource.DataSet := DataSetDetail;
+
+  DataSet.OpenObject(MyClass);
+
+  DataSet.Close;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.OpenObject(MyClass);
+    end);
+
+  MyClass.MyArray[0].Free;
+
+  MyClass.Free;
+
+  DataSetDetail.Free;
+
+  DataSet.Free;
+
+  DataSource.Free;
+
+  DataLink.Free;
 end;
 
 procedure TORMDataSetTest.WhenTheDataSetIsClosedTheRecordCountMustReturnMinusOne;
@@ -3510,6 +3564,12 @@ begin
 end;
 
 { TDataLinkMock }
+
+procedure TDataLinkMock.ActiveChanged;
+begin
+  if Assigned(FOnActiveChanged) then
+    FOnActiveChanged();
+end;
 
 procedure TDataLinkMock.RecordChanged(Field: TField);
 begin

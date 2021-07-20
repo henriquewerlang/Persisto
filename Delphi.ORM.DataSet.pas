@@ -877,7 +877,6 @@ begin
   GetCalcFields(ORMBuffer);
 end;
 
-
 procedure TORMDataSet.InternalInitRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TORMRecordBuffer);
 var
   RecordInfo: TORMRecordInfo;
@@ -919,6 +918,8 @@ end;
 procedure TORMDataSet.InternalClose;
 begin
   FIterator := nil;
+  FIteratorData := nil;
+  FIteratorFilter := nil;
 
   BindFields(False);
 end;
