@@ -119,16 +119,16 @@ type
     FIndexFieldNames: String;
     FFilterFunction: TFunc<TORMDataSet, Boolean>;
 
+    function GetCurrentActiveBuffer: TORMRecordBuffer;
     function GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
     function GetFieldInfoFromTypeInfo(PropertyType: PTypeInfo; var Size: Integer): TFieldType;
     function GetFieldTypeFromProperty(&Property: TRttiProperty): TFieldType;
+    function GetObjectAndPropertyFromParentDataSet(var Instance: TValue; var &Property: TRttiProperty): Boolean;
     function GetObjectClass<T: class>: TClass;
     function GetObjectClassName: String;
     function GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
     function GetRecordInfoFromActiveBuffer: TORMRecordInfo;
     function GetRecordInfoFromBuffer(const Buffer: TORMRecordBuffer): TORMRecordInfo;
-    function GetCurrentActiveBuffer: TORMRecordBuffer;
-    function GetObjectAndPropertyFromParentDataSet(var Instance: TValue; var &Property: TRttiProperty): Boolean;
     function IsSelfField(Field: TField): Boolean;
 
     procedure CheckCalculatedFields;
@@ -163,17 +163,17 @@ type
   protected
     function AllocRecordBuffer: TORMRecordBuffer; override;
     function GetFieldClass(FieldType: TFieldType): TFieldClass; override;
+    function GetInternalCurrentObject: TObject;
+    function GetRecNo: Integer; override;
     function GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TORMRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function GetRecordCount: Integer; override;
-    function GetRecNo: Integer; override;
-    function GetInternalCurrentObject: TObject;
     function IsCursorOpen: Boolean; override;
 
     procedure ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TORMCalcFieldBuffer); override;
     procedure DataEvent(Event: TDataEvent; Info: {$IFDEF PAS2JS}JSValue{$ELSE}NativeInt{$ENDIF}); override;
     procedure DoAfterOpen; override;
-    procedure GetBookmarkData(Buffer: TORMRecordBuffer; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark); override;
     procedure FreeRecordBuffer(var Buffer: TORMRecordBuffer); override;
+    procedure GetBookmarkData(Buffer: TORMRecordBuffer; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark); override;
     procedure InternalCancel; override;
     procedure InternalClose; override;
     procedure InternalDelete; override;
@@ -188,8 +188,8 @@ type
     procedure InternalOpen; override;
     procedure InternalPost; override;
     procedure InternalSetToRecord(Buffer: TORMRecordBuffer); override;
-    procedure SetFieldData(Field: TField; Buffer: TORMValueBuffer); override;
     procedure SetDataSetField(const DataSetField: TDataSetField); override;
+    procedure SetFieldData(Field: TField; Buffer: TORMValueBuffer); override;
   public
     constructor Create(AOwner: TComponent); override;
 
@@ -768,11 +768,7 @@ begin
   Result := Assigned(ParentDataSet) and not ParentDataSet.IsEmpty;
 
   if Result then
-  begin
-    Instance := TValue.From(ParentDataSet.GetInternalCurrentObject);
-
     Result := ParentDataSet.GetPropertyAndObjectFromField(DataSetField, Instance, &Property);
-  end;
 end;
 
 function TORMDataSet.GetObjectClass<T>: TClass;
@@ -852,7 +848,10 @@ end;
 
 function TORMDataSet.GetRecordCount: Integer;
 begin
-  Result := FIterator.RecordCount;
+  if Active then
+    Result := FIterator.RecordCount
+  else
+    Result := -1;
 end;
 
 function TORMDataSet.GetRecordInfoFromActiveBuffer: TORMRecordInfo;

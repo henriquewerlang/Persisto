@@ -289,6 +289,12 @@ type
     procedure WhenExistsMoreTheOneNullValueMustBeTheFirstRecordsAnThenTheFieldsWithValue;
     [Test]
     procedure WhenOrderingANullFieldValueInDescendingOrderItMustBeTheLastRecordInTheSortedDataSet;
+    [Test]
+    procedure WhenGetTheRecordCountFromAClosedDataSetCantRaiseAnyError;
+    [Test]
+    procedure WhenTheDataSetIsClosedTheRecordCountMustReturnMinusOne;
+    [Test]
+    procedure WhenCreateADataSetFieldAndOpenTheParentDataSetMustOpenTheDetailToo;
   end;
 
   [TestFixture]
@@ -931,6 +937,15 @@ begin
 
   for var Item in MyArray do
     Item.Free;
+end;
+
+procedure TORMDataSetTest.WhenTheDataSetIsClosedTheRecordCountMustReturnMinusOne;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  Assert.AreEqual(-1, DataSet.RecordCount);
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenTheDataSetIsEmptyCantRaiseAnErrorWhenGetAFieldFromASubPropertyThatIsAnObject;
@@ -1602,6 +1617,19 @@ begin
   DataSet.Free;
 
   MyClass.Free;
+end;
+
+procedure TORMDataSetTest.WhenGetTheRecordCountFromAClosedDataSetCantRaiseAnyError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.RecordCount;
+    end);
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenGetTheValueOfALazyPropertyMustReturnTheValueInsideTheLazyRecord;
@@ -3133,6 +3161,33 @@ begin
   Assert.AreEqual(0, AnotherField.FieldNo);
 
   Assert.IsFalse(DataSetDetail.Active);
+
+  DataSetDetail.Free;
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenCreateADataSetFieldAndOpenTheParentDataSetMustOpenTheDetailToo;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+  var Field := TDataSetField.Create(nil);
+  Field.FieldName := 'MyArray';
+  Field.DataSet := DataSet;
+  var MyClass := TMyTestClassTypes.Create;
+  MyClass.MyArray := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+
+  DataSetDetail.DataSetField := Field;
+
+  DataSet.OpenObject(MyClass);
+
+  Assert.IsTrue(DataSetDetail.Active);
+
+  MyClass.MyArray[0].Free;
+
+  MyClass.MyArray[1].Free;
+
+  MyClass.Free;
 
   DataSetDetail.Free;
 
