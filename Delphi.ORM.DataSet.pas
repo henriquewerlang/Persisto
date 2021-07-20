@@ -738,24 +738,25 @@ function TORMDataSet.GetInternalCurrentObject: TObject;
 begin
   Result := nil;
 
-  case State of
-    dsInsert: Result := FInsertingObject;
-    dsOldValue: Result := FOldValueObject;
-    // dsInactive: ;
-    // dsBrowse: ;
-    // dsEdit: ;
-    // dsSetKey: ;
-    // dsCalcFields: ;
-    // dsFilter: ;
-    // dsNewValue: ;
-    // dsCurValue: ;
-    // dsBlockRead: ;
-    // dsInternalCalc: ;
-    // dsOpening: ;
-    else
-      if FIterator.RecordCount > 0 then
-        Result := FIterator[GetRecordInfoFromActiveBuffer.ArrayPosition];
-  end;
+  if Active then
+    case State of
+      dsInsert: Result := FInsertingObject;
+      dsOldValue: Result := FOldValueObject;
+      // dsInactive: ;
+      // dsBrowse: ;
+      // dsEdit: ;
+      // dsSetKey: ;
+      // dsCalcFields: ;
+      // dsFilter: ;
+      // dsNewValue: ;
+      // dsCurValue: ;
+      // dsBlockRead: ;
+      // dsInternalCalc: ;
+      // dsOpening: ;
+      else
+        if FIterator.RecordCount > 0 then
+          Result := FIterator[GetRecordInfoFromActiveBuffer.ArrayPosition];
+    end;
 end;
 
 procedure Filter(Func: TFunc<TORMDataSet, Boolean>);
@@ -791,19 +792,23 @@ var
   PropertyList: TArray<TRttiProperty>;
 
 begin
-  Instance := TValue.From(GetInternalCurrentObject);
-  PropertyList := FPropertyMappingList[Field.Index];
-  Result := True;
+  Result := Active;
 
-  for A := Low(PropertyList) to High(PropertyList) do
+  if Result then
   begin
-    if A > 0 then
-      GetPropertyValue(&Property, Instance);
+    Instance := TValue.From(GetInternalCurrentObject);
+    PropertyList := FPropertyMappingList[Field.Index];
 
-    &Property := PropertyList[A];
+    for A := Low(PropertyList) to High(PropertyList) do
+    begin
+      if A > 0 then
+        GetPropertyValue(&Property, Instance);
 
-    if Instance.IsEmpty then
-      Exit(False);
+      &Property := PropertyList[A];
+
+      if Instance.IsEmpty then
+        Exit(False);
+    end;
   end;
 end;
 

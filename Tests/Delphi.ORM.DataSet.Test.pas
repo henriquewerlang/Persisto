@@ -295,6 +295,10 @@ type
     procedure WhenTheDataSetIsClosedTheRecordCountMustReturnMinusOne;
     [Test]
     procedure WhenCreateADataSetFieldAndOpenTheParentDataSetMustOpenTheDetailToo;
+    [Test]
+    procedure WhenGetTheCurrentObjectOfAClosedDataSetCantRaiseAnyError;
+    [Test]
+    procedure WhenGetValueOfAnFieldInAClosedDataSetCantRaiseAnyError;
   end;
 
   [TestFixture]
@@ -1619,6 +1623,19 @@ begin
   MyClass.Free;
 end;
 
+procedure TORMDataSetTest.WhenGetTheCurrentObjectOfAClosedDataSetCantRaiseAnyError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.GetCurrentObject<TMyTestClassTypes>;
+    end);
+
+  DataSet.Free;
+end;
+
 procedure TORMDataSetTest.WhenGetTheRecordCountFromAClosedDataSetCantRaiseAnyError;
 begin
   var DataSet := TORMDataSet.Create(nil);
@@ -1663,6 +1680,25 @@ begin
   DataSet.Free;
 
   MyObject.Free;
+end;
+
+procedure TORMDataSetTest.WhenGetValueOfAnFieldInAClosedDataSetCantRaiseAnyError;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var Field := TStringField.Create(nil);
+  Field.FieldName := 'Str';
+  Field.DataSet := DataSet;
+  var MyClass := TMyTestClassTypes.Create;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSet.FieldByName('Str').AsString;
+    end);
+
+  MyClass.Free;
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenHaveFieldDefDefinedCantLoadFieldsFromTheClass;
@@ -3175,17 +3211,12 @@ begin
   Field.FieldName := 'MyArray';
   Field.DataSet := DataSet;
   var MyClass := TMyTestClassTypes.Create;
-  MyClass.MyArray := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
 
   DataSetDetail.DataSetField := Field;
 
   DataSet.OpenObject(MyClass);
 
   Assert.IsTrue(DataSetDetail.Active);
-
-  MyClass.MyArray[0].Free;
-
-  MyClass.MyArray[1].Free;
 
   MyClass.Free;
 
