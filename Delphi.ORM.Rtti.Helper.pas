@@ -2,7 +2,7 @@ unit Delphi.ORM.Rtti.Helper;
 
 interface
 
-uses System.SysUtils, System.Rtti;
+uses System.SysUtils, System.Rtti, System.TypInfo;
 
 type
   {$IFDEF PAS2JS}
@@ -36,9 +36,36 @@ type
     class property FormatSettings: TFormatSettings read GFFormatSettings;
   end;
 
+function GetRttiType(AType: PTypeInfo): TRttiType; overload;
+function GetRttiType(AClass: TClass): TRttiType; overload;
+
 implementation
 
-uses System.TypInfo, {$IFDEF PAS2JS}RTLConsts, JS{$ELSE}System.Variants, System.SysConst{$ENDIF};
+uses {$IFDEF PAS2JS}RTLConsts, JS{$ELSE}System.Variants, System.SysConst{$ENDIF};
+
+function GetRttiType(AType: PTypeInfo): TRttiType;
+var
+  Context: TRttiContext;
+
+begin
+  Context := TRttiContext.Create;
+
+  Result := Context.GetType(AType);
+
+  Context.Free;
+end;
+
+function GetRttiType(AClass: TClass): TRttiType;
+var
+  Context: TRttiContext;
+
+begin
+  Context := TRttiContext.Create;
+
+  Result := Context.GetType(AClass);
+
+  Context.Free;
+end;
 
 { TRttiTypeHelper }
 

@@ -274,7 +274,7 @@ begin
   var Connection := TMock.CreateInterface<IDatabaseConnection>;
   var Context := TRttiContext.Create;
   var LazyFactory := TMock.CreateInterface<ILazyFactory>(True);
-  TLazyLoader.GlobalFactory := LazyFactory.Instance;
+  TLazyAccess.GlobalFactory := LazyFactory.Instance;
   Connection.Setup.WillReturn(TValue.From(CreateCursor([[1, 222]]))).When.OpenCursor(It.IsEqualTo('select T1.Id F1,T1.IdLazy F2 from LazyClass T1'));
 
   var Loader := CreateLoaderConnection<TLazyClass>(Connection.Instance);
@@ -400,7 +400,7 @@ procedure TClassLoaderTest.WhenTheFieldIsLazyLoadingMustCallTheLazyFactoryToLoad
 begin
   var Connection := TMock.CreateInterface<IDatabaseConnection>;
   var LazyFactory := TMock.CreateInterface<ILazyFactory>(True);
-  TLazyLoader.GlobalFactory := LazyFactory.Instance;
+  TLazyAccess.GlobalFactory := LazyFactory.Instance;
   Connection.Setup.WillReturn(TValue.From(CreateCursor([[1, 222]]))).When.OpenCursor(It.IsEqualTo('select T1.Id F1,T1.IdLazy F2 from LazyClass T1'));
 
   var Loader := CreateLoaderConnection<TLazyClass>(Connection.Instance);

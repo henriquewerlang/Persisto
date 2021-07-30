@@ -679,14 +679,11 @@ end;
 
 procedure TMapperTest.WhenGetTheStringValueOfLazyPropertyMustReturnTheKeyValueIfIsNotLoaded;
 begin
-  var LazyLoader := TMock.CreateInterface<ILazyLoader>;
   var Mapper := TMapper.Create;
   var Table := Mapper.LoadClass(TLazyClass);
   var TheValue := TLazyClass.Create;
 
-  LazyLoader.Setup.WillReturn(123456).When.GetKey;
-
-  GetLazyLoadingAccess(TValue.From(TheValue.Lazy)).SetLazyLoader(LazyLoader.Instance);
+  TheValue.Lazy.Access.Key := 123456;
 
   Assert.AreEqual('123456', Table.Fields[1].GetAsString(TheValue));
 
@@ -1240,13 +1237,10 @@ end;
 
 procedure TMapperTest.WhenThePropertyIsLazyLoadingAndIsntLoadedMustReturnTheKeyValueInTheGetValue;
 begin
-  var Loader := TMock.CreateInterface<ILazyLoader>;
   var Mapper := TMapper.Create;
   var MyClass := TLazyClass.Create;
 
-  Loader.Setup.WillReturn(12345).When.GetKey;
-
-  GetLazyLoadingAccess(TValue.From(MyClass.Lazy)).SetLazyLoader(Loader.Instance);
+  MyClass.Lazy.Access.Key := 12345;
 
   Mapper.LoadAll;
 

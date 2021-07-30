@@ -10,28 +10,23 @@ type
     constructor Create;
   end;
 
-  ILazyLoader = interface
-    ['{FADB37E1-82F4-41F4-8659-A54A3DD4EDFA}']
-    function GetKey: TValue;
-    function GetValue: TValue;
-{$IFDEF PAS2JS}
-    function GetValueAsync: TValue; async;
-{$ENDIF}
-  end;
-
   ILazyAccess = interface
     ['{670D3E65-9747-4192-A4CE-CD612B5C16A2}']
     function GetKey: TValue;
     function GetLoaded: Boolean;
+    function GetRttiType: TRttiType;
     function GetValue: TValue;
 {$IFDEF PAS2JS}
     function GetValueAsync: TValue; async;
 {$ENDIF}
 
+    procedure SetKey(const Value: TValue);
     procedure SetValue(const Value: TValue);
-    procedure SetLazyLoader(const Loader: ILazyLoader);
 
+    property Key: TValue read GetKey write SetKey;
     property Loaded: Boolean read GetLoaded;
+    property RttiType: TRttiType read GetRttiType;
+    property Value: TValue read GetValue write SetValue;
   end;
 
   ILazyFactory = interface
@@ -42,52 +37,43 @@ type
 {$ENDIF}
   end;
 
-  TLazyLoader = class(TInterfacedObject, ILazyLoader)
+  TLazyAccess = class(TInterfacedObject, ILazyAccess)
   private
-    FKey: TValue;
     FCache: ICache;
-    FRttiType: TRttiType;
     FFactory: ILazyFactory;
+    FKey: TValue;
+    FLoaded: Boolean;
+    FRttiType: TRttiType;
+    FValue: TValue;
 
     class var FGlobalFactory: ILazyFactory;
 
-    function CheckValue(var Value: TValue): Boolean;
     function GetFactory: ILazyFactory;
-    function GetKey: TValue;
+    function GetKey: TValue; inline;
+    function GetLoaded: Boolean; inline;
+    function GetRttiType: TRttiType;
     function GetValue: TValue;
+
+    procedure LoadValue;
+{$IFDEF PAS2JS}
+    procedure LoadValueAsync; async;
+{$ENDIF}
+    procedure SetKey(const Value: TValue); inline;
+    procedure SetValue(const Value: TValue); inline;
+  public
+    constructor Create(const RttiType: TRttiType);
 {$IFDEF PAS2JS}
     function GetValueAsync: TValue; async;
 {$ENDIF}
-  public
-    constructor Create(const RttiType: TRttiType; const Key: TValue);
 
     property Cache: ICache read FCache write FCache;
     property Factory: ILazyFactory read GetFactory write FFactory;
-    property Key: TValue read GetKey;
-    property RttiType: TRttiType read FRttiType;
+    property Key: TValue read GetKey write SetKey;
+    property Loaded: Boolean read GetLoaded;
+    property RttiType: TRttiType read GetRttiType;
+    property Value: TValue read GetValue write SetValue;
 
     class property GlobalFactory: ILazyFactory read FGlobalFactory write FGlobalFactory;
-  end;
-
-  TLazyAccess = class(TInterfacedObject, ILazyAccess)
-  private
-    FLoaded: Boolean;
-    FLoader: ILazyLoader;
-    FValue: TValue;
-  public
-    function CanLoadValue: Boolean;
-    function GetKey: TValue;
-    function GetLoaded: Boolean;
-    function GetValue: TValue;
-{$IFDEF PAS2JS}
-    function GetValueAsync: TValue; async;
-{$ENDIF}
-    function FlagAsLoaded: Boolean;
-
-    procedure SetLazyLoader(const Loader: ILazyLoader);
-    procedure SetValue(const Value: TValue);
-
-    property Loaded: Boolean read GetLoaded;
   end;
 
   TLazyAccessType = {$IFDEF PAS2JS}TLazyAccess{$ELSE}ILazyAccess{$ENDIF};
@@ -120,12 +106,14 @@ function IsLazyLoading(RttiType: TRttiType): Boolean;
 
 implementation
 
+uses Delphi.ORM.Rtti.Helper;
+
 function GetLazyLoadingAccess(const Instance: TValue): TLazyAccessType;
 var
   RttiType: TRttiType;
 
 begin
-  RttiType := TRttiContext.Create.GetType(Instance.TypeInfo);
+  RttiType := GetRttiType(Instance.TypeInfo);
 
 {$IFDEF PAS2JS}
   Result := RttiType.GetProperty('Access').GetValue(Instance.AsJSValue).AsType<TLazyAccessType>;
@@ -149,32 +137,32 @@ end;
 function Lazy<T>.GetAccess: TLazyAccessType;
 begin
   if not Assigned(FAccess) then
-    FAccess := TLazyAccess.Create;
+    FAccess := TLazyAccess.Create(GetRttiType(TypeInfo(T)));
 
   Result := FAccess;
 end;
 
 function Lazy<T>.GetValue: T;
 begin
-  Result := GetAccess.GetValue.AsType<T>;
+  Result := Access.Value.AsType<T>;
 end;
 
 {$IFDEF PAS2JS}
 function Lazy<T>.GetValueAsync: TValue;
 begin
-  Result := await(GetAccess.GetValueAsync);
+  Result := await(Access.GetValueAsync);
 end;
 {$ENDIF}
 
 procedure Lazy<T>.SetValue(const Value: T);
 begin
-  GetAccess.SetValue(TValue.From<T>(Value));
+  Access.Value := TValue.From<T>(Value);
 end;
 
 {$IFDEF DCC}
 class operator Lazy<T>.Initialize(out Dest: Lazy<T>);
 begin
-  Dest.GetAccess;
+  Dest.Access;
 end;
 
 class operator Lazy<T>.Implicit(const Value: T): Lazy<T>;
@@ -190,82 +178,18 @@ end;
 
 { TLazyAccess }
 
-function TLazyAccess.CanLoadValue: Boolean;
-begin
-  Result := not FLoaded and Assigned(FLoader);
-end;
-
-function TLazyAccess.FlagAsLoaded: Boolean;
-begin
-  Result := CanLoadValue;
-
-  FLoaded := not Result;
-end;
-
-function TLazyAccess.GetKey: TValue;
-begin
-  if Assigned(FLoader) then
-    Result := FLoader.GetKey
-  else
-    Result := TValue.Empty;
-end;
-
-function TLazyAccess.GetLoaded: Boolean;
-begin
-  Result := FLoaded;
-end;
-
-function TLazyAccess.GetValue: TValue;
-begin
-  if FlagAsLoaded then
-    SetValue(FLoader.GetValue);
-
-  Result := FValue;
-end;
-
-{$IFDEF PAS2JS}
-function TLazyAccess.GetValueAsync: TValue;
-begin
-  if FlagAsLoaded then
-    SetValue(await(FLoader.GetValueAsync));
-
-  Result := FValue;
-end;
-{$ENDIF}
-
-procedure TLazyAccess.SetLazyLoader(const Loader: ILazyLoader);
-begin
-  FLoader := Loader;
-end;
-
-procedure TLazyAccess.SetValue(const Value: TValue);
-begin
-  FLoaded := True;
-  FValue := Value;
-end;
-
-{ TLazyLoader }
-
-function TLazyLoader.CheckValue(var Value: TValue): Boolean;
-begin
-  Result := True;
-
-  if FKey.IsEmpty then
-    Value := TValue.Empty
-  else if not Cache.Get(FRttiType, FKey, Value) then
-    Result := False;
-end;
-
-constructor TLazyLoader.Create(const RttiType: TRttiType; const Key: TValue);
+constructor TLazyAccess.Create(const RttiType: TRttiType);
 begin
   inherited Create;
 
   FCache := TCache.Instance;
-  FKey := Key;
+  FKey := TValue.Empty;
   FRttiType := RttiType;
+
+  TValue.Make(nil, RttiType.Handle, FValue);
 end;
 
-function TLazyLoader.GetFactory: ILazyFactory;
+function TLazyAccess.GetFactory: ILazyFactory;
 begin
   if not Assigned(FFactory) then
     if Assigned(GlobalFactory) then
@@ -276,24 +200,62 @@ begin
   Result := FFactory;
 end;
 
-function TLazyLoader.GetKey: TValue;
+function TLazyAccess.GetKey: TValue;
 begin
   Result := FKey;
 end;
 
-function TLazyLoader.GetValue: TValue;
+function TLazyAccess.GetLoaded: Boolean;
 begin
-  if not CheckValue(Result) then
-    Result := Factory.Load(FRttiType, FKey);
+  FLoaded := FLoaded or FKey.IsEmpty or not Assigned(FRttiType) or Cache.Get(FRttiType, FKey, FValue);
+  Result := FLoaded;
+end;
+
+function TLazyAccess.GetRttiType: TRttiType;
+begin
+  Result := FRttiType;
+end;
+
+function TLazyAccess.GetValue: TValue;
+begin
+  if not Loaded then
+    LoadValue;
+
+  Result := FValue;
 end;
 
 {$IFDEF PAS2JS}
-function TLazyLoader.GetValueAsync: TValue;
+function TLazyAccess.GetValueAsync: TValue;
 begin
-  if not CheckValue(Result) then
-    Result := await(Factory.LoadAsync(FRttiType, FKey));
+  if not Loaded then
+    await(LoadValueAsync);
+
+  Result := FValue;
 end;
 {$ENDIF}
+
+procedure TLazyAccess.LoadValue;
+begin
+  Value := Factory.Load(FRttiType, FKey);
+end;
+
+{$IFDEF PAS2JS}
+procedure TLazyAccess.LoadValueAsync;
+begin
+  Value := await(Factory.LoadAsync(FRttiType, FKey));
+end;
+{$ENDIF}
+
+procedure TLazyAccess.SetKey(const Value: TValue);
+begin
+  FKey := Value;
+end;
+
+procedure TLazyAccess.SetValue(const Value: TValue);
+begin
+  FLoaded := True;
+  FValue := Value;
+end;
 
 { ELazyFactoryNotLoaded }
 

@@ -819,7 +819,7 @@ begin
   if IsNullableType(&Property.PropertyType) then
     Instance := GetNullableAccess(Instance).GetValue
   else if IsLazyLoading(&Property.PropertyType) then
-    Instance := GetLazyLoadingAccess(Instance).GetValue;
+    Instance := GetLazyLoadingAccess(Instance).Value;
 end;
 
 function TORMDataSet.GetRecNo: Integer;
@@ -1370,7 +1370,7 @@ begin
     if IsNullableType(&Property.PropertyType) then
       GetNullableAccess(&Property.GetValue(Instance.AsObject)).SetValue(Value)
     else if IsLazyLoading(&Property.PropertyType) then
-      GetLazyLoadingAccess(&Property.GetValue(Instance.AsObject)).SetValue(Value)
+      GetLazyLoadingAccess(&Property.GetValue(Instance.AsObject)).Value := Value
     else
       &Property.SetValue(Instance.AsObject, Value);
   end
@@ -1632,14 +1632,14 @@ begin
           LazyAccess := GetLazyLoadingAccess(Value);
 
           if LazyAccess.Loaded then
-            Value := LazyAccess.GetValue
+            Value := LazyAccess.Value
           else
           begin
             CurrentRecord := ActiveRecord;
             Text := 'Loading....';
 
-            LazyAccess.GetValueAsync._then(
-              function(Value: JSValue): JSValue
+            LazyAccess.GetValueAsync.&then(
+              procedure
               begin
                 DataEvent(deRecordChange, CurrentRecord);
               end);

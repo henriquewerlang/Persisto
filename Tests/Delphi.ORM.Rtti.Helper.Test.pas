@@ -51,6 +51,15 @@ type
     procedure WhenGetAnAttributeMustReturnTheChosenAttribute;
   end;
 
+  [TestFixture]
+  TRttiHelperFunctionTest = class
+  public
+    [Test]
+    procedure WhenCallTheGetRttiTypeMustReturnTheTypeAsExpected;
+    [Test]
+    procedure WhencallTheGetRttiTypeOfAnClassMustReturnTheTypeAsExpected;
+  end;
+
   TMyAttribute = class(TCustomAttribute);
 
   [TMy]
@@ -201,6 +210,26 @@ begin
 
       Value.ArrayLength := 4;
     end);
+end;
+
+{ TRttiHelperFunctionTest }
+
+procedure TRttiHelperFunctionTest.WhenCallTheGetRttiTypeMustReturnTheTypeAsExpected;
+begin
+  var Context := TRttiContext.Create;
+
+  Assert.AreEqual(Context.GetType(TRttiHelperFunctionTest), GetRttiType(TypeInfo(TRttiHelperFunctionTest)));
+
+  Context.Free;
+end;
+
+procedure TRttiHelperFunctionTest.WhencallTheGetRttiTypeOfAnClassMustReturnTheTypeAsExpected;
+begin
+  var Context := TRttiContext.Create;
+
+  Assert.AreEqual(Context.GetType(TRttiHelperFunctionTest), GetRttiType(TRttiHelperFunctionTest));
+
+  Context.Free;
 end;
 
 end.
