@@ -19,6 +19,11 @@ type
     constructor Create;
   end;
 
+  EEntityWithoutPrimaryKey = class(Exception)
+  public
+    constructor Create(Table: TTable);
+  end;
+
   EFieldNotFoundInTable = class(Exception)
   public
     constructor Create(FieldName: String);
@@ -37,7 +42,7 @@ type
     FConnection: IDatabaseConnection;
     FCommand: TQueryBuilderCommand;
 
-    function BuildFilter<T: class>(const Table: TTable; const AObject: T): String;
+    function BuildPrimaryKeyFilter<T: class>(const Table: TTable; const AObject: T): String;
     function GetConnection: IDatabaseConnection;
   public
     constructor Create(Connection: IDatabaseConnection);
@@ -49,6 +54,7 @@ type
 
     procedure Delete<T: class>(const AObject: T);
     procedure Insert<T: class>(const AObject: T);
+    procedure Save<T: class>(const AObject: T);
     procedure Update<T: class>(const AObject: T);
 
     property Connection: IDatabaseConnection read FConnection;
@@ -313,13 +319,13 @@ end;
 
 { TQueryBuilder }
 
-function TQueryBuilder.BuildFilter<T>(const Table: TTable; const AObject: T): String;
+function TQueryBuilder.BuildPrimaryKeyFilter<T>(const Table: TTable; const AObject: T): String;
 begin
   Result := EmptyStr;
 
   if Assigned(Table.PrimaryKey) then
   begin
-    var Condition := Field(Table.PrimaryKey.TypeInfo.Name) = Table.PrimaryKey.GetValue(AObject);
+    var Condition := Field(Table.PrimaryKey.DatabaseName) = Table.PrimaryKey.GetValue(AObject);
     var Where := TQueryBuilderWhere<T>.Create(nil);
 
     Result := Where.Where(Condition).GetSQL;
@@ -339,7 +345,7 @@ procedure TQueryBuilder.Delete<T>(const AObject: T);
 begin
   var Table := TMapper.Default.FindTable(AObject.ClassType);
 
-  FConnection.ExecuteDirect(Format('delete from %s%s', [Table.DatabaseName, BuildFilter(Table, AObject)]));
+  FConnection.ExecuteDirect(Format('delete from %s%s', [Table.DatabaseName, BuildPrimaryKeyFilter<T>(Table, AObject)]));
 end;
 
 destructor TQueryBuilder.Destroy;
@@ -386,6 +392,19 @@ begin
     Result := EmptyStr;
 end;
 
+procedure TQueryBuilder.Save<T>(const AObject: T);
+begin
+  var Table := TMapper.Default.FindTable(AObject.ClassType);
+
+  if Assigned(Table.PrimaryKey) then
+    if Table.PrimaryKey.GetValue(AObject).AsVariant = Table.PrimaryKey.DefaultValue.AsVariant then
+      Insert<T>(AObject)
+    else
+      Update<T>(AObject)
+  else
+    raise EEntityWithoutPrimaryKey.Create(Table);
+end;
+
 function TQueryBuilder.Select: TQueryBuilderSelect;
 begin
   Result := TQueryBuilderSelect.Create(Self);
@@ -407,7 +426,7 @@ begin
       SQL := SQL + Format('%s=%s', [TableField.DatabaseName, TableField.GetAsString(TObject(AObject))]);
     end;
 
-  SQL := Format('update %s set %s%s', [Table.DatabaseName, SQL, BuildFilter<T>(Table, AObject)]);
+  SQL := Format('update %s set %s%s', [Table.DatabaseName, SQL, BuildPrimaryKeyFilter<T>(Table, AObject)]);
 
   FConnection.ExecuteDirect(SQL);
 end;
@@ -1115,6 +1134,13 @@ end;
 constructor ECantUseComposeFieldName.Create;
 begin
   inherited Create('Can''t use compose field name in this operation!');
+end;
+
+{ EEntityWithoutPrimaryKey }
+
+constructor EEntityWithoutPrimaryKey.Create(Table: TTable);
+begin
+  inherited CreateFmt('Entity %s has no primary key, and cannot be saved!', [Table.TypeInfo.Name]);
 end;
 
 end.

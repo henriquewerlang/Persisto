@@ -98,6 +98,12 @@ type
     procedure WhenTheClassAsAFieldWithNullableRecordMustUpdateTheValueNullInSQLIfIsNull;
     [Test]
     procedure WhenTheClassAsAFieldWithNullableRecordMustUpdateThenValueOfThePropertyIfNotIsNull;
+    [Test]
+    procedure WhenTrySaveAnEntityWithoutPrimaryKeyMustRaiseAnError;
+    [Test]
+    procedure WhenTryToSaveAnEntityWithThePrimaryKeyEmptyMustInsertTheEntity;
+    [Test]
+    procedure WhenTryToSaveAnEntityWithThePrimaryKeyFilledMustUpdateTheEntity;
   end;
 
   [TestFixture]
@@ -1004,6 +1010,53 @@ begin
     From.GetSQL);
 
   From.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenTrySaveAnEntityWithoutPrimaryKeyMustRaiseAnError;
+begin
+  var Obj := TMyEntityWithoutPrimaryKey.Create;
+  var Query := TQueryBuilder.Create(nil);
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Query.Save(Obj);
+    end, EEntityWithoutPrimaryKey);
+
+  Obj.Free;
+
+  Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenTryToSaveAnEntityWithThePrimaryKeyEmptyMustInsertTheEntity;
+begin
+  var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
+  var Obj := TMyEntityWithPrimaryKey.Create;
+  var Query := TQueryBuilder.Create(Database);
+
+  Query.Save(Obj);
+
+  Assert.AreEqual('insert into MyEntityWithPrimaryKey(Value,Id)values(0,0)', Database.SQL);
+
+  Obj.Free;
+
+  Query.Free;
+end;
+
+procedure TDelphiORMQueryBuilderTest.WhenTryToSaveAnEntityWithThePrimaryKeyFilledMustUpdateTheEntity;
+begin
+  var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
+  var Obj := TMyEntityWithPrimaryKey.Create;
+  Obj.Value := 12345;
+  var Query := TQueryBuilder.Create(Database);
+
+  Query.Save(Obj);
+
+  Assert.AreEqual('update MyEntityWithPrimaryKey set Id=0 where Value=12345', Database.SQL);
+
+  Obj.Free;
+
+  Query.Free;
 end;
 
 procedure TDelphiORMQueryBuilderTest.WhenUpdatingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheUpdateList;

@@ -2,13 +2,15 @@ unit Delphi.ORM.Mapper.Test;
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Attributes;
+uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Mapper, Delphi.ORM.Attributes;
 
 type
   [TestFixture]
   TMapperTest = class
   private
     FContext: TRttiContext;
+
+    function FindField(Table: TTable; FieldName: String): TField;
   public
     [SetupFixture]
     procedure Setup;
@@ -192,11 +194,29 @@ type
     procedure WhenSetValueToALazyPropertyCantRaiseAnyError;
     [Test]
     procedure WhenSetValueToALazyPropertyMustLoadTheValueInTheProperty;
+    [Test]
+    procedure WhenTheFieldHasTheDefaultAttributeMustLoadTheDefaultProperyWithTheValue;
+    [Test]
+    procedure WhenTheFieldHasntADefaultValueTheValueMustBeEmpty;
+    [Test]
+    procedure WhenTheDefaultValueIsADateMustConvertTheValueAsExpected;
+    [Test]
+    procedure WhenTheDefaultValueIsATimeMustConvertTheValueAsExpected;
+    [Test]
+    procedure WhenTheDefaultValueIsADateTimeMustConvertTheValueAsExpected;
+    [Test]
+    procedure WhenTheDefaultValueIsAFloatNumberMustConvertTheValueAsExpected;
+    [Test]
+    procedure WhenTheDefaultValueIsAnIntegerMustConvertTheValueAsExpected;
+    [Test]
+    procedure WhenTheDefaultValueIsAnEnumeratorMustConvertTheValueAsExpected;
+    [Test]
+    procedure WhenTheDefaultValueIsAnEnumeratorWithAnInvalidNameMustRaiseAnError;
   end;
 
 implementation
 
-uses System.Variants, System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Test.Entity, Delphi.ORM.Lazy, Delphi.Mock;
+uses System.Variants, System.SysUtils, System.DateUtils, Delphi.ORM.Test.Entity, Delphi.ORM.Lazy, Delphi.Mock;
 
 { TMapperTest }
 
@@ -211,6 +231,15 @@ begin
   Assert.AreEqual<Integer>(2, Length(Table.ForeignKeys));
 
   Mapper.Free;
+end;
+
+function TMapperTest.FindField(Table: TTable; FieldName: String): TField;
+begin
+  Result := nil;
+
+  for var Field in Table.Fields do
+    if Field.TypeInfo.Name = FieldName then
+      Exit(Field);
 end;
 
 procedure TMapperTest.OnlyPublishedFieldMutsBeLoadedInTheTable;
@@ -1042,6 +1071,123 @@ begin
   var Table := Mapper.FindTable(TMyEntityInheritedFromSimpleClass);
 
   Assert.AreSame(BaseTable.PrimaryKey, Table.PrimaryKey);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheDefaultValueIsADateMustConvertTheValueAsExpected;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithDefaultValue);
+
+  Assert.AreEqual(EncodeDate(2021, 08, 02), FindField(Table, 'Date').DefaultValue.AsType<TDate>);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheDefaultValueIsADateTimeMustConvertTheValueAsExpected;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithDefaultValue);
+
+  Assert.AreEqual(EncodeDateTime(2021, 08, 02, 11, 0, 30, 0), FindField(Table, 'DateTime').DefaultValue.AsType<TDateTime>);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheDefaultValueIsAFloatNumberMustConvertTheValueAsExpected;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithDefaultValue);
+
+  Assert.AreEqual(123.456, FindField(Table, 'Float').DefaultValue.AsType<Double>);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheDefaultValueIsAnEnumeratorMustConvertTheValueAsExpected;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithDefaultValue);
+
+  Assert.AreEqual(Enum3, FindField(Table, 'AEnum').DefaultValue.AsType<TMyEnumerator>);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheDefaultValueIsAnEnumeratorWithAnInvalidNameMustRaiseAnError;
+begin
+  var Mapper := TMapper.Create;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Mapper.LoadClass(TMyEntityWithInvalidDefaultValue);
+    end, EInvalidEnumeratorName);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheDefaultValueIsAnIntegerMustConvertTheValueAsExpected;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithDefaultValue);
+
+  Assert.AreEqual(123456, FindField(Table, 'Int').DefaultValue.AsType<Integer>);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheDefaultValueIsATimeMustConvertTheValueAsExpected;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithDefaultValue);
+
+  Assert.AreEqual(EncodeTime(11, 0, 30, 0), FindField(Table, 'Time').DefaultValue.AsType<TTime>);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheFieldHasntADefaultValueTheValueMustBeEmpty;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyTestClass);
+
+  Assert.AreEqual(TValue.Empty, Table.Fields[0].DefaultValue);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheFieldHasTheDefaultAttributeMustLoadTheDefaultProperyWithTheValue;
+begin
+  var Mapper := TMapper.Create;
+
+  Mapper.LoadAll;
+
+  var Table := Mapper.FindTable(TMyEntityWithDefaultValue);
+
+  Assert.AreEqual('abcde', FindField(Table, 'AField').DefaultValue.AsString);
 
   Mapper.Free;
 end;

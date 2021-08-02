@@ -622,6 +622,43 @@ type
     property LastField: String read FLastField write FLastField;
   end;
 
+  [Entity]
+  TMyEntityWithDefaultValue = class
+  private
+    FId: Integer;
+    FAField: String;
+    FAEnum: TMyEnumerator;
+    FDate: TDate;
+    FTime: TTime;
+    FDateTime: TDateTime;
+    FInt: Integer;
+    FFloat: Double;
+  published
+    property Id: Integer read FId write FId;
+    [DefaultValue('abcde')]
+    property AField: String read FAField write FAField;
+    [DefaultValue('Enum3')]
+    property AEnum: TMyEnumerator read FAEnum write FAEnum;
+    [DefaultValue('08/02/2021')]
+    property Date: TDate read FDate write FDate;
+    [DefaultValue('11:00:30')]
+    property Time: TTime read FTime write FTime;
+    [DefaultValue('08/02/2021 11:00:30')]
+    property DateTime: TDateTime read FDateTime write FDateTime;
+    [DefaultValue('123456')]
+    property Int: Integer read FInt write FInt;
+    [DefaultValue('123.456')]
+    property Float: Double read FFloat write FFloat;
+  end;
+
+  TMyEntityWithInvalidDefaultValue = class
+  private
+    FAEnum: TMyEnumerator;
+  published
+    [DefaultValue('InvalidName')]
+    property AEnum: TMyEnumerator read FAEnum write FAEnum;
+  end;
+
 implementation
 
 end.
