@@ -1362,10 +1362,8 @@ begin
   begin
     GetPropertyAndObjectFromField(Field, Instance, &Property);
 
-{$IFDEF DCC}
     if &Property.PropertyType is TRttiEnumerationType then
       Value := TValue.FromOrdinal(&Property.PropertyType.Handle, Value.AsOrdinal);
-{$ENDIF}
 
     if IsNullableType(&Property.PropertyType) then
       GetNullableAccess(&Property.GetValue(Instance.AsObject)).SetValue(Value)
