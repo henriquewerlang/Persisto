@@ -539,8 +539,8 @@ begin
   Result := EmptyStr;
 
   for var Link in Join.Links do
-    Result := Result + Format(' left join %s %s on %s.%s=%s.%s', [Link.Table.DatabaseName, Link.Alias, Join.Alias, Link.LeftField.DatabaseName, Link.Alias, Link.RightField.DatabaseName])
-      + MakeJoinSQL(Link);
+    Result := Result + Format(' left join %s %s on %s.%s=%s.%s', [Link.Table.DatabaseName, Link.Alias, Join.Alias, Link.LeftField.DatabaseName, Link.Alias,
+      Link.RightField.DatabaseName]) + MakeJoinSQL(Link);
 end;
 
 { TQueryBuilderSelect }

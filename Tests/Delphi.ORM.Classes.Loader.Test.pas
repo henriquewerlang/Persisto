@@ -75,6 +75,12 @@ type
     procedure WhenTheLoaderCreateANewObjectMustAddItToTheCacheControl;
     [Test]
     procedure WhenCallLoadOfTheLazyFactoryMustCallWithTheForeignKeyRttiType;
+    [Test]
+    procedure WhenTheManyValueAssociationFieldHasRepetedKeyMustLoadJustOnceThenProperty;
+    [Test]
+    procedure WhenTheManyValueAssociationHasAValueInAForeignKeyAndInsideTheManyValueMustLoadTheManyValueAssociationWithAllValues;
+    [Test]
+    procedure WhenLoadAnObjectMoreThenOnceAndHaveAManyValueAssociationMustResetTheFieldBeforeLoadTheValues;
   end;
 
 implementation
@@ -314,6 +320,31 @@ begin
   Loader.Free;
 end;
 
+procedure TClassLoaderTest.WhenLoadAnObjectMoreThenOnceAndHaveAManyValueAssociationMustResetTheFieldBeforeLoadTheValues;
+begin
+  var Cache: ICache := TCache.Create;
+  var Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[1, 11]]);
+  Loader.Cache := Cache;
+
+  Loader.Load<TMyEntityWithManyValueAssociation>;
+
+  Loader.Free;
+
+  Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[1, 11]]);
+  Loader.Cache := Cache;
+
+  var Result := Loader.Load<TMyEntityWithManyValueAssociation>;
+
+  Assert.AreEqual<Integer>(1, Length(Result.ManyValueAssociationList));
+
+  for var Obj in Result.ManyValueAssociationList do
+    Obj.Free;
+
+  Result.Free;
+
+  Loader.Free;
+end;
+
 procedure TClassLoaderTest.WhenTheAClassAsAManyValueAssociationMustLoadThePropertyArrayOfTheClass;
 begin
   var Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[111, 222], [111, 333], [111, 444]]);
@@ -434,6 +465,48 @@ begin
   Loader.Free;
 
   MyClass.Free;
+end;
+
+procedure TClassLoaderTest.WhenTheManyValueAssociationFieldHasRepetedKeyMustLoadJustOnceThenProperty;
+begin
+  var Cache: ICache := TCache.Create;
+  var Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[1, 11], [1, 11], [1, 11], [2, 22], [2, 22], [2, 22]]);
+  Loader.Cache := Cache;
+  var Result := Loader.LoadAll<TMyEntityWithManyValueAssociation>;
+
+  Loader.Free;
+
+  Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[1, 11], [1, 11], [1, 11], [2, 22], [2, 22], [2, 22]]);
+  Loader.Cache := Cache;
+
+  Result := Loader.LoadAll<TMyEntityWithManyValueAssociation>;
+
+  Assert.AreEqual<Integer>(2, Length(Result[0].ManyValueAssociationList) + Length(Result[1].ManyValueAssociationList));
+
+  for var ParentObj in Result do
+  begin
+    for var Obj in ParentObj.ManyValueAssociationList do
+      Obj.Free;
+
+    ParentObj.Free;
+  end;
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenTheManyValueAssociationHasAValueInAForeignKeyAndInsideTheManyValueMustLoadTheManyValueAssociationWithAllValues;
+begin
+  var Loader := CreateLoader<TManyValueParent>([[1, 2, 1, 2, 1], [1, 2, 1, 3, 1], [1, 2, 1, 4, 1], [1, 2, 1, 4, 1]]);
+  var Obj := Loader.Load<TManyValueParent>;
+
+  Assert.AreEqual<Integer>(4, Length(Obj.Childs));
+
+  for var Value in Obj.Childs do
+    Value.Free;
+
+  Obj.Free;
+
+  Loader.Free;
 end;
 
 procedure TClassLoaderTest.WhenTheManyValueAssociationReturnTheValuesOutOfOrderMustGroupAllValuesInTheSingleObjectReference;

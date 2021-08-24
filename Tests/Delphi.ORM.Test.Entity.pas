@@ -659,6 +659,31 @@ type
     property AEnum: TMyEnumerator read FAEnum write FAEnum;
   end;
 
+  TManyValueParent = class;
+
+  [Entity]
+  TManyValueChild = class
+  private
+    FId: Integer;
+    FParent: TManyValueParent;
+  published
+    property Id: Integer read FId write FId;
+    property Parent: TManyValueParent read FParent write FParent;
+  end;
+
+  [Entity]
+  TManyValueParent = class
+  private
+    FId: Integer;
+    FChild: TManyValueChild;
+    FChilds: TArray<TManyValueChild>;
+  published
+    property Child: TManyValueChild read FChild write FChild;
+    [ManyValueAssociationLinkName('Parent')]
+    property Childs: TArray<TManyValueChild> read FChilds write FChilds;
+    property Id: Integer read FId write FId;
+  end;
+
 implementation
 
 end.

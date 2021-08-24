@@ -16,7 +16,8 @@ type
     function GetFieldValueVariant(const Index: Integer): Variant;
     function GetPrimaryKeyFromTable(Table: TTable; const FieldIndexStart: Integer): TValue;
     function LoadClass(var NewObject: Boolean): TObject;
-    function LoadClassJoin(Join: TQueryBuilderJoin; var FieldIndexStart: Integer; var NewObject: Boolean): TObject;
+
+    procedure LoadObject(Obj: TObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
   public
     constructor Create(Cursor: IDatabaseCursor; From: TQueryBuilderFrom);
 
@@ -109,63 +110,73 @@ end;
 function TClassLoader.LoadClass(var NewObject: Boolean): TObject;
 begin
   var FieldIndex := 0;
-  Result := LoadClassJoin(FFrom.Join, FieldIndex, NewObject);
+  Result := CreateObject(FFrom.Join.Table, FieldIndex, NewObject);
+
+  LoadObject(Result, FFrom.Join, FieldIndex, NewObject);
 end;
 
-function TClassLoader.LoadClassJoin(Join: TQueryBuilderJoin; var FieldIndexStart: Integer; var NewObject: Boolean): TObject;
-begin
-  var NewChildObject: Boolean;
-  Result := CreateObject(Join.Table, FieldIndexStart, NewObject);
+procedure TClassLoader.LoadObject(Obj: TObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
 
+  procedure AddItemToParentArray(const ParentObject: TObject; ParentField: TField; const Item: TObject);
+  begin
+    var ArrayValue := ParentField.GetValue(ParentObject);
+
+    var ArrayLength := ArrayValue.ArrayLength;
+
+    ArrayValue.ArrayLength := Succ(ArrayLength);
+
+    ArrayValue.ArrayElement[ArrayLength] := Item;
+
+    ParentField.SetValue(ParentObject, ArrayValue);
+  end;
+
+begin
   for var Field in Join.Table.Fields do
     if not Field.IsJoinLink or Field.IsLazy then
     begin
-      if NewObject and Assigned(Result) then
+      if NewObject and Assigned(Obj) then
       begin
         var FieldValue := GetFieldValueVariant(FieldIndexStart);
 
         if Field.IsLazy then
-          GetLazyLoadingAccess(Field.TypeInfo.GetValue(Result)).Key := TValue.FromVariantNull(FieldValue)
+          GetLazyLoadingAccess(Field.TypeInfo.GetValue(Obj)).Key := TValue.FromVariantNull(FieldValue)
         else
-          Field.SetValue(Result, FieldValue);
+          Field.SetValue(Obj, FieldValue);
       end;
 
       Inc(FieldIndexStart);
+    end
+    else if NewObject and Field.IsManyValueAssociation then
+    begin
+      var ArrayValue: TValue;
+
+      TValue.Make(nil, Field.TypeInfo.PropertyType.Handle, ArrayValue);
+
+      Field.SetValue(Obj, ArrayValue);
     end;
 
   for var Link in Join.Links do
   begin
-    var ChildPrimaryKey := EmptyStr;
-    var Value: TValue;
+    var NewChildObject: Boolean;
 
-    if Link.Field.IsForeignKey then
-    begin
-      Value := LoadClassJoin(Link, FieldIndexStart, NewChildObject);
+    var ForeignKeyObject := CreateObject(Link.Table, FieldIndexStart, NewChildObject);
 
-      NewChildObject := NewObject;
-    end
-    else
-    begin
-      var ChildObject := LoadClassJoin(Link, FieldIndexStart, NewChildObject);
+    LoadObject(ForeignKeyObject, Link, FieldIndexStart, NewChildObject);
 
-      if not NewChildObject then
-        Continue
-      else if Assigned(ChildObject) then
+    if Assigned(ForeignKeyObject) then
+      if NewObject and Link.Field.IsForeignKey then
       begin
-        Value := Link.Field.GetValue(Result);
+        Link.Field.SetValue(Obj, ForeignKeyObject);
 
-        var ArrayLength := Value.ArrayLength;
+        if Assigned(Link.Field.ForeignKey.ManyValueAssociation) then
+          AddItemToParentArray(ForeignKeyObject, Link.Field.ForeignKey.ManyValueAssociation.Field, Obj);
+      end
+      else if NewChildObject and Link.Field.IsManyValueAssociation then
+      begin
+        Link.RightField.SetValue(ForeignKeyObject, Obj);
 
-        Value.ArrayLength := Succ(ArrayLength);
-
-        Value.ArrayElement[ArrayLength] := ChildObject;
-
-        Link.RightField.SetValue(ChildObject, Result);
+        AddItemToParentArray(Obj, Link.Field, ForeignKeyObject);
       end;
-    end;
-
-    if NewChildObject and Assigned(Result) then
-      Link.Field.SetValue(Result, Value);
   end;
 end;
 

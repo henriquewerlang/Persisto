@@ -102,10 +102,12 @@ type
   private
     FParentTable: TTable;
     FField: TField;
+    FManyValueAssociation: TManyValueAssociation;
   public
     constructor Create(ParentTable: TTable; Field: TField);
 
     property Field: TField read FField;
+    property ManyValueAssociation: TManyValueAssociation read FManyValueAssociation;
     property ParentTable: TTable read FParentTable;
   end;
 
@@ -523,6 +525,7 @@ begin
   FChildTable := ChildTable;
   FField := Field;
   FForeignKey := ForeignKey;
+  FForeignKey.FManyValueAssociation := Self;
 end;
 
 { TField }
