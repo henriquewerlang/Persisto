@@ -604,7 +604,7 @@ begin
     Result := Value.AsJSValue;
 
     if Field is TDateTimeField then
-      Result := ConvertDateTimeToNative(Field, Double(Result));
+      Result := TJSDate.New(FormatDateTime('yyyy-mm-dd"T"hh":"nn":"ss"', Double(Result)));
 {$ELSE}
     Result := True;
 
