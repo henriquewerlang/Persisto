@@ -301,6 +301,8 @@ type
     procedure WhenGetValueOfAnFieldInAClosedDataSetCantRaiseAnyError;
     [Test]
     procedure WhenTheDataLinkTryToGetAFieldValueInTheDetailDataSetCantRaiseAnyError;
+    [Test]
+    procedure WhenTheDataSetIsOpenAndHasADetailAndTheDetailHasRecordsMustClearTheDetailAfterIntertingInTheParentDataSet;
   end;
 
   [TestFixture]
@@ -1019,6 +1021,42 @@ begin
     begin
       DataSet.FieldByName('AnotherObject.AnotherName').AsString
     end);
+
+  DataSet.Free;
+end;
+
+procedure TORMDataSetTest.WhenTheDataSetIsOpenAndHasADetailAndTheDetailHasRecordsMustClearTheDetailAfterIntertingInTheParentDataSet;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+  var Field := TDataSetField.Create(nil);
+  var MyClass: TArray<TParentClass> := [TParentClass.Create, TParentClass.Create];
+  MyClass[0].MyClass := TMyTestClassTypes.Create;
+  MyClass[0].MyClass.MyArray := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
+
+  Field.FieldName := 'MyClass.MyArray';
+
+  Field.DataSet := DataSet;
+
+  DataSetDetail.DataSetField := Field;
+
+  DataSet.OpenArray<TParentClass>(MyClass);
+
+  DataSet.Insert;
+
+  Assert.AreEqual(0, DataSetDetail.RecordCount);
+
+  MyClass[0].MyClass.MyArray[0].Free;
+
+  MyClass[0].MyClass.MyArray[1].Free;
+
+  MyClass[0].MyClass.Free;
+
+  MyClass[1].Free;
+
+  MyClass[0].Free;
+
+  DataSetDetail.Free;
 
   DataSet.Free;
 end;

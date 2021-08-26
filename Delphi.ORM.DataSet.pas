@@ -1129,16 +1129,19 @@ var
   &Property: TRttiProperty;
 
 begin
-  if GetObjectAndPropertyFromParentDataSet(Value, &Property) then
+  if Assigned(ParentDataSet) then
   begin
-    FIterator.Clear;
+    FIteratorData.Clear;
 
-    Value := &Property.GetValue(Value.AsObject);
+    if GetObjectAndPropertyFromParentDataSet(Value, &Property) then
+    begin
+      Value := &Property.GetValue(Value.AsObject);
 
-    for A := 0 to Pred(Value.GetArrayLength) do
-      FIterator.Add(Value.GetArrayElement(A).AsObject);
+      for A := 0 to Pred(Value.GetArrayLength) do
+        FIteratorData.Add(Value.GetArrayElement(A).AsObject);
+    end;
 
-    FIterator.ResetBegin;
+    FIteratorData.ResetBegin;
   end;
 end;
 
