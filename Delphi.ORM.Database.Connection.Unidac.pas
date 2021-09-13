@@ -17,13 +17,20 @@ type
     destructor Destroy; override;
   end;
 
-  TDatabaseConnectionUnidac = class(TCustomDatabaseConnection, IDatabaseConnection)
+  TDatabaseInsertCursorUnidac = class(TInterfacedObject, IDatabaseCursor)
+  private
+    function GetFieldValue(const FieldIndex: Integer): Variant;
+    function Next: Boolean;
+  end;
+
+  TDatabaseConnectionUnidac = class(TInterfacedObject, IDatabaseConnection)
   private
     FConnection: TUniConnection;
 
+    function ExecuteInsert(SQL: String; OutputFields: TArray<String>): IDatabaseCursor;
+    function OpenCursor(SQL: String): IDatabaseCursor;
+
     procedure ExecuteDirect(SQL: String);
-  protected
-    function OpenCursor(SQL: String): IDatabaseCursor; override;
   public
     constructor Create;
 
@@ -34,7 +41,7 @@ type
 
 implementation
 
-uses Winapi.ActiveX, SQLServerUniProvider;
+uses System.SysUtils, System.Variants, Winapi.ActiveX, SQLServerUniProvider;
 
 { TDatabaseCursorUnidac }
 
@@ -93,9 +100,47 @@ begin
   FConnection.ExecSQL(SQL);
 end;
 
+function TDatabaseConnectionUnidac.ExecuteInsert(SQL: String; OutputFields: TArray<String>): IDatabaseCursor;
+begin
+  var OutputSQL := EmptyStr;
+
+  for var Field in OutputFields do
+  begin
+    if not OutputSQL.IsEmpty then
+      OutputSQL := ',';
+
+    OutputSQL := OutputSQL + Format('Inserted.%s', [Field]);
+  end;
+
+  if OutputSQL.IsEmpty then
+  begin
+    ExecuteDirect(SQL);
+
+    Result := TDatabaseInsertCursorUnidac.Create;
+  end
+  else
+  begin
+    SQL := SQL.Replace(')values(', Format(')output %s values(', [OutputSQL]));
+
+    Result := OpenCursor(SQL);
+  end;
+end;
+
 function TDatabaseConnectionUnidac.OpenCursor(SQL: String): IDatabaseCursor;
 begin
   Result := TDatabaseCursorUnidac.Create(Connection, SQL);
+end;
+
+{ TDatabaseInsertCursorUnidac }
+
+function TDatabaseInsertCursorUnidac.GetFieldValue(const FieldIndex: Integer): Variant;
+begin
+  Result := NULL;
+end;
+
+function TDatabaseInsertCursorUnidac.Next: Boolean;
+begin
+  Result := False;
 end;
 
 end.

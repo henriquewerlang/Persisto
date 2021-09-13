@@ -19,36 +19,7 @@ type
     procedure ExecuteDirect(SQL: String);
   end;
 
-  TCustomDatabaseConnection = class(TInterfacedObject)
-  protected
-    function OpenCursor(SQL: String): IDatabaseCursor; virtual; abstract;
-  public
-    function ExecuteInsert(SQL: String; OutputFields: TArray<String>): IDatabaseCursor;
-  end;
-
 implementation
-
-uses System.SysUtils;
-
-{ TCustomDatabaseConnection }
-
-function TCustomDatabaseConnection.ExecuteInsert(SQL: String; OutputFields: TArray<String>): IDatabaseCursor;
-begin
-  var OutputSQL := EmptyStr;
-
-  for var Field in OutputFields do
-  begin
-    if not OutputSQL.IsEmpty then
-      OutputSQL := ',';
-
-    OutputSQL := OutputSQL + Format('Inserted.%s', [Field]);
-  end;
-
-  if not OutputSQL.IsEmpty then
-    SQL := SQL.Replace(')values(', Format(')output %s values(', [OutputSQL]));
-
-  Result := OpenCursor(SQL);
-end;
 
 end.
 
