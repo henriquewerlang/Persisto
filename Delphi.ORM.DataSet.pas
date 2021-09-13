@@ -1597,7 +1597,7 @@ begin
   begin
     GetObjectAndPropertyFromParentDataSet(Instance, &Property);
 
-    FIterator.UpdateArrayProperty(&Property, Instance.AsObject);
+    FIteratorData.UpdateArrayProperty(&Property, Instance.AsObject);
   end;
 end;
 

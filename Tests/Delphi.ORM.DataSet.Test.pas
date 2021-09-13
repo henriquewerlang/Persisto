@@ -303,6 +303,8 @@ type
     procedure WhenTheDataLinkTryToGetAFieldValueInTheDetailDataSetCantRaiseAnyError;
     [Test]
     procedure WhenTheDataSetIsOpenAndHasADetailAndTheDetailHasRecordsMustClearTheDetailAfterIntertingInTheParentDataSet;
+    [Test]
+    procedure WhenTheDataSetDetailIsFilteredAndIsInsertedAnRecordInvalidForFilterMustLoadTheParentArrayAnyWay;
   end;
 
   [TestFixture]
@@ -997,6 +999,49 @@ begin
   DataSource.Free;
 
   DataLink.Free;
+end;
+
+procedure TORMDataSetTest.WhenTheDataSetDetailIsFilteredAndIsInsertedAnRecordInvalidForFilterMustLoadTheParentArrayAnyWay;
+begin
+  var DataSet := TORMDataSet.Create(nil);
+  var DataSetDetail := TORMDataSet.Create(nil);
+  var Field := TDataSetField.Create(nil);
+
+  Field.FieldName := 'MyArray';
+
+  Field.DataSet := DataSet;
+
+  DataSetDetail.DataSetField := Field;
+
+  DataSet.OpenClass<TMyTestClassTypes>;
+
+  DataSet.Insert;
+
+  DataSetDetail.Filter(
+    function (DataSet: TORMDataSet): Boolean
+    begin
+      Result := False;
+    end);
+
+  DataSetDetail.Append;
+
+  DataSetDetail.Post;
+
+  DataSetDetail.Append;
+
+  DataSetDetail.Post;
+
+  var MyClass := DataSet.GetCurrentObject<TMyTestClassTypes>;
+
+  Assert.AreEqual<Integer>(2, Length(MyClass.MyArray));
+
+  MyClass.MyArray[0].Free;
+
+  MyClass.MyArray[1].Free;
+
+  DataSetDetail.Free;
+
+  DataSet.Free;
 end;
 
 procedure TORMDataSetTest.WhenTheDataSetIsClosedTheRecordCountMustReturnMinusOne;
