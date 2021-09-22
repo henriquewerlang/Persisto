@@ -6,6 +6,7 @@ uses System.Rtti, System.Generics.Collections;
 
 type
   ICache = interface
+    ['{E910CEFC-7423-4307-B805-0B313BF46735}']
     function Get(RttiType: TRttiType; const PrimaryKey: TValue; var Value: TValue): Boolean;
 
     procedure Add(RttiType: TRttiType; const PrimaryKey, Value: TValue);
@@ -15,11 +16,7 @@ type
   private
     FValues: TDictionary<String, TValue>;
 
-    class var GFCache: ICache;
-
     function Get(RttiType: TRttiType; const PrimaryKey: TValue; var Value: TValue): Boolean;
-
-    class function GetInstance: ICache; static;
 
     procedure Add(RttiType: TRttiType; const PrimaryKey, Value: TValue);
   public
@@ -28,8 +25,6 @@ type
     destructor Destroy; override;
 
     class function GenerateKey(RttiType: TRttiType; const PrimaryKey: TValue): String;
-
-    class property Instance: ICache read GetInstance;
 
     property Values: TDictionary<String, TValue> read FValues write FValues;
   end;
@@ -49,7 +44,7 @@ constructor TCache.Create;
 begin
   inherited;
 
-  FValues := TDictionary<String, TValue>.Create;
+  FValues := TObjectDictionary<String, TValue>.Create;
 end;
 
 destructor TCache.Destroy;
@@ -67,14 +62,6 @@ end;
 function TCache.Get(RttiType: TRttiType; const PrimaryKey: TValue; var Value: TValue): Boolean;
 begin
   Result := Values.TryGetValue(GenerateKey(RttiType, PrimaryKey), Value);
-end;
-
-class function TCache.GetInstance: ICache;
-begin
-  if not Assigned(GFCache) then
-    GFCache := TCache.Create;
-
-  Result := GFCache;
 end;
 
 end.

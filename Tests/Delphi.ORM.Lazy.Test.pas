@@ -62,8 +62,6 @@ type
     [Test]
     procedure WhenTheTypeAndKeyIsLoadedAndTheValueIsntLoadedMustMarkTheValueAsLoaded;
     [Test]
-    procedure WhenTheKeyIsFilledMustTryToGetTheValueFromCache;
-    [Test]
     procedure WhenTheValueNotExitstInCacheTheLoaderMustCallTheLoadFunctionOfImplentationClass;
     [Test]
     procedure WhenCallTheLoadFunctionMustReturnTheValueLoaded;
@@ -72,25 +70,9 @@ type
     [Test]
     procedure WhenTheFactoryIsntLoadedMustGetTheGlobalReferenceOfTheFactory;
     [Test]
-    procedure WhenTheValueIsInTheCacheMustReturnLoadedAsTrue;
-    [Test]
     procedure WhenTheKeyIsEmptyMustReturnThePropertyLoadedAsTrue;
     [Test]
     procedure WhenTheLazyIsEmptyTheValueMustHaveTheSameTypeInfoOfTheValue;
-  end;
-
-  TCacheMock = class(TInterfacedObject, ICache)
-  private
-    FMethodCalled: String;
-    FGetReturnValue: TValue;
-  public
-    constructor Create(GetReturnValue: TValue);
-
-    function Get(RttiType: TRttiType; const PrimaryKey: TValue; var Value: TValue): Boolean;
-
-    procedure Add(RttiType: TRttiType; const PrimaryKey, Value: TValue);
-
-    property MethodCalled: String read FMethodCalled write FMethodCalled;
   end;
 
 implementation
@@ -259,8 +241,6 @@ end;
 
 procedure TLazyAccessTest.Setup;
 begin
-  TCache.Instance;
-
   TMock.CreateInterface<ILazyFactory>;
 
   GetRttiType(TMyEntity);
@@ -297,7 +277,6 @@ procedure TLazyAccessTest.WhenCallTheLoadFunctionMustReturnTheValueLoaded;
 begin
   var Factory := TMock.CreateInterface<ILazyFactory>;
   var LazyAccess := TLazyAccess.Create(GetRttiType(TMyEntity));
-  LazyAccess.Cache := TCacheMock.Create(nil);
   LazyAccess.Factory := Factory.Instance;
   LazyAccess.Key := 1234;
   var LazyLoaderIntf := LazyAccess as ILazyAccess;
@@ -310,7 +289,6 @@ end;
 procedure TLazyAccessTest.WhenTheFactoryIsntLoadedAndTheGlobalReferenceIsEmptyTooMustRaiseAnError;
 begin
   var LazyAccess := TLazyAccess.Create(GetRttiType(TMyEntity));
-  LazyAccess.Cache := TCacheMock.Create(nil);
   LazyAccess.GlobalFactory := nil;
   LazyAccess.Key := 1234;
   var LazyLoaderIntf := LazyAccess as ILazyAccess;
@@ -326,7 +304,6 @@ procedure TLazyAccessTest.WhenTheFactoryIsntLoadedMustGetTheGlobalReferenceOfThe
 begin
   var Factory := TMock.CreateInterface<ILazyFactory>;
   var LazyAccess := TLazyAccess.Create(GetRttiType(TMyEntity));
-  LazyAccess.Cache := TCacheMock.Create(nil);
   LazyAccess.GlobalFactory := Factory.Instance;
   LazyAccess.Key := 1234;
   var LazyLoaderIntf := LazyAccess as ILazyAccess;
@@ -352,19 +329,6 @@ begin
   var LazyAccess: ILazyAccess := TLazyAccess.Create(GetRttiType(TMyEntity));
 
   Assert.IsTrue(LazyAccess.Value.IsEmpty)
-end;
-
-procedure TLazyAccessTest.WhenTheKeyIsFilledMustTryToGetTheValueFromCache;
-begin
-  var Cache := TCacheMock.Create(1234);
-  var LazyAccess := TLazyAccess.Create(GetRttiType(TMyEntity));
-  LazyAccess.Cache := Cache;
-  LazyAccess.Key := 1234;
-  var LazyLoaderIntf := LazyAccess as ILazyAccess;
-
-  LazyLoaderIntf.Value;
-
-  Assert.AreEqual('Get', Cache.MethodCalled);
 end;
 
 procedure TLazyAccessTest.WhenTheLazyIsEmptyTheValueMustHaveTheSameTypeInfoOfTheValue;
@@ -421,21 +385,10 @@ begin
   Assert.AreEqual(TValue.From<TMyEntity>(nil), LazyAccess.Value);
 end;
 
-procedure TLazyAccessTest.WhenTheValueIsInTheCacheMustReturnLoadedAsTrue;
-begin
-  var LazyAccess := TLazyAccess.Create(GetRttiType(TMyEntity));
-  LazyAccess.Cache := TCacheMock.Create('abcde');
-  LazyAccess.Key := 1234;
-  var LazyLoaderIntf := LazyAccess as ILazyAccess;
-
-  Assert.IsTrue(LazyLoaderIntf.Loaded);
-end;
-
 procedure TLazyAccessTest.WhenTheValueNotExitstInCacheTheLoaderMustCallTheLoadFunctionOfImplentationClass;
 begin
   var Factory := TMock.CreateInterface<ILazyFactory>;
   var LazyAccess := TLazyAccess.Create(GetRttiType(TMyEntity));
-  LazyAccess.Cache := TCacheMock.Create(nil);
   LazyAccess.Key := 1234;
   LazyAccess.Factory := Factory.Instance;
   var LazyLoaderIntf := LazyAccess as ILazyAccess;
@@ -445,26 +398,6 @@ begin
   LazyLoaderIntf.GetValue;
 
   Assert.AreEqual(EmptyStr, Factory.CheckExpectations);
-end;
-
-{ TCacheMock }
-
-procedure TCacheMock.Add(RttiType: TRttiType; const PrimaryKey, Value: TValue);
-begin
-  MethodCalled := 'Add';
-end;
-
-constructor TCacheMock.Create(GetReturnValue: TValue);
-begin
-  inherited Create;
-
-  FGetReturnValue := GetReturnValue;
-end;
-
-function TCacheMock.Get(RttiType: TRttiType; const PrimaryKey: TValue; var Value: TValue): Boolean;
-begin
-  MethodCalled := 'Get';
-  Result := not FGetReturnValue.IsEmpty;
 end;
 
 end.

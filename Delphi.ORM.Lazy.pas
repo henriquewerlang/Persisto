@@ -2,7 +2,7 @@ unit Delphi.ORM.Lazy;
 
 interface
 
-uses System.Rtti, System.TypInfo, System.SysUtils, Delphi.ORM.Cache{$IFDEF PAS2JS}, JS, Web{$ENDIF};
+uses System.Rtti, System.TypInfo, System.SysUtils{$IFDEF PAS2JS}, JS, Web{$ENDIF};
 
 type
   ELazyFactoryNotLoaded = class(Exception)
@@ -32,14 +32,10 @@ type
   ILazyFactory = interface
     ['{62C671EE-2C9E-4753-BD86-924EA20B904F}']
     function Load(const RttiType: TRttiType; const Key: TValue): TValue;
-{$IFDEF PAS2JS}
-    function LoadAsync(const RttiType: TRttiType; const Key: TValue): TValue; async;
-{$ENDIF}
   end;
 
   TLazyAccess = class(TInterfacedObject, ILazyAccess)
   private
-    FCache: ICache;
     FFactory: ILazyFactory;
     FKey: TValue;
     FLoaded: Boolean;
@@ -66,7 +62,6 @@ type
     function GetValueAsync: TValue; async;
 {$ENDIF}
 
-    property Cache: ICache read FCache write FCache;
     property Factory: ILazyFactory read GetFactory write FFactory;
     property Key: TValue read GetKey write SetKey;
     property Loaded: Boolean read GetLoaded;
@@ -182,7 +177,6 @@ constructor TLazyAccess.Create(const RttiType: TRttiType);
 begin
   inherited Create;
 
-  FCache := TCache.Instance;
   FKey := TValue.Empty;
   FRttiType := RttiType;
 
@@ -207,7 +201,7 @@ end;
 
 function TLazyAccess.GetLoaded: Boolean;
 begin
-  FLoaded := FLoaded or FKey.IsEmpty or not Assigned(FRttiType) or Cache.Get(FRttiType, FKey, FValue);
+  FLoaded := FLoaded or FKey.IsEmpty or not Assigned(FRttiType);
   Result := FLoaded;
 end;
 
@@ -242,7 +236,7 @@ end;
 {$IFDEF PAS2JS}
 procedure TLazyAccess.LoadValueAsync;
 begin
-  Value := await(Factory.LoadAsync(FRttiType, FKey));
+  Value := Factory.Load(FRttiType, FKey);
 end;
 {$ENDIF}
 

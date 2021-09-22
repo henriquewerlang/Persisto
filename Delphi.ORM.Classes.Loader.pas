@@ -13,6 +13,7 @@ type
     FCache: ICache;
 
     function CreateObject(Table: TTable; const FieldIndexStart: Integer; var NewObject: Boolean): TObject;
+    function GetCache: ICache;
     function GetFieldValueVariant(const Index: Integer): Variant;
     function GetPrimaryKeyFromTable(Table: TTable; const FieldIndexStart: Integer): TValue;
     function LoadClass(var NewObject: Boolean): TObject;
@@ -24,7 +25,7 @@ type
     function Load<T: class>: T;
     function LoadAll<T: class>: TArray<T>;
 
-    property Cache: ICache read FCache write FCache;
+    property Cache: ICache read GetCache write FCache;
   end;
 
 implementation
@@ -37,7 +38,7 @@ constructor TClassLoader.Create(Cursor: IDatabaseCursor; From: TQueryBuilderFrom
 begin
   inherited Create;
 
-  FCache := TCache.Instance;
+  FCache := From.Builder.Cache;
   FCursor := Cursor;
   FFrom := From;
   FLoadedObjects := TCache.Create;
@@ -52,7 +53,7 @@ begin
 
   if NewObject then
   begin
-    if not Cache.Get(Table.TypeInfo, PrimaryKeyValue, CacheValue) then
+    if Assigned(Cache) and not Cache.Get(Table.TypeInfo, PrimaryKeyValue, CacheValue) then
     begin
       CacheValue := Table.TypeInfo.MetaclassType.Create;
 
@@ -63,6 +64,14 @@ begin
   end;
 
   Result := CacheValue.AsObject;
+end;
+
+function TClassLoader.GetCache: ICache;
+begin
+  if not Assigned(FCache) then
+    FCache := TCache.Create;
+
+  Result := FCache;
 end;
 
 function TClassLoader.GetFieldValueVariant(const Index: Integer): Variant;

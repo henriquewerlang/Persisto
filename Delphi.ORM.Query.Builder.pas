@@ -2,7 +2,7 @@ unit Delphi.ORM.Query.Builder;
 
 interface
 
-uses System.Rtti, System.Classes, System.Generics.Collections, System.SysUtils, Delphi.ORM.Database.Connection, Delphi.ORM.Mapper, Delphi.ORM.Nullable;
+uses System.Rtti, System.Classes, System.Generics.Collections, System.SysUtils, Delphi.ORM.Database.Connection, Delphi.ORM.Mapper, Delphi.ORM.Nullable, Delphi.ORM.Cache;
 
 type
   TQueryBuilder = class;
@@ -41,6 +41,7 @@ type
   private
     FConnection: IDatabaseConnection;
     FCommand: TQueryBuilderCommand;
+    FCache: ICache;
 
     function BuildPrimaryKeyFilter<T: class>(const Table: TTable; const AObject: T): String;
     function GetConnection: IDatabaseConnection;
@@ -57,6 +58,7 @@ type
     procedure Save<T: class>(const AObject: T);
     procedure Update<T: class>(const AObject: T);
 
+    property Cache: ICache read FCache write FCache;
     property Connection: IDatabaseConnection read FConnection;
   end;
 

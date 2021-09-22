@@ -447,8 +447,6 @@ end;
 procedure TDelphiORMQueryBuilderTest.Setup;
 begin
   TMapper.Default.LoadAll;
-
-  TCache.Instance;
 end;
 
 procedure TDelphiORMQueryBuilderTest.TheClassBeingSelectedMustHaveTheAliasDefined;
