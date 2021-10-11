@@ -128,8 +128,17 @@ type
     procedure WhenCallTheFieldFuncitionMustLoadTheFieldNameInTheLeftOperator;
     [Test]
     procedure WhenCompareTheFieldWithAStringValueMustLoadTheComparisonAsExpected;
-    [Test]
-    procedure WhenCompareTheFieldWithAnIntegerValueMustLoadTheComparisonAsExpected;
+    [TestCase('Between', 'qbcoBetween')]
+    [TestCase('Equal', 'qbcoEqual')]
+    [TestCase('Not Equal', 'qbcoNotEqual')]
+    [TestCase('Greater Than', 'qbcoGreaterThan')]
+    [TestCase('Greater Than Or Equal', 'qbcoGreaterThanOrEqual')]
+    [TestCase('Less Than', 'qbcoLessThan')]
+    [TestCase('Less Than Or Equal', 'qbcoLessThanOrEqual')]
+    [TestCase('Null', 'qbcoNull')]
+    [TestCase('Not Null', 'qbcoNotNull')]
+    [TestCase('Like', 'qbcoLike')]
+    procedure WhenCompareTheFieldWithAnIntegerValueMustLoadTheComparisonAsExpected(Operation: TQueryBuilderComparisonOperator);
     [Test]
     procedure WhenToUseTheOperatorAndHaveToGenerateALogicalOperationWithFilledComparisons;
     [Test]
@@ -138,11 +147,6 @@ type
     procedure WhenToUseTheOperatorOrHaveToGenerateALogicalOperationWithFilledComparisons;
     [Test]
     procedure WhenToUseTheOperatorOrHaveToGenerateALogicalOperationWithOperationOrFilled;
-  end;
-
-  [TestFixture]
-  TQueryBuilderLogicalOperationTest = class
-  public
     [Test]
     procedure WhenTheAndOperatorIsCalledMustLoadTheLeftFieldWithTheLeftValueComparisonAndTheRightFieldWithTheRightValueComparision;
     [Test]
@@ -1291,78 +1295,80 @@ procedure TQueryBuilderComparisonTest.WhenCallTheFieldFuncitionMustLoadTheFieldN
 begin
   var Comparison := Field('MyField');
 
-  Assert.AreEqual('MyField', Comparison.Value.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('MyField', Comparison.Comparison.Field.FieldNames[0]);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
-procedure TQueryBuilderComparisonTest.WhenCompareTheFieldWithAnIntegerValueMustLoadTheComparisonAsExpected;
+procedure TQueryBuilderComparisonTest.WhenCompareTheFieldWithAnIntegerValueMustLoadTheComparisonAsExpected(Operation: TQueryBuilderComparisonOperator);
 begin
+  var Comparison: TQueryBuilderComparisonHelper;
+  var Field := Field('MyField');
   var Value := 1234;
 
-  for var Operation := Low(TQueryBuilderComparisonOperator) to High(TQueryBuilderComparisonOperator) do
-  begin
-    var Comparison: TQueryBuilderComparisonRecord;
-    var Field := Field('MyField');
-
-    case Operation of
-      qbcoEqual: Comparison := Field = Value;
-      qbcoGreaterThan: Comparison := Field > Value;
-      qbcoGreaterThanOrEqual: Comparison := Field >= Value;
-      qbcoLessThan: Comparison := Field < Value;
-      qbcoLessThanOrEqual: Comparison := Field <= Value;
-      qbcoNone, qbcoNull, qbcoNotNull, qbcoBetween, qbcoLike:
-      begin
-        Field.Value.Free;
-
-        Continue;
-      end;
-      qbcoNotEqual: Comparison := Field <> Value;
-      else raise Exception.Create('Not implemented');
-    end;
-
-    var Left := Comparison.Value.Comparison;
-
-    Assert.AreEqual('MyField', Left.Left.FieldNames[0]);
-    Assert.AreEqual(Operation, Left.Operation);
-    Assert.AreEqual(Value, Left.Right.Value.AsInteger);
-
-    Comparison.Value.Free;
+  case Operation of
+    qbcoBetween: Comparison := Field.Between<Integer>(123, 456);
+    qbcoEqual: Comparison := Field = Value;
+    qbcoGreaterThan: Comparison := Field > Value;
+    qbcoGreaterThanOrEqual: Comparison := Field >= Value;
+    qbcoLessThan: Comparison := Field < Value;
+    qbcoLessThanOrEqual: Comparison := Field <= Value;
+    qbcoLike: Comparison := Field.Like('abc');
+    qbcoNotEqual: Comparison := Field <> Value;
+    qbcoNotNull: Comparison := Field <> NULL;
+    qbcoNull: Comparison := Field = NULL;
+    else raise Exception.Create('Not implemented');
   end;
+
+  Assert.AreEqual('MyField', Comparison.Comparison.Left.Field.FieldNames[0]);
+  Assert.AreEqual(Operation, Comparison.Comparison.Comparison);
+
+  case Operation of
+    qbcoNull,
+    qbcoNotNull: Assert.AreEqual(TNullEnumerator.NULL, Comparison.Comparison.Right.Value.AsType<TNullEnumerator>);
+    qbcoBetween:
+    begin
+      var Values := Comparison.Comparison.Right.Value.AsType<TArray<Integer>>;
+      Assert.AreEqual(123, Values[0]);
+      Assert.AreEqual(456, Values[1]);
+    end;
+    qbcoLike: Assert.AreEqual('abc', Comparison.Comparison.Right.Value.AsString);
+    else Assert.AreEqual(Value, Comparison.Comparison.Right.Value.AsInteger);
+  end;
+
+  Comparison.Comparison.Free;
 end;
 
 procedure TQueryBuilderComparisonTest.WhenCompareTheFieldWithAStringValueMustLoadTheComparisonAsExpected;
 begin
-  var Comparison: TQueryBuilderComparisonRecord;
+  var Comparison: TQueryBuilderComparisonHelper;
   var Value := 'abc';
 
   for var Operation := Low(TQueryBuilderComparisonOperator) to High(TQueryBuilderComparisonOperator) do
   begin
-    var Field := Field('MyField');
+    Comparison := Field('MyField');
 
     case Operation of
-      qbcoEqual: Comparison := Field = Value;
-      qbcoGreaterThan: Comparison := Field > Value;
-      qbcoGreaterThanOrEqual: Comparison := Field >= Value;
-      qbcoLessThan: Comparison := Field < Value;
-      qbcoLessThanOrEqual: Comparison := Field <= Value;
+      qbcoEqual: Comparison := Comparison = Value;
+      qbcoGreaterThan: Comparison := Comparison > Value;
+      qbcoGreaterThanOrEqual: Comparison := Comparison >= Value;
+      qbcoLessThan: Comparison := Comparison < Value;
+      qbcoLessThanOrEqual: Comparison := Comparison <= Value;
       qbcoNone, qbcoNull, qbcoNotNull, qbcoBetween, qbcoLike:
       begin
-        Field.Value.Free;
+        Comparison.Comparison.Free;
 
         Continue;
       end;
-      qbcoNotEqual: Comparison := Field <> Value;
+      qbcoNotEqual: Comparison := Comparison <> Value;
       else raise Exception.Create('Not implemented');
     end;
 
-    var Left := Comparison.Value.Comparison;
+    Assert.AreEqual('MyField', Comparison.Comparison.Left.Field.FieldNames[0]);
+    Assert.AreEqual(Operation, Comparison.Comparison.Comparison);
+    Assert.AreEqual(Value, Comparison.Comparison.Right.Value.AsString);
 
-    Assert.AreEqual('MyField', Left.Left.FieldNames[0]);
-    Assert.AreEqual(Operation, Left.Operation);
-    Assert.AreEqual(Value, Left.Right.Value.AsString);
-
-    Comparison.Value.Free;
+    Comparison.Comparison.Free;
   end;
 end;
 
@@ -1370,200 +1376,198 @@ procedure TQueryBuilderComparisonTest.WhenToUseTheOperatorAndHaveToGenerateALogi
 begin
   var Comparison := (Field('F1') = 'abc') and (Field('F2') = 'abc');
 
-  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F1', Comparison.Comparison.Left.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F2', Comparison.Value.Logical.Right.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F2', Comparison.Comparison.Right.Left.Field.FieldNames[0]);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
 procedure TQueryBuilderComparisonTest.WhenToUseTheOperatorAndHaveToGenerateALogicalOperationWithOperationAndFilled;
 begin
   var Comparison := (Field('F1') = 'abc') and (Field('F2') = 'abc');
 
-  Assert.AreEqual(qloAnd, Comparison.Value.Logical.Operation);
+  Assert.AreEqual(qloAnd, Comparison.Comparison.Logical);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
 procedure TQueryBuilderComparisonTest.WhenToUseTheOperatorOrHaveToGenerateALogicalOperationWithFilledComparisons;
 begin
   var Comparison := (Field('F1') = 'abc') or (Field('F2') = 'abc');
 
-  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F1', Comparison.Comparison.Left.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F2', Comparison.Value.Logical.Right.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F2', Comparison.Comparison.Right.Left.Field.FieldNames[0]);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
 procedure TQueryBuilderComparisonTest.WhenToUseTheOperatorOrHaveToGenerateALogicalOperationWithOperationOrFilled;
 begin
   var Comparison := (Field('F1') = 'abc') or (Field('F2') = 'abc');
 
-  Assert.AreEqual(qloOr, Comparison.Value.Logical.Operation);
+  Assert.AreEqual(qloOr, Comparison.Comparison.Logical);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
-{ TQueryBuilderLogicalOperationTest }
-
-procedure TQueryBuilderLogicalOperationTest.WhenAndOperatorMustLoadTheOperationWithTheAndValue;
+procedure TQueryBuilderComparisonTest.WhenAndOperatorMustLoadTheOperationWithTheAndValue;
 begin
   var Comparison := (Field('MyField') = 'abc') and (Field('MyField2') = 'abc');
 
-  Assert.AreEqual(qloAnd, Comparison.Value.Logical.Operation);
+  Assert.AreEqual(qloAnd, Comparison.Comparison.Logical);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
-procedure TQueryBuilderLogicalOperationTest.WhenBothOperatorAreLogicalMustCreateANewLogicalOperationWithBothValuesInAndOperator;
+procedure TQueryBuilderComparisonTest.WhenBothOperatorAreLogicalMustCreateANewLogicalOperationWithBothValuesInAndOperator;
 begin
   var Comparison := ((Field('F1') = 1) and (Field('F2') = 2)) and ((Field('F3') = 3) and (Field('F4') = 4));
 
-  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Logical.Left.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F1', Comparison.Comparison.Left.Left.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F2', Comparison.Value.Logical.Left.Logical.Right.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F2', Comparison.Comparison.Left.Right.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F3', Comparison.Value.Logical.Right.Logical.Left.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F3', Comparison.Comparison.Right.Left.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F4', Comparison.Value.Logical.Right.Logical.Right.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F4', Comparison.Comparison.Right.Right.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual(qloAnd, Comparison.Value.Logical.Operation);
+  Assert.AreEqual(qloAnd, Comparison.Comparison.Logical);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
-procedure TQueryBuilderLogicalOperationTest.WhenBothOperatorAreLogicalMustCreateANewLogicalOperationWithBothValuesInOrOperator;
+procedure TQueryBuilderComparisonTest.WhenBothOperatorAreLogicalMustCreateANewLogicalOperationWithBothValuesInOrOperator;
 begin
   var Comparison := ((Field('F1') = 1) or (Field('F2') = 2)) or ((Field('F3') = 3) or (Field('F4') = 4));
 
-  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Logical.Left.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F1', Comparison.Comparison.Left.Left.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F2', Comparison.Value.Logical.Left.Logical.Right.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F2', Comparison.Comparison.Left.Right.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F3', Comparison.Value.Logical.Right.Logical.Left.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F3', Comparison.Comparison.Right.Left.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F4', Comparison.Value.Logical.Right.Logical.Right.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F4', Comparison.Comparison.Right.Right.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual(qloOr, Comparison.Value.Logical.Operation);
+  Assert.AreEqual(qloOr, Comparison.Comparison.Logical);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
-procedure TQueryBuilderLogicalOperationTest.WhenForASimpleComparisonYouHaveToAssembleTheLogicalOperatorWithComparisonTypeValuesInOperationAnd;
+procedure TQueryBuilderComparisonTest.WhenForASimpleComparisonYouHaveToAssembleTheLogicalOperatorWithComparisonTypeValuesInOperationAnd;
 begin
   var Comparison := (Field('F1') = 1) and (Field('F2') = 2);
 
-  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F1', Comparison.Comparison.Left.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F2', Comparison.Value.Logical.Right.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F2', Comparison.Comparison.Right.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual(qloAnd, Comparison.Value.Logical.Operation);
+  Assert.AreEqual(qloAnd, Comparison.Comparison.Logical);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
-procedure TQueryBuilderLogicalOperationTest.WhenForASimpleComparisonYouHaveToAssembleTheLogicalOperatorWithComparisonTypeValuesInOperationOr;
+procedure TQueryBuilderComparisonTest.WhenForASimpleComparisonYouHaveToAssembleTheLogicalOperatorWithComparisonTypeValuesInOperationOr;
 begin
   var Comparison := (Field('F1') = 1) or (Field('F2') = 2);
 
-  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F1', Comparison.Comparison.Left.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F2', Comparison.Value.Logical.Right.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F2', Comparison.Comparison.Right.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual(qloOr, Comparison.Value.Logical.Operation);
+  Assert.AreEqual(qloOr, Comparison.Comparison.Logical);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
-procedure TQueryBuilderLogicalOperationTest.WhenOperationLeftIsAComparisonAndRightIsALogicalOperationHaveToAssembleANewLogicalOperatorWithTheLeftWithTheValueOfComparisonAndRightWithTheLogicalOperationInTheAndOperation;
+procedure TQueryBuilderComparisonTest.WhenOperationLeftIsAComparisonAndRightIsALogicalOperationHaveToAssembleANewLogicalOperatorWithTheLeftWithTheValueOfComparisonAndRightWithTheLogicalOperationInTheAndOperation;
 begin
   var Comparison := (Field('F1') = 1) and ((Field('F2') = 2) and (Field('F3') = 3));
 
-  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F1', Comparison.Comparison.Left.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F2', Comparison.Value.Logical.Right.Logical.Left.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F2', Comparison.Comparison.Right.Left.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F3', Comparison.Value.Logical.Right.Logical.Right.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F3', Comparison.Comparison.Right.Right.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual(qloAnd, Comparison.Value.Logical.Operation);
+  Assert.AreEqual(qloAnd, Comparison.Comparison.Logical);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
-procedure TQueryBuilderLogicalOperationTest.WhenOperationLeftIsAComparisonAndRightIsALogicalOperationHaveToAssembleANewLogicalOperatorWithTheLeftWithTheValueOfComparisonAndRightWithTheLogicalOperationInTheOrOperation;
+procedure TQueryBuilderComparisonTest.WhenOperationLeftIsAComparisonAndRightIsALogicalOperationHaveToAssembleANewLogicalOperatorWithTheLeftWithTheValueOfComparisonAndRightWithTheLogicalOperationInTheOrOperation;
 begin
   var Comparison := (Field('F1') = 1) or ((Field('F2') = 2) or (Field('F3') = 3));
 
-  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F1', Comparison.Comparison.Left.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F2', Comparison.Value.Logical.Right.Logical.Left.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F2', Comparison.Comparison.Right.Left.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F3', Comparison.Value.Logical.Right.Logical.Right.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F3', Comparison.Comparison.Right.Right.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual(qloOr, Comparison.Value.Logical.Operation);
+  Assert.AreEqual(qloOr, Comparison.Comparison.Logical);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
-procedure TQueryBuilderLogicalOperationTest.WhenOperationLeftIsALogicalAndRightIsAComparisonOperationHaveToAssembleANewLogicalOperatorWithTheLeftWithTheLogicalOperationAndRightWithTheValueOfComparisonInTheAndOperation;
+procedure TQueryBuilderComparisonTest.WhenOperationLeftIsALogicalAndRightIsAComparisonOperationHaveToAssembleANewLogicalOperatorWithTheLeftWithTheLogicalOperationAndRightWithTheValueOfComparisonInTheAndOperation;
 begin
   var Comparison := ((Field('F1') = 1) and (Field('F2') = 2)) and (Field('F3') = 3);
 
-  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Logical.Left.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F1', Comparison.Comparison.Left.Left.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F2', Comparison.Value.Logical.Left.Logical.Right.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F2', Comparison.Comparison.Left.Right.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F3', Comparison.Value.Logical.Right.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F3', Comparison.Comparison.Right.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual(qloAnd, Comparison.Value.Logical.Operation);
+  Assert.AreEqual(qloAnd, Comparison.Comparison.Logical);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
-procedure TQueryBuilderLogicalOperationTest.WhenOperationLeftIsALogicalAndRightIsAComparisonOperationHaveToAssembleANewLogicalOperatorWithTheLeftWithTheLogicalOperationAndRightWithTheValueOfComparisonInTheOrOperation;
+procedure TQueryBuilderComparisonTest.WhenOperationLeftIsALogicalAndRightIsAComparisonOperationHaveToAssembleANewLogicalOperatorWithTheLeftWithTheLogicalOperationAndRightWithTheValueOfComparisonInTheOrOperation;
 begin
   var Comparison := ((Field('F1') = 1) or (Field('F2') = 2)) or (Field('F3') = 3);
 
-  Assert.AreEqual('F1', Comparison.Value.Logical.Left.Logical.Left.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F1', Comparison.Comparison.Left.Left.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F2', Comparison.Value.Logical.Left.Logical.Right.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F2', Comparison.Comparison.Left.Right.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual('F3', Comparison.Value.Logical.Right.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('F3', Comparison.Comparison.Right.Left.Field.FieldNames[0]);
 
-  Assert.AreEqual(qloOr, Comparison.Value.Logical.Operation);
+  Assert.AreEqual(qloOr, Comparison.Comparison.Logical);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
-procedure TQueryBuilderLogicalOperationTest.WhenOrOperatorMustLoadTheOperationWithTheOrValue;
+procedure TQueryBuilderComparisonTest.WhenOrOperatorMustLoadTheOperationWithTheOrValue;
 begin
   var Comparison := (Field('MyField') = 'abc') or (Field('MyField2') = 'abc');
 
-  Assert.AreEqual(qloOr, Comparison.Value.Logical.Operation);
+  Assert.AreEqual(qloOr, Comparison.Comparison.Logical);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
-procedure TQueryBuilderLogicalOperationTest.WhenTheAndOperatorIsCalledMustLoadTheLeftFieldWithTheLeftValueComparisonAndTheRightFieldWithTheRightValueComparision;
+procedure TQueryBuilderComparisonTest.WhenTheAndOperatorIsCalledMustLoadTheLeftFieldWithTheLeftValueComparisonAndTheRightFieldWithTheRightValueComparision;
 begin
   var Comparison := (Field('MyField') = 'abc') and (Field('MyField2') = 'abc');
 
-  Assert.AreEqual('MyField', Comparison.Value.Logical.Left.Comparison.Left.FieldNames[0]);
-  Assert.AreEqual('MyField2', Comparison.Value.Logical.Right.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('MyField', Comparison.Comparison.Left.Left.Field.FieldNames[0]);
+  Assert.AreEqual('MyField2', Comparison.Comparison.Right.Left.Field.FieldNames[0]);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
-procedure TQueryBuilderLogicalOperationTest.WhenTheOrOperatorIsCalledMustLoadTheLeftFieldWithTheLeftValueComparisonAndTheRightFieldWithTheRightValueComparision;
+procedure TQueryBuilderComparisonTest.WhenTheOrOperatorIsCalledMustLoadTheLeftFieldWithTheLeftValueComparisonAndTheRightFieldWithTheRightValueComparision;
 begin
   var Comparison := (Field('MyField') = 'abc') or (Field('MyField2') = 'abc');
 
-  Assert.AreEqual('MyField', Comparison.Value.Logical.Left.Comparison.Left.FieldNames[0]);
-  Assert.AreEqual('MyField2', Comparison.Value.Logical.Right.Comparison.Left.FieldNames[0]);
+  Assert.AreEqual('MyField', Comparison.Comparison.Left.Left.Field.FieldNames[0]);
+  Assert.AreEqual('MyField2', Comparison.Comparison.Right.Left.Field.FieldNames[0]);
 
-  Comparison.Value.Free;
+  Comparison.Comparison.Free;
 end;
 
 { TQueryBuilderWhereTest }
@@ -1674,7 +1678,7 @@ end;
 
 procedure TQueryBuilderWhereTest.TheComparisonOperatorsMustBeGeneratedAsExpected(Operation: TQueryBuilderComparisonOperator);
 begin
-  var Comparison: TQueryBuilderComparisonRecord;
+  var Comparison: TQueryBuilderComparisonHelper;
   var Field := Field('MyField');
   var ValueString := String('1');
 
@@ -1696,7 +1700,7 @@ begin
     end;
     qbcoNone:
     begin
-      Field.Value.Free;
+      Field.Comparison.Free;
 
       Assert.IsTrue(True);
     end;
@@ -1767,7 +1771,7 @@ end;
 
 procedure TQueryBuilderWhereTest.WhenComparingEnumeratorTheComparisonMustHappenAsExpected(Operation: TQueryBuilderComparisonOperator);
 begin
-  var Comparison: TQueryBuilderComparisonRecord;
+  var Comparison: TQueryBuilderComparisonHelper;
   var Field := Field('Enumerator');
 
   case Operation of
@@ -1779,7 +1783,7 @@ begin
     qbcoNotEqual: Comparison := Field <> Enum2;
     qbcoNone, qbcoNull, qbcoNotNull, qbcoBetween:
     begin
-      Field.Value.Free;
+      Field.Comparison.Free;
 
       Assert.IsTrue(True);
 
@@ -1798,7 +1802,7 @@ end;
 
 procedure TQueryBuilderWhereTest.WhenComparingFieldMustBuildTheFilterAsExpected(Operation: TQueryBuilderComparisonOperator);
 begin
-  var Comparison: TQueryBuilderComparisonRecord;
+  var Comparison: TQueryBuilderComparisonHelper;
   var FieldLeft := Field('MyField');
   var FieldValue := Field('Value');
 
@@ -1811,8 +1815,8 @@ begin
     qbcoNotEqual: Comparison := FieldLeft <> FieldValue;
     qbcoNone, qbcoNull, qbcoNotNull, qbcoBetween:
     begin
-      FieldLeft.Value.Free;
-      FieldValue.Value.Free;
+      FieldLeft.Comparison.Free;
+      FieldValue.Comparison.Free;
 
       Assert.IsTrue(True);
 
@@ -1860,7 +1864,7 @@ end;
 
 procedure TQueryBuilderWhereTest.WhenTheComparisionWithADateMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
 begin
-  var Comparison: TQueryBuilderComparisonRecord;
+  var Comparison: TQueryBuilderComparisonHelper;
   var Field := Field('Date');
   var From := TQueryBuilderFrom.Create(nil, 1);
   var DateVar: TDate := EncodeDate(2021, 01, 01);
@@ -1884,7 +1888,7 @@ end;
 
 procedure TQueryBuilderWhereTest.WhenTheComparisionWithADateTimeMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
 begin
-  var Comparison: TQueryBuilderComparisonRecord;
+  var Comparison: TQueryBuilderComparisonHelper;
   var Field := Field('DateTime');
   var From := TQueryBuilderFrom.Create(nil, 1);
   var DateVar: TDateTime := EncodeDateTime(2021, 01, 01, 12, 34, 56, 0);
@@ -1908,7 +1912,7 @@ end;
 
 procedure TQueryBuilderWhereTest.WhenTheComparisionWithATimeMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
 begin
-  var Comparison: TQueryBuilderComparisonRecord;
+  var Comparison: TQueryBuilderComparisonHelper;
   var Field := Field('Time');
   var From := TQueryBuilderFrom.Create(nil, 1);
   var DateVar: TTime := EncodeTime(12, 34, 56, 0);

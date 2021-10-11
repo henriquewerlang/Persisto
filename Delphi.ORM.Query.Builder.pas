@@ -7,10 +7,8 @@ uses System.Rtti, System.Classes, System.Generics.Collections, System.SysUtils, 
 type
   TQueryBuilder = class;
   TQueryBuilderComparison = class;
-  TQueryBuilderComparisonValue = class;
   TQueryBuilderFrom = class;
   TQueryBuilderJoin = class;
-  TQueryBuilderLogicalOperation = class;
   TQueryBuilderSelect = class;
   TQueryBuilderWhere<T: class> = class;
 
@@ -166,118 +164,65 @@ type
     property FieldNames: TArray<String> read FFieldNames;
   end;
 
-  TQueryBuilderComparisonValueType = (cvtComparison, cvtFieldAlias, cvtValue);
-
-  TQueryBuilderComparisonValue = class
-  private
-    FField: TQueryBuilderFieldAlias;
-    FComparison: TQueryBuilderComparison;
-    FValue: TValue;
-    FLogical: TQueryBuilderLogicalOperation;
-  public
-    constructor Create(const Comparison: TQueryBuilderComparison); overload;
-    constructor Create(const Field: TQueryBuilderFieldAlias); overload;
-    constructor Create(const Logical: TQueryBuilderLogicalOperation); overload;
-    constructor Create(const Value: TValue); overload;
-
-    destructor Destroy; override;
-
-    property Comparison: TQueryBuilderComparison read FComparison write FComparison;
-    property Field: TQueryBuilderFieldAlias read FField;
-    property Logical: TQueryBuilderLogicalOperation read FLogical write FLogical;
-    property Value: TValue read FValue write FValue;
-  end;
-
-  TQueryBuilderComparisonOperator = (qbcoNone, qbcoEqual, qbcoNotEqual, qbcoGreaterThan, qbcoGreaterThanOrEqual, qbcoLessThan, qbcoLessThanOrEqual, qbcoNull, qbcoNotNull, 
+  TQueryBuilderComparisonOperator = (qbcoNone, qbcoEqual, qbcoNotEqual, qbcoGreaterThan, qbcoGreaterThanOrEqual, qbcoLessThan, qbcoLessThanOrEqual, qbcoNull, qbcoNotNull,
     qbcoBetween, qbcoLike);
+
+  TQueryBuilderLogicalOperator = (qloNone, qloAnd, qloOr);
 
   TQueryBuilderComparison = class
   private
-    FLeft: TQueryBuilderFieldAlias;
-    FRight: TQueryBuilderComparisonValue;
-    FOperation: TQueryBuilderComparisonOperator;
+    FComparison: TQueryBuilderComparisonOperator;
+    FField: TQueryBuilderFieldAlias;
+    FLeft: TQueryBuilderComparison;
+    FLogical: TQueryBuilderLogicalOperator;
+    FRight: TQueryBuilderComparison;
+    FValue: TValue;
+    function GetLeft: TQueryBuilderComparison;
+    function GetRight: TQueryBuilderComparison;
   public
     destructor Destroy; override;
 
-    property Left: TQueryBuilderFieldAlias read FLeft write FLeft;
-    property Operation: TQueryBuilderComparisonOperator read FOperation write FOperation;
-    property Right: TQueryBuilderComparisonValue read FRight write FRight;
+    property Comparison: TQueryBuilderComparisonOperator read FComparison write FComparison;
+    property Field: TQueryBuilderFieldAlias read FField write FField;
+    property Left: TQueryBuilderComparison read GetLeft write FLeft;
+    property Logical: TQueryBuilderLogicalOperator read FLogical write FLogical;
+    property Right: TQueryBuilderComparison read GetRight write FRight;
+    property Value: TValue read FValue write FValue;
   end;
 
-  TQueryBuilderLogicalOperator = (qloAnd, qloOr);
-
-  TQueryBuilderLogicalOperation = class
+  TQueryBuilderComparisonHelper = record
   private
-    FLeft: TQueryBuilderComparisonValue;
-    FOperation: TQueryBuilderLogicalOperator;
-    FRight: TQueryBuilderComparisonValue;
+    class procedure InitComparison(var Result: TQueryBuilderComparisonHelper); static;
+    class procedure MakeComparison(const Comparison: TQueryBuilderComparisonOperator; const Left, Right: TQueryBuilderComparisonHelper; var Result: TQueryBuilderComparisonHelper); overload; static;
+    class procedure MakeComparison(const Comparison: TQueryBuilderComparisonOperator; const Left: TQueryBuilderComparisonHelper; const Right: TValue; var Result: TQueryBuilderComparisonHelper); overload; static;
   public
-    destructor Destroy; override;
+    Comparison: TQueryBuilderComparison;
 
-    property Left: TQueryBuilderComparisonValue read FLeft write FLeft;
-    property Operation: TQueryBuilderLogicalOperator read FOperation write FOperation;
-    property Right: TQueryBuilderComparisonValue read FRight write FRight;
-  end;
+    function Between<T>(const ValueStart, ValueEnd: T): TQueryBuilderComparisonHelper;
+    function Like(const Value: String): TQueryBuilderComparisonHelper;
 
-  TQueryBuilderComparisonRecord = record
-  public
-    Value: TQueryBuilderComparisonValue;
-  end;
-
-  TQueryBuilderLogicalOperationHelper = record
-  private
-    class procedure MakeOperation(const Left, Right: TQueryBuilderComparisonValue; const Operation: TQueryBuilderLogicalOperator; out Result: TQueryBuilderLogicalOperationHelper); static;
-  public
-    Value: TQueryBuilderComparisonValue;
-
-    class operator BitwiseAnd(const Left, Right: TQueryBuilderLogicalOperationHelper): TQueryBuilderLogicalOperationHelper;
-    class operator BitwiseAnd(const Left: TQueryBuilderComparisonRecord; const Right: TQueryBuilderLogicalOperationHelper): TQueryBuilderLogicalOperationHelper;
-    class operator BitwiseAnd(const Left: TQueryBuilderLogicalOperationHelper; const Right: TQueryBuilderComparisonRecord): TQueryBuilderLogicalOperationHelper;
-    class operator BitwiseOr(const Left, Right: TQueryBuilderLogicalOperationHelper): TQueryBuilderLogicalOperationHelper;
-    class operator BitwiseOr(const Left: TQueryBuilderComparisonRecord; const Right: TQueryBuilderLogicalOperationHelper): TQueryBuilderLogicalOperationHelper;
-    class operator BitwiseOr(const Left: TQueryBuilderLogicalOperationHelper; const Right: TQueryBuilderComparisonRecord): TQueryBuilderLogicalOperationHelper;
-  end;
-
-  TQueryBuilderComparisonHelper = record helper for TQueryBuilderComparisonRecord
-  private
-    class function MakeFieldValue(const Value: TQueryBuilderComparisonRecord): TQueryBuilderComparisonValue; static;
-
-    procedure MakeCompareOperation(const Operation: TQueryBuilderComparisonOperator; const CompareValue: TQueryBuilderComparisonValue; out Result: TQueryBuilderComparisonRecord); overload;
-    procedure MakeCompareOperation(const Operation: TQueryBuilderComparisonOperator; const ValueOp: TValue; out Result: TQueryBuilderComparisonRecord); overload;
-    procedure MakeEqual(const Value: TValue; out Result: TQueryBuilderComparisonRecord);
-    procedure MakeGreaterThan(const Value: TValue; out Result: TQueryBuilderComparisonRecord);
-    procedure MakeGreaterThanOrEqual(const Value: TValue; out Result: TQueryBuilderComparisonRecord);
-    procedure MakeLessThan(const Value: TValue; out Result: TQueryBuilderComparisonRecord);
-    procedure MakeLessThanOrEqual(const Value: TValue; out Result: TQueryBuilderComparisonRecord);
-    procedure MakeNotEqual(const Value: TValue; out Result: TQueryBuilderComparisonRecord);
-
-    class procedure MakeLogicalOperation(const Left, Right: TQueryBuilderComparisonRecord; const Operation: TQueryBuilderLogicalOperator; out Result: TQueryBuilderLogicalOperationHelper); static;
-  public
-    function Between<T>(const ValueStart, ValueEnd: T): TQueryBuilderComparisonRecord;
-    function Like(const Condition: String): TQueryBuilderComparisonRecord;
-
-    class operator BitwiseAnd(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderLogicalOperationHelper;
-    class operator BitwiseOr(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderLogicalOperationHelper;
-    class operator Equal(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
-    class operator Equal(const Left: TQueryBuilderComparisonRecord; const Value: TNullEnumerator): TQueryBuilderComparisonRecord;
-    class operator Equal(const Left: TQueryBuilderComparisonRecord; const Value: TValue): TQueryBuilderComparisonRecord;
-    class operator Equal(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
-    class operator GreaterThan(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
-    class operator GreaterThan(const Left: TQueryBuilderComparisonRecord; const Value: TValue): TQueryBuilderComparisonRecord;
-    class operator GreaterThan(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
-    class operator GreaterThanOrEqual(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
-    class operator GreaterThanOrEqual(const Left: TQueryBuilderComparisonRecord; const Value: TValue): TQueryBuilderComparisonRecord;
-    class operator GreaterThanOrEqual(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
-    class operator LessThan(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
-    class operator LessThan(const Left: TQueryBuilderComparisonRecord; const Value: TValue): TQueryBuilderComparisonRecord;
-    class operator LessThan(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
-    class operator LessThanOrEqual(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
-    class operator LessThanOrEqual(const Left: TQueryBuilderComparisonRecord; const Value: TValue): TQueryBuilderComparisonRecord;
-    class operator LessThanOrEqual(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
-    class operator NotEqual(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
-    class operator NotEqual(const Left: TQueryBuilderComparisonRecord; const Value: TNullEnumerator): TQueryBuilderComparisonRecord;
-    class operator NotEqual(const Left: TQueryBuilderComparisonRecord; const Value: TValue): TQueryBuilderComparisonRecord;
-    class operator NotEqual(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
+    class operator BitwiseAnd(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+    class operator BitwiseOr(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+    class operator Equal(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+    class operator Equal(const Left: TQueryBuilderComparisonHelper; const Value: TNullEnumerator): TQueryBuilderComparisonHelper;
+    class operator Equal(const Left: TQueryBuilderComparisonHelper; const Value: TValue): TQueryBuilderComparisonHelper;
+    class operator Equal(const Left: TQueryBuilderComparisonHelper; const Value: Variant): TQueryBuilderComparisonHelper;
+    class operator GreaterThan(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+    class operator GreaterThan(const Left: TQueryBuilderComparisonHelper; const Value: TValue): TQueryBuilderComparisonHelper;
+    class operator GreaterThan(const Left: TQueryBuilderComparisonHelper; const Value: Variant): TQueryBuilderComparisonHelper;
+    class operator GreaterThanOrEqual(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+    class operator GreaterThanOrEqual(const Left: TQueryBuilderComparisonHelper; const Value: TValue): TQueryBuilderComparisonHelper;
+    class operator GreaterThanOrEqual(const Left: TQueryBuilderComparisonHelper; const Value: Variant): TQueryBuilderComparisonHelper;
+    class operator LessThan(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+    class operator LessThan(const Left: TQueryBuilderComparisonHelper; const Value: TValue): TQueryBuilderComparisonHelper;
+    class operator LessThan(const Left: TQueryBuilderComparisonHelper; const Value: Variant): TQueryBuilderComparisonHelper;
+    class operator LessThanOrEqual(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+    class operator LessThanOrEqual(const Left: TQueryBuilderComparisonHelper; const Value: TValue): TQueryBuilderComparisonHelper;
+    class operator LessThanOrEqual(const Left: TQueryBuilderComparisonHelper; const Value: Variant): TQueryBuilderComparisonHelper;
+    class operator NotEqual(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+    class operator NotEqual(const Left: TQueryBuilderComparisonHelper; const Value: TNullEnumerator): TQueryBuilderComparisonHelper;
+    class operator NotEqual(const Left: TQueryBuilderComparisonHelper; const Value: TValue): TQueryBuilderComparisonHelper;
+    class operator NotEqual(const Left: TQueryBuilderComparisonHelper; const Value: Variant): TQueryBuilderComparisonHelper;
   end;
 
   TQueryBuilderWhere<T: class> = class(TQueryBuilderCommand)
@@ -292,10 +237,10 @@ type
     function GetFieldValue(const Comparison: TQueryBuilderComparison; const Field: TField): String;
     function GetValueToCompare(const Comparison: TQueryBuilderComparison; const Field: TField): String;
     function MakeComparison(const Comparison: TQueryBuilderComparison): String;
-    function MakeFilter(const Value: TQueryBuilderComparisonValue): String;
-    function MakeLogical(const Logical: TQueryBuilderLogicalOperation): String;
+    function MakeFilter(const Value: TQueryBuilderComparison): String;
+    function MakeLogical(const Logical: TQueryBuilderComparison): String;
 
-    procedure BuildFilter(const Value: TQueryBuilderComparisonValue);
+    procedure BuildFilter(const Value: TQueryBuilderComparisonHelper);
   public
     constructor Create(From: TQueryBuilderFrom);
 
@@ -303,20 +248,19 @@ type
 
     function GetSQL: String; override;
     function Open: TQueryBuilderOpen<T>;
-    function Where(const Condition: TQueryBuilderComparisonRecord): TQueryBuilderWhere<T>; overload;
-    function Where(const Condition: TQueryBuilderLogicalOperationHelper): TQueryBuilderWhere<T>; overload;
+    function Where(const Condition: TQueryBuilderComparisonHelper): TQueryBuilderWhere<T>;
   end;
 
-function Field(const Name: String): TQueryBuilderComparisonRecord;
+function Field(const Name: String): TQueryBuilderComparisonHelper;
 
 implementation
 
 uses System.TypInfo, Delphi.ORM.Attributes, Delphi.ORM.Rtti.Helper, Delphi.ORM.Classes.Loader;
 
-function Field(const Name: String): TQueryBuilderComparisonRecord;
+function Field(const Name: String): TQueryBuilderComparisonHelper;
 begin
-  Result.Value := TQueryBuilderComparisonValue.Create(TQueryBuilderComparison.Create);
-  Result.Value.Comparison.Left := TQueryBuilderFieldAlias.Create(Name);
+  Result.Comparison := TQueryBuilderComparison.Create;
+  Result.Comparison.Field := TQueryBuilderFieldAlias.Create(Name);
 end;
 
 { TQueryBuilder }
@@ -619,12 +563,12 @@ end;
 
 { TQueryBuilderWhere<T> }
 
-procedure TQueryBuilderWhere<T>.BuildFilter(const Value: TQueryBuilderComparisonValue);
+procedure TQueryBuilderWhere<T>.BuildFilter(const Value: TQueryBuilderComparisonHelper);
 begin
   try
-    FFilter := ' where ' + MakeFilter(Value);
+    FFilter := ' where ' + MakeFilter(Value.Comparison);
   finally
-    Value.Free;
+    Value.Comparison.Free;
   end;
 end;
 
@@ -697,7 +641,7 @@ end;
 
 function TQueryBuilderWhere<T>.GetFieldValue(const Comparison: TQueryBuilderComparison; const Field: TField): String;
 begin
-  case Comparison.Operation of
+  case Comparison.Comparison of
     qbcoBetween: Result := Format(' between %s and %s', [Field.GetAsString(Comparison.Right.Value.GetArrayElement(0).AsType<TValue>), Field.GetAsString(Comparison.Right.Value.GetArrayElement(1).AsType<TValue>)]);
     qbcoLike: Result := Format(' like ''%s''', [Comparison.Right.Value.AsString]);
     qbcoNull: Result := ' is null';
@@ -725,25 +669,25 @@ const
 
 begin
   var Field: TField;
-  var FieldName := GetField(Comparison.Left, Field);
+  var FieldName := GetField(Comparison.Left.Field, Field);
 
-  Result := Format('%s%s%s', [FieldName, COMPARISON_OPERATOR[Comparison.Operation], GetValueToCompare(Comparison, Field)]);
+  Result := Format('%s%s%s', [FieldName, COMPARISON_OPERATOR[Comparison.Comparison], GetValueToCompare(Comparison, Field)]);
 end;
 
-function TQueryBuilderWhere<T>.MakeFilter(const Value: TQueryBuilderComparisonValue): String;
+function TQueryBuilderWhere<T>.MakeFilter(const Value: TQueryBuilderComparison): String;
 begin
-  if Assigned(Value.Comparison) then
-    Result := MakeComparison(Value.Comparison)
-  else if Assigned(Value.Logical) then
-    Result := MakeLogical(Value.Logical);
+  if Value.Comparison <> qbcoNone then
+    Result := MakeComparison(Value)
+  else if Value.Logical <> qloNone then
+    Result := MakeLogical(Value);
 end;
 
-function TQueryBuilderWhere<T>.MakeLogical(const Logical: TQueryBuilderLogicalOperation): String;
+function TQueryBuilderWhere<T>.MakeLogical(const Logical: TQueryBuilderComparison): String;
 const
-  LOGICAL_OPERATOR: array[TQueryBuilderLogicalOperator] of String = ('and', 'or');
+  LOGICAL_OPERATOR: array[TQueryBuilderLogicalOperator] of String = ('', 'and', 'or');
 
 begin
-  Result := Format('(%s %s %s)', [MakeFilter(Logical.Left), LOGICAL_OPERATOR[Logical.Operation], MakeFilter(Logical.Right)]);
+  Result := Format('(%s %s %s)', [MakeFilter(Logical.Left), LOGICAL_OPERATOR[Logical.Logical], MakeFilter(Logical.Right)]);
 end;
 
 function TQueryBuilderWhere<T>.Open: TQueryBuilderOpen<T>;
@@ -752,18 +696,11 @@ begin
   Result := FOpen;
 end;
 
-function TQueryBuilderWhere<T>.Where(const Condition: TQueryBuilderComparisonRecord): TQueryBuilderWhere<T>;
+function TQueryBuilderWhere<T>.Where(const Condition: TQueryBuilderComparisonHelper): TQueryBuilderWhere<T>;
 begin
   Result := Self;
 
-  BuildFilter(Condition.Value);
-end;
-
-function TQueryBuilderWhere<T>.Where(const Condition: TQueryBuilderLogicalOperationHelper): TQueryBuilderWhere<T>;
-begin
-  Result := Self;
-
-  BuildFilter(Condition.Value);
+  BuildFilter(Condition);
 end;
 
 { TQueryBuilderOpen<T> }
@@ -851,281 +788,33 @@ begin
   FFieldNames := FieldName.Split(['.']);
 end;
 
-{ TQueryBuilderComparisonHelper }
-
-function TQueryBuilderComparisonHelper.Between<T>(const ValueStart, ValueEnd: T): TQueryBuilderComparisonRecord;
-begin
-  MakeCompareOperation(qbcoBetween, TValue.From<TArray<TValue>>([TValue.From(ValueStart), TValue.From(ValueEnd)]), Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.BitwiseAnd(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderLogicalOperationHelper;
-begin
-  MakeLogicalOperation(Left, Right, qloAnd, Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.BitwiseOr(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderLogicalOperationHelper;
-begin
-  MakeLogicalOperation(Left, Right, qloOr, Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.Equal(const Left: TQueryBuilderComparisonRecord; const Value: TNullEnumerator): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeCompareOperation(qbcoNull, nil, Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.Equal(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeCompareOperation(qbcoEqual, MakeFieldValue(Right), Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.Equal(const Left: TQueryBuilderComparisonRecord; const Value: TValue): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeEqual(Value, Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.GreaterThan(const Left: TQueryBuilderComparisonRecord; const Value: TValue): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeGreaterThan(Value, Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.GreaterThanOrEqual(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeCompareOperation(qbcoGreaterThanOrEqual, MakeFieldValue(Right), Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.GreaterThan(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeCompareOperation(qbcoGreaterThan, MakeFieldValue(Right), Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.GreaterThan(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeGreaterThan(TValue.FromVariant(Value), Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.GreaterThanOrEqual(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeGreaterThanOrEqual(TValue.FromVariant(Value), Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.GreaterThanOrEqual(const Left: TQueryBuilderComparisonRecord; const Value: TValue): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeGreaterThanOrEqual(Value, Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.LessThan(const Left: TQueryBuilderComparisonRecord; const Value: TValue): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeLessThan(Value, Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.LessThanOrEqual(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeCompareOperation(qbcoLessThanOrEqual, MakeFieldValue(Right), Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.LessThan(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeCompareOperation(qbcoLessThan, MakeFieldValue(Right), Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.LessThanOrEqual(const Left: TQueryBuilderComparisonRecord; const Value: TValue): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeLessThanOrEqual(Value, Result);
-end;
-
-procedure TQueryBuilderComparisonHelper.MakeCompareOperation(const Operation: TQueryBuilderComparisonOperator; const CompareValue: TQueryBuilderComparisonValue; out Result: TQueryBuilderComparisonRecord);
-begin
-  Result.Value := Value;
-  Result.Value.Comparison.Operation := Operation;
-  Result.Value.Comparison.Right := CompareValue;
-end;
-
-procedure TQueryBuilderComparisonHelper.MakeEqual(const Value: TValue; out Result: TQueryBuilderComparisonRecord);
-begin
-  MakeCompareOperation(qbcoEqual, Value, Result);
-end;
-
-class function TQueryBuilderComparisonHelper.MakeFieldValue(const Value: TQueryBuilderComparisonRecord): TQueryBuilderComparisonValue;
-begin
-  Result := TQueryBuilderComparisonValue.Create(Value.Value.Comparison.Left);
-
-  Value.Value.Comparison.Left := nil;
-
-  Value.Value.Free;
-end;
-
-procedure TQueryBuilderComparisonHelper.MakeGreaterThan(const Value: TValue; out Result: TQueryBuilderComparisonRecord);
-begin
-  MakeCompareOperation(qbcoGreaterThan, Value, Result);
-end;
-
-procedure TQueryBuilderComparisonHelper.MakeGreaterThanOrEqual(const Value: TValue; out Result: TQueryBuilderComparisonRecord);
-begin
-  MakeCompareOperation(qbcoGreaterThanOrEqual, Value, Result);
-end;
-
-procedure TQueryBuilderComparisonHelper.MakeLessThan(const Value: TValue; out Result: TQueryBuilderComparisonRecord);
-begin
-  MakeCompareOperation(qbcoLessThan, Value, Result);
-end;
-
-procedure TQueryBuilderComparisonHelper.MakeLessThanOrEqual(const Value: TValue; out Result: TQueryBuilderComparisonRecord);
-begin
-  MakeCompareOperation(qbcoLessThanOrEqual, Value, Result);
-end;
-
-class procedure TQueryBuilderComparisonHelper.MakeLogicalOperation(const Left, Right: TQueryBuilderComparisonRecord; const Operation: TQueryBuilderLogicalOperator;
-  out Result: TQueryBuilderLogicalOperationHelper);
-begin
-  Result.Value := TQueryBuilderComparisonValue.Create(TQueryBuilderLogicalOperation.Create);
-  Result.Value.Logical.Left := Left.Value;
-  Result.Value.Logical.Operation := Operation;
-  Result.Value.Logical.Right := Right.Value;
-end;
-
-procedure TQueryBuilderComparisonHelper.MakeNotEqual(const Value: TValue; out Result: TQueryBuilderComparisonRecord);
-begin
-  MakeCompareOperation(qbcoNotEqual, Value, Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.NotEqual(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeNotEqual(TValue.FromVariant(Value), Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.NotEqual(const Left, Right: TQueryBuilderComparisonRecord): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeCompareOperation(qbcoNotEqual, MakeFieldValue(Right), Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.NotEqual(const Left: TQueryBuilderComparisonRecord; const Value: TNullEnumerator): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeCompareOperation(qbcoNotNull, nil, Result);
-end;
-
-procedure TQueryBuilderComparisonHelper.MakeCompareOperation(const Operation: TQueryBuilderComparisonOperator; const ValueOp: TValue; out Result: TQueryBuilderComparisonRecord);
-begin
-  MakeCompareOperation(Operation, TQueryBuilderComparisonValue.Create(ValueOp), Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.NotEqual(const Left: TQueryBuilderComparisonRecord; const Value: TValue): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeNotEqual(Value, Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.Equal(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeEqual(TValue.FromVariant(Value), Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.LessThan(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeLessThan(TValue.FromVariant(Value), Result);
-end;
-
-class operator TQueryBuilderComparisonHelper.LessThanOrEqual(const Left: TQueryBuilderComparisonRecord; const Value: Variant): TQueryBuilderComparisonRecord;
-begin
-  Left.MakeLessThanOrEqual(TValue.FromVariant(Value), Result);
-end;
-
-function TQueryBuilderComparisonHelper.Like(const Condition: String): TQueryBuilderComparisonRecord;
-begin
-  MakeCompareOperation(qbcoLike, Condition, Result);
-end;
-
-{ TQueryBuilderLogicalOperationHelper }
-
-class operator TQueryBuilderLogicalOperationHelper.BitwiseAnd(const Left, Right: TQueryBuilderLogicalOperationHelper): TQueryBuilderLogicalOperationHelper;
-begin
-  MakeOperation(Left.Value, Right.Value, qloAnd, Result);
-end;
-
-class operator TQueryBuilderLogicalOperationHelper.BitwiseAnd(const Left: TQueryBuilderComparisonRecord; const Right: TQueryBuilderLogicalOperationHelper): TQueryBuilderLogicalOperationHelper;
-begin
-  MakeOperation(Left.Value, Right.Value, qloAnd, Result);
-end;
-
-class operator TQueryBuilderLogicalOperationHelper.BitwiseAnd(const Left: TQueryBuilderLogicalOperationHelper; const Right: TQueryBuilderComparisonRecord): TQueryBuilderLogicalOperationHelper;
-begin
-  MakeOperation(Left.Value, Right.Value, qloAnd, Result);
-end;
-
-class operator TQueryBuilderLogicalOperationHelper.BitwiseOr(const Left: TQueryBuilderLogicalOperationHelper; const Right: TQueryBuilderComparisonRecord): TQueryBuilderLogicalOperationHelper;
-begin
-  MakeOperation(Left.Value, Right.Value, qloOr, Result);
-end;
-
-class operator TQueryBuilderLogicalOperationHelper.BitwiseOr(const Left: TQueryBuilderComparisonRecord; const Right: TQueryBuilderLogicalOperationHelper): TQueryBuilderLogicalOperationHelper;
-begin
-  MakeOperation(Left.Value, Right.Value, qloOr, Result);
-end;
-
-class operator TQueryBuilderLogicalOperationHelper.BitwiseOr(const Left, Right: TQueryBuilderLogicalOperationHelper): TQueryBuilderLogicalOperationHelper;
-begin
-  MakeOperation(Left.Value, Right.Value, qloOr, Result);
-end;
-
-class procedure TQueryBuilderLogicalOperationHelper.MakeOperation(const Left, Right: TQueryBuilderComparisonValue; const Operation: TQueryBuilderLogicalOperator; out Result: TQueryBuilderLogicalOperationHelper);
-begin
-  Result.Value := TQueryBuilderComparisonValue.Create(TQueryBuilderLogicalOperation.Create);
-  Result.Value.Logical.Left := Left;
-  Result.Value.Logical.Operation := Operation;
-  Result.Value.Logical.Right := Right;
-end;
-
-{ TQueryBuilderComparisonValue }
-
-constructor TQueryBuilderComparisonValue.Create(const Comparison: TQueryBuilderComparison);
-begin
-  FComparison := Comparison;
-end;
-
-constructor TQueryBuilderComparisonValue.Create(const Field: TQueryBuilderFieldAlias);
-begin
-  FField := Field;
-end;
-
-constructor TQueryBuilderComparisonValue.Create(const Value: TValue);
-begin
-  FValue := Value;
-end;
-
-constructor TQueryBuilderComparisonValue.Create(const Logical: TQueryBuilderLogicalOperation);
-begin
-  FLogical := Logical;
-end;
-
-destructor TQueryBuilderComparisonValue.Destroy;
-begin
-  Field.Free;
-
-  Comparison.Free;
-
-  Logical.Free;
-
-  inherited;
-end;
-
 { TQueryBuilderComparison }
 
 destructor TQueryBuilderComparison.Destroy;
 begin
-  Left.Free;
+  FLeft.Free;
 
-  Right.Free;
+  FRight.Free;
+
+  FField.Free;
 
   inherited;
 end;
 
-{ TQueryBuilderLogicalOperation }
-
-destructor TQueryBuilderLogicalOperation.Destroy;
+function TQueryBuilderComparison.GetLeft: TQueryBuilderComparison;
 begin
-  Left.Free;
+  if not Assigned(FLeft) then
+    FLeft := TQueryBuilderComparison.Create;
 
-  Right.Free;
+  Result := FLeft;
+end;
 
-  inherited;
+function TQueryBuilderComparison.GetRight: TQueryBuilderComparison;
+begin
+  if not Assigned(FRight) then
+    FRight := TQueryBuilderComparison.Create;
+
+  Result := FRight;
 end;
 
 { EFieldNotFoundInTable }
@@ -1147,6 +836,171 @@ end;
 constructor EEntityWithoutPrimaryKey.Create(Table: TTable);
 begin
   inherited CreateFmt('Entity %s has no primary key, and cannot be saved!', [Table.TypeInfo.Name]);
+end;
+
+{ TQueryBuilderComparisonHelper }
+
+function TQueryBuilderComparisonHelper.Between<T>(const ValueStart, ValueEnd: T): TQueryBuilderComparisonHelper;
+begin
+  InitComparison(Result);
+
+  Result.Comparison.Left := Self.Comparison;
+  Result.Comparison.Comparison := qbcoBetween;
+  Result.Comparison.Right.Value := TValue.From<TArray<T>>([ValueStart, ValueEnd]);
+end;
+
+class operator TQueryBuilderComparisonHelper.BitwiseAnd(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+begin
+  InitComparison(Result);
+
+  Result.Comparison.Left := Left.Comparison;
+  Result.Comparison.Logical := qloAnd;
+  Result.Comparison.Right := Right.Comparison;
+end;
+
+class operator TQueryBuilderComparisonHelper.BitwiseOr(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+begin
+  InitComparison(Result);
+
+  Result.Comparison.Left := Left.Comparison;
+  Result.Comparison.Logical := qloOr;
+  Result.Comparison.Right := Right.Comparison;
+end;
+
+class operator TQueryBuilderComparisonHelper.Equal(const Left: TQueryBuilderComparisonHelper; const Value: Variant): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoEqual, Left, TValue.FromVariant(Value), Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.Equal(const Left: TQueryBuilderComparisonHelper; const Value: TValue): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoEqual, Left, Value, Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.Equal(const Left: TQueryBuilderComparisonHelper; const Value: TNullEnumerator): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoNull, Left, TValue.From(Value), Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.Equal(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoEqual, Left, Right, Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.GreaterThan(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoGreaterThan, Left, Right, Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.GreaterThan(const Left: TQueryBuilderComparisonHelper; const Value: TValue): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoGreaterThan, Left, Value, Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.GreaterThan(const Left: TQueryBuilderComparisonHelper; const Value: Variant): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoGreaterThan, Left, TValue.FromVariant(Value), Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.GreaterThanOrEqual(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoGreaterThanOrEqual, Left, Right, Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.GreaterThanOrEqual(const Left: TQueryBuilderComparisonHelper; const Value: TValue): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoGreaterThanOrEqual, Left, Value, Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.GreaterThanOrEqual(const Left: TQueryBuilderComparisonHelper; const Value: Variant): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoGreaterThanOrEqual, Left, TValue.FromVariant(Value), Result);
+end;
+
+class procedure TQueryBuilderComparisonHelper.InitComparison(var Result: TQueryBuilderComparisonHelper);
+begin
+  FillChar(Result, SizeOf(Result), 0);
+
+  Result.Comparison := TQueryBuilderComparison.Create;
+end;
+
+class operator TQueryBuilderComparisonHelper.LessThan(const Left: TQueryBuilderComparisonHelper; const Value: TValue): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoLessThan, Left, Value, Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.LessThan(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoLessThan, Left, Right, Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.LessThan(const Left: TQueryBuilderComparisonHelper; const Value: Variant): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoLessThan, Left, TValue.FromVariant(Value), Result);
+end;
+
+function TQueryBuilderComparisonHelper.Like(const Value: String): TQueryBuilderComparisonHelper;
+begin
+  InitComparison(Result);
+
+  Result.Comparison.Left := Self.Comparison;
+  Result.Comparison.Comparison := qbcoLike;
+  Result.Comparison.Right.Value := Value;
+end;
+
+class procedure TQueryBuilderComparisonHelper.MakeComparison(const Comparison: TQueryBuilderComparisonOperator; const Left: TQueryBuilderComparisonHelper; const Right: TValue;
+  var Result: TQueryBuilderComparisonHelper);
+begin
+  InitComparison(Result);
+
+  Result.Comparison.Left := Left.Comparison;
+  Result.Comparison.Comparison := Comparison;
+  Result.Comparison.Right.Value := Right;
+end;
+
+class procedure TQueryBuilderComparisonHelper.MakeComparison(const Comparison: TQueryBuilderComparisonOperator; const Left, Right: TQueryBuilderComparisonHelper;
+  var Result: TQueryBuilderComparisonHelper);
+begin
+  InitComparison(Result);
+
+  Result.Comparison.Left := Left.Comparison;
+  Result.Comparison.Comparison := Comparison;
+  Result.Comparison.Right := Right.Comparison;
+end;
+
+class operator TQueryBuilderComparisonHelper.LessThanOrEqual(const Left: TQueryBuilderComparisonHelper; const Value: Variant): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoLessThanOrEqual, Left, TValue.FromVariant(Value), Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.LessThanOrEqual(const Left: TQueryBuilderComparisonHelper; const Value: TValue): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoLessThanOrEqual, Left, Value, Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.LessThanOrEqual(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoLessThanOrEqual, Left, Right, Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.NotEqual(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoNotEqual, Left, Right, Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.NotEqual(const Left: TQueryBuilderComparisonHelper; const Value: Variant): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoNotEqual, Left, TValue.FromVariant(Value), Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.NotEqual(const Left: TQueryBuilderComparisonHelper; const Value: TValue): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoNotEqual, Left, Value, Result);
+end;
+
+class operator TQueryBuilderComparisonHelper.NotEqual(const Left: TQueryBuilderComparisonHelper; const Value: TNullEnumerator): TQueryBuilderComparisonHelper;
+begin
+  MakeComparison(qbcoNotNull, Left, TValue.From(Value), Result);
 end;
 
 end.

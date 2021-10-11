@@ -1109,7 +1109,7 @@ begin
 
   var Table := Mapper.FindTable(TMyEntityWithDefaultValue);
 
-  Assert.AreEqual(123.456, FindField(Table, 'Float').DefaultValue.AsType<Double>);
+  Assert.AreEqual<Double>(123.456, FindField(Table, 'Float').DefaultValue.AsType<Double>);
 
   Mapper.Free;
 end;
