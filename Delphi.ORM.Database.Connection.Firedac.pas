@@ -17,13 +17,20 @@ type
     destructor Destroy; override;
   end;
 
-  TDatabaseConnectionFiredac = class(TCustomDatabaseConnection, IDatabaseConnection)
+  TDatabaseInsertCursorFiredac = class(TInterfacedObject, IDatabaseCursor)
+  private
+    function GetFieldValue(const FieldIndex: Integer): Variant;
+    function Next: Boolean;
+  end;
+
+  TDatabaseConnectionFiredac = class(TInterfacedObject, IDatabaseConnection)
   private
     FConnection: TFDConnection;
 
+    function ExecuteInsert(SQL: String; OutputFields: TArray<String>): IDatabaseCursor;
+    function OpenCursor(SQL: String): IDatabaseCursor;
+
     procedure ExecuteDirect(SQL: String);
-  protected
-    function OpenCursor(SQL: String): IDatabaseCursor; override;
   public
     constructor Create;
 
@@ -34,7 +41,7 @@ type
 
 implementation
 
-uses Winapi.ActiveX, FireDAC.Stan.Def, FireDAC.Stan.Option, FireDAC.Phys.MSSQL, FireDAC.Phys.MSSQLDef, FireDAC.DApt, FireDAC.Stan.Async, Data.DB;
+uses System.SysUtils, System.Variants, Winapi.ActiveX, FireDAC.Stan.Def, FireDAC.Stan.Option, FireDAC.DApt, FireDAC.Stan.Async, Data.DB;
 
 { TDatabaseCursorFiredac }
 
@@ -103,9 +110,47 @@ begin
   FConnection.ExecSQL(SQL);
 end;
 
+function TDatabaseConnectionFiredac.ExecuteInsert(SQL: String; OutputFields: TArray<String>): IDatabaseCursor;
+begin
+  var OutputSQL := EmptyStr;
+
+  for var Field in OutputFields do
+  begin
+    if not OutputSQL.IsEmpty then
+      OutputSQL := ',';
+
+    OutputSQL := OutputSQL + Format('Inserted.%s', [Field]);
+  end;
+
+  if OutputSQL.IsEmpty then
+  begin
+    ExecuteDirect(SQL);
+
+    Result := TDatabaseInsertCursorFiredac.Create;
+  end
+  else
+  begin
+    SQL := SQL.Replace(')values(', Format(')output %s values(', [OutputSQL]));
+
+    Result := OpenCursor(SQL);
+  end;
+end;
+
 function TDatabaseConnectionFiredac.OpenCursor(SQL: String): IDatabaseCursor;
 begin
   Result := TDatabaseCursorFiredac.Create(Connection, SQL);
+end;
+
+{ TDatabaseInsertCursorFiredac }
+
+function TDatabaseInsertCursorFiredac.GetFieldValue(const FieldIndex: Integer): Variant;
+begin
+  Result := NULL;
+end;
+
+function TDatabaseInsertCursorFiredac.Next: Boolean;
+begin
+  Result := False;
 end;
 
 end.
