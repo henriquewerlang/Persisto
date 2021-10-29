@@ -2,7 +2,7 @@ unit Delphi.ORM.Database.Connection.Firedac;
 
 interface
 
-uses System.Rtti, Delphi.ORM.Database.Connection, FireDAC.Comp.Client;
+uses Delphi.ORM.Database.Connection, Firedac.Comp.Client;
 
 type
   TDatabaseCursorFiredac = class(TInterfacedObject, IDatabaseCursor)
@@ -12,7 +12,7 @@ type
     function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
   public
-    constructor Create(Connection: TFDConnection; SQL: String);
+    constructor Create(const Connection: TFDConnection; const SQL: String);
 
     destructor Destroy; override;
   end;
@@ -27,10 +27,10 @@ type
   private
     FConnection: TFDConnection;
 
-    function ExecuteInsert(SQL: String; OutputFields: TArray<String>): IDatabaseCursor;
-    function OpenCursor(SQL: String): IDatabaseCursor;
+    function ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
+    function OpenCursor(const SQL: String): IDatabaseCursor;
 
-    procedure ExecuteDirect(SQL: String);
+    procedure ExecuteDirect(const SQL: String);
   public
     constructor Create;
 
@@ -41,11 +41,11 @@ type
 
 implementation
 
-uses System.SysUtils, System.Variants, Winapi.ActiveX, FireDAC.Stan.Def, FireDAC.Stan.Option, FireDAC.DApt, FireDAC.Stan.Async, Data.DB;
+uses System.SysUtils, System.Variants, Winapi.ActiveX, Firedac.Stan.Def, Firedac.Stan.Option, Firedac.DApt, Firedac.Stan.Async, Data.DB;
 
 { TDatabaseCursorFiredac }
 
-constructor TDatabaseCursorFiredac.Create(Connection: TFDConnection; SQL: String);
+constructor TDatabaseCursorFiredac.Create(const Connection: TFDConnection; const SQL: String);
 begin
   inherited Create;
 
@@ -77,7 +77,6 @@ begin
     FQuery.Next
   else
     FQuery.Open;
-
   Result := not FQuery.Eof;
 end;
 
@@ -101,18 +100,18 @@ end;
 destructor TDatabaseConnectionFiredac.Destroy;
 begin
   FConnection.Free;
-
   inherited;
 end;
 
-procedure TDatabaseConnectionFiredac.ExecuteDirect(SQL: String);
+procedure TDatabaseConnectionFiredac.ExecuteDirect(const SQL: String);
 begin
   FConnection.ExecSQL(SQL);
 end;
 
-function TDatabaseConnectionFiredac.ExecuteInsert(SQL: String; OutputFields: TArray<String>): IDatabaseCursor;
+function TDatabaseConnectionFiredac.ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
 begin
-  var OutputSQL := EmptyStr;
+  var
+  OutputSQL := EmptyStr;
 
   for var Field in OutputFields do
   begin
@@ -129,14 +128,10 @@ begin
     Result := TDatabaseInsertCursorFiredac.Create;
   end
   else
-  begin
-    SQL := SQL.Replace(')values(', Format(')output %s values(', [OutputSQL]));
-
-    Result := OpenCursor(SQL);
-  end;
+    Result := OpenCursor(SQL.Replace(')values(', Format(')output %s values(', [OutputSQL])));
 end;
 
-function TDatabaseConnectionFiredac.OpenCursor(SQL: String): IDatabaseCursor;
+function TDatabaseConnectionFiredac.OpenCursor(const SQL: String): IDatabaseCursor;
 begin
   Result := TDatabaseCursorFiredac.Create(Connection, SQL);
 end;
@@ -154,4 +149,3 @@ begin
 end;
 
 end.
-

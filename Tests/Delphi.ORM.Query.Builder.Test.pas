@@ -309,12 +309,12 @@ type
     FSQL: String;
     FOutputFields: TArray<String>;
 
-    function ExecuteInsert(SQL: String; OutputFields: TArray<String>): IDatabaseCursor;
-    function OpenCursor(SQL: String): IDatabaseCursor;
+    function ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
+    function OpenCursor(const SQL: String): IDatabaseCursor;
 
-    procedure ExecuteDirect(SQL: String);
+    procedure ExecuteDirect(const SQL: String);
   public
-    constructor Create(Cursor: IDatabaseCursor);
+    constructor Create(const Cursor: IDatabaseCursor);
 
     property SQL: String read FSQL;
     property OutputFields: TArray<String> read FOutputFields;
@@ -1104,25 +1104,25 @@ end;
 
 { TDatabaseTest }
 
-constructor TDatabaseTest.Create(Cursor: IDatabaseCursor);
+constructor TDatabaseTest.Create(const Cursor: IDatabaseCursor);
 begin
   inherited Create;
 
   FCursor := Cursor;
 end;
 
-procedure TDatabaseTest.ExecuteDirect(SQL: String);
+procedure TDatabaseTest.ExecuteDirect(const SQL: String);
 begin
   FSQL := SQL;
 end;
 
-function TDatabaseTest.ExecuteInsert(SQL: String; OutputFields: TArray<String>): IDatabaseCursor;
+function TDatabaseTest.ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
 begin
   FOutputFields := OutputFields;
   Result := OpenCursor(SQL);
 end;
 
-function TDatabaseTest.OpenCursor(SQL: String): IDatabaseCursor;
+function TDatabaseTest.OpenCursor(const SQL: String): IDatabaseCursor;
 begin
   FSQL := SQL;
   Result := FCursor;

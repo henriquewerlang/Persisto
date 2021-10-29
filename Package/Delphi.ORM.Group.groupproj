@@ -6,6 +6,15 @@
         <Projects Include="Delphi.ORM.Runtime.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="Delphi.ORM.Runtime.Firedac.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Delphi.ORM.Runtime.Unidac.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Delphi.ORM.Runtime.ZeosLib.dproj">
+            <Dependencies/>
+        </Projects>
         <Projects Include="Delphi.ORM.Design.dproj">
             <Dependencies>Delphi.ORM.Runtime.dproj</Dependencies>
         </Projects>
@@ -29,6 +38,33 @@
     <Target Name="Delphi_ORM_Runtime:Make">
         <MSBuild Projects="Delphi.ORM.Runtime.dproj" Targets="Make"/>
     </Target>
+    <Target Name="Delphi_ORM_Runtime_Firedac">
+        <MSBuild Projects="Delphi.ORM.Runtime.Firedac.dproj"/>
+    </Target>
+    <Target Name="Delphi_ORM_Runtime_Firedac:Clean">
+        <MSBuild Projects="Delphi.ORM.Runtime.Firedac.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Delphi_ORM_Runtime_Firedac:Make">
+        <MSBuild Projects="Delphi.ORM.Runtime.Firedac.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Delphi_ORM_Runtime_Unidac">
+        <MSBuild Projects="Delphi.ORM.Runtime.Unidac.dproj"/>
+    </Target>
+    <Target Name="Delphi_ORM_Runtime_Unidac:Clean">
+        <MSBuild Projects="Delphi.ORM.Runtime.Unidac.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Delphi_ORM_Runtime_Unidac:Make">
+        <MSBuild Projects="Delphi.ORM.Runtime.Unidac.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Delphi_ORM_Runtime_ZeosLib">
+        <MSBuild Projects="Delphi.ORM.Runtime.ZeosLib.dproj"/>
+    </Target>
+    <Target Name="Delphi_ORM_Runtime_ZeosLib:Clean">
+        <MSBuild Projects="Delphi.ORM.Runtime.ZeosLib.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Delphi_ORM_Runtime_ZeosLib:Make">
+        <MSBuild Projects="Delphi.ORM.Runtime.ZeosLib.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Delphi_ORM_Design" DependsOnTargets="Delphi.ORM.Runtime">
         <MSBuild Projects="Delphi.ORM.Design.dproj"/>
     </Target>
@@ -48,13 +84,13 @@
         <MSBuild Projects="..\Tests\Delphi.ORM.Tests.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="Delphi_ORM_Runtime;Delphi_ORM_Design;Delphi_ORM_Tests"/>
+        <CallTarget Targets="Delphi_ORM_Runtime;Delphi_ORM_Runtime_Firedac;Delphi_ORM_Runtime_Unidac;Delphi_ORM_Runtime_ZeosLib;Delphi_ORM_Design;Delphi_ORM_Tests"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Delphi_ORM_Runtime:Clean;Delphi_ORM_Design:Clean;Delphi_ORM_Tests:Clean"/>
+        <CallTarget Targets="Delphi_ORM_Runtime:Clean;Delphi_ORM_Runtime_Firedac:Clean;Delphi_ORM_Runtime_Unidac:Clean;Delphi_ORM_Runtime_ZeosLib:Clean;Delphi_ORM_Design:Clean;Delphi_ORM_Tests:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Delphi_ORM_Runtime:Make;Delphi_ORM_Design:Make;Delphi_ORM_Tests:Make"/>
+        <CallTarget Targets="Delphi_ORM_Runtime:Make;Delphi_ORM_Runtime_Firedac:Make;Delphi_ORM_Runtime_Unidac:Make;Delphi_ORM_Runtime_ZeosLib:Make;Delphi_ORM_Design:Make;Delphi_ORM_Tests:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

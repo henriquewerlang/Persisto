@@ -2,7 +2,7 @@ unit Delphi.ORM.Database.Connection.Unidac;
 
 interface
 
-uses System.Rtti, Delphi.ORM.Database.Connection, Uni;
+uses Delphi.ORM.Database.Connection, Uni;
 
 type
   TDatabaseCursorUnidac = class(TInterfacedObject, IDatabaseCursor)
@@ -12,7 +12,7 @@ type
     function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
   public
-    constructor Create(Connection: TUniConnection; SQL: String);
+    constructor Create(const Connection: TUniConnection; const SQL: String);
 
     destructor Destroy; override;
   end;
@@ -27,10 +27,10 @@ type
   private
     FConnection: TUniConnection;
 
-    function ExecuteInsert(SQL: String; OutputFields: TArray<String>): IDatabaseCursor;
-    function OpenCursor(SQL: String): IDatabaseCursor;
+    function ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
+    function OpenCursor(const SQL: String): IDatabaseCursor;
 
-    procedure ExecuteDirect(SQL: String);
+    procedure ExecuteDirect(const SQL: String);
   public
     constructor Create;
 
@@ -41,11 +41,11 @@ type
 
 implementation
 
-uses System.SysUtils, System.Variants, Winapi.ActiveX, SQLServerUniProvider;
+uses System.SysUtils, System.Variants, Winapi.ActiveX;
 
 { TDatabaseCursorUnidac }
 
-constructor TDatabaseCursorUnidac.Create(Connection: TUniConnection; SQL: String);
+constructor TDatabaseCursorUnidac.Create(const Connection: TUniConnection; const SQL: String);
 begin
   inherited Create;
 
@@ -95,12 +95,12 @@ begin
   inherited;
 end;
 
-procedure TDatabaseConnectionUnidac.ExecuteDirect(SQL: String);
+procedure TDatabaseConnectionUnidac.ExecuteDirect(const SQL: String);
 begin
   FConnection.ExecSQL(SQL);
 end;
 
-function TDatabaseConnectionUnidac.ExecuteInsert(SQL: String; OutputFields: TArray<String>): IDatabaseCursor;
+function TDatabaseConnectionUnidac.ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
 begin
   var OutputSQL := EmptyStr;
 
@@ -119,14 +119,10 @@ begin
     Result := TDatabaseInsertCursorUnidac.Create;
   end
   else
-  begin
-    SQL := SQL.Replace(')values(', Format(')output %s values(', [OutputSQL]));
-
-    Result := OpenCursor(SQL);
-  end;
+    Result := OpenCursor(SQL.Replace(')values(', Format(')output %s values(', [OutputSQL])));
 end;
 
-function TDatabaseConnectionUnidac.OpenCursor(SQL: String): IDatabaseCursor;
+function TDatabaseConnectionUnidac.OpenCursor(const SQL: String): IDatabaseCursor;
 begin
   Result := TDatabaseCursorUnidac.Create(Connection, SQL);
 end;
