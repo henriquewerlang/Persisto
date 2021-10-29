@@ -6,7 +6,7 @@ uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Query.Builder, Delphi.ORM.Dat
 
 type
   [TestFixture]
-  TDelphiORMQueryBuilderTest = class
+  TQueryBuilderTest = class
   public
     [SetupFixture]
     procedure Setup;
@@ -325,9 +325,9 @@ uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Cursor.Moc
 const
   COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '', '');
   
-{ TDelphiORMQueryBuilderTest }
+{ TQueryBuilderTest }
 
-procedure TDelphiORMQueryBuilderTest.AllTheDirectForeignKeyMustBeGeneratedInTheResultingSQL;
+procedure TQueryBuilderTest.AllTheDirectForeignKeyMustBeGeneratedInTheResultingSQL;
 begin
   var Query := TQueryBuilderFrom.Create(nil, 1);
 
@@ -338,7 +338,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.IfNoCommandCalledTheSQLMustReturnEmpty;
+procedure TQueryBuilderTest.IfNoCommandCalledTheSQLMustReturnEmpty;
 begin
   var Query := TQueryBuilder.Create(nil);
 
@@ -347,7 +347,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.IfNoCommandIsCalledCantRaiseAnExceptionOfAccessViolation;
+procedure TQueryBuilderTest.IfNoCommandIsCalledCantRaiseAnExceptionOfAccessViolation;
 begin
   var Query := TQueryBuilder.Create(nil);
 
@@ -360,7 +360,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.IfNotExistsAFilterInWhereMustReturnTheQueryWithoutWhereCommand;
+procedure TQueryBuilderTest.IfNotExistsAFilterInWhereMustReturnTheQueryWithoutWhereCommand;
 begin
   var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
@@ -372,7 +372,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.IfTheAllFieldNoCalledCantRaiseAnExceptionOfAccessViolation;
+procedure TQueryBuilderTest.IfTheAllFieldNoCalledCantRaiseAnExceptionOfAccessViolation;
 begin
   var Query := TQueryBuilder.Create(nil);
 
@@ -387,7 +387,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.MustGenerateTheSQLFollowingTheHierarchyAsSpected;
+procedure TQueryBuilderTest.MustGenerateTheSQLFollowingTheHierarchyAsSpected;
 begin
   var Query := TQueryBuilderFrom.Create(nil, 1);
 
@@ -411,7 +411,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.OnlyPublishedPropertiesMustAppearInInsertSQL;
+procedure TQueryBuilderTest.OnlyPublishedPropertiesMustAppearInInsertSQL;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Query := TQueryBuilder.Create(Database);
@@ -429,7 +429,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.OnlyPublishedPropertiesMustAppearInUpdateSQL;
+procedure TQueryBuilderTest.OnlyPublishedPropertiesMustAppearInUpdateSQL;
 begin
   var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
@@ -448,12 +448,12 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.Setup;
+procedure TQueryBuilderTest.Setup;
 begin
   TMapper.Default.LoadAll;
 end;
 
-procedure TDelphiORMQueryBuilderTest.TheClassBeingSelectedMustHaveTheAliasDefined;
+procedure TQueryBuilderTest.TheClassBeingSelectedMustHaveTheAliasDefined;
 begin
   var Query := TQueryBuilderFrom.Create(nil, 1);
 
@@ -464,7 +464,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.TheFieldsHaveToBeGeneratedWithTheAliasOfTheRespectiveTables;
+procedure TQueryBuilderTest.TheFieldsHaveToBeGeneratedWithTheAliasOfTheRespectiveTables;
 begin
   var Query := TQueryBuilder.Create(nil);
 
@@ -475,7 +475,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.TheForeignKeyMustBeLoadedRecursive;
+procedure TQueryBuilderTest.TheForeignKeyMustBeLoadedRecursive;
 begin
   var Query := TQueryBuilderFrom.Create(nil, 1);
 
@@ -486,7 +486,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.TheKeyFieldCantBeUpdatedInTheUpdateProcedure;
+procedure TQueryBuilderTest.TheKeyFieldCantBeUpdatedInTheUpdateProcedure;
 begin
   var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
@@ -506,7 +506,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.TheManyValueAssociationMustAvoidRecursivilyLoadTheParentClassWhenLoadingTheChildClass;
+procedure TQueryBuilderTest.TheManyValueAssociationMustAvoidRecursivilyLoadTheParentClassWhenLoadingTheChildClass;
 begin
   var From := TQueryBuilderFrom.Create(nil, 5);
 
@@ -521,7 +521,7 @@ begin
   From.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.TheManyValueAssociationMustLoadTheLinkingFieldBetweenTheClasses;
+procedure TQueryBuilderTest.TheManyValueAssociationMustLoadTheLinkingFieldBetweenTheClasses;
 begin
   var From := TQueryBuilderFrom.Create(nil, 1);
 
@@ -532,7 +532,7 @@ begin
   From.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.ThenForeignKeyLinkOfAnManyValueAssociationCantAppearInTheSQL;
+procedure TQueryBuilderTest.ThenForeignKeyLinkOfAnManyValueAssociationCantAppearInTheSQL;
 begin
   var From := TQueryBuilderFrom.Create(nil, 1);
 
@@ -551,7 +551,7 @@ begin
   From.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.TheValuesReturnedInTheCursorOfTheInsertMustLoadTheFieldsOfTheClassBeenInserted;
+procedure TQueryBuilderTest.TheValuesReturnedInTheCursorOfTheInsertMustLoadTheFieldsOfTheClassBeenInserted;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create([[123, 'My value']]));
   var Query := TQueryBuilder.Create(Database);
@@ -569,7 +569,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.OnlyPublishedPropertiesCanAppearInSQL;
+procedure TQueryBuilderTest.OnlyPublishedPropertiesCanAppearInSQL;
 begin
   var Query := TQueryBuilder.Create(nil);
 
@@ -580,7 +580,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenAFieldIsMarkedWithAutoGeneratedItCantBeInTheInsertSQL;
+procedure TQueryBuilderTest.WhenAFieldIsMarkedWithAutoGeneratedItCantBeInTheInsertSQL;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Query := TQueryBuilder.Create(Database);
@@ -597,7 +597,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenAFilterConditionMustBuildTheSQLAsExpected;
+procedure TQueryBuilderTest.WhenAFilterConditionMustBuildTheSQLAsExpected;
 begin
   var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
@@ -609,7 +609,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenCallInsertProcedureMustBuildTheSQLWithAllFieldsAndValuesFromTheClassParameter;
+procedure TQueryBuilderTest.WhenCallInsertProcedureMustBuildTheSQLWithAllFieldsAndValuesFromTheClassParameter;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Query := TQueryBuilder.Create(Database);
@@ -628,7 +628,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenCallOpenProcedureMustOpenTheDatabaseCursor;
+procedure TQueryBuilderTest.WhenCallOpenProcedureMustOpenTheDatabaseCursor;
 begin
   var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
@@ -640,7 +640,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenCallSelectCommandTheSQLMustReturnTheWordSelect;
+procedure TQueryBuilderTest.WhenCallSelectCommandTheSQLMustReturnTheWordSelect;
 begin
   var Query := TQueryBuilder.Create(nil);
 
@@ -651,7 +651,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenCallTheDeleteProcedureMustBuildTheSQLWithTheValuesOfKeysOfClass;
+procedure TQueryBuilderTest.WhenCallTheDeleteProcedureMustBuildTheSQLWithTheValuesOfKeysOfClass;
 begin
   var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
@@ -668,7 +668,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenCallUpdateMustBuildTheSQLWithAllPropertiesInTheObjectParameter;
+procedure TQueryBuilderTest.WhenCallUpdateMustBuildTheSQLWithAllPropertiesInTheObjectParameter;
 begin
   var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
@@ -687,7 +687,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenClassHasOtherClassesLinkedToItYouHaveToGenerateTheJoinBetweenThem;
+procedure TQueryBuilderTest.WhenClassHasOtherClassesLinkedToItYouHaveToGenerateTheJoinBetweenThem;
 begin
   var Query := TQueryBuilderFrom.Create(nil, 1);
 
@@ -698,7 +698,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenConfiguredTheRecursivityLevelTheJoinsMustFollowTheConfiguration;
+procedure TQueryBuilderTest.WhenConfiguredTheRecursivityLevelTheJoinsMustFollowTheConfiguration;
 begin
   var Query := TQueryBuilder.Create(nil);
 
@@ -733,7 +733,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenDontHaveAResultingCursorCantLoadTheProperties;
+procedure TQueryBuilderTest.WhenDontHaveAResultingCursorCantLoadTheProperties;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Query := TQueryBuilder.Create(Database);
@@ -751,7 +751,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenGetAllFieldsOfATableMustPutThePrimaryKeyFieldInTheBeginningOfTheResultingArray;
+procedure TQueryBuilderTest.WhenGetAllFieldsOfATableMustPutThePrimaryKeyFieldInTheBeginningOfTheResultingArray;
 begin
   var From := TQueryBuilderFrom.Create(nil, 1);
 
@@ -766,7 +766,7 @@ begin
   Fields.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenInsertAClassWithTheAutoGeneratedAttributeMustLoadTheFieldNamesInTheArrayOfTheProcedure;
+procedure TQueryBuilderTest.WhenInsertAClassWithTheAutoGeneratedAttributeMustLoadTheFieldNamesInTheArrayOfTheProcedure;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create([[123, 'My value']]));
   var Query := TQueryBuilder.Create(Database);
@@ -784,7 +784,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenInsertingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheInsert;
+procedure TQueryBuilderTest.WhenInsertingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheInsert;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Query := TQueryBuilder.Create(Database);
@@ -801,7 +801,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenInsertingAClassWithTheKeyValueAlreadyLoadedMustInsertWithThisValue;
+procedure TQueryBuilderTest.WhenInsertingAClassWithTheKeyValueAlreadyLoadedMustInsertWithThisValue;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Query := TQueryBuilder.Create(Database);
@@ -819,7 +819,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenIsLoadedAJoinMustLoadTheFieldThatIsTheLinkBetweenTheClasses;
+procedure TQueryBuilderTest.WhenIsLoadedAJoinMustLoadTheFieldThatIsTheLinkBetweenTheClasses;
 begin
   var Query := TQueryBuilderFrom.Create(nil, 1);
 
@@ -830,7 +830,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenOpenOneMustFillTheClassWithTheValuesOfCursor;
+procedure TQueryBuilderTest.WhenOpenOneMustFillTheClassWithTheValuesOfCursor;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create([[123, 'My name', 123.456]]));
   var Query := TQueryBuilder.Create(Database);
@@ -848,7 +848,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenSelectAllFieldsFromAClassMustPutAllThenInTheResultingSQL;
+procedure TQueryBuilderTest.WhenSelectAllFieldsFromAClassMustPutAllThenInTheResultingSQL;
 begin
   var Query := TQueryBuilder.Create(nil);
 
@@ -859,7 +859,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustInsertThenValueOfThePropertyIfNotIsNull;
+procedure TQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustInsertThenValueOfThePropertyIfNotIsNull;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Query := TQueryBuilder.Create(Database);
@@ -876,7 +876,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustInsertTheValueNullInSQLIfIsNull;
+procedure TQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustInsertTheValueNullInSQLIfIsNull;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Query := TQueryBuilder.Create(Database);
@@ -892,7 +892,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustUpdateThenValueOfThePropertyIfNotIsNull;
+procedure TQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustUpdateThenValueOfThePropertyIfNotIsNull;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Query := TQueryBuilder.Create(Database);
@@ -910,7 +910,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustUpdateTheValueNullInSQLIfIsNull;
+procedure TQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustUpdateTheValueNullInSQLIfIsNull;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Query := TQueryBuilder.Create(Database);
@@ -927,7 +927,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenTheClassDontHaveAnyPrimaryKeyTheDeleteMustBuildTheSQLWithoutWhereCondition;
+procedure TQueryBuilderTest.WhenTheClassDontHaveAnyPrimaryKeyTheDeleteMustBuildTheSQLWithoutWhereCondition;
 begin
   var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
@@ -943,7 +943,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenTheClassDontHaveThePrimaryKeyAttributeCantRaiseAException;
+procedure TQueryBuilderTest.WhenTheClassDontHaveThePrimaryKeyAttributeCantRaiseAException;
 begin
   var Database := TDatabaseTest.Create(nil);
   var MyClass := TClassOnlyPublic.Create;
@@ -960,7 +960,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenTheClassHaveForeignKeysThatsLoadsRecursivelyCantRaiseAnError;
+procedure TQueryBuilderTest.WhenTheClassHaveForeignKeysThatsLoadsRecursivelyCantRaiseAnError;
 begin
   var Query := TQueryBuilderFrom.Create(nil, 1);
 
@@ -975,7 +975,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenTheClassHaveManyValueAssociationMustLoadTheJoinBetweenTheParentAndChildTable;
+procedure TQueryBuilderTest.WhenTheClassHaveManyValueAssociationMustLoadTheJoinBetweenTheParentAndChildTable;
 begin
   var From := TQueryBuilderFrom.Create(nil, 1);
 
@@ -990,7 +990,7 @@ begin
   From.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenTheClassHaveThePrimaryKeyAttributeMustBuildTheWhereWithTheValuesOfFieldInTheKeyList;
+procedure TQueryBuilderTest.WhenTheClassHaveThePrimaryKeyAttributeMustBuildTheWhereWithTheValuesOfFieldInTheKeyList;
 begin
   var Database := TDatabaseTest.Create(nil);
   var Query := TQueryBuilder.Create(Database);
@@ -1009,7 +1009,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenTheClassRecursivelyItselfMoreThenOneTimeMustBuildTheSQLAsEspected;
+procedure TQueryBuilderTest.WhenTheClassRecursivelyItselfMoreThenOneTimeMustBuildTheSQLAsEspected;
 begin
   var From := TQueryBuilderFrom.Create(nil, 2);
 
@@ -1034,7 +1034,7 @@ begin
   From.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenTrySaveAnEntityWithoutPrimaryKeyMustRaiseAnError;
+procedure TQueryBuilderTest.WhenTrySaveAnEntityWithoutPrimaryKeyMustRaiseAnError;
 begin
   var Obj := TMyEntityWithoutPrimaryKey.Create;
   var Query := TQueryBuilder.Create(nil);
@@ -1050,7 +1050,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenTryToSaveAnEntityWithThePrimaryKeyEmptyMustInsertTheEntity;
+procedure TQueryBuilderTest.WhenTryToSaveAnEntityWithThePrimaryKeyEmptyMustInsertTheEntity;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Obj := TMyEntityWithPrimaryKey.Create;
@@ -1065,7 +1065,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenTryToSaveAnEntityWithThePrimaryKeyFilledMustUpdateTheEntity;
+procedure TQueryBuilderTest.WhenTryToSaveAnEntityWithThePrimaryKeyFilledMustUpdateTheEntity;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Obj := TMyEntityWithPrimaryKey.Create;
@@ -1081,7 +1081,7 @@ begin
   Query.Free;
 end;
 
-procedure TDelphiORMQueryBuilderTest.WhenUpdatingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheUpdateList;
+procedure TQueryBuilderTest.WhenUpdatingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheUpdateList;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Query := TQueryBuilder.Create(Database);
