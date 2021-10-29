@@ -212,6 +212,16 @@ type
     procedure WhenTheDefaultValueIsAnEnumeratorMustConvertTheValueAsExpected;
     [Test]
     procedure WhenTheDefaultValueIsAnEnumeratorWithAnInvalidNameMustRaiseAnError;
+    [Test]
+    procedure WhenLoadTheTableMustLoadTheNameOfTheTableWithTheNameOfTheClassWithoutTheTChar;
+    [Test]
+    procedure WhenLoadTheFieldOfATableMustLoadTheNameOfTheFieldWithThePropertyName;
+    [Test]
+    procedure WhenLoadAFieldMustLoadTheFieldTypeWithTheTypeOfTheProperty;
+    [Test]
+    procedure WhenLoadANullableFieldMustLoadTheFieldTypeWithTheInternalNullableType;
+    [Test]
+    procedure WhenLoadALazyFieldMustLoadTheFieldTypeWithTheInternalLazyType;
   end;
 
 implementation
@@ -238,7 +248,7 @@ begin
   Result := nil;
 
   for var Field in Table.Fields do
-    if Field.TypeInfo.Name = FieldName then
+    if Field.Name = FieldName then
       Exit(Field);
 end;
 
@@ -288,7 +298,7 @@ begin
   var Value: TValue;
 
   for var Field in Table.Fields do
-    if Field.TypeInfo.Name = TypeToConvert then
+    if Field.PropertyInfo.Name = TypeToConvert then
       FieldToCompare := Field;
 
   if TypeToConvert = 'AnsiChar' then
@@ -466,7 +476,7 @@ begin
 
   var Table := Mapper.FindTable(TMyEntityWithManyValueAssociation);
 
-  Assert.AreEqual('ManyValueAssociation', Table.ManyValueAssociations[0].ForeignKey.Field.TypeInfo.Name);
+  Assert.AreEqual('ManyValueAssociation', Table.ManyValueAssociations[0].ForeignKey.Field.PropertyInfo.Name);
 
   Mapper.Free;
 end;
@@ -757,19 +767,19 @@ begin
   MyClass.Time := EncodeTime(12, 34, 56, 0);
 
   for var Field in Table.Fields do
-    if Field.TypeInfo.Name = FieldName then
+    if Field.PropertyInfo.Name = FieldName then
       FieldToCompare := Field;
 
-  case FieldToCompare.TypeInfo.PropertyType.TypeKind of
+  case FieldToCompare.PropertyInfo.PropertyType.TypeKind of
     tkChar, tkWChar: ValueToCompare := '''C''';
     tkEnumeration: ValueToCompare := '1';
     tkFloat:
     begin
-      if FieldToCompare.TypeInfo.PropertyType.Handle = TypeInfo(TDate) then
+      if FieldToCompare.PropertyInfo.PropertyType.Handle = TypeInfo(TDate) then
         ValueToCompare := '''2020-01-31'''
-      else if FieldToCompare.TypeInfo.PropertyType.Handle = TypeInfo(TTime) then
+      else if FieldToCompare.PropertyInfo.PropertyType.Handle = TypeInfo(TTime) then
         ValueToCompare := '''12:34:56'''
-      else if FieldToCompare.TypeInfo.PropertyType.Handle = TypeInfo(TDateTime) then
+      else if FieldToCompare.PropertyInfo.PropertyType.Handle = TypeInfo(TDateTime) then
         ValueToCompare := '''2020-01-31 12:34:56'''
       else
         ValueToCompare := '1234.456';
@@ -821,7 +831,7 @@ begin
 
   var Table := Mapper.FindTable(TMyEntity);
 
-  Assert.AreSame(FContext.GetType(TMyEntity), Table.TypeInfo);
+  Assert.AreEqual<TRttiType>(FContext.GetType(TMyEntity), Table.ClassTypeInfo);
 
   Mapper.Free;
 end;
@@ -832,7 +842,40 @@ begin
   var Table := Mapper.LoadClass(TMyEntity3);
   var TypeInfo := FContext.GetType(TMyEntity3).GetProperties[0];
 
-  Assert.AreEqual<TObject>(TypeInfo, Table.Fields[0].TypeInfo);
+  Assert.AreEqual<TObject>(TypeInfo, Table.Fields[0].PropertyInfo);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenLoadAFieldMustLoadTheFieldTypeWithTheTypeOfTheProperty;
+begin
+  var IntegerType := FContext.GetType(TypeInfo(Integer));
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TClassWithNullableProperty);
+
+  Assert.AreEqual(IntegerType, Table.Fields[0].FieldType);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenLoadALazyFieldMustLoadTheFieldTypeWithTheInternalLazyType;
+begin
+  var ClassType := FContext.GetType(TypeInfo(TMyEntity));
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TLazyClass);
+
+  Assert.AreEqual(ClassType, Table.Fields[1].FieldType);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenLoadANullableFieldMustLoadTheFieldTypeWithTheInternalNullableType;
+begin
+  var IntegerType := FContext.GetType(TypeInfo(Integer));
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TClassWithNullableProperty);
+
+  Assert.AreEqual(IntegerType, Table.Fields[1].FieldType);
 
   Mapper.Free;
 end;
@@ -861,6 +904,27 @@ begin
 
       Mapper.LoadClass(TMyEntity);
     end);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenLoadTheFieldOfATableMustLoadTheNameOfTheFieldWithThePropertyName;
+begin
+  var Mapper := TMapper.Create;
+
+  var Table := Mapper.LoadClass(TMyEntityWithFieldNameAttribute);
+
+  Assert.AreEqual('Name', Table.Fields[0].Name);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenLoadTheTableMustLoadTheNameOfTheTableWithTheNameOfTheClassWithoutTheTChar;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntity2);
+
+  Assert.AreEqual('MyEntity2', Table.Name);
 
   Mapper.Free;
 end;
@@ -895,7 +959,7 @@ begin
     if Field.DatabaseName = FieldName then
       FieldToCompare := Field;
 
-  case FieldToCompare.TypeInfo.PropertyType.TypeKind of
+  case FieldToCompare.PropertyInfo.PropertyType.TypeKind of
     tkChar: ValueToCompare := AnsiChar('C');
     tkEnumeration: ValueToCompare := Enum2;
     tkFloat: ValueToCompare := Double(1234.456);
@@ -909,7 +973,7 @@ begin
 
   FieldToCompare.SetValue(MyClass, ValueToCompare);
 
-  if FieldToCompare.TypeInfo.PropertyType.TypeKind = tkRecord then
+  if FieldToCompare.PropertyInfo.PropertyType.TypeKind = tkRecord then
     Assert.AreEqual<String>(ValueToCompare, FieldToCompare.GetValue(MyClass).AsType<TGUID>.ToString)
   else
     Assert.AreEqual(ValueToCompare, FieldToCompare.GetValue(MyClass).AsVariant);
@@ -1435,7 +1499,7 @@ begin
   var Mapper := TMapper.Create;
   var Table := Mapper.LoadClass(TMyEntity3);
 
-  Assert.AreEqual(TMyEntity3, Table.TypeInfo.MetaclassType);
+  Assert.AreEqual(TMyEntity3, Table.ClassTypeInfo.MetaclassType);
 
   Mapper.Free;
 end;

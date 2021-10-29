@@ -195,7 +195,6 @@ type
 
   TQueryBuilderComparisonHelper = record
   private
-    class procedure InitComparison(var Result: TQueryBuilderComparisonHelper); static;
     class procedure MakeComparison(const Comparison: TQueryBuilderComparisonOperator; const Left, Right: TQueryBuilderComparisonHelper; var Result: TQueryBuilderComparisonHelper); overload; static;
     class procedure MakeComparison(const Comparison: TQueryBuilderComparisonOperator; const Left: TQueryBuilderComparisonHelper; const Right: TValue; var Result: TQueryBuilderComparisonHelper); overload; static;
   public
@@ -203,6 +202,8 @@ type
 
     function Between<T>(const ValueStart, ValueEnd: T): TQueryBuilderComparisonHelper;
     function Like(const Value: String): TQueryBuilderComparisonHelper;
+
+    class procedure InitComparison(var Result: TQueryBuilderComparisonHelper); static;
 
     class operator BitwiseAnd(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
     class operator BitwiseOr(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
@@ -233,7 +234,6 @@ type
     FFilter: String;
     FFrom: TQueryBuilderFrom;
     FOpen: TQueryBuilderOpen<T>;
-    FAllFields: TQueryBuilderAllFields;
 
     function GetField(const QueryField: TQueryBuilderFieldAlias): String; overload;
     function GetField(const QueryField: TQueryBuilderFieldAlias; var Field: TField): String; overload;
@@ -595,8 +595,6 @@ destructor TQueryBuilderWhere<T>.Destroy;
 begin
   FOpen.Free;
 
-  FAllFields.Free;
-
   inherited;
 end;
 
@@ -615,7 +613,7 @@ begin
       var FieldName := QueryField.FieldNames[A];
 
       for var Join in CurrentJoin.Links do
-        if Join.Field.TypeInfo.Name = FieldName then
+        if Join.Field.Name = FieldName then
         begin
           CurrentJoin := Join;
 
@@ -629,7 +627,7 @@ begin
     raise ECantUseComposeFieldName.Create;
 
   for var FieldVar in Table.Fields do
-    if FieldVar.TypeInfo.Name = FieldNameToFind then
+    if FieldVar.Name = FieldNameToFind then
     begin
       Field := FieldVar;
       Result := Field.DatabaseName;
@@ -847,7 +845,7 @@ end;
 
 constructor EEntityWithoutPrimaryKey.Create(Table: TTable);
 begin
-  inherited CreateFmt('Entity %s has no primary key, and cannot be saved!', [Table.TypeInfo.Name]);
+  inherited CreateFmt('Entity %s has no primary key, and cannot be saved!', [Table.ClassTypeInfo.Name]);
 end;
 
 { TQueryBuilderComparisonHelper }

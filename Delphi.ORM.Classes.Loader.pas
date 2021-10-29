@@ -49,18 +49,18 @@ begin
   var CacheValue := TValue.Empty;
   var PrimaryKeyValue := GetPrimaryKeyFromTable(Table, FieldIndexStart);
 
-  NewObject := not PrimaryKeyValue.IsEmpty and not FLoadedObjects.Get(Table.TypeInfo, PrimaryKeyValue, CacheValue);
+  NewObject := not PrimaryKeyValue.IsEmpty and not FLoadedObjects.Get(Table.ClassTypeInfo, PrimaryKeyValue, CacheValue);
 
   if NewObject then
   begin
-    if Assigned(Cache) and not Cache.Get(Table.TypeInfo, PrimaryKeyValue, CacheValue) then
+    if Assigned(Cache) and not Cache.Get(Table.ClassTypeInfo, PrimaryKeyValue, CacheValue) then
     begin
-      CacheValue := Table.TypeInfo.MetaclassType.Create;
+      CacheValue := Table.ClassTypeInfo.MetaclassType.Create;
 
-      Cache.Add(Table.TypeInfo, PrimaryKeyValue, CacheValue);
+      Cache.Add(Table.ClassTypeInfo, PrimaryKeyValue, CacheValue);
     end;
 
-    FLoadedObjects.Add(Table.TypeInfo, PrimaryKeyValue, CacheValue);
+    FLoadedObjects.Add(Table.ClassTypeInfo, PrimaryKeyValue, CacheValue);
   end;
 
   Result := CacheValue.AsObject;
@@ -148,7 +148,7 @@ begin
         var FieldValue := GetFieldValueVariant(FieldIndexStart);
 
         if Field.IsLazy then
-          GetLazyLoadingAccess(Field.TypeInfo.GetValue(Obj)).Key := TValue.FromVariantNull(FieldValue)
+          GetLazyLoadingAccess(Field.PropertyInfo.GetValue(Obj)).Key := TValue.FromVariantNull(FieldValue)
         else
           Field.SetValue(Obj, FieldValue);
       end;
@@ -159,7 +159,7 @@ begin
     begin
       var ArrayValue: TValue;
 
-      TValue.Make(nil, Field.TypeInfo.PropertyType.Handle, ArrayValue);
+      TValue.Make(nil, Field.PropertyInfo.PropertyType.Handle, ArrayValue);
 
       Field.SetValue(Obj, ArrayValue);
     end;

@@ -1139,7 +1139,7 @@ begin
   From.From<TClassWithTwoForeignKey>;
 
   for var Field in FieldList.GetFields do
-    Assert.IsFalse(Field.Field.TypeInfo.PropertyType.InheritsFrom(TRttiStructuredType));
+    Assert.IsFalse(Field.Field.PropertyInfo.PropertyType.InheritsFrom(TRttiStructuredType));
 
   From.Free;
 
