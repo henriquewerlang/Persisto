@@ -117,6 +117,10 @@ type
     procedure WhenIsNotDefinedTheRecursivityLevelMustBeOneTheDefaultValue;
     [Test]
     procedure WhenTheClassHaveForeignKeyMustBuildTheSQLWithTheAliasOfTheJoinMapped;
+    [Test]
+    procedure WhenFillTheFirstRecordsMustLoadThePropertyWithThePassedValue;
+    [Test]
+    procedure WhenFillTheFirstRecordsMustBuildTheSQLAsExpectedForSQLServer;
   end;
 
   [TestFixture]
@@ -1261,6 +1265,27 @@ end;
 procedure TQueryBuilderSelectTest.Setup;
 begin
   TMapper.Default.LoadAll;
+end;
+
+procedure TQueryBuilderSelectTest.WhenFillTheFirstRecordsMustBuildTheSQLAsExpectedForSQLServer;
+begin
+  var Database := TDatabaseTest.Create(nil);
+  var Query := TQueryBuilder.Create(Database);
+
+  Query.Select.First(10).All.From<TClassWithForeignKey>.Open;
+
+  Assert.AreEqual('select top 10 T1.Id F1,T2.Id F2,T2.Value F3 from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', Database.SQL);
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderSelectTest.WhenFillTheFirstRecordsMustLoadThePropertyWithThePassedValue;
+begin
+  var Select := TQueryBuilderSelect.Create(nil);
+
+  Assert.AreEqual(20, Select.First(20).FirstRecords);
+
+  Select.Free;
 end;
 
 procedure TQueryBuilderSelectTest.WhenIsNotDefinedTheRecursivityLevelMustBeOneTheDefaultValue;

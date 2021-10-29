@@ -137,6 +137,7 @@ type
   private
     FBuilder: TQueryBuilder;
     FFieldList: TQueryBuilderFieldList;
+    FFirstRecords: Cardinal;
     FFrom: TQueryBuilderFrom;
     FRecursivityLevel: Word;
 
@@ -151,8 +152,10 @@ type
     function All: TQueryBuilderFrom;
     function GetSQL: String; override;
     function RecursivityLevel(const Level: Word): TQueryBuilderSelect;
+    function First(Total: Cardinal): TQueryBuilderSelect;
 
-    property RecursivityLevelValue: Word read FRecursivityLevel write FRecursivityLevel;
+    property FirstRecords: Cardinal read FFirstRecords;
+    property RecursivityLevelValue: Word read FRecursivityLevel;
   end;
 
   TQueryBuilderFieldAlias = class
@@ -520,6 +523,12 @@ begin
   inherited;
 end;
 
+function TQueryBuilderSelect.First(Total: Cardinal): TQueryBuilderSelect;
+begin
+  FFirstRecords := Total;
+  Result := Self;
+end;
+
 function TQueryBuilderSelect.GetFieldsWithAlias: String;
 begin
   var FieldAlias: TFieldAlias;
@@ -545,6 +554,9 @@ end;
 function TQueryBuilderSelect.GetSQL: String;
 begin
   Result := 'select ';
+
+  if FirstRecords > 0 then
+    Result := Result + Format('top %d ', [FirstRecords]);
 
   if Assigned(FFrom) then
     Result := Result + GetFieldsWithAlias + FFrom.GetSQL;
