@@ -30,7 +30,7 @@ package Delphi.ORM.Runtime.Unidac;
 
 requires
   rtl,
-  Unidac270,
+  Unidac280,
   Delphi.ORM.Runtime;
 
 contains
