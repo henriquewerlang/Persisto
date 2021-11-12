@@ -2,8 +2,6 @@
 
 interface
 
-uses System.Rtti, Delphi.ORM.Mapper;
-
 type
   IDatabaseCursor = interface
     ['{19CBD0F4-8766-4F1D-8E88-F7E03E6A5E28}']
