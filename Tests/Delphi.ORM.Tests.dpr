@@ -53,6 +53,8 @@ begin
 
   FastMM_DeleteEventLogFile;
 
+  FormatSettings := TFormatSettings.Invariant;
+
 {$IFDEF TESTINSIGHT}
   TestInsight.DUnitX.RunRegisteredTests;
 {$ELSE}
@@ -96,3 +98,4 @@ begin
   end;
 {$ENDIF}
 end.
+

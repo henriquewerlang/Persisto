@@ -281,7 +281,7 @@ begin
   LazyAccess.Key := 1234;
   var LazyLoaderIntf := LazyAccess as ILazyAccess;
 
-  Factory.Setup.WillReturn(5555).When.Load(It.IsAny<TRttiType>, It.IsAny<TValue>);
+  Factory.Setup.WillReturn(5555).When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<TValue>);
 
   Assert.AreEqual(5555, LazyLoaderIntf.Value.AsInteger);
 end;
@@ -308,7 +308,7 @@ begin
   LazyAccess.Key := 1234;
   var LazyLoaderIntf := LazyAccess as ILazyAccess;
 
-  Factory.Expect.Once.When.Load(It.IsAny<TRttiType>, It.IsAny<TValue>);
+  Factory.Expect.Once.When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<TValue>);
 
   LazyLoaderIntf.GetValue;
 
@@ -393,7 +393,7 @@ begin
   LazyAccess.Factory := Factory.Instance;
   var LazyLoaderIntf := LazyAccess as ILazyAccess;
 
-  Factory.Expect.Once.When.Load(It.IsAny<TRttiType>, It.IsAny<TValue>);
+  Factory.Expect.Once.When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<TValue>);
 
   LazyLoaderIntf.GetValue;
 
