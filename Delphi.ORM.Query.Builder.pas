@@ -17,11 +17,6 @@ type
     constructor Create;
   end;
 
-  EEntityWithoutPrimaryKey = class(Exception)
-  public
-    constructor Create(Table: TTable);
-  end;
-
   EFieldNotFoundInTable = class(Exception)
   public
     constructor Create(FieldName: String);
@@ -41,8 +36,15 @@ type
     FCommand: TQueryBuilderCommand;
     FCache: ICache;
 
-    function BuildPrimaryKeyFilter<T: class>(const Table: TTable; const AObject: T): String;
+    function BuildPrimaryKeyFilter(const Table: TTable; const AObject: TObject): String;
     function GetConnection: IDatabaseConnection;
+
+    procedure ExecuteInTrasaction(const Proc: TProc);
+    procedure InsertObject(const AObject: TObject; const ForeignKeyToIgnore: TForeignKey);
+    procedure SaveForeignKeys(const Table: TTable; const AObject: TObject; const ForeignKeyToIgnore: TForeignKey);
+    procedure SaveManyValueAssociations(const Table: TTable; const AObject: TObject);
+    procedure SaveObject(const AObject: TObject; const ForeignKeyToIgnore: TForeignKey);
+    procedure UpdateObject(const AObject: TObject; const ForeignKeyToIgnore: TForeignKey);
   public
     constructor Create(Connection: IDatabaseConnection);
 
@@ -234,6 +236,9 @@ type
     FFilter: String;
     FFrom: TQueryBuilderFrom;
     FOpen: TQueryBuilderOpen<T>;
+    FTable: TTable;
+
+    constructor Create(const Table: TTable); overload;
 
     function GetField(const QueryField: TQueryBuilderFieldAlias): String; overload;
     function GetField(const QueryField: TQueryBuilderFieldAlias; var Field: TField): String; overload;
@@ -245,7 +250,7 @@ type
 
     procedure BuildFilter(const Value: TQueryBuilderComparisonHelper);
   public
-    constructor Create(From: TQueryBuilderFrom);
+    constructor Create(const From: TQueryBuilderFrom); overload;
 
     destructor Destroy; override;
 
@@ -268,14 +273,14 @@ end;
 
 { TQueryBuilder }
 
-function TQueryBuilder.BuildPrimaryKeyFilter<T>(const Table: TTable; const AObject: T): String;
+function TQueryBuilder.BuildPrimaryKeyFilter(const Table: TTable; const AObject: TObject): String;
 begin
   Result := EmptyStr;
 
   if Assigned(Table.PrimaryKey) then
   begin
     var Condition := Field(Table.PrimaryKey.DatabaseName) = Table.PrimaryKey.GetValue(AObject);
-    var Where := TQueryBuilderWhere<T>.Create(nil);
+    var Where := TQueryBuilderWhere<TObject>.Create(Table);
 
     Result := Where.Where(Condition).GetSQL;
 
@@ -292,9 +297,13 @@ end;
 
 procedure TQueryBuilder.Delete<T>(const AObject: T);
 begin
-  var Table := TMapper.Default.FindTable(AObject.ClassType);
+  ExecuteInTrasaction(
+    procedure
+    begin
+      var Table := TMapper.Default.FindTable(AObject.ClassType);
 
-  FConnection.ExecuteDirect(Format('delete from %s%s', [Table.DatabaseName, BuildPrimaryKeyFilter<T>(Table, AObject)]));
+      FConnection.ExecuteDirect(Format('delete from %s%s', [Table.DatabaseName, BuildPrimaryKeyFilter(Table, AObject)]));
+    end);
 end;
 
 destructor TQueryBuilder.Destroy;
@@ -304,13 +313,30 @@ begin
   inherited;
 end;
 
-procedure TQueryBuilder.Insert<T>(const AObject: T);
+procedure TQueryBuilder.ExecuteInTrasaction(const Proc: TProc);
+begin
+  var Transaction := Connection.StartTransaction;
+
+  try
+    Proc();
+
+    Transaction.Commit;
+  except
+    Transaction.Rollback;
+
+    raise;
+  end;
+end;
+
+procedure TQueryBuilder.InsertObject(const AObject: TObject; const ForeignKeyToIgnore: TForeignKey);
 begin
   var OutputFieldList: TArray<TField> := nil;
   var OutputFieldNameList: TArray<String> := nil;
   var Table := TMapper.Default.FindTable(AObject.ClassType);
 
   var SQL := '(%s)values(%s)';
+
+  SaveForeignKeys(Table, AObject, ForeignKeyToIgnore);
 
   for var Field in Table.Fields do
   begin
@@ -322,14 +348,27 @@ begin
       OutputFieldNameList := OutputFieldNameList + [Field.DatabaseName];
     end
     else if not Field.IsManyValueAssociation then
-      SQL := Format(SQL, [Field.DatabaseName + '%2:s%0:s', Field.GetAsString(TObject(AObject)) + '%2:s%1:s', ',']);
+      SQL := Format(SQL, [Field.DatabaseName + '%2:s%0:s', Field.GetAsString(FieldValue) + '%2:s%1:s', ',']);
   end;
 
-  var Cursor := FConnection.ExecuteInsert('insert into ' + Table.DatabaseName + Format(SQL, ['', '', '', '']), OutputFieldNameList);
+  SQL := 'insert into ' + Table.DatabaseName + Format(SQL, ['', '', '', '']);
+
+  var Cursor := FConnection.ExecuteInsert(SQL, OutputFieldNameList);
 
   if Cursor.Next then
     for var A := Low(OutputFieldList) to High(OutputFieldList) do
-      OutputFieldList[A].SetValue(TObject(AObject), Cursor.GetFieldValue(A));
+      OutputFieldList[A].SetValue(AObject, Cursor.GetFieldValue(A));
+
+  SaveManyValueAssociations(Table, AObject);
+end;
+
+procedure TQueryBuilder.Insert<T>(const AObject: T);
+begin
+  ExecuteInTrasaction(
+    procedure
+    begin
+      InsertObject(AObject, nil);
+    end);
 end;
 
 function TQueryBuilder.GetConnection: IDatabaseConnection;
@@ -347,15 +386,50 @@ end;
 
 procedure TQueryBuilder.Save<T>(const AObject: T);
 begin
+  ExecuteInTrasaction(
+    procedure
+    begin
+      SaveObject(AObject, nil);
+    end)
+end;
+
+procedure TQueryBuilder.SaveForeignKeys(const Table: TTable; const AObject: TObject; const ForeignKeyToIgnore: TForeignKey);
+begin
+  for var ForeignKey in Table.ForeignKeys do
+    if ForeignKey <> ForeignKeyToIgnore then
+    begin
+      var FieldValue := ForeignKey.Field.GetValue(AObject).AsObject;
+
+      if Assigned(FieldValue) then
+        SaveObject(FieldValue, nil);
+    end;
+end;
+
+procedure TQueryBuilder.SaveManyValueAssociations(const Table: TTable; const AObject: TObject);
+begin
+  for var ManyValue in Table.ManyValueAssociations do
+  begin
+    var FieldValue := ManyValue.Field.GetValue(AObject);
+
+    for var A := 0 to Pred(FieldValue.GetArrayLength) do
+    begin
+      var ChildFieldValue := FieldValue.GetArrayElement(A);
+
+      ManyValue.ForeignKey.Field.SetValue(ChildFieldValue.AsObject, AObject);
+
+      SaveObject(ChildFieldValue.AsObject, ManyValue.ForeignKey);
+    end;
+  end;
+end;
+
+procedure TQueryBuilder.SaveObject(const AObject: TObject; const ForeignKeyToIgnore: TForeignKey);
+begin
   var Table := TMapper.Default.FindTable(AObject.ClassType);
 
-  if Assigned(Table.PrimaryKey) then
-    if Table.PrimaryKey.GetValue(AObject).AsVariant = Table.PrimaryKey.DefaultValue.AsVariant then
-      Insert<T>(AObject)
-    else
-      Update<T>(AObject)
+  if Assigned(Table.PrimaryKey) and (Table.PrimaryKey.GetValue(AObject).AsVariant = Table.PrimaryKey.DefaultValue.AsVariant) then
+    InsertObject(AObject, ForeignKeyToIgnore)
   else
-    raise EEntityWithoutPrimaryKey.Create(Table);
+    UpdateObject(AObject, ForeignKeyToIgnore);
 end;
 
 function TQueryBuilder.Select: TQueryBuilderSelect;
@@ -367,8 +441,19 @@ end;
 
 procedure TQueryBuilder.Update<T>(const AObject: T);
 begin
+  ExecuteInTrasaction(
+    procedure
+    begin
+      UpdateObject(AObject, nil);
+    end);
+end;
+
+procedure TQueryBuilder.UpdateObject(const AObject: TObject; const ForeignKeyToIgnore: TForeignKey);
+begin
   var SQL := EmptyStr;
   var Table := TMapper.Default.FindTable(AObject.ClassType);
+
+  SaveForeignKeys(Table, AObject, ForeignKeyToIgnore);
 
   for var TableField in Table.Fields do
     if not TableField.InPrimaryKey and not TableField.IsManyValueAssociation then
@@ -379,9 +464,11 @@ begin
       SQL := SQL + Format('%s=%s', [TableField.DatabaseName, TableField.GetAsString(TObject(AObject))]);
     end;
 
-  SQL := Format('update %s set %s%s', [Table.DatabaseName, SQL, BuildPrimaryKeyFilter<T>(Table, AObject)]);
+  SQL := Format('update %s set %s%s', [Table.DatabaseName, SQL, BuildPrimaryKeyFilter(Table, AObject)]);
 
   FConnection.ExecuteDirect(SQL);
+
+  SaveManyValueAssociations(Table, AObject);
 end;
 
 { TQueryBuilderFrom }
@@ -584,25 +671,11 @@ begin
   end;
 end;
 
-constructor TQueryBuilderWhere<T>.Create(From: TQueryBuilderFrom);
-begin
-  inherited Create;
-
-  FFrom := From;
-end;
-
-destructor TQueryBuilderWhere<T>.Destroy;
-begin
-  FOpen.Free;
-
-  inherited;
-end;
-
 function TQueryBuilderWhere<T>.GetField(const QueryField: TQueryBuilderFieldAlias; var Field: TField): String;
 begin
   var CurrentJoin: TQueryBuilderJoin := nil;
   var FieldNameToFind := QueryField.FieldNames[High(QueryField.FieldNames)];
-  var Table := TMapper.Default.FindTable(T);
+  var Table := FTable;
 
   if Assigned(FFrom) then
   begin
@@ -698,6 +771,27 @@ const
 
 begin
   Result := Format('(%s %s %s)', [MakeFilter(Logical.Left), LOGICAL_OPERATOR[Logical.Logical], MakeFilter(Logical.Right)]);
+end;
+
+constructor TQueryBuilderWhere<T>.Create(const From: TQueryBuilderFrom);
+begin
+  FFrom := From;
+
+  Create(TMapper.Default.FindTable(T));
+end;
+
+constructor TQueryBuilderWhere<T>.Create(const Table: TTable);
+begin
+  inherited Create;
+
+  FTable := Table;
+end;
+
+destructor TQueryBuilderWhere<T>.Destroy;
+begin
+  FOpen.Free;
+
+  inherited;
 end;
 
 function TQueryBuilderWhere<T>.Open: TQueryBuilderOpen<T>;
@@ -839,13 +933,6 @@ end;
 constructor ECantUseComposeFieldName.Create;
 begin
   inherited Create('Can''t use compose field name in this operation!');
-end;
-
-{ EEntityWithoutPrimaryKey }
-
-constructor EEntityWithoutPrimaryKey.Create(Table: TTable);
-begin
-  inherited CreateFmt('Entity %s has no primary key, and cannot be saved!', [Table.ClassTypeInfo.Name]);
 end;
 
 { TQueryBuilderComparisonHelper }

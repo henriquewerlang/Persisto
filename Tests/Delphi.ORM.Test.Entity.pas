@@ -684,7 +684,47 @@ type
     property Id: Integer read FId write FId;
   end;
 
+  TManyValueParentError = class;
+
+  [Entity]
+  TManyValueParentChildError = class
+  private
+    FId: Integer;
+    FParent: TManyValueParentError;
+    FPassCount: Integer;
+    function GetParent: TManyValueParentError;
+  published
+    property Id: Integer read FId write FId;
+    property ManyValueParentError: TManyValueParentError read GetParent write FParent;
+  end;
+
+  [Entity]
+  TManyValueParentError = class
+  private
+    FId: Integer;
+    FValues: TArray<TManyValueParentChildError>;
+    FPassCount: Integer;
+  published
+    property Id: Integer read FId write FId;
+    property PassCount: Integer read FPassCount write FPassCount;
+    property Values: TArray<TManyValueParentChildError> read FValues write FValues;
+  end;
+
 implementation
+
+uses System.SysUtils;
+
+{ TManyValueParentChildError }
+
+function TManyValueParentChildError.GetParent: TManyValueParentError;
+begin
+  Result := FParent;
+
+  if Assigned(FParent) and (FPassCount >= FParent.PassCount) then
+    raise Exception.Create('Can not access this property!');
+
+  Inc(FPassCount);
+end;
 
 end.
 

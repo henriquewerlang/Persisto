@@ -99,13 +99,13 @@ type
     [Test]
     procedure WhenTheClassAsAFieldWithNullableRecordMustUpdateThenValueOfThePropertyIfNotIsNull;
     [Test]
-    procedure WhenTrySaveAnEntityWithoutPrimaryKeyMustRaiseAnError;
-    [Test]
     procedure WhenTryToSaveAnEntityWithThePrimaryKeyEmptyMustInsertTheEntity;
     [Test]
     procedure WhenTryToSaveAnEntityWithThePrimaryKeyFilledMustUpdateTheEntity;
     [Test]
     procedure WhenInsertingAClassWithTheKeyValueAlreadyLoadedMustInsertWithThisValue;
+    [Test]
+    procedure WhenUpdateAnEntityWithoutPrimaryKeyMustUpdateAllRecordFromTable;
   end;
 
   [TestFixture]
@@ -303,6 +303,59 @@ type
     procedure WhenTheComparisionWithATimeMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
   end;
 
+  [TestFixture]
+  TQueryBuilderDataManipulationTest = class
+  public
+    [SetupFixture]
+    procedure SetupFixture;
+    [Test]
+    procedure WhenCallInsertMustStartATransactionInDatabase;
+    [Test]
+    procedure WhenTheInsertOccursSuccessfullyMustCommitTheTransaction;
+    [Test]
+    procedure TheInsertionErrorMustBeRaiseAfterTheRollbackTheTransaction;
+    [Test]
+    procedure WhenAnInsertErrorOccurrsMustCallRollbackFunctionOfTheTransaction;
+    [Test]
+    procedure WhenCallUpdateMustStartATransactionInDatabase;
+    [Test]
+    procedure WhenTheUpdateOccursSuccessfullyMustCommitTheTransaction;
+    [Test]
+    procedure TheUpdateErrorMustRaiseAfterTheRollbackTheTransaction;
+    [Test]
+    procedure WhenAnUpdateErrorOccurrsMustCallRollbackFunctionOfTheTransaction;
+    [Test]
+    procedure WhenCallDeleteMustStartATransactionInDatabase;
+    [Test]
+    procedure WhenTheDeleteOccursSuccessfullyMustCommitTheTransaction;
+    [Test]
+    procedure WhenAnDeleteErrorOccurrsMustCallRollbackFunctionOfTheTransaction;
+    [Test]
+    procedure TheDeleteErrorMustRaiseAfterTheRollbackTheTransaction;
+    [Test]
+    procedure WhenCallSaveMustStartATransactionInDatabase;
+    [Test]
+    procedure WhenTheSaveOccursSuccessfullyMustCommitTheTransaction;
+    [Test]
+    procedure WhenAnSaveErrorOccurrsMustCallRollbackFunctionOfTheTransaction;
+    [Test]
+    procedure TheSaveErrorMustRaiseAfterTheRollbackTheTransaction;
+    [Test]
+    procedure WhenInsertAnEntityMustSaveTheForeignKeysFirstAfterThisMustInsertTheEntity;
+    [Test]
+    procedure WhenUpdateAnEntityMustSaveTheForeignKeysFirstAfterThisMustUpdateTheEntity;
+    [Test]
+    procedure WhenThenObjectOfAForeignKeyIsNilCantRaiseAnyError;
+    [Test]
+    procedure WhenInsertAnEntityMustSaveTheManyValueAssociationsAfterInsertedTheEntity;
+    [Test]
+    procedure WhenUpdateAnEntityMustSaveTheManyValueAssociationsAfterUpdatedTheEntity;
+    [Test]
+    procedure WhenSaveAManyValueAssocitationEntityMustLoadTheParentObjectInTheChildObjects;
+    [Test]
+    procedure WhenSaveAManyValueAssocitationEntityMustAvoidSaveTheParentLinkOfTheChildToAvoidStackOverflow;
+  end;
+
   TDatabaseTest = class(TInterfacedObject, IDatabaseConnection)
   private
     FCursor: IDatabaseCursor;
@@ -311,10 +364,11 @@ type
 
     function ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
     function OpenCursor(const SQL: String): IDatabaseCursor;
+    function StartTransaction: IDatabaseTransaction;
 
     procedure ExecuteDirect(const SQL: String);
   public
-    constructor Create(const Cursor: IDatabaseCursor);
+    constructor Create(const Cursor: IDatabaseCursor); 
 
     property SQL: String read FSQL;
     property OutputFields: TArray<String> read FOutputFields;
@@ -324,7 +378,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Cursor.Mock, Delphi.ORM.Nullable, Delphi.ORM.Cache;
+uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Cursor.Mock, Delphi.ORM.Nullable, Delphi.ORM.Cache, Delphi.Mock;
 
 const
   COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '', '');
@@ -455,6 +509,8 @@ end;
 procedure TQueryBuilderTest.Setup;
 begin
   TMapper.Default.LoadAll;
+
+  TMock.CreateInterface<IDatabaseTransaction>;
 end;
 
 procedure TQueryBuilderTest.TheClassBeingSelectedMustHaveTheAliasDefined;
@@ -1038,22 +1094,6 @@ begin
   From.Free;
 end;
 
-procedure TQueryBuilderTest.WhenTrySaveAnEntityWithoutPrimaryKeyMustRaiseAnError;
-begin
-  var Obj := TMyEntityWithoutPrimaryKey.Create;
-  var Query := TQueryBuilder.Create(nil);
-
-  Assert.WillRaise(
-    procedure
-    begin
-      Query.Save(Obj);
-    end, EEntityWithoutPrimaryKey);
-
-  Obj.Free;
-
-  Query.Free;
-end;
-
 procedure TQueryBuilderTest.WhenTryToSaveAnEntityWithThePrimaryKeyEmptyMustInsertTheEntity;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
@@ -1079,6 +1119,21 @@ begin
   Query.Save(Obj);
 
   Assert.AreEqual('update MyEntityWithPrimaryKey set Id=0 where Value=12345', Database.SQL);
+
+  Obj.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderTest.WhenUpdateAnEntityWithoutPrimaryKeyMustUpdateAllRecordFromTable;
+begin
+  var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
+  var Obj := TMyTestClass.Create;
+  var Query := TQueryBuilder.Create(Database);
+
+  Query.Save(Obj);
+
+  Assert.AreEqual('update MyTestClass set Field=0,Name='''',Value=0', Database.SQL);
 
   Obj.Free;
 
@@ -1126,6 +1181,11 @@ function TDatabaseTest.OpenCursor(const SQL: String): IDatabaseCursor;
 begin
   FSQL := SQL;
   Result := FCursor;
+end;
+
+function TDatabaseTest.StartTransaction: IDatabaseTransaction;
+begin
+  Result := TMock.CreateInterface<IDatabaseTransaction>(True).Instance;
 end;
 
 { TQueryBuilderAllFieldsTest }
@@ -1971,7 +2031,7 @@ end;
 
 procedure TQueryBuilderWhereTest.WhenUsingComposeFieldNameInAOperationWithoutFromMustRaiseAnError;
 begin
-  var Where := TQueryBuilderWhere<TWhereClassTest>.Create(nil);
+  var Where := TQueryBuilderWhere<TWhereClassTest>.Create(TTable(nil));
 
   Assert.WillRaise(
     procedure
@@ -1980,6 +2040,623 @@ begin
     end, ECantUseComposeFieldName);
 
   Where.Free;
+end;
+
+{ TQueryBuilderDataManipulationTest }
+
+procedure TQueryBuilderDataManipulationTest.SetupFixture;
+begin
+  TMapper.Default.LoadAll;
+
+  TMock.CreateInterface<IDatabaseConnection>;
+
+  TMock.CreateInterface<IDatabaseCursor>;
+
+  TMock.CreateInterface<IDatabaseTransaction>;
+end;
+
+procedure TQueryBuilderDataManipulationTest.TheDeleteErrorMustRaiseAfterTheRollbackTheTransaction;
+begin
+  var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TAutoGeneratedClass.Create;
+  var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
+
+  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+
+  Database.Setup.WillExecute(
+    procedure
+    begin
+      raise Exception.Create('An error message');
+    end).When.ExecuteDirect(It.IsAny<String>);
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Query.Delete(MyClass);
+    end);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.TheInsertionErrorMustBeRaiseAfterTheRollbackTheTransaction;
+begin
+  var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TAutoGeneratedClass.Create;
+  var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
+
+  Transaction.Expect.Once.When.Rollback;
+
+  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+
+  Database.Setup.WillExecute(
+    procedure
+    begin
+      raise Exception.Create('An error message');
+    end).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Query.Insert(MyClass);
+    end);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.TheSaveErrorMustRaiseAfterTheRollbackTheTransaction;
+begin
+  var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TAutoGeneratedClass.Create;
+  MyClass.Id := 123;
+  var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
+
+  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+
+  Database.Setup.WillExecute(
+    procedure
+    begin
+      raise Exception.Create('An error message');
+    end).When.ExecuteDirect(It.IsAny<String>);
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Query.Save(MyClass);
+    end);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.TheUpdateErrorMustRaiseAfterTheRollbackTheTransaction;
+begin
+  var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TAutoGeneratedClass.Create;
+  var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
+
+  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+
+  Database.Setup.WillExecute(
+    procedure
+    begin
+      raise Exception.Create('An error message');
+    end).When.ExecuteDirect(It.IsAny<String>);
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Query.Update(MyClass);
+    end);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenAnDeleteErrorOccurrsMustCallRollbackFunctionOfTheTransaction;
+begin
+  var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TAutoGeneratedClass.Create;
+  var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
+
+  Transaction.Expect.Once.When.Rollback;
+
+  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+
+  Database.Setup.WillExecute(
+    procedure
+    begin
+      raise Exception.Create('An error message');
+    end).When.ExecuteDirect(It.IsAny<String>);
+
+  try
+    Query.Delete(MyClass);
+  except
+  end;
+
+  Assert.CheckExpectation(Transaction.CheckExpectations);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenAnInsertErrorOccurrsMustCallRollbackFunctionOfTheTransaction;
+begin
+  var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TAutoGeneratedClass.Create;
+  var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
+
+  Transaction.Expect.Once.When.Rollback;
+
+  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+
+  Database.Setup.WillExecute(
+    procedure
+    begin
+      raise Exception.Create('An error message');
+    end).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+
+  try
+    Query.Insert(MyClass);
+  except
+  end;
+
+  Assert.CheckExpectation(Transaction.CheckExpectations);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenAnSaveErrorOccurrsMustCallRollbackFunctionOfTheTransaction;
+begin
+  var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TAutoGeneratedClass.Create;
+  MyClass.Id := 123;
+  var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
+
+  Transaction.Expect.Once.When.Rollback;
+
+  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+
+  Database.Setup.WillExecute(
+    procedure
+    begin
+      raise Exception.Create('An error message');
+    end).When.ExecuteDirect(It.IsAny<String>);
+
+  try
+    Query.Save(MyClass);
+  except
+  end;
+
+  Assert.CheckExpectation(Transaction.CheckExpectations);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenAnUpdateErrorOccurrsMustCallRollbackFunctionOfTheTransaction;
+begin
+  var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TAutoGeneratedClass.Create;
+  var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
+
+  Transaction.Expect.Once.When.Rollback;
+
+  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+
+  Database.Setup.WillExecute(
+    procedure
+    begin
+      raise Exception.Create('An error message');
+    end).When.ExecuteDirect(It.IsAny<String>);
+
+  try
+    Query.Update(MyClass);
+  except
+  end;
+
+  Assert.CheckExpectation(Transaction.CheckExpectations);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenCallDeleteMustStartATransactionInDatabase;
+begin
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TAutoGeneratedClass.Create;
+
+  Database.Expect.Once.When.StartTransaction;
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+
+  Query.Delete(MyClass);
+
+  Assert.CheckExpectation(Database.CheckExpectations);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenCallInsertMustStartATransactionInDatabase;
+begin
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TAutoGeneratedClass.Create;
+
+  Database.Expect.Once.When.StartTransaction;
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+
+  Query.Insert(MyClass);
+
+  Assert.CheckExpectation(Database.CheckExpectations);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenCallSaveMustStartATransactionInDatabase;
+begin
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TAutoGeneratedClass.Create;
+  MyClass.Id := 123;
+
+  Database.Expect.Once.When.StartTransaction;
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+
+  Query.Save(MyClass);
+
+  Assert.CheckExpectation(Database.CheckExpectations);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenCallUpdateMustStartATransactionInDatabase;
+begin
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TAutoGeneratedClass.Create;
+
+  Database.Expect.Once.When.StartTransaction;
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+
+  Query.Update(MyClass);
+
+  Assert.CheckExpectation(Database.CheckExpectations);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenInsertAnEntityMustSaveTheForeignKeysFirstAfterThisMustInsertTheEntity;
+begin
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var ForeignKeySaved := False;
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TClassWithForeignKey.Create;
+  MyClass.AnotherClass := TClassWithPrimaryKey.Create;
+
+  Database.Setup.WillExecute(
+    function (const Args: TArray<TValue>): TValue
+    begin
+      ForeignKeySaved := True;
+      Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
+    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ClassWithPrimaryKey(Id,Value)values(0,0)'), It(1).IsAny<TArray<String>>);
+
+  Database.Setup.WillExecute(
+    function (Args: TArray<TValue>): TValue
+    begin
+      Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
+
+      Assert.IsTrue(ForeignKeySaved, 'The foreign key not saved');
+    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ClassWithForeignKey(Id,IdAnotherClass)values(0,0)'), It(1).IsAny<TArray<String>>);
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+
+  Query.Insert(MyClass);
+
+  MyClass.AnotherClass.Free;
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenInsertAnEntityMustSaveTheManyValueAssociationsAfterInsertedTheEntity;
+begin
+  var CanSaveManyValueAssociation := False;
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TManyValueParent.Create;
+  MyClass.Childs := [TManyValueChild.Create];
+
+  Database.Setup.WillExecute(
+    function (const Args: TArray<TValue>): TValue
+    begin
+      CanSaveManyValueAssociation := True;
+      Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
+    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ManyValueParent(Id,IdChild)values(0,null)'), It(1).IsAny<TArray<String>>);
+
+  Database.Setup.WillExecute(
+    function (Args: TArray<TValue>): TValue
+    begin
+      Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
+
+      Assert.IsTrue(CanSaveManyValueAssociation, 'The parent entity not saved');
+    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ManyValueChild(Id,IdParent)values(0,0)'), It(1).IsAny<TArray<String>>);
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+
+  Query.Insert(MyClass);
+
+  MyClass.Childs[0].Free;
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenSaveAManyValueAssocitationEntityMustAvoidSaveTheParentLinkOfTheChildToAvoidStackOverflow;
+begin
+  var CanSaveManyValueAssociation := False;
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TManyValueParentError.Create;
+  MyClass.PassCount := 1;
+  MyClass.Values := [TManyValueParentChildError.Create];
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Query.Insert(MyClass);
+    end);
+
+  MyClass.Values[0].Free;
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenSaveAManyValueAssocitationEntityMustLoadTheParentObjectInTheChildObjects;
+begin
+  var CanSaveManyValueAssociation := False;
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TManyValueParentError.Create;
+  MyClass.PassCount := 2;
+  MyClass.Values := [TManyValueParentChildError.Create];
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+
+  try
+    Query.Insert(MyClass);
+  except
+  end;
+
+   Assert.IsNotNull(MyClass.Values[0].ManyValueParentError);
+
+  MyClass.Values[0].Free;
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenTheDeleteOccursSuccessfullyMustCommitTheTransaction;
+begin
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TAutoGeneratedClass.Create;
+  var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
+
+  Transaction.Expect.Once.When.Commit;
+
+  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+
+  Query.Delete(MyClass);
+
+  Assert.CheckExpectation(Transaction.CheckExpectations);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenTheInsertOccursSuccessfullyMustCommitTheTransaction;
+begin
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TAutoGeneratedClass.Create;
+  var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
+
+  Transaction.Expect.Once.When.Commit;
+
+  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+
+  Query.Insert(MyClass);
+
+  Assert.CheckExpectation(Transaction.CheckExpectations);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenThenObjectOfAForeignKeyIsNilCantRaiseAnyError;
+begin
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TClassWithForeignKey.Create;
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+
+  Assert.WillNotRaise(
+  procedure
+  begin
+    Query.Update(MyClass);
+  end);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenTheSaveOccursSuccessfullyMustCommitTheTransaction;
+begin
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TAutoGeneratedClass.Create;
+  MyClass.Id := 123;
+  var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
+
+  Transaction.Expect.Once.When.Commit;
+
+  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+
+  Query.Save(MyClass);
+
+  Assert.CheckExpectation(Transaction.CheckExpectations);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenTheUpdateOccursSuccessfullyMustCommitTheTransaction;
+begin
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TAutoGeneratedClass.Create;
+  var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
+
+  Transaction.Expect.Once.When.Commit;
+
+  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+
+  Query.Update(MyClass);
+
+  Assert.CheckExpectation(Transaction.CheckExpectations);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenUpdateAnEntityMustSaveTheForeignKeysFirstAfterThisMustUpdateTheEntity;
+begin
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var ForeignKeySaved := False;
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TClassWithForeignKey.Create;
+  MyClass.AnotherClass := TClassWithPrimaryKey.Create;
+
+  Database.Setup.WillExecute(
+    function (const Args: TArray<TValue>): TValue
+    begin
+      ForeignKeySaved := True;
+      Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
+    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ClassWithPrimaryKey(Id,Value)values(0,0)'), It(1).IsAny<TArray<String>>);
+
+  Database.Setup.WillExecute(
+    function (Args: TArray<TValue>): TValue
+    begin
+      Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
+
+      Assert.IsTrue(ForeignKeySaved, 'The foreign key not saved');
+    end).When.ExecuteDirect(It(0).IsEqualTo('update ClassWithForeignKey set IdAnotherClass=0 where Id=0'));
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+
+  Query.Update(MyClass);
+
+  MyClass.AnotherClass.Free;
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenUpdateAnEntityMustSaveTheManyValueAssociationsAfterUpdatedTheEntity;
+begin
+  var CanSaveManyValueAssociation := False;
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TManyValueParent.Create;
+  MyClass.Childs := [TManyValueChild.Create];
+
+  Database.Setup.WillExecute(
+    function (const Args: TArray<TValue>): TValue
+    begin
+      Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
+
+      Assert.IsTrue(CanSaveManyValueAssociation, 'The parent entity not saved');
+    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ManyValueChild(Id,IdParent)values(0,0)'), It(1).IsAny<TArray<String>>);
+
+  Database.Setup.WillExecute(
+    function (Args: TArray<TValue>): TValue
+    begin
+      CanSaveManyValueAssociation := True;
+      Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
+    end).When.ExecuteDirect(It(0).IsEqualTo('update ManyValueParent set IdChild=null where Id=0'));
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+
+  Query.Update(MyClass);
+
+  MyClass.Childs[0].Free;
+
+  MyClass.Free;
+
+  Query.Free;
 end;
 
 end.
