@@ -23,12 +23,25 @@ type
     function Next: Boolean;
   end;
 
+  TDatabaseTransactionZeosLib = class(TInterfacedObject, IDatabaseTransaction)
+  private
+    FConnection: TUniConnection;
+
+    procedure Commit;
+    procedure Rollback;
+  public
+    constructor Create(const Connection: TZConnection);
+
+    destructor Destroy; override;
+  end;
+
   TDatabaseConnectionZeosLib = class(TInterfacedObject, IDatabaseConnection)
   private
     FConnection: TZConnection;
 
     function ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
     function OpenCursor(const SQL: String): IDatabaseCursor;
+    function StartTransaction: IDatabaseTransaction;
 
     procedure ExecuteDirect(const SQL: String);
   public
@@ -91,6 +104,11 @@ begin
   Result := TDatabaseCursorZeosLib.Create(Connection, SQL);
 end;
 
+function TDatabaseConnectionZeosLib.StartTransaction: IDatabaseTransaction;
+begin
+  Result := TDatabaseTransactionZeosLib.Create(Connection);
+end;
+
 { TDatabaseInsertCursorZeosLib }
 
 function TDatabaseInsertCursorZeosLib.GetFieldValue(const FieldIndex: Integer): Variant;
@@ -134,6 +152,29 @@ begin
     FQuery.Open;
 
   Result := not FQuery.Eof;
+end;
+
+{ TDatabaseTransactionZeosLib }
+
+procedure TDatabaseTransactionZeosLib.Commit;
+begin
+
+end;
+
+constructor TDatabaseTransactionZeosLib.Create(const Connection: TZConnection);
+begin
+
+end;
+
+destructor TDatabaseTransactionZeosLib.Destroy;
+begin
+
+  inherited;
+end;
+
+procedure TDatabaseTransactionZeosLib.Rollback;
+begin
+
 end;
 
 end.

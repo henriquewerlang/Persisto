@@ -23,12 +23,25 @@ type
     function Next: Boolean;
   end;
 
+  TDatabaseTransactionUnidac = class(TInterfacedObject, IDatabaseTransaction)
+  private
+    FConnection: TUniConnection;
+
+    procedure Commit;
+    procedure Rollback;
+  public
+    constructor Create(const Connection: TUniConnection);
+
+    destructor Destroy; override;
+  end;
+
   TDatabaseConnectionUnidac = class(TInterfacedObject, IDatabaseConnection)
   private
     FConnection: TUniConnection;
 
     function ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
     function OpenCursor(const SQL: String): IDatabaseCursor;
+    function StartTransaction: IDatabaseTransaction;
 
     procedure ExecuteDirect(const SQL: String);
   public
@@ -127,6 +140,11 @@ begin
   Result := TDatabaseCursorUnidac.Create(Connection, SQL);
 end;
 
+function TDatabaseConnectionUnidac.StartTransaction: IDatabaseTransaction;
+begin
+  Result := TDatabaseTransactionUnidac.Create(Connection);
+end;
+
 { TDatabaseInsertCursorUnidac }
 
 function TDatabaseInsertCursorUnidac.GetFieldValue(const FieldIndex: Integer): Variant;
@@ -137,6 +155,34 @@ end;
 function TDatabaseInsertCursorUnidac.Next: Boolean;
 begin
   Result := False;
+end;
+
+{ TDatabaseTransactionUnidac }
+
+procedure TDatabaseTransactionUnidac.Commit;
+begin
+  FConnection.Commit;
+end;
+
+constructor TDatabaseTransactionUnidac.Create(const Connection: TUniConnection);
+begin
+  inherited Create;
+
+  FConnection := Connection;
+
+  FConnection.StartTransaction;
+end;
+
+destructor TDatabaseTransactionUnidac.Destroy;
+begin
+  Rollback;
+
+  inherited;
+end;
+
+procedure TDatabaseTransactionUnidac.Rollback;
+begin
+  FConnection.Rollback;
 end;
 
 end.
