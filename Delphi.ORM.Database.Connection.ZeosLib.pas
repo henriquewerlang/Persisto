@@ -17,7 +17,7 @@ type
     destructor Destroy; override;
   end;
 
-  TDatabaseInsertCursorZeosLib = class(TInterfacedObject, IDatabaseCursor)
+  TDatabaseEmptyCursorZeosLib = class(TInterfacedObject, IDatabaseCursor)
   private
     function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
@@ -31,8 +31,6 @@ type
     procedure Rollback;
   public
     constructor Create(const Connection: TZConnection);
-
-    destructor Destroy; override;
   end;
 
   TDatabaseConnectionZeosLib = class(TInterfacedObject, IDatabaseConnection)
@@ -93,7 +91,7 @@ begin
   begin
     ExecuteDirect(SQL);
 
-    Result := TDatabaseInsertCursorZeosLib.Create;
+    Result := TDatabaseEmptyCursorZeosLib.Create;
   end
   else
     Result := OpenCursor(SQL.Replace(')values(', Format(')output %s values(', [OutputSQL])));
@@ -109,14 +107,14 @@ begin
   Result := TDatabaseTransactionZeosLib.Create(Connection);
 end;
 
-{ TDatabaseInsertCursorZeosLib }
+{ TDatabaseEmptyCursorZeosLib }
 
-function TDatabaseInsertCursorZeosLib.GetFieldValue(const FieldIndex: Integer): Variant;
+function TDatabaseEmptyCursorZeosLib.GetFieldValue(const FieldIndex: Integer): Variant;
 begin
   Result := NULL;
 end;
 
-function TDatabaseInsertCursorZeosLib.Next: Boolean;
+function TDatabaseEmptyCursorZeosLib.Next: Boolean;
 begin
   Result := False;
 end;
@@ -164,12 +162,6 @@ end;
 constructor TDatabaseTransactionZeosLib.Create(const Connection: TZConnection);
 begin
 
-end;
-
-destructor TDatabaseTransactionZeosLib.Destroy;
-begin
-
-  inherited;
 end;
 
 procedure TDatabaseTransactionZeosLib.Rollback;

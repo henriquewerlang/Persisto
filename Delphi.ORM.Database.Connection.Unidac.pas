@@ -17,7 +17,7 @@ type
     destructor Destroy; override;
   end;
 
-  TDatabaseInsertCursorUnidac = class(TInterfacedObject, IDatabaseCursor)
+  TDatabaseEmptyCursorUnidac = class(TInterfacedObject, IDatabaseCursor)
   private
     function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
@@ -31,8 +31,6 @@ type
     procedure Rollback;
   public
     constructor Create(const Connection: TUniConnection);
-
-    destructor Destroy; override;
   end;
 
   TDatabaseConnectionUnidac = class(TInterfacedObject, IDatabaseConnection)
@@ -129,7 +127,7 @@ begin
   begin
     ExecuteDirect(SQL);
 
-    Result := TDatabaseInsertCursorUnidac.Create;
+    Result := TDatabaseEmptyCursorUnidac.Create;
   end
   else
     Result := OpenCursor(SQL.Replace(')values(', Format(')output %s values(', [OutputSQL])));
@@ -145,14 +143,14 @@ begin
   Result := TDatabaseTransactionUnidac.Create(Connection);
 end;
 
-{ TDatabaseInsertCursorUnidac }
+{ TDatabaseEmptyCursorUnidac }
 
-function TDatabaseInsertCursorUnidac.GetFieldValue(const FieldIndex: Integer): Variant;
+function TDatabaseEmptyCursorUnidac.GetFieldValue(const FieldIndex: Integer): Variant;
 begin
   Result := NULL;
 end;
 
-function TDatabaseInsertCursorUnidac.Next: Boolean;
+function TDatabaseEmptyCursorUnidac.Next: Boolean;
 begin
   Result := False;
 end;
@@ -171,13 +169,6 @@ begin
   FConnection := Connection;
 
   FConnection.StartTransaction;
-end;
-
-destructor TDatabaseTransactionUnidac.Destroy;
-begin
-  Rollback;
-
-  inherited;
 end;
 
 procedure TDatabaseTransactionUnidac.Rollback;
