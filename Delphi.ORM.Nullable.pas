@@ -109,7 +109,7 @@ end;
 
 procedure Nullable<T>.Clear;
 begin
-  FAccess.Clear;
+  Access.Clear;
 end;
 
 function Nullable<T>.GetAccess: TNullableAccessType;
@@ -122,17 +122,17 @@ end;
 
 function Nullable<T>.GetValue: T;
 begin
-  Result := FAccess.GetValue.AsType<T>;
+  Result := Access.GetValue.AsType<T>;
 end;
 
 function Nullable<T>.IsNull: Boolean;
 begin
-  Result := FAccess.IsNull;
+  Result := Access.IsNull;
 end;
 
 procedure Nullable<T>.SetValue(const Value: T);
 begin
-  FAccess.SetValue(TValue.From<T>(Value));
+  Access.SetValue(TValue.From<T>(Value));
 end;
 
 { TNullableAccess }
