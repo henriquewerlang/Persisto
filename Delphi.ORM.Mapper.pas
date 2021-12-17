@@ -5,12 +5,16 @@ interface
 uses System.Rtti, System.Generics.Collections, System.Generics.Defaults, System.SysUtils, Delphi.ORM.Attributes;
 
 type
-  EClassWithoutPrimaryKeyDefined = class(Exception);
   TField = class;
   TForeignKey = class;
   TManyValueAssociation = class;
   TMapper = class;
   TTable = class;
+
+  EClassWithoutPrimaryKeyDefined = class(Exception)
+  public
+    constructor Create(Table: TTable);
+  end;
 
   EClassWithPrimaryKeyNullable = class(Exception)
   public
@@ -25,6 +29,11 @@ type
   EManyValueAssociationLinkError = class(Exception)
   public
     constructor Create(ParentTable, ChildTable: TTable);
+  end;
+
+  ETableNotFound = class(Exception)
+  public
+    constructor Create(TheClass: TClass);
   end;
 
   TTable = class
@@ -163,6 +172,7 @@ type
 
     function FindTable(ClassInfo: TClass): TTable;
     function LoadClass(ClassInfo: TClass): TTable;
+    function TryFindTable(ClassInfo: TClass; var Table: TTable): Boolean;
 
     procedure LoadAll;
 
@@ -237,8 +247,8 @@ end;
 
 function TMapper.FindTable(ClassInfo: TClass): TTable;
 begin
-  if not FTables.TryGetValue(FContext.GetType(ClassInfo).AsInstance, Result) then
-    Result := nil;
+  if not TryFindTable(ClassInfo, Result) then
+    raise ETableNotFound.Create(ClassInfo);
 end;
 
 function TMapper.GetDefaultValue(AProperty: TRttiProperty): TValue;
@@ -362,9 +372,7 @@ end;
 
 function TMapper.LoadTable(TypeInfo: TRttiInstanceType): TTable;
 begin
-  Result := FindTable(TypeInfo.MetaclassType);
-
-  if not Assigned(Result) and (TypeInfo.GetAttribute<SingleTableInheritanceAttribute> = nil) then
+  if not TryFindTable(TypeInfo.MetaclassType, Result) and (TypeInfo.GetAttribute<SingleTableInheritanceAttribute> = nil) then
   begin
     Result := TTable.Create(TypeInfo);
     Result.FMapper := Self;
@@ -417,7 +425,7 @@ begin
   var ForeignTable := LoadTable(ClassInfoType);
 
   if not Assigned(ForeignTable.PrimaryKey) then
-    raise EClassWithoutPrimaryKeyDefined.CreateFmt('You must define a primary key for class %s!', [ForeignTable.ClassTypeInfo.Name]);
+    raise EClassWithoutPrimaryKeyDefined.Create(ForeignTable);
 
   Field.FForeignKey := TForeignKey.Create(ForeignTable, Field);
   Table.FForeignKeys := Table.FForeignKeys + [Field.ForeignKey];
@@ -445,7 +453,7 @@ begin
 
   if not IsSingleTable and Assigned(BaseClass) then
   begin
-    var BaseTable := FindTable(BaseClass.MetaclassType);
+    var BaseTable := LoadClass(BaseClass.MetaclassType);
 
     Table.FForeignKeys := Table.FForeignKeys + [TForeignKey.Create(BaseTable, BaseTable.PrimaryKey)];
     Table.FPrimaryKey := BaseTable.PrimaryKey;
@@ -486,6 +494,11 @@ begin
       else
         raise EManyValueAssociationLinkError.Create(Table, ChildTable);
     end;
+end;
+
+function TMapper.TryFindTable(ClassInfo: TClass; var Table: TTable): Boolean;
+begin
+  Result := FTables.TryGetValue(FContext.GetType(ClassInfo).AsInstance, Table);
 end;
 
 { TTable }
@@ -656,6 +669,20 @@ end;
 constructor EInvalidEnumeratorName.Create(Enumeration: TRttiEnumerationType; EnumeratorValue: String);
 begin
   inherited CreateFmt('Enumerator name ''%s'' is invalid to the enumeration ''%s''', [EnumeratorValue, Enumeration.Name]);
+end;
+
+{ ETableNotFound }
+
+constructor ETableNotFound.Create(TheClass: TClass);
+begin
+  inherited CreateFmt('The class %s not found!', [TheClass.ClassName])
+end;
+
+{ EClassWithoutPrimaryKeyDefined }
+
+constructor EClassWithoutPrimaryKeyDefined.Create(Table: TTable);
+begin
+  inherited CreateFmt('You must define a primary key for class %s!', [Table.ClassTypeInfo.Name])
 end;
 
 end.

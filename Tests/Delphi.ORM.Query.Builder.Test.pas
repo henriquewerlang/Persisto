@@ -2382,7 +2382,7 @@ begin
     end).When.ExecuteInsert(It(0).IsEqualTo('insert into ClassWithPrimaryKey(Id,Value)values(0,0)'), It(1).IsAny<TArray<String>>);
 
   Database.Setup.WillExecute(
-    function (Args: TArray<TValue>): TValue
+    function (const Args: TArray<TValue>): TValue
     begin
       Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
 
@@ -2416,7 +2416,7 @@ begin
     end).When.ExecuteInsert(It(0).IsEqualTo('insert into ManyValueParent(Id,IdChild)values(0,null)'), It(1).IsAny<TArray<String>>);
 
   Database.Setup.WillExecute(
-    function (Args: TArray<TValue>): TValue
+    function (const Args: TArray<TValue>): TValue
     begin
       Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
 
@@ -2436,7 +2436,6 @@ end;
 
 procedure TQueryBuilderDataManipulationTest.WhenSaveAManyValueAssocitationEntityMustAvoidSaveTheParentLinkOfTheChildToAvoidStackOverflow;
 begin
-  var CanSaveManyValueAssociation := False;
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
   var Query := TQueryBuilder.Create(Database.Instance);
   var MyClass := TManyValueParentError.Create;
@@ -2462,7 +2461,6 @@ end;
 
 procedure TQueryBuilderDataManipulationTest.WhenSaveAManyValueAssocitationEntityMustLoadTheParentObjectInTheChildObjects;
 begin
-  var CanSaveManyValueAssociation := False;
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
   var Query := TQueryBuilder.Create(Database.Instance);
   var MyClass := TManyValueParentError.Create;
@@ -2607,7 +2605,7 @@ begin
     end).When.ExecuteInsert(It(0).IsEqualTo('insert into ClassWithPrimaryKey(Id,Value)values(0,0)'), It(1).IsAny<TArray<String>>);
 
   Database.Setup.WillExecute(
-    function (Args: TArray<TValue>): TValue
+    function (const Args: TArray<TValue>): TValue
     begin
       Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
 
@@ -2642,7 +2640,7 @@ begin
     end).When.ExecuteInsert(It(0).IsEqualTo('insert into ManyValueChild(Id,IdParent)values(0,0)'), It(1).IsAny<TArray<String>>);
 
   Database.Setup.WillExecute(
-    function (Args: TArray<TValue>): TValue
+    function (const Args: TArray<TValue>): TValue
     begin
       CanSaveManyValueAssociation := True;
       Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);

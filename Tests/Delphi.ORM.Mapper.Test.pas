@@ -19,8 +19,6 @@ type
     [Test]
     procedure WhenTryToFindATableMustReturnTheTableOfTheClass;
     [Test]
-    procedure WhenTryToFindATableWithoutTheEntityAttributeMustReturnANilValue;
-    [Test]
     procedure WhenLoadATableMustLoadAllFieldsToo;
     [Test]
     procedure WhenTheFieldsAreLoadedMustFillTheNameWithTheNameOfPropertyOfTheClass;
@@ -222,6 +220,10 @@ type
     procedure WhenLoadANullableFieldMustLoadTheFieldTypeWithTheInternalNullableType;
     [Test]
     procedure WhenLoadALazyFieldMustLoadTheFieldTypeWithTheInternalLazyType;
+    [Test]
+    procedure IfTheFindTableNotFoundTheClassMustRaiseAnError;
+    [Test]
+    procedure WhenTheClassHasAForeignKeyAndTheKeyTableIsntLoadedMustLoadTheTableFirstAndNotRaiseAnError;
   end;
 
 implementation
@@ -250,6 +252,19 @@ begin
   for var Field in Table.Fields do
     if Field.Name = FieldName then
       Exit(Field);
+end;
+
+procedure TMapperTest.IfTheFindTableNotFoundTheClassMustRaiseAnError;
+begin
+  var Mapper := TMapper.Create;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Mapper.FindTable(TMyEntityWithoutEntityAttribute);
+    end, ETableNotFound);
+
+  Mapper.Free;
 end;
 
 procedure TMapperTest.OnlyPublishedFieldMutsBeLoadedInTheTable;
@@ -282,10 +297,11 @@ end;
 procedure TMapperTest.TheClassWithTheSingleTableInheritanceAttributeCantBeMappedInTheTableList;
 begin
   var Mapper := TMapper.Create;
+  var Table: TTable;
 
   Mapper.LoadAll;
 
-  Assert.IsNull(Mapper.FindTable(TMyEntityWithSingleTableInheritanceAttribute));
+  Assert.IsFalse(Mapper.TryFindTable(TMyEntityWithSingleTableInheritanceAttribute, Table));
 
   Mapper.Free;
 end;
@@ -1044,6 +1060,19 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.WhenTheClassHasAForeignKeyAndTheKeyTableIsntLoadedMustLoadTheTableFirstAndNotRaiseAnError;
+begin
+  var Mapper := TMapper.Create;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Mapper.LoadClass(TMyEntityForeignKeyAlias);
+    end);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.WhenTheClassHaveThePrimaryKeyAttributeThePrimaryKeyWillBeTheFieldFilled;
 begin
   var Mapper := TMapper.Create;
@@ -1500,19 +1529,6 @@ begin
   var Table := Mapper.LoadClass(TMyEntity3);
 
   Assert.AreEqual(TMyEntity3, Table.ClassTypeInfo.MetaclassType);
-
-  Mapper.Free;
-end;
-
-procedure TMapperTest.WhenTryToFindATableWithoutTheEntityAttributeMustReturnANilValue;
-begin
-  var Mapper := TMapper.Create;
-
-  Mapper.LoadAll;
-
-  var Table := Mapper.FindTable(TMyEntityWithoutEntityAttribute);
-
-  Assert.IsNull(Table);
 
   Mapper.Free;
 end;
