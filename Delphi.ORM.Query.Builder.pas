@@ -169,6 +169,15 @@ type
     property FieldNames: TArray<String> read FFieldNames;
   end;
 
+  TQueryBuilderOrderByField = class(TQueryBuilderFieldAlias)
+  private
+    FAscending: Boolean;
+  public
+    constructor Create(const FieldName: String; const Ascending: Boolean);
+
+    property Ascending: Boolean read FAscending;
+  end;
+
   TQueryBuilderComparisonOperator = (qbcoNone, qbcoEqual, qbcoNotEqual, qbcoGreaterThan, qbcoGreaterThanOrEqual, qbcoLessThan, qbcoLessThanOrEqual, qbcoNull, qbcoNotNull,
     qbcoBetween, qbcoLike);
 
@@ -231,11 +240,28 @@ type
     class operator NotEqual(const Left: TQueryBuilderComparisonHelper; const Value: Variant): TQueryBuilderComparisonHelper;
   end;
 
+  TQueryBuilderOrderBy<T: class> = class(TQueryBuilderCommand)
+  private
+    FFields: TArray<TQueryBuilderOrderByField>;
+    FWhere: TQueryBuilderWhere<T>;
+
+    constructor Create(const Where: TQueryBuilderWhere<T>);
+  public
+    destructor Destroy; override;
+
+    function Field(const FieldName: String; const Ascending: Boolean = True): TQueryBuilderOrderBy<T>;
+    function GetSQL: String; override;
+    function Open: TQueryBuilderOpen<T>;
+
+    property Fields: TArray<TQueryBuilderOrderByField> read FFields;
+  end;
+
   TQueryBuilderWhere<T: class> = class(TQueryBuilderCommand)
   private
     FFilter: String;
     FFrom: TQueryBuilderFrom;
     FOpen: TQueryBuilderOpen<T>;
+    FOrderBy: TQueryBuilderOrderBy<T>;
     FTable: TTable;
 
     constructor Create(const Table: TTable); overload;
@@ -256,6 +282,7 @@ type
 
     function GetSQL: String; override;
     function Open: TQueryBuilderOpen<T>;
+    function OrderBy: TQueryBuilderOrderBy<T>;
     function Where(const Condition: TQueryBuilderComparisonHelper): TQueryBuilderWhere<T>;
   end;
 
@@ -735,7 +762,7 @@ end;
 
 function TQueryBuilderWhere<T>.GetSQL: String;
 begin
-  Result := FFilter;
+  Result := FFilter + FOrderBy.GetSQL;
 end;
 
 function TQueryBuilderWhere<T>.GetValueToCompare(const Comparison: TQueryBuilderComparison; const Field: TField): String;
@@ -784,12 +811,15 @@ constructor TQueryBuilderWhere<T>.Create(const Table: TTable);
 begin
   inherited Create;
 
+  FOrderBy := TQueryBuilderOrderBy<T>.Create(Self);
   FTable := Table;
 end;
 
 destructor TQueryBuilderWhere<T>.Destroy;
 begin
   FOpen.Free;
+
+  FOrderBy.Free;
 
   inherited;
 end;
@@ -798,6 +828,11 @@ function TQueryBuilderWhere<T>.Open: TQueryBuilderOpen<T>;
 begin
   FOpen := TQueryBuilderOpen<T>.Create(FFrom);
   Result := FOpen;
+end;
+
+function TQueryBuilderWhere<T>.OrderBy: TQueryBuilderOrderBy<T>;
+begin
+  Result := FOrderBy;
 end;
 
 function TQueryBuilderWhere<T>.Where(const Condition: TQueryBuilderComparisonHelper): TQueryBuilderWhere<T>;
@@ -1098,6 +1133,62 @@ end;
 class operator TQueryBuilderComparisonHelper.NotEqual(const Left: TQueryBuilderComparisonHelper; const Value: TNullEnumerator): TQueryBuilderComparisonHelper;
 begin
   MakeComparison(qbcoNotNull, Left, TValue.From(Value), Result);
+end;
+
+{ TQueryBuilderOrderBy<T> }
+
+constructor TQueryBuilderOrderBy<T>.Create(const Where: TQueryBuilderWhere<T>);
+begin
+  inherited Create;
+
+  FWhere := Where;
+end;
+
+destructor TQueryBuilderOrderBy<T>.Destroy;
+begin
+  for var Field in FFields do
+    Field.Free;
+
+  inherited;
+end;
+
+function TQueryBuilderOrderBy<T>.Field(const FieldName: String; const Ascending: Boolean): TQueryBuilderOrderBy<T>;
+begin
+  FFields := FFields + [TQueryBuilderOrderByField.Create(FieldName, Ascending)];
+  Result := Self;
+end;
+
+function TQueryBuilderOrderBy<T>.GetSQL: String;
+begin
+  Result := EmptyStr;
+
+  for var Field in Fields do
+  begin
+    if not Result.IsEmpty then
+      Result := Result + ',';
+
+    Result := Result + FWhere.GetField(Field);
+
+    if not Field.Ascending then
+      Result := Result + ' desc';
+  end;
+
+  if not Result.IsEmpty then
+    Result := ' order by ' + Result;
+end;
+
+function TQueryBuilderOrderBy<T>.Open: TQueryBuilderOpen<T>;
+begin
+  Result := FWhere.Open;
+end;
+
+{ TQueryBuilderOrderByField }
+
+constructor TQueryBuilderOrderByField.Create(const FieldName: String; const Ascending: Boolean);
+begin
+  inherited Create(FieldName);
+
+  FAscending := Ascending;
 end;
 
 end.

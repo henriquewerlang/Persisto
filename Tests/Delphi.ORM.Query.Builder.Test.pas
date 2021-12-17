@@ -106,6 +106,8 @@ type
     procedure WhenInsertingAClassWithTheKeyValueAlreadyLoadedMustInsertWithThisValue;
     [Test]
     procedure WhenUpdateAnEntityWithoutPrimaryKeyMustUpdateAllRecordFromTable;
+    [Test]
+    procedure WhenUseTheOrderByClauseMustLoadTheSQLHasExpected;
   end;
 
   [TestFixture]
@@ -354,6 +356,25 @@ type
     procedure WhenSaveAManyValueAssocitationEntityMustLoadTheParentObjectInTheChildObjects;
     [Test]
     procedure WhenSaveAManyValueAssocitationEntityMustAvoidSaveTheParentLinkOfTheChildToAvoidStackOverflow;
+  end;
+
+  [TestFixture]
+  TQueryBuilderOrderByTeste = class
+  public
+    [SetupFixture]
+    procedure SetupFixture;
+    [Test]
+    procedure EveryTimeTheFieldFunctionFromOrderByIsCalledMustAddTheFieldList;
+    [Test]
+    procedure WhenCallTheFieldFunctionMustAddTheFieldAliasToTheFieldList;
+    [Test]
+    procedure WhenTheFieldListIsEmptyMustReturnAnEmptySQLValue;
+    [Test]
+    procedure WhenTheFieldListIsNotEmptyMustReturnTheOrderByClauseWithTheFieldList;
+    [Test]
+    procedure WhenTheFieldIsDescendingMustLoadTheSQLAsExpected;
+    [Test]
+    procedure WhenCallTheFieldProcedureMustResultTheSelfOfTheOrderByClass;
   end;
 
   TDatabaseTest = class(TInterfacedObject, IDatabaseConnection)
@@ -1153,6 +1174,18 @@ begin
   Assert.AreEqual('update MyEntityWithManyValueAssociation set  where Id=12345', Database.SQL);
 
   MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderTest.WhenUseTheOrderByClauseMustLoadTheSQLHasExpected;
+begin
+  var Database := TDatabaseTest.Create(nil);
+  var Query := TQueryBuilder.Create(Database);
+
+  Query.Select.All.From<TMyTestClass>.OrderBy.Field('Field').Open;
+
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1 order by T1.Field', Database.SQL);
 
   Query.Free;
 end;
@@ -2653,6 +2686,89 @@ begin
   MyClass.Childs[0].Free;
 
   MyClass.Free;
+
+  Query.Free;
+end;
+
+{ TQueryBuilderOrderByTeste }
+
+procedure TQueryBuilderOrderByTeste.EveryTimeTheFieldFunctionFromOrderByIsCalledMustAddTheFieldList;
+begin
+  var OrderBy := TQueryBuilderOrderBy<TObject>.Create;
+
+  OrderBy.Field('A');
+
+  OrderBy.Field('B');
+
+  OrderBy.Field('C');
+
+  Assert.AreEqual<Integer>(3, Length(OrderBy.Fields));
+
+  OrderBy.Free;
+end;
+
+procedure TQueryBuilderOrderByTeste.SetupFixture;
+begin
+  TMapper.Default.LoadAll;
+end;
+
+procedure TQueryBuilderOrderByTeste.WhenCallTheFieldFunctionMustAddTheFieldAliasToTheFieldList;
+begin
+  var OrderBy := TQueryBuilderOrderBy<TObject>.Create;
+
+  OrderBy.Field('A');
+
+  Assert.AreEqual('A', OrderBy.Fields[0].FieldNames[0]);
+
+  OrderBy.Free;
+end;
+
+procedure TQueryBuilderOrderByTeste.WhenCallTheFieldProcedureMustResultTheSelfOfTheOrderByClass;
+begin
+  var OrderBy := TQueryBuilderOrderBy<TObject>.Create;
+
+  Assert.AreEqual(OrderBy, OrderBy.Field('A'));
+
+  OrderBy.Free;
+end;
+
+procedure TQueryBuilderOrderByTeste.WhenTheFieldIsDescendingMustLoadTheSQLAsExpected;
+begin
+  var Database := TDatabaseTest.Create(nil);
+  var Query := TQueryBuilder.Create(Database);
+
+  var OrderBy := Query.Select.All.From<TMyTestClass>.OrderBy;
+
+  OrderBy.Field('Value', False);
+
+  Assert.AreEqual(' order by T1.Value desc', OrderBy.GetSQL);
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderOrderByTeste.WhenTheFieldListIsEmptyMustReturnAnEmptySQLValue;
+begin
+  var OrderBy := TQueryBuilderOrderBy<TObject>.Create;
+
+  Assert.AreEqual(EmptyStr, OrderBy.GetSQL);
+
+  OrderBy.Free;
+end;
+
+procedure TQueryBuilderOrderByTeste.WhenTheFieldListIsNotEmptyMustReturnTheOrderByClauseWithTheFieldList;
+begin
+  var Database := TDatabaseTest.Create(nil);
+  var Query := TQueryBuilder.Create(Database);
+
+  var OrderBy := Query.Select.All.From<TMyTestClass>.OrderBy;
+
+  OrderBy.Field('Value');
+
+  OrderBy.Field('Value');
+
+  OrderBy.Field('Value');
+
+  Assert.AreEqual(' order by T1.Value,T1.Value,T1.Value', OrderBy.GetSQL);
 
   Query.Free;
 end;
