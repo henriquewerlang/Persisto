@@ -93,14 +93,16 @@ type
     FLeftField: TField;
     FRightField: TField;
     FField: TField;
+    FIsInheritedLink: Boolean;
   public
-    constructor Create(Table: TTable); overload;
-    constructor Create(Table: TTable; Field, LeftField, RightField: TField); overload;
+    constructor Create(const Table: TTable); overload;
+    constructor Create(const Table: TTable; const Field, LeftField, RightField: TField; const IsInheritedLink: Boolean); overload;
 
     destructor Destroy; override;
 
     property Alias: String read FAlias write FAlias;
     property Field: TField read FField write FField;
+    property IsInheritedLink: Boolean read FIsInheritedLink write FIsInheritedLink;
     property LeftField: TField read FLeftField write FLeftField;
     property Links: TArray<TQueryBuilderJoin> read FLinks write FLinks;
     property RightField: TField read FRightField write FRightField;
@@ -576,7 +578,7 @@ begin
 
       if RecursionControl[ForeignKey.ParentTable] < FRecursivityLevel then
       begin
-        var NewJoin := TQueryBuilderJoin.Create(ForeignKey.ParentTable, ForeignKey.Field, ForeignKey.Field, Join.Table.PrimaryKey);
+        var NewJoin := TQueryBuilderJoin.Create(ForeignKey.ParentTable, ForeignKey.Field, ForeignKey.Field, Join.Table.PrimaryKey, ForeignKey.IsInheritedLink);
         RecursionControl[ForeignKey.ParentTable] := RecursionControl[ForeignKey.ParentTable] + 1;
 
         Join.Links := Join.Links + [NewJoin];
@@ -590,7 +592,7 @@ begin
   for var ManyValueAssociation in Join.Table.ManyValueAssociations do
     if not Assigned(ManyValueAssociationToIgnore) or (ManyValueAssociation <> ManyValueAssociationToIgnore) then
     begin
-      var NewJoin := TQueryBuilderJoin.Create(ManyValueAssociation.ChildTable, ManyValueAssociation.Field, Join.Table.PrimaryKey, ManyValueAssociation.ForeignKey.Field);
+      var NewJoin := TQueryBuilderJoin.Create(ManyValueAssociation.ChildTable, ManyValueAssociation.Field, Join.Table.PrimaryKey, ManyValueAssociation.ForeignKey.Field, False);
 
       Join.Links := Join.Links + [NewJoin];
 
@@ -902,16 +904,17 @@ end;
 
 { TQueryBuilderJoin }
 
-constructor TQueryBuilderJoin.Create(Table: TTable; Field, LeftField, RightField: TField);
+constructor TQueryBuilderJoin.Create(const Table: TTable; const Field, LeftField, RightField: TField; const IsInheritedLink: Boolean);
 begin
   Create(Table);
 
   FField := Field;
+  FIsInheritedLink := IsInheritedLink;
   FLeftField := LeftField;
   FRightField := RightField;
 end;
 
-constructor TQueryBuilderJoin.Create(Table: TTable);
+constructor TQueryBuilderJoin.Create(const Table: TTable);
 begin
   inherited Create;
 

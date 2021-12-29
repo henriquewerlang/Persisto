@@ -108,6 +108,8 @@ type
     procedure WhenUpdateAnEntityWithoutPrimaryKeyMustUpdateAllRecordFromTable;
     [Test]
     procedure WhenUseTheOrderByClauseMustLoadTheSQLHasExpected;
+    [Test]
+    procedure WhenTheJoinLinkIsFromAnInheritedClassMustMarkTheIsInheritedLinkHasTrue;
   end;
 
   [TestFixture]
@@ -1125,6 +1127,17 @@ begin
     'left join ClassRecursiveItself T7 ' +
            'on T5.IdRecursive2=T7.Id',
     From.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderTest.WhenTheJoinLinkIsFromAnInheritedClassMustMarkTheIsInheritedLinkHasTrue;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 1);
+
+  From.From<TMyEntityInheritedFromSimpleClass>;
+
+  Assert.IsTrue(From.Join.Links[0].IsInheritedLink);
 
   From.Free;
 end;

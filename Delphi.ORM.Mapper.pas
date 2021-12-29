@@ -88,6 +88,7 @@ type
     FName: String;
     FTable: TTable;
     FPropertyInfo: TRttiInstanceProperty;
+    FReadOnly: Boolean;
   public
     function GetAsString(const Instance: TObject): String; overload;
     function GetAsString(const Value: TValue): String; overload;
@@ -109,11 +110,14 @@ type
     property IsNullable: Boolean read FIsNullable;
     property Name: String read FName;
     property PropertyInfo: TRttiInstanceProperty read FPropertyInfo;
+    property ReadOnly: Boolean read FReadOnly;
     property Table: TTable read FTable;
   end;
 
   TFieldPrimaryKeyReference = class(TField)
   public
+    constructor Create;
+
     function GetValue(const Instance: TObject): TValue; override;
 
     procedure SetValue(const Instance: TObject; const Value: TValue); override;
@@ -135,10 +139,10 @@ type
     FParentTable: TTable;
     FField: TField;
     FManyValueAssociation: TManyValueAssociation;
+    FIsInheritedLink: Boolean;
   public
-    constructor Create(ParentTable: TTable; Field: TField);
-
     property Field: TField read FField;
+    property IsInheritedLink: Boolean read FIsInheritedLink;
     property ManyValueAssociation: TManyValueAssociation read FManyValueAssociation;
     property ParentTable: TTable read FParentTable;
   end;
@@ -179,11 +183,10 @@ type
     function LoadClassInTable(TypeInfo: TRttiInstanceType): TTable;
     function LoadTable(TypeInfo: TRttiInstanceType): TTable;
 
-    procedure AddTableForeignKey(const Table: TTable; const Field: TField; const ForeignTable: TTable); overload;
+    procedure AddTableForeignKey(const Table: TTable; const Field: TField; const ForeignTable: TTable; const IsInheritedLink: Boolean); overload;
     procedure AddTableForeignKey(const Table: TTable; const Field: TField; const ClassInfoType: TRttiInstanceType); overload;
     procedure LoadFieldInfo(const Table: TTable; const PropertyInfo: TRttiInstanceProperty; const Field: TField);
     procedure LoadTableFields(TypeInfo: TRttiInstanceType; const Table: TTable);
-    procedure LoadTableInheritedFields(TypeInfo: TRttiInstanceType; const Table: TTable);
     procedure LoadTableForeignKeys(const Table: TTable);
     procedure LoadTableInfo(TypeInfo: TRttiInstanceType; const Table: TTable);
     procedure LoadTableManyValueAssociations(Table: TTable);
@@ -240,16 +243,23 @@ end;
 
 procedure TMapper.AddTableForeignKey(const Table: TTable; const Field: TField; const ClassInfoType: TRttiInstanceType);
 begin
-  AddTableForeignKey(Table, Field, LoadTable(ClassInfoType));
+  AddTableForeignKey(Table, Field, LoadTable(ClassInfoType), False);
 end;
 
-procedure TMapper.AddTableForeignKey(const Table: TTable; const Field: TField; const ForeignTable: TTable);
+procedure TMapper.AddTableForeignKey(const Table: TTable; const Field: TField; const ForeignTable: TTable; const IsInheritedLink: Boolean);
 begin
-  if not Assigned(ForeignTable.PrimaryKey) then
-    raise EClassWithoutPrimaryKeyDefined.Create(ForeignTable);
+  if Assigned(ForeignTable.PrimaryKey) then
+  begin
+    var ForeignKey := TForeignKey.Create;
+    ForeignKey.FField := Field;
+    ForeignKey.FParentTable := ForeignTable;
+    ForeignKey.FIsInheritedLink := IsInheritedLink;
 
-  Field.FForeignKey := TForeignKey.Create(ForeignTable, Field);
-  Table.FForeignKeys := Table.FForeignKeys + [Field.ForeignKey];
+    Field.FForeignKey := ForeignKey;
+    Table.FForeignKeys := Table.FForeignKeys + [ForeignKey];
+  end
+  else
+    raise EClassWithoutPrimaryKeyDefined.Create(ForeignTable);
 end;
 
 function TMapper.CheckAttribute<T>(TypeInfo: TRttiType): Boolean;
@@ -498,18 +508,10 @@ begin
 
   LoadTableFields(TypeInfo, Table);
 
-  LoadTableInheritedFields(TypeInfo, Table);
-
-  TArray.Sort<TField>(Table.FFields, CreateFieldComparer);
-
-  LoadTableForeignKeys(Table);
-end;
-
-procedure TMapper.LoadTableInheritedFields(TypeInfo: TRttiInstanceType; const Table: TTable);
-begin
   if Table.IsSingleTableInheritance then
-    LoadTableFields(Table.ClassTypeInfo.BaseType, Table)
-  else if Assigned(Table.BaseTable) then
+    LoadTableFields(Table.ClassTypeInfo.BaseType, Table);
+
+  if Assigned(Table.BaseTable) then
   begin
     var Field := TFieldPrimaryKeyReference.Create;
 
@@ -519,8 +521,12 @@ begin
     Field.FFieldType := Table.BaseTable.ClassTypeInfo;
     Table.FPrimaryKey := Table.BaseTable.PrimaryKey;
 
-    AddTableForeignKey(Table, Field, Table.BaseTable);
+    AddTableForeignKey(Table, Field, Table.BaseTable, True);
   end;
+
+  TArray.Sort<TField>(Table.FFields, CreateFieldComparer);
+
+  LoadTableForeignKeys(Table);
 end;
 
 procedure TMapper.LoadTableManyValueAssociations(Table: TTable);
@@ -582,16 +588,6 @@ begin
 
       Exit(True);
     end;
-end;
-
-{ TForeignKey }
-
-constructor TForeignKey.Create(ParentTable: TTable; Field: TField);
-begin
-  inherited Create;
-
-  FParentTable := ParentTable;
-  FField := Field;
 end;
 
 { TFieldAlias }
@@ -746,6 +742,13 @@ begin
 end;
 
 { TFieldPrimaryKeyReference }
+
+constructor TFieldPrimaryKeyReference.Create;
+begin
+  inherited;
+
+  FReadOnly := True;
+end;
 
 function TFieldPrimaryKeyReference.GetValue(const Instance: TObject): TValue;
 begin

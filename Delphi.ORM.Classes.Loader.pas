@@ -143,13 +143,13 @@ begin
   for var Field in Join.Table.Fields do
     if not Field.IsJoinLink or Field.IsLazy then
     begin
-      if NewObject and Assigned(Obj) then
+      if Assigned(Obj) then
       begin
         var FieldValue := GetFieldValueVariant(FieldIndexStart);
 
         if Field.IsLazy then
           GetLazyLoadingAccess(Field.PropertyInfo.GetValue(Obj)).Key := TValue.FromVariantNull(FieldValue)
-        else
+        else if not Field.ReadOnly then
           Field.SetValue(Obj, FieldValue);
       end;
 
@@ -166,9 +166,13 @@ begin
 
   for var Link in Join.Links do
   begin
+    var ForeignKeyObject: TObject;
     var NewChildObject: Boolean;
 
-    var ForeignKeyObject := CreateObject(Link.Table, FieldIndexStart, NewChildObject);
+    if Link.IsInheritedLink then
+      ForeignKeyObject := Obj
+    else
+      ForeignKeyObject := CreateObject(Link.Table, FieldIndexStart, NewChildObject);
 
     LoadObject(ForeignKeyObject, Link, FieldIndexStart, NewChildObject);
 

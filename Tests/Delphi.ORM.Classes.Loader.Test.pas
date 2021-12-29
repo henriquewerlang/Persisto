@@ -64,8 +64,6 @@ type
     [Test]
     procedure WhenTheManyValueAssociationReturnTheValuesOutOfOrderMustGroupAllValuesInTheSingleObjectReference;
     [Test]
-    procedure WhenThePrimaryKeyDontChangeCantReloadTheFieldPropertiesOfTheClassBeingLoaded;
-    [Test]
     procedure WhenTheClassDontHaveAPrimaryKeyTheLoaderMustReturnTheLoadedClass;
     [Test]
     procedure WhenThePrimaryKeyDontChangeCantReloadTheForeignKeysOfTheClass;
@@ -81,6 +79,10 @@ type
     procedure WhenTheManyValueAssociationHasAValueInAForeignKeyAndInsideTheManyValueMustLoadTheManyValueAssociationWithAllValues;
     [Test]
     procedure WhenLoadAnObjectMoreThenOnceAndHaveAManyValueAssociationMustResetTheFieldBeforeLoadTheValues;
+    [Test]
+    procedure WhenLoadingAClassWithAReadOnlyFieldCantRaiseAnyError;
+    [Test]
+    procedure WhenTheClassBeenLoadedIsInheritedFromAnotherClassMustLoadAllFieldsAsExpected;
   end;
 
 implementation
@@ -345,6 +347,19 @@ begin
   Loader.Free;
 end;
 
+procedure TClassLoaderTest.WhenLoadingAClassWithAReadOnlyFieldCantRaiseAnyError;
+begin
+  var Loader := CreateLoader<TMyEntityInheritedFromSimpleClass>([[111, 222, 111, 'aaa', 'bbb']]);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Loader.LoadAll<TMyEntityInheritedFromSimpleClass>;
+    end);
+
+  Loader.Free;
+end;
+
 procedure TClassLoaderTest.WhenTheAClassAsAManyValueAssociationMustLoadThePropertyArrayOfTheClass;
 begin
   var Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[111, 222], [111, 333], [111, 444]]);
@@ -410,6 +425,20 @@ begin
   Assert.AreEqual(MyGuid.ToString, MyClass.Guid.ToString);
 
   MyClass.Free;
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenTheClassBeenLoadedIsInheritedFromAnotherClassMustLoadAllFieldsAsExpected;
+begin
+  var Loader := CreateLoader<TMyEntityInheritedFromSimpleClass>([[111, 222, 111, 'aaa', 'bbb']]);
+  var Result := Loader.LoadAll<TMyEntityInheritedFromSimpleClass>;
+
+  Assert.AreEqual(222, Result[0].SimpleProperty);
+  Assert.AreEqual('aaa', Result[0].AnotherProperty);
+  Assert.AreEqual('bbb', Result[0].BaseProperty);
+
+  Result[0].Free;
 
   Loader.Free;
 end;
@@ -571,19 +600,6 @@ begin
   Result.Free;
 
   Loader.Free;
-end;
-
-procedure TClassLoaderTest.WhenThePrimaryKeyDontChangeCantReloadTheFieldPropertiesOfTheClassBeingLoaded;
-begin
-  var Cursor := TCursorMock.Create([['aaa', 111], ['aaa', 222], ['aaa', 333]]);
-  var Loader := CreateLoaderCursor<TMyClass>(Cursor);
-  var Result := Loader.Load<TMyClass>;
-
-  Assert.AreEqual(111, Result.Value);
-
-  Loader.Free;
-
-  Result.Free;
 end;
 
 procedure TClassLoaderTest.WhenThePrimaryKeyDontChangeCantReloadTheForeignKeysOfTheClass;

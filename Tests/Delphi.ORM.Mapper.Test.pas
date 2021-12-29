@@ -244,6 +244,8 @@ type
     procedure TheFindFieldFunctionMustReturnTrueIfTheFieldExistsInTheTable;
     [Test]
     procedure TheFindFieldFunctionMustReturnTheFieldDefinitionWhenFindTheField;
+    [Test]
+    procedure TheForeignKeyCreatedForTheInheritanceMustBeMarkedHasInheritanceLink;
   end;
 
   [TestFixture]
@@ -255,6 +257,8 @@ type
     procedure WhenGetTheValueMustReturnTheInstanceOfTheBaseClassOfTheInstanceParam;
     [Test]
     procedure IfTryToFillAValueMustRaiseAnError;
+    [Test]
+    procedure WhenTheFieldIsCreatedMustBeMarkedAsReadOnly;
   end;
 
 implementation
@@ -524,6 +528,16 @@ begin
   Mapper.LoadClass(TClassWithForeignKey);
 
   Assert.IsNotNull(Mapper.FindTable(TClassWithForeignKey.ClassInfo));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.TheForeignKeyCreatedForTheInheritanceMustBeMarkedHasInheritanceLink;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntityInheritedFromSimpleClass);
+
+  Assert.IsTrue(Table.ForeignKeys[0].IsInheritedLink);
 
   Mapper.Free;
 end;
@@ -1630,6 +1644,15 @@ begin
   Field.Free;
 
   AClass.Free;
+end;
+
+procedure TFieldPrimaryKeyReferenceTest.WhenTheFieldIsCreatedMustBeMarkedAsReadOnly;
+begin
+  var Field := TFieldPrimaryKeyReference.Create;
+
+  Assert.IsTrue(Field.ReadOnly);
+
+  Field.Free;
 end;
 
 end.
