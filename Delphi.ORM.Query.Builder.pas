@@ -12,11 +12,6 @@ type
   TQueryBuilderSelect = class;
   TQueryBuilderWhere<T: class> = class;
 
-  ECantUseComposeFieldName = class(Exception)
-  public
-    constructor Create;
-  end;
-
   EFieldNotFoundInTable = class(Exception)
   public
     constructor Create(FieldName: String);
@@ -163,9 +158,11 @@ type
   TQueryBuilderFieldAlias = class
   private
     FFieldNames: TArray<String>;
+    FFieldName: String;
   public
     constructor Create(const FieldName: String);
 
+    property FieldName: String read FFieldName;
     property FieldNames: TArray<String> read FFieldNames;
   end;
 
@@ -700,45 +697,54 @@ end;
 
 function TQueryBuilderWhere<T>.GetField(const QueryField: TQueryBuilderFieldAlias; var Field: TField): String;
 begin
-  var CurrentJoin: TQueryBuilderJoin := nil;
-  var FieldNameToFind := QueryField.FieldNames[High(QueryField.FieldNames)];
   var Table := FTable;
 
   if Assigned(FFrom) then
   begin
-    CurrentJoin := FFrom.Join;
+    var CurrentJoin := FFrom.Join;
+    Field := nil;
+    var FieldCount := High(QueryField.FieldNames);
 
-    for var A := Low(QueryField.FieldNames) to Pred(High(QueryField.FieldNames)) do
+    if FieldCount = 0 then
     begin
-      var FieldName := QueryField.FieldNames[A];
+      while Assigned(Table) and not CurrentJoin.Table.FindField(QueryField.FieldName, Field) do
+      begin
+        Table := Table.BaseTable;
 
-      for var Join in CurrentJoin.Links do
-        if Join.Field.Name = FieldName then
-        begin
-          CurrentJoin := Join;
+        for var Join in CurrentJoin.Links do
+          if Join.Table = Table then
+          begin
+            CurrentJoin := Join;
 
-          Break;
-        end;
+            Break;
+          end;
+      end;
+    end
+    else
+    begin
+      for var A := Low(QueryField.FieldNames) to Pred(FieldCount) do
+      begin
+        var FieldName := QueryField.FieldNames[A];
+
+        for var Join in CurrentJoin.Links do
+          if Join.Field.Name = FieldName then
+          begin
+            CurrentJoin := Join;
+
+            Break;
+          end;
+      end;
+
+      CurrentJoin.Table.FindField(QueryField.FieldNames[FieldCount], Field);
     end;
 
-    Table := CurrentJoin.Table;
+    if Assigned(Field) then
+      Exit(Format('%s.%s', [CurrentJoin.Alias, Field.DatabaseName]));
   end
-  else if Length(QueryField.FieldNames) <> 1 then
-    raise ECantUseComposeFieldName.Create;
+  else if Table.FindField(QueryField.FieldName, Field) then
+    Exit(Field.DatabaseName);
 
-  for var FieldVar in Table.Fields do
-    if FieldVar.Name = FieldNameToFind then
-    begin
-      Field := FieldVar;
-      Result := Field.DatabaseName;
-
-      if Assigned(CurrentJoin) then
-        Result := Format('%s.%s', [CurrentJoin.Alias, Result]);
-
-      Exit;
-    end;
-
-  raise EFieldNotFoundInTable.Create(FieldNameToFind);
+  raise EFieldNotFoundInTable.Create(QueryField.FieldName);
 end;
 
 function TQueryBuilderWhere<T>.GetField(const QueryField: TQueryBuilderFieldAlias): String;
@@ -924,6 +930,9 @@ end;
 
 constructor TQueryBuilderFieldAlias.Create(const FieldName: String);
 begin
+  inherited Create;
+
+  FFieldName := FieldName;
   FFieldNames := FieldName.Split(['.']);
 end;
 
@@ -961,13 +970,6 @@ end;
 constructor EFieldNotFoundInTable.Create(FieldName: String);
 begin
   inherited CreateFmt('Field "%s" not found in current table!', [FieldName]);
-end;
-
-{ ECantUseComposeFieldName }
-
-constructor ECantUseComposeFieldName.Create;
-begin
-  inherited Create('Can''t use compose field name in this operation!');
 end;
 
 { TQueryBuilderComparisonHelper }

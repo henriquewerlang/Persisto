@@ -232,13 +232,23 @@ type
     procedure TheFindTableWithTypeInfoMustRaiseAnErrorIfNotFindTheTable;
     [Test]
     procedure ThePrimaryKeyFieldReferenceMustHaveTheFieldTypeWithTheBaseClassType;
+    [Test]
+    procedure WhenTheClassHasASimpleInheritenceMustLoadTheBaseTableProperty;
+    [Test]
+    procedure WhenTheClassInheritsFromObjectCantRaiseAnyError;
+    [Test]
+    procedure IfTheBaseClassHasTheSingleTableAttributeMustLoadTheTablePropertyWithThisInfo;
+    [Test]
+    procedure IfTheBaseClassHasTheSingleTableAttributeCantLoadBaseTableProperty;
+    [Test]
+    procedure TheFindFieldFunctionMustReturnTrueIfTheFieldExistsInTheTable;
+    [Test]
+    procedure TheFindFieldFunctionMustReturnTheFieldDefinitionWhenFindTheField;
   end;
 
   [TestFixture]
   TFieldPrimaryKeyReferenceTest = class
   public
-    [SetupFixture]
-    procedure SetupFixture;
     [Test]
     procedure WhenGetTheValueMustReturnTheInstanceFromTheParam;
     [Test]
@@ -271,6 +281,26 @@ begin
   for var Field in Table.Fields do
     if Field.Name = FieldName then
       Exit(Field);
+end;
+
+procedure TMapperTest.IfTheBaseClassHasTheSingleTableAttributeCantLoadBaseTableProperty;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntityInheritedFromSingle);
+
+  Assert.IsNull(Table.BaseTable);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.IfTheBaseClassHasTheSingleTableAttributeMustLoadTheTablePropertyWithThisInfo;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntityInheritedFromSingle);
+
+  Assert.IsTrue(Table.IsSingleTableInheritance);
+
+  Mapper.Free;
 end;
 
 procedure TMapperTest.IfTheFindTableNotFoundTheClassMustRaiseAnError;
@@ -450,6 +480,30 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.TheFindFieldFunctionMustReturnTheFieldDefinitionWhenFindTheField;
+begin
+  var Field: TField;
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TUnorderedClass);
+
+  Table.FindField('BForeignKey', Field);
+
+  Assert.AreEqual(Table.Fields[7], Field);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.TheFindFieldFunctionMustReturnTrueIfTheFieldExistsInTheTable;
+begin
+  var Field: TField;
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TUnorderedClass);
+
+  Assert.IsTrue(Table.FindField('BForeignKey', Field));
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.TheFindTableWithTypeInfoMustRaiseAnErrorIfNotFindTheTable;
 begin
   var Mapper := TMapper.Create;
@@ -466,7 +520,8 @@ end;
 procedure TMapperTest.TheFindTableWithTypeInfoMustReturnTheTableHasExpected;
 begin
   var Mapper := TMapper.Create;
-  var Table := Mapper.LoadClass(TClassWithForeignKey);
+
+  Mapper.LoadClass(TClassWithForeignKey);
 
   Assert.IsNotNull(Mapper.FindTable(TClassWithForeignKey.ClassInfo));
 
@@ -1110,6 +1165,16 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.WhenTheClassHasASimpleInheritenceMustLoadTheBaseTableProperty;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntityInheritedFromSimpleClass);
+
+  Assert.AreEqual(Mapper.FindTable(TMyEntityInheritedFromSingle), Table.BaseTable);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.WhenTheClassHaveThePrimaryKeyAttributeThePrimaryKeyWillBeTheFieldFilled;
 begin
   var Mapper := TMapper.Create;
@@ -1126,6 +1191,19 @@ begin
   var Table := Mapper.LoadClass(TMyEntity2);
 
   Assert.AreEqual('AnotherTableName', Table.DatabaseName);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheClassInheritsFromObjectCantRaiseAnyError;
+begin
+  var Mapper := TMapper.Create;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Mapper.LoadClass(TZZZZ);
+    end);
 
   Mapper.Free;
 end;
@@ -1528,15 +1606,6 @@ begin
     end, ECanSetValueForFieldPrimaryKeyReference);
 
   Field.Free;
-end;
-
-procedure TFieldPrimaryKeyReferenceTest.SetupFixture;
-begin
-  var Mapper := TMapper.Create;
-
-  Mapper.LoadAll;
-
-  Mapper.Free;
 end;
 
 procedure TFieldPrimaryKeyReferenceTest.WhenGetTheValueMustReturnTheInstanceFromTheParam;

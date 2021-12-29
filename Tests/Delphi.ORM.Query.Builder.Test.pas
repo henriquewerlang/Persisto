@@ -237,8 +237,6 @@ type
     procedure WhenExistsAJoinLoadedMustPutTheAliasOfTheTableBeforeTheFieldName;
     [Test]
     procedure WhenUsingAComposeNameMustPutTheAliasOfTheTableBeforeTheFieldName;
-    [Test]
-    procedure WhenUsingComposeFieldNameInAOperationWithoutFromMustRaiseAnError;
     [TestCase('AnsiChar', 'AnsiChar,''C''')]
     [TestCase('AnsiString', 'AnsiString,''AnsiString''')]
     [TestCase('Char', 'Char,''C''')]
@@ -303,6 +301,8 @@ type
     [TestCase('Less Than', 'qbcoLessThan')]
     [TestCase('Less Than Or Equal', 'qbcoLessThanOrEqual')]
     procedure WhenTheComparisionWithATimeMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
+    [Test]
+    procedure WhenTheClassIsInheritedMustFindTheFieldInTheBaseClass;
   end;
 
   [TestFixture]
@@ -379,6 +379,15 @@ type
     procedure WhenTheFieldIsDescendingMustLoadTheSQLAsExpected;
     [Test]
     procedure WhenCallTheFieldProcedureMustResultTheSelfOfTheOrderByClass;
+  end;
+
+  [TestFixture]
+  TQueryBuilderFieldAliasTest = class
+  public
+    [Test]
+    procedure WhenCreateMustLoadThePropertyFieldNameOfTheClass;
+    [Test]
+    procedure WhenTheFieldNameIsSeparetedByDotMustLoadTheFieldNamesWithTheNames;
   end;
 
   TDatabaseTest = class(TInterfacedObject, IDatabaseConnection)
@@ -1984,6 +1993,16 @@ begin
   From.Free;
 end;
 
+procedure TQueryBuilderWhereTest.WhenTheClassIsInheritedMustFindTheFieldInTheBaseClass;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 5);
+  var Where := From.From<TMyEntityInheritedFromSimpleClass>.Where(Field('BaseProperty') = 'abc');
+
+  Assert.AreEqual(' where T2.BaseProperty=''abc''', Where.GetSQL);
+
+  From.Free;
+end;
+
 procedure TQueryBuilderWhereTest.WhenTheClassIsRecursiveInItselfHasToPutTheRightAlias;
 begin
   var From := TQueryBuilderFrom.Create(nil, 5);
@@ -2074,19 +2093,6 @@ begin
   Assert.AreEqual(' where T4.Id=1', Where.GetSQL);
 
   From.Free;
-end;
-
-procedure TQueryBuilderWhereTest.WhenUsingComposeFieldNameInAOperationWithoutFromMustRaiseAnError;
-begin
-  var Where := TQueryBuilderWhere<TWhereClassTest>.Create(TTable(nil));
-
-  Assert.WillRaise(
-    procedure
-    begin
-      Where.Where(Field('Where.Class1.Class3.Id') = 1);
-    end, ECantUseComposeFieldName);
-
-  Where.Free;
 end;
 
 { TQueryBuilderDataManipulationTest }
@@ -2825,6 +2831,28 @@ begin
   Assert.AreEqual(' order by T1.Value,T1.Value,T1.Value', OrderBy.GetSQL);
 
   Query.Free;
+end;
+
+{ TQueryBuilderFieldAliasTest }
+
+procedure TQueryBuilderFieldAliasTest.WhenCreateMustLoadThePropertyFieldNameOfTheClass;
+begin
+  var Field := TQueryBuilderFieldAlias.Create('Test');
+
+  Assert.AreEqual('Test', Field.FieldName);
+
+  Field.Free;
+end;
+
+procedure TQueryBuilderFieldAliasTest.WhenTheFieldNameIsSeparetedByDotMustLoadTheFieldNamesWithTheNames;
+begin
+  var Field := TQueryBuilderFieldAlias.Create('Test1.Test2.Test3');
+
+  Assert.AreEqual('Test1', Field.FieldNames[0]);
+  Assert.AreEqual('Test2', Field.FieldNames[1]);
+  Assert.AreEqual('Test3', Field.FieldNames[2]);
+
+  Field.Free;
 end;
 
 end.
