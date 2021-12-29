@@ -356,6 +356,10 @@ type
     procedure WhenSaveAManyValueAssocitationEntityMustLoadTheParentObjectInTheChildObjects;
     [Test]
     procedure WhenSaveAManyValueAssocitationEntityMustAvoidSaveTheParentLinkOfTheChildToAvoidStackOverflow;
+    [Test]
+    procedure WhenInsertingAnEntityInheritedFromAnotherMustInsertTheParentClassFirst;
+    [Test]
+    procedure WhenSavingAnEntityInheritedFromAnotherTableCantRaiseAnyError;
   end;
 
   [TestFixture]
@@ -388,6 +392,7 @@ type
     function StartTransaction: IDatabaseTransaction;
 
     procedure ExecuteDirect(const SQL: String);
+    procedure SaveSQL(const SQL: String);
   public
     constructor Create(const Cursor: IDatabaseCursor); 
 
@@ -1094,7 +1099,7 @@ procedure TQueryBuilderTest.WhenTheClassRecursivelyItselfMoreThenOneTimeMustBuil
 begin
   var From := TQueryBuilderFrom.Create(nil, 2);
 
-  From.From<TClassRecursiveItself>;
+  From.From<TClassRecursiveItSelf>;
 
   Assert.AreEqual(
         ' from ClassRecursiveItself T1 ' +
@@ -1201,7 +1206,7 @@ end;
 
 procedure TDatabaseTest.ExecuteDirect(const SQL: String);
 begin
-  FSQL := SQL;
+  SaveSQL(SQL);
 end;
 
 function TDatabaseTest.ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
@@ -1212,8 +1217,17 @@ end;
 
 function TDatabaseTest.OpenCursor(const SQL: String): IDatabaseCursor;
 begin
-  FSQL := SQL;
   Result := FCursor;
+
+  SaveSQL(SQL);
+end;
+
+procedure TDatabaseTest.SaveSQL(const SQL: String);
+begin
+  if not FSQL.IsEmpty then
+    FSQL := FSQL + #13#10;
+
+  FSQL := FSQL + SQL;
 end;
 
 function TDatabaseTest.StartTransaction: IDatabaseTransaction;
@@ -1973,7 +1987,7 @@ end;
 procedure TQueryBuilderWhereTest.WhenTheClassIsRecursiveInItselfHasToPutTheRightAlias;
 begin
   var From := TQueryBuilderFrom.Create(nil, 5);
-  var Where := From.From<TClassRecursiveItself>.Where(Field('Recursive1.Recursive1.Recursive1.Recursive1.Recursive1') = 1);
+  var Where := From.From<TClassRecursiveItSelf>.Where(Field('Recursive1.Recursive1.Recursive1.Recursive1.Recursive1') = 1);
 
   Assert.AreEqual(' where T5.IdRecursive1=1', Where.GetSQL);
 
@@ -2467,6 +2481,24 @@ begin
   Query.Free;
 end;
 
+procedure TQueryBuilderDataManipulationTest.WhenInsertingAnEntityInheritedFromAnotherMustInsertTheParentClassFirst;
+begin
+  var Database := TDatabaseTest.Create(TCursorMock.Create([[123]]));
+  var Query := TQueryBuilder.Create(Database);
+
+  var MyClass := TMyEntityInheritedFromSimpleClass.Create;
+
+  Query.Insert(MyClass);
+
+  Assert.AreEqual(
+    'insert into MyEntityInheritedFromSingle(AnotherProperty,BaseProperty)values('''','''')'#13#10 +
+    'insert into MyEntityInheritedFromSimpleClass(Id,SimpleProperty)values(123,0)', Database.SQL);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
 procedure TQueryBuilderDataManipulationTest.WhenSaveAManyValueAssocitationEntityMustAvoidSaveTheParentLinkOfTheChildToAvoidStackOverflow;
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
@@ -2512,6 +2544,28 @@ begin
    Assert.IsNotNull(MyClass.Values[0].ManyValueParentError);
 
   MyClass.Values[0].Free;
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenSavingAnEntityInheritedFromAnotherTableCantRaiseAnyError;
+begin
+  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
+  var Query := TQueryBuilder.Create(Database.Instance);
+  var MyClass := TMyEntityInheritedFromSimpleClass.Create;
+  MyClass.Id := 123;
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+
+  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Query.Save(MyClass);
+    end);
 
   MyClass.Free;
 
