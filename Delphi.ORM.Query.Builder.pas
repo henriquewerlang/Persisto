@@ -40,6 +40,7 @@ type
     procedure SaveManyValueAssociations(const Table: TTable; const AObject: TValue);
     procedure SaveObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey);
     procedure UpdateObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey);
+    procedure SimpleUpdateObject(const AObject: TValue);
   public
     constructor Create(Connection: IDatabaseConnection);
 
@@ -52,6 +53,7 @@ type
     procedure Insert<T: class>(const AObject: T);
     procedure Save<T: class>(const AObject: T);
     procedure Update<T: class>(const AObject: T);
+    procedure SimpleUpdate<T: class>(const AObject: T);
 
     property Cache: ICache read FCache write FCache;
     property Connection: IDatabaseConnection read FConnection;
@@ -63,6 +65,7 @@ type
     FWhere: TQueryBuilderCommand;
     FRecursivityLevel: Word;
     FSelect: TQueryBuilderSelect;
+    FTable: TTable;
 
     function BuildJoinSQL: String;
     function GetBuilder: TQueryBuilder;
@@ -83,6 +86,7 @@ type
     property Builder: TQueryBuilder read GetBuilder;
     property Fields: TArray<TFieldAlias> read GetFields;
     property Join: TQueryBuilderJoin read FJoin;
+    property Table: TTable read FTable;
   end;
 
   TQueryBuilderJoin = class
@@ -465,6 +469,34 @@ begin
   FCommand := Result;
 end;
 
+procedure TQueryBuilder.SimpleUpdate<T>(const AObject: T);
+begin
+  ExecuteInTrasaction(
+    procedure
+    begin
+      SimpleUpdateObject(AObject);
+    end);
+end;
+
+procedure TQueryBuilder.SimpleUpdateObject(const AObject: TValue);
+begin
+  var SQL := EmptyStr;
+  var Table := TMapper.Default.FindTable(AObject.TypeInfo);
+
+  for var TableField in Table.Fields do
+    if not TableField.InPrimaryKey and not TableField.IsManyValueAssociation then
+    begin
+      if not SQL.IsEmpty then
+        SQL := SQL + ',';
+
+      SQL := SQL + Format('%s=%s', [TableField.DatabaseName, TableField.GetAsString(AObject.AsObject)]);
+    end;
+
+  SQL := Format('update %s set %s%s', [Table.DatabaseName, SQL, BuildPrimaryKeyFilter(Table, AObject.AsObject)]);
+
+  FConnection.ExecuteDirect(SQL);
+end;
+
 procedure TQueryBuilder.Update<T>(const AObject: T);
 begin
   ExecuteInTrasaction(
@@ -533,6 +565,7 @@ end;
 
 function TQueryBuilderFrom.From<T>(Table: TTable): TQueryBuilderWhere<T>;
 begin
+  FTable := Table;
   FJoin := TQueryBuilderJoin.Create(Table);
   Result := TQueryBuilderWhere<T>.Create(Self);
 
@@ -812,7 +845,7 @@ constructor TQueryBuilderWhere<T>.Create(const From: TQueryBuilderFrom);
 begin
   FFrom := From;
 
-  Create(TMapper.Default.FindTable(T));
+  Create(From.Table);
 end;
 
 constructor TQueryBuilderWhere<T>.Create(const Table: TTable);
