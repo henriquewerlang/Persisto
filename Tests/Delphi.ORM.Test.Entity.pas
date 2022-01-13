@@ -721,6 +721,17 @@ type
     property Values: TArray<TManyValueParentChildError> read FValues write FValues;
   end;
 
+  [Entity]
+  TClassWithNamedForeignKey = class
+  private
+    FId: Integer;
+    FForeignKey: TMyEntity;
+  published
+    property Id: Integer read FId write FId;
+    [FieldName('MyFk')]
+    property ForeignKey: TMyEntity read FForeignKey write FForeignKey;
+  end;
+
 implementation
 
 uses System.SysUtils;

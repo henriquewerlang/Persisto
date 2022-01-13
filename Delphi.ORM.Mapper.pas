@@ -176,7 +176,7 @@ type
     function GetFieldDatabaseName(Field: TField): String;
     function GetNameAttribute<T: TCustomNameAttribute>(TypeInfo: TRttiNamedObject; var Name: String): Boolean;
     function GetManyValuAssociationLinkName(Field: TField): String;
-    function GetPrimaryKey(TypeInfo: TRttiInstanceType): String;
+    function GetPrimaryKeyPropertyName(TypeInfo: TRttiInstanceType): String;
     function GetTableDatabaseName(Table: TTable): String;
     function GetTables: TArray<TTable>;
     function IsSingleTableInheritance(RttiType: TRttiType): Boolean;
@@ -354,7 +354,12 @@ end;
 function TMapper.GetFieldDatabaseName(Field: TField): String;
 begin
   if not GetNameAttribute<FieldNameAttribute>(Field.PropertyInfo, Result) then
+  begin
     Result := Field.Name;
+
+    if Field.IsForeignKey then
+      Result := 'Id' + Result;
+  end;
 end;
 
 function TMapper.GetManyValuAssociationLinkName(Field: TField): String;
@@ -372,7 +377,7 @@ begin
     Name := Attribute.Name;
 end;
 
-function TMapper.GetPrimaryKey(TypeInfo: TRttiInstanceType): String;
+function TMapper.GetPrimaryKeyPropertyName(TypeInfo: TRttiInstanceType): String;
 begin
   var Attribute := TypeInfo.GetAttribute<PrimaryKeyAttribute>;
 
@@ -436,22 +441,20 @@ begin
   Field.FTable := Table;
   Table.FFields := Table.FFields + [Field];
 
-  Field.FDatabaseName := GetFieldDatabaseName(Field);
   Field.FDefaultValue := GetDefaultValue(PropertyInfo);
   Field.FIsLazy := IsLazyLoading(Field.FieldType);
   Field.FIsManyValueAssociation := Field.FieldType.IsArray;
   Field.FIsNullable := Field.FieldType.IsRecord and IsNullableType(Field.FieldType);
+
+  Field.FIsForeignKey := Field.FieldType.IsInstance or Field.IsLazy;
+  Field.FIsJoinLink := Field.IsForeignKey or Field.IsManyValueAssociation;
 
   if Field.IsNullable then
     Field.FFieldType := GetNullableRttiType(Field.FieldType)
   else if Field.IsLazy then
     Field.FFieldType := GetLazyLoadingRttiType(Field.FieldType);
 
-  Field.FIsForeignKey := Field.FieldType.IsInstance or Field.IsLazy;
-  Field.FIsJoinLink := Field.IsForeignKey or Field.IsManyValueAssociation;
-
-  if Field.IsForeignKey then
-    Field.FDatabaseName := 'Id' + Field.DatabaseName;
+  Field.FDatabaseName := GetFieldDatabaseName(Field);
 end;
 
 function TMapper.LoadTable(TypeInfo: TRttiInstanceType): TTable;
@@ -474,7 +477,7 @@ end;
 
 procedure TMapper.LoadTableFields(TypeInfo: TRttiInstanceType; const Table: TTable);
 begin
-  var PrimaryKeyFieldName := GetPrimaryKey(TypeInfo);
+  var PrimaryKeyFieldName := GetPrimaryKeyPropertyName(TypeInfo);
 
   for var Prop in TypeInfo.GetDeclaredProperties do
     if Prop.Visibility = mvPublished then
