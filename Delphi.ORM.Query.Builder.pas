@@ -35,11 +35,11 @@ type
     function GetConnection: IDatabaseConnection;
 
     procedure ExecuteInTrasaction(const Proc: TProc);
-    procedure InsertObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey);
+    procedure InsertObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey; const Recursive: Boolean);
     procedure SaveForeignKeys(const Table: TTable; const AObject: TValue; const ForeignKeyToIgnore: TForeignKey);
-    procedure SaveManyValueAssociations(const Table: TTable; const AObject: TValue);
-    procedure SaveObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey);
-    procedure UpdateObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey);
+    procedure SaveManyValueAssociations(const Table: TTable; const AObject: TValue; const Recursive: Boolean);
+    procedure SaveObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey; const Recursive: Boolean);
+    procedure UpdateObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey; const Recursive: Boolean);
   public
     constructor Create(Connection: IDatabaseConnection);
 
@@ -50,8 +50,11 @@ type
 
     procedure Delete<T: class>(const AObject: T);
     procedure Insert<T: class>(const AObject: T);
+    procedure InsertNonRecursive<T: class>(const AObject: T);
     procedure Save<T: class>(const AObject: T);
+    procedure SaveNonRecursive<T: class>(const AObject: T);
     procedure Update<T: class>(const AObject: T);
+    procedure UpdateNonRecursive<T: class>(const AObject: T);
 
     property Cache: ICache read FCache write FCache;
     property Connection: IDatabaseConnection read FConnection;
@@ -356,7 +359,7 @@ begin
   end;
 end;
 
-procedure TQueryBuilder.InsertObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey);
+procedure TQueryBuilder.InsertObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey; const Recursive: Boolean);
 begin
   var OutputFieldList: TArray<TField> := nil;
   var OutputFieldNameList: TArray<String> := nil;
@@ -364,7 +367,8 @@ begin
 
   var SQL := '(%s)values(%s)';
 
-  SaveForeignKeys(Table, AObject, ForeignKeyToIgnore);
+  if Recursive then
+    SaveForeignKeys(Table, AObject, ForeignKeyToIgnore);
 
   for var Field in Table.Fields do
   begin
@@ -387,7 +391,7 @@ begin
     for var A := Low(OutputFieldList) to High(OutputFieldList) do
       OutputFieldList[A].SetValue(AObject.AsObject, Cursor.GetFieldValue(A));
 
-  SaveManyValueAssociations(Table, AObject);
+  SaveManyValueAssociations(Table, AObject, Recursive);
 end;
 
 procedure TQueryBuilder.Insert<T>(const AObject: T);
@@ -395,7 +399,16 @@ begin
   ExecuteInTrasaction(
     procedure
     begin
-      InsertObject(AObject, nil);
+      InsertObject(AObject, nil, True);
+    end);
+end;
+
+procedure TQueryBuilder.InsertNonRecursive<T>(const AObject: T);
+begin
+  ExecuteInTrasaction(
+    procedure
+    begin
+      InsertObject(AObject, nil, False);
     end);
 end;
 
@@ -417,7 +430,7 @@ begin
   ExecuteInTrasaction(
     procedure
     begin
-      SaveObject(AObject, nil);
+      SaveObject(AObject, nil, True);
     end)
 end;
 
@@ -429,11 +442,11 @@ begin
       var FieldValue := ForeignKey.Field.GetValue(AObject.AsObject);
 
       if not FieldValue.IsEmpty then
-        SaveObject(FieldValue, ForeignKey);
+        SaveObject(FieldValue, ForeignKey, True);
     end;
 end;
 
-procedure TQueryBuilder.SaveManyValueAssociations(const Table: TTable; const AObject: TValue);
+procedure TQueryBuilder.SaveManyValueAssociations(const Table: TTable; const AObject: TValue; const Recursive: Boolean);
 begin
   for var ManyValue in Table.ManyValueAssociations do
   begin
@@ -445,19 +458,28 @@ begin
 
       ManyValue.ForeignKey.Field.SetValue(ChildFieldValue.AsObject, AObject);
 
-      SaveObject(ChildFieldValue, ManyValue.ForeignKey);
+      SaveObject(ChildFieldValue, ManyValue.ForeignKey, Recursive);
     end;
   end;
 end;
 
-procedure TQueryBuilder.SaveObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey);
+procedure TQueryBuilder.SaveNonRecursive<T>(const AObject: T);
+begin
+  ExecuteInTrasaction(
+    procedure
+    begin
+      SaveObject(AObject, nil, False);
+    end)
+end;
+
+procedure TQueryBuilder.SaveObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey; const Recursive: Boolean);
 begin
   var Table := TMapper.Default.FindTable(AObject.TypeInfo);
 
   if Assigned(Table.PrimaryKey) and (Table.PrimaryKey.GetValue(AObject.AsObject).AsVariant = Table.PrimaryKey.DefaultValue.AsVariant) then
-    InsertObject(AObject, ForeignKeyToIgnore)
+    InsertObject(AObject, ForeignKeyToIgnore, Recursive)
   else
-    UpdateObject(AObject, ForeignKeyToIgnore);
+    UpdateObject(AObject, ForeignKeyToIgnore, Recursive);
 end;
 
 function TQueryBuilder.Select: TQueryBuilderSelect;
@@ -472,16 +494,26 @@ begin
   ExecuteInTrasaction(
     procedure
     begin
-      UpdateObject(AObject, nil);
+      UpdateObject(AObject, nil, True);
     end);
 end;
 
-procedure TQueryBuilder.UpdateObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey);
+procedure TQueryBuilder.UpdateNonRecursive<T>(const AObject: T);
+begin
+  ExecuteInTrasaction(
+    procedure
+    begin
+      UpdateObject(AObject, nil, False);
+    end);
+end;
+
+procedure TQueryBuilder.UpdateObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey; const Recursive: Boolean);
 begin
   var SQL := EmptyStr;
   var Table := TMapper.Default.FindTable(AObject.TypeInfo);
 
-  SaveForeignKeys(Table, AObject, ForeignKeyToIgnore);
+  if Recursive then
+    SaveForeignKeys(Table, AObject, ForeignKeyToIgnore);
 
   for var TableField in Table.Fields do
     if not TableField.InPrimaryKey and not TableField.IsManyValueAssociation then
@@ -496,7 +528,7 @@ begin
 
   FConnection.ExecuteDirect(SQL);
 
-  SaveManyValueAssociations(Table, AObject);
+  SaveManyValueAssociations(Table, AObject, Recursive);
 end;
 
 { TQueryBuilderFrom }
