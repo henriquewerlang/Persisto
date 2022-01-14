@@ -5,13 +5,18 @@ interface
 uses System.Rtti;
 
 type
+  TCascadeType = (ctInsert, ctUpdate);
+  TCascadeTypes = set of TCascadeType;
+
   EntityAttribute = class(TCustomAttribute);
+  InsertCascadeAttribute = class(TCustomAttribute);
+  UpdateCascadeAttribute = class(TCustomAttribute);
 
   TCustomNameAttribute = class(TCustomAttribute)
   private
     FName: String;
   public
-    constructor Create(Name: String);
+    constructor Create(const Name: String);
 
     property Name: String read FName;
   end;
@@ -34,11 +39,9 @@ type
 
 implementation
 
-uses System.SysUtils;
-
 { TCustomNameAttribute }
 
-constructor TCustomNameAttribute.Create(Name: String);
+constructor TCustomNameAttribute.Create(const Name: String);
 begin
   inherited Create;
 
@@ -55,3 +58,4 @@ begin
 end;
 
 end.
+

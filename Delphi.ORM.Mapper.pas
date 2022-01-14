@@ -140,7 +140,9 @@ type
     FField: TField;
     FManyValueAssociation: TManyValueAssociation;
     FIsInheritedLink: Boolean;
+    FCascade: TCascadeTypes;
   public
+    property Cascade: TCascadeTypes read FCascade;
     property Field: TField read FField;
     property IsInheritedLink: Boolean read FIsInheritedLink;
     property ManyValueAssociation: TManyValueAssociation read FManyValueAssociation;
@@ -252,11 +254,17 @@ begin
   begin
     var ForeignKey := TForeignKey.Create;
     ForeignKey.FField := Field;
-    ForeignKey.FParentTable := ForeignTable;
     ForeignKey.FIsInheritedLink := IsInheritedLink;
+    ForeignKey.FParentTable := ForeignTable;
 
     Field.FForeignKey := ForeignKey;
     Table.FForeignKeys := Table.FForeignKeys + [ForeignKey];
+
+    if IsInheritedLink or Field.PropertyInfo.HasAttribute<InsertCascadeAttribute> then
+      ForeignKey.FCascade := ForeignKey.FCascade + [ctInsert];
+
+    if IsInheritedLink or Field.PropertyInfo.HasAttribute<UpdateCascadeAttribute> then
+      ForeignKey.FCascade := ForeignKey.FCascade + [ctUpdate];
   end
   else
     raise EClassWithoutPrimaryKeyDefined.Create(ForeignTable);

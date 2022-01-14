@@ -248,6 +248,14 @@ type
     procedure TheForeignKeyCreatedForTheInheritanceMustBeMarkedHasInheritanceLink;
     [Test]
     procedure WhenAForeignKeyFieldHasTheFieldNameAttributeThisMustBeTheDatabaseNameField;
+    [Test]
+    procedure WhenTheFieldHasTheUpdateCascadeAnotationMustLoadTheInfoInTheForeignKey;
+    [Test]
+    procedure WhenTheFieldHasTheInsertCascadeAnotationMustLoadTheInfoInTheForeignKey;
+    [Test]
+    procedure WhenTheFieldHasTheInsertCascadeAndUpdateCascadeAnotationMustLoadTheInfoInTheForeignKey;
+    [Test]
+    procedure WhenTheClassIsInheritedMustLoadTheCascadeInfoWithUpdateAndInsertCascade;
   end;
 
   [TestFixture]
@@ -1262,6 +1270,16 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.WhenTheClassIsInheritedMustLoadTheCascadeInfoWithUpdateAndInsertCascade;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntityInheritedFromSimpleClass);
+
+  Assert.AreEqual<TCascadeTypes>([ctInsert, ctUpdate], Table.ForeignKeys[0].Cascade);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.WhenTheClassIsInheritedMustLoadThePrimaryKeyFromBaseClass;
 begin
   var Mapper := TMapper.Create;
@@ -1386,10 +1404,39 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.WhenTheFieldHasTheInsertCascadeAndUpdateCascadeAnotationMustLoadTheInfoInTheForeignKey;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TManyValueAssociationWithThreeForeignKey);
+
+  Assert.AreEqual<TCascadeTypes>([ctInsert, ctUpdate], Table.ForeignKeys[2].Cascade);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheFieldHasTheInsertCascadeAnotationMustLoadTheInfoInTheForeignKey;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TManyValueAssociationWithThreeForeignKey);
+
+  Assert.AreEqual<TCascadeTypes>([ctInsert], Table.ForeignKeys[1].Cascade);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheFieldHasTheUpdateCascadeAnotationMustLoadTheInfoInTheForeignKey;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TManyValueAssociationWithThreeForeignKey);
+
+  Assert.AreEqual<TCascadeTypes>([ctUpdate], Table.ForeignKeys[0].Cascade);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.WhenTheFieldHaveTheFieldNameAttributeMustLoadThisNameInTheDatabaseName;
 begin
   var Mapper := TMapper.Create;
-
   var Table := Mapper.LoadClass(TMyEntityWithFieldNameAttribute);
 
   Assert.AreEqual('AnotherFieldName', Table.Fields[0].DatabaseName);

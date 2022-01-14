@@ -374,17 +374,9 @@ type
     [Test]
     procedure WhenSavingAnEntityInheritedFromAnotherTableCantRaiseAnyError;
     [Test]
-    procedure WhenInsertWithNonRecursiveCantSaveTheForeignKeysOfTheObject;
+    procedure WhenInsertingAClassMustInsertOnlyTheForeignKeyWithInsertCascadeAttribute;
     [Test]
-    procedure WhenInsertWithNonRecursiveTheManyValueAssociationsMustBeSavedWithNoRecursive;
-    [Test]
-    procedure WhenUpdateWithNonRecursiveCantSaveTheForeignKeysOfTheObject;
-    [Test]
-    procedure WhenUpdateWithNonRecursiveTheManyValueAssociationsMustBeSavedWithNoRecursive;
-    [Test]
-    procedure WhenSaveWithNonRecursiveToInsertARecordCantSaveTheForeignKeysOfTheObject;
-    [Test]
-    procedure WhenSaveWithNonRecursiveToUpdateARecordCantSaveTheForeignKeysOfTheObject;
+    procedure WhenUpdatingAClassMustInsertOnlyTheForeignKeyWithUpdateCascadeAttribute;
   end;
 
   [TestFixture]
@@ -663,9 +655,9 @@ begin
     'left join ManyValueAssociationWithThreeForeignKey T2 ' +
            'on T1.Id=T2.IdManyValueAssociationParent ' +
     'left join ManyValueAssociationParent T3 ' +
-           'on T2.IdForeingKeyOne=T3.Id ' +
+           'on T2.IdForeignKeyOne=T3.Id ' +
     'left join ManyValueAssociationParent T4 ' +
-           'on T2.IdForeingKeyTwo=T4.Id',
+           'on T2.IdForeignKeyTwo=T4.Id',
     From.GetSQL);
 
   From.Free;
@@ -2537,6 +2529,33 @@ begin
   Query.Free;
 end;
 
+procedure TQueryBuilderDataManipulationTest.WhenInsertingAClassMustInsertOnlyTheForeignKeyWithInsertCascadeAttribute;
+begin
+  var Database := TDatabaseTest.Create(TCursorMock.Create([[123]]));
+  var MyClass := TClassWithCascadeAttribute.Create;
+  MyClass.InsertCascade := TMyEntityWithPrimaryKey.Create;
+  MyClass.UpdateCascade := TMyEntityWithPrimaryKey.Create;
+  MyClass.UpdateInsertCascade := TMyEntityWithPrimaryKey.Create;
+  var Query := TQueryBuilder.Create(Database);
+
+  Query.Insert(MyClass);
+
+  Assert.AreEqual(
+    'insert into MyEntityWithPrimaryKey(Value,Id)values(0,0)'#13#10 +
+    'insert into MyEntityWithPrimaryKey(Value,Id)values(0,0)'#13#10 +
+    'insert into ClassWithCascadeAttribute(Id,IdInsertCascade,IdUpdateCascade,IdUpdateInsertCascade)values(0,0,0,0)', Database.SQL);
+
+  MyClass.InsertCascade.Free;
+
+  MyClass.UpdateCascade.Free;
+
+  MyClass.UpdateInsertCascade.Free;
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
 procedure TQueryBuilderDataManipulationTest.WhenInsertingAnEntityInheritedFromAnotherMustInsertTheParentClassFirst;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create([[123]]));
@@ -2549,47 +2568,6 @@ begin
   Assert.AreEqual(
     'insert into MyEntityInheritedFromSingle(AnotherProperty,BaseProperty)values('''','''')'#13#10 +
     'insert into MyEntityInheritedFromSimpleClass(Id,SimpleProperty)values(123,0)', Database.SQL);
-
-  MyClass.Free;
-
-  Query.Free;
-end;
-
-procedure TQueryBuilderDataManipulationTest.WhenInsertWithNonRecursiveCantSaveTheForeignKeysOfTheObject;
-begin
-  var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var MyClass := TMyEntityWithFieldNameAttribute.Create;
-  MyClass.MyForeignKey := TMyEntityWithPrimaryKey.Create;
-  var Query := TQueryBuilder.Create(Database);
-
-  Query.InsertNonRecursive(MyClass);
-
-  Assert.AreEqual('insert into MyEntityWithFieldNameAttribute(AnotherFieldName,IdMyForeignKey,IdMyForeignKey2)values('''',0,null)', Database.SQL);
-
-  MyClass.MyForeignKey.Free;
-
-  MyClass.Free;
-
-  Query.Free;
-end;
-
-procedure TQueryBuilderDataManipulationTest.WhenInsertWithNonRecursiveTheManyValueAssociationsMustBeSavedWithNoRecursive;
-begin
-  var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var MyClass := TManyValueAssociationParent.Create;
-  MyClass.ChildClass := [TManyValueAssociationWithThreeForeignKey.Create];
-  MyClass.ChildClass[0].ForeingKeyOne := TManyValueAssociationParent.Create;
-  var Query := TQueryBuilder.Create(Database);
-
-  Query.InsertNonRecursive(MyClass);
-
-  Assert.AreEqual(
-    'insert into ManyValueAssociationParent(Id)values(0)'#13#10 +
-    'insert into ManyValueAssociationWithThreeForeignKey(Id,IdForeingKeyOne,IdForeingKeyTwo,IdManyValueAssociationParent)values(0,0,null,0)', Database.SQL);
-
-  MyClass.ChildClass[0].ForeingKeyOne.Free;
-
-  MyClass.ChildClass[0].Free;
 
   MyClass.Free;
 
@@ -2641,37 +2619,6 @@ begin
    Assert.IsNotNull(MyClass.Values[0].ManyValueParentError);
 
   MyClass.Values[0].Free;
-
-  MyClass.Free;
-
-  Query.Free;
-end;
-
-procedure TQueryBuilderDataManipulationTest.WhenSaveWithNonRecursiveToInsertARecordCantSaveTheForeignKeysOfTheObject;
-begin
-  var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var MyClass := TMyClass.Create;
-  var Query := TQueryBuilder.Create(Database);
-
-  Query.SaveNonRecursive(MyClass);
-
-  Assert.AreEqual('insert into MyClass(Name,Value)values('''',0)', Database.SQL);
-
-  MyClass.Free;
-
-  Query.Free;
-end;
-
-procedure TQueryBuilderDataManipulationTest.WhenSaveWithNonRecursiveToUpdateARecordCantSaveTheForeignKeysOfTheObject;
-begin
-  var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var MyClass := TMyClass.Create;
-  MyClass.Name := 'a';
-  var Query := TQueryBuilder.Create(Database);
-
-  Query.SaveNonRecursive(MyClass);
-
-  Assert.AreEqual('update MyClass set Value=0 where Name=''a''', Database.SQL);
 
   MyClass.Free;
 
@@ -2872,42 +2819,27 @@ begin
   Query.Free;
 end;
 
-procedure TQueryBuilderDataManipulationTest.WhenUpdateWithNonRecursiveCantSaveTheForeignKeysOfTheObject;
+procedure TQueryBuilderDataManipulationTest.WhenUpdatingAClassMustInsertOnlyTheForeignKeyWithUpdateCascadeAttribute;
 begin
-  var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var MyClass := TMyEntityWithFieldNameAttribute.Create;
-  MyClass.MyForeignKey := TMyEntityWithPrimaryKey.Create;
+  var Database := TDatabaseTest.Create(TCursorMock.Create([[123]]));
+  var MyClass := TClassWithCascadeAttribute.Create;
+  MyClass.InsertCascade := TMyEntityWithPrimaryKey.Create;
+  MyClass.UpdateCascade := TMyEntityWithPrimaryKey.Create;
+  MyClass.UpdateInsertCascade := TMyEntityWithPrimaryKey.Create;
   var Query := TQueryBuilder.Create(Database);
 
-  Query.UpdateNonRecursive(MyClass);
-
-  Assert.AreEqual('update MyEntityWithFieldNameAttribute set AnotherFieldName='''',IdMyForeignKey=0,IdMyForeignKey2=null', Database.SQL);
-
-  MyClass.MyForeignKey.Free;
-
-  MyClass.Free;
-
-  Query.Free;
-end;
-
-procedure TQueryBuilderDataManipulationTest.WhenUpdateWithNonRecursiveTheManyValueAssociationsMustBeSavedWithNoRecursive;
-begin
-  var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var MyClass := TManyValueAssociationParent.Create;
-  MyClass.ChildClass := [TManyValueAssociationWithThreeForeignKey.Create];
-  MyClass.ChildClass[0].Id := 1;
-  MyClass.ChildClass[0].ForeingKeyOne := TManyValueAssociationParent.Create;
-  var Query := TQueryBuilder.Create(Database);
-
-  Query.UpdateNonRecursive(MyClass);
+  Query.Update(MyClass);
 
   Assert.AreEqual(
-    'update ManyValueAssociationParent set  where Id=0'#13#10 +
-    'update ManyValueAssociationWithThreeForeignKey set IdForeingKeyOne=0,IdForeingKeyTwo=null,IdManyValueAssociationParent=0 where Id=1', Database.SQL);
+    'insert into MyEntityWithPrimaryKey(Value,Id)values(0,0)'#13#10 +
+    'insert into MyEntityWithPrimaryKey(Value,Id)values(0,0)'#13#10 +
+    'update ClassWithCascadeAttribute set IdInsertCascade=0,IdUpdateCascade=0,IdUpdateInsertCascade=0 where Id=0', Database.SQL);
 
-  MyClass.ChildClass[0].ForeingKeyOne.Free;
+  MyClass.InsertCascade.Free;
 
-  MyClass.ChildClass[0].Free;
+  MyClass.UpdateCascade.Free;
+
+  MyClass.UpdateInsertCascade.Free;
 
   MyClass.Free;
 

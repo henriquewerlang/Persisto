@@ -83,6 +83,7 @@ type
     FAnotherClass: TClassWithPrimaryKey;
     FId: Integer;
   published
+    [InsertCascade, UpdateCascade]
     property AnotherClass: TClassWithPrimaryKey read FAnotherClass write FAnotherClass;
     property Id: Integer read FId write FId;
   end;
@@ -294,13 +295,16 @@ type
   TManyValueAssociationWithThreeForeignKey = class
   private
     FId: Integer;
-    FForeingKeyOne: TManyValueAssociationParent;
-    FForeingKeyTwo: TManyValueAssociationParent;
+    FForeignKeyOne: TManyValueAssociationParent;
+    FForeignKeyTwo: TManyValueAssociationParent;
     FManyValueAssociationParent: TManyValueAssociationParent;
   published
     property Id: Integer read FId write FId;
-    property ForeingKeyOne: TManyValueAssociationParent read FForeingKeyOne write FForeingKeyOne;
-    property ForeingKeyTwo: TManyValueAssociationParent read FForeingKeyTwo write FForeingKeyTwo;
+    [UpdateCascade]
+    property ForeignKeyOne: TManyValueAssociationParent read FForeignKeyOne write FForeignKeyOne;
+    [InsertCascade]
+    property ForeignKeyTwo: TManyValueAssociationParent read FForeignKeyTwo write FForeignKeyTwo;
+    [InsertCascade, UpdateCascade]
     property ManyValueAssociationParent: TManyValueAssociationParent read FManyValueAssociationParent write FManyValueAssociationParent;
   end;
 
@@ -731,6 +735,24 @@ type
     [FieldName('MyFk')]
     property ForeignKey: TMyEntity read FForeignKey write FForeignKey;
   end;
+
+  [Entity]
+  TClassWithCascadeAttribute = class
+  private
+    FUpdateCascade: TMyEntityWithPrimaryKey;
+    FInsertCascade: TMyEntityWithPrimaryKey;
+    FUpdateInsertCascade: TMyEntityWithPrimaryKey;
+    FId: Integer;
+  published
+    property Id: Integer read FId write FId;
+    [InsertCascade]
+    property InsertCascade: TMyEntityWithPrimaryKey read FInsertCascade write FInsertCascade;
+    [UpdateCascade]
+    property UpdateCascade: TMyEntityWithPrimaryKey read FUpdateCascade write FUpdateCascade;
+    [InsertCascade, UpdateCascade]
+    property UpdateInsertCascade: TMyEntityWithPrimaryKey read FUpdateInsertCascade write FUpdateInsertCascade;
+  end;
+
 
 implementation
 
