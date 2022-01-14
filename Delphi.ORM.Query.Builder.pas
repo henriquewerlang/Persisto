@@ -63,6 +63,7 @@ type
     FWhere: TQueryBuilderCommand;
     FRecursivityLevel: Word;
     FSelect: TQueryBuilderSelect;
+    FTable: TTable;
 
     function BuildJoinSQL: String;
     function GetBuilder: TQueryBuilder;
@@ -83,6 +84,7 @@ type
     property Builder: TQueryBuilder read GetBuilder;
     property Fields: TArray<TFieldAlias> read GetFields;
     property Join: TQueryBuilderJoin read FJoin;
+    property Table: TTable read FTable write FTable;
   end;
 
   TQueryBuilderJoin = class
@@ -534,6 +536,7 @@ end;
 function TQueryBuilderFrom.From<T>(Table: TTable): TQueryBuilderWhere<T>;
 begin
   FJoin := TQueryBuilderJoin.Create(Table);
+  FTable := Table;
   Result := TQueryBuilderWhere<T>.Create(Self);
 
   FWhere := Result;
@@ -812,7 +815,7 @@ constructor TQueryBuilderWhere<T>.Create(const From: TQueryBuilderFrom);
 begin
   FFrom := From;
 
-  Create(TMapper.Default.FindTable(T));
+  Create(From.Table);
 end;
 
 constructor TQueryBuilderWhere<T>.Create(const Table: TTable);

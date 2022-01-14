@@ -125,6 +125,17 @@ type
     procedure WhenFillTheFirstRecordsMustLoadThePropertyWithThePassedValue;
     [Test]
     procedure WhenFillTheFirstRecordsMustBuildTheSQLAsExpectedForSQLServer;
+    [Test]
+    procedure WhenSelectingATableAsAParameterMustUseThisParameterAndNotTryingToFindTheGenericTable;
+  end;
+
+  [TestFixture]
+  TQueryBuilderFromTest = class
+  public
+    [SetupFixture]
+    procedure Setup;
+    [Test]
+    procedure WhenCallFromFunctionMustLoadTheTablePropertyWithTheDataOfThatTable;
   end;
 
   [TestFixture]
@@ -1424,6 +1435,20 @@ begin
   Assert.AreEqual(1, Select.RecursivityLevelValue);
 
   Select.Free;
+end;
+
+procedure TQueryBuilderSelectTest.WhenSelectingATableAsAParameterMustUseThisParameterAndNotTryingToFindTheGenericTable;
+begin
+  var Database := TDatabaseTest.Create(nil);
+  var Query := TQueryBuilder.Create(Database);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Query.Select.All.From<TObject>(TMapper.Default.FindTable(TClassWithForeignKey)).Open;
+    end);
+
+  Query.Free;
 end;
 
 procedure TQueryBuilderSelectTest.WhenTheClassHaveForeignKeyMustBuildTheSQLWithTheAliasOfTheJoinMapped;
@@ -2866,6 +2891,24 @@ begin
   Assert.AreEqual('Test3', Field.FieldNames[2]);
 
   Field.Free;
+end;
+
+{ TQueryBuilderFromTest }
+
+procedure TQueryBuilderFromTest.Setup;
+begin
+  TMapper.Default.LoadAll;
+end;
+
+procedure TQueryBuilderFromTest.WhenCallFromFunctionMustLoadTheTablePropertyWithTheDataOfThatTable;
+begin
+  var Query := TQueryBuilderFrom.Create(nil, 1);
+
+  Query.From<TClassWithTwoForeignKey>;
+
+  Assert.AreNotEqual<Pointer>(nil, Query.Table);
+
+  Query.Free;
 end;
 
 end.
