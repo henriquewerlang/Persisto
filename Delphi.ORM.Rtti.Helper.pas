@@ -28,8 +28,6 @@ type
   public
     function GetAsString: String;
 
-    class function FromVariantNull(const Value: Variant): TValue; static;
-
     property ArrayElement[Index: Integer]: TValue read GetArrayElementInternal write SetArrayElementInternal;
     property ArrayLength: Integer read GetArrayLengthInternal write SetArrayLengthInternal;
 
@@ -92,14 +90,6 @@ begin
 end;
 
 { TValueHelper }
-
-class function TValueHelper.FromVariantNull(const Value: Variant): TValue;
-begin
-  if Value = NULL then
-    Result := TValue.Empty
-  else
-    Result := {$IFDEF PAS2JS}FromJSValue{$ELSE}FromVariant{$ENDIF}(Value);
-end;
 
 function TValueHelper.GetArrayElementInternal(Index: Integer): TValue;
 begin

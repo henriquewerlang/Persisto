@@ -1,4 +1,4 @@
-unit Delphi.ORM.Test.Entity;
+﻿unit Delphi.ORM.Test.Entity;
 
 interface
 

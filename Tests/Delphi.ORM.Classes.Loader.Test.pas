@@ -1,4 +1,4 @@
-unit Delphi.ORM.Classes.Loader.Test;
+﻿unit Delphi.ORM.Classes.Loader.Test;
 
 interface
 
@@ -134,8 +134,6 @@ begin
   Assert.AreEqual(3, Cursor.CurrentRecord);
 
   Loader.Free;
-
-  Result.Free;
 end;
 
 procedure TClassLoaderTest.MustLoadThePropertiesOfAllRecords;
@@ -151,8 +149,6 @@ begin
 
   Assert.AreEqual<Integer>(222, Result[1].Value);
 
-  for var Obj in Result do
-    Obj.Free;
   Loader.Free;
 end;
 
@@ -163,8 +159,6 @@ begin
 
   Assert.AreEqual('abc', MyClass.Name);
   Assert.AreEqual(123, MyClass.Value);
-
-  MyClass.Free;
 
   Loader.Free;
 end;
@@ -181,11 +175,6 @@ begin
 
   Assert.AreEqual(Result, Result.ManyValueAssociationList[0].ManyValueAssociation);
 
-  for var Obj in Result.ManyValueAssociationList do
-    Obj.Free;
-
-  Result.Free;
-
   Loader.Free;
 end;
 
@@ -196,8 +185,6 @@ begin
 
   Assert.IsNotNull(Result.AnotherClass);
 
-  Result.AnotherClass.Free;
-  Result.Free;
   Loader.Free;
 end;
 
@@ -209,8 +196,6 @@ begin
   Assert.AreEqual(456, Result.AnotherClass.Id);
   Assert.AreEqual(789, Result.AnotherClass.Value);
 
-  Result.AnotherClass.Free;
-  Result.Free;
   Loader.Free;
 end;
 
@@ -242,24 +227,6 @@ begin
   Assert.AreEqual<Integer>(1, Length(Result[1].Child[0].Child), 'Key 2, 30');
 
   Loader.Free;
-
-  Result[1].Child[0].Child[0].Free;
-
-  Result[1].Child[0].Free;
-
-  Result[1].Free;
-
-  Result[0].Child[1].Child[0].Free;
-
-  Result[0].Child[1].Free;
-
-  Result[0].Child[0].Child[1].Free;
-
-  Result[0].Child[0].Child[0].Free;
-
-  Result[0].Child[0].Free;
-
-  Result[0].Free;
 end;
 
 procedure TClassLoaderTest.WhenAClassIsLoadedAndMustUseTheSameInstanceIfThePrimaryKeyRepeats;
@@ -268,11 +235,6 @@ begin
   var Result := Loader.LoadAll<TClassWithForeignKey>;
 
   Assert.AreEqual(Result[0].AnotherClass, Result[1].AnotherClass);
-
-  Result[0].AnotherClass.Free;
-
-  for var Obj in Result do
-    Obj.Free;
 
   Loader.Free;
 end;
@@ -294,10 +256,6 @@ begin
 
   Assert.AreEqual(EmptyStr, LazyFactory.CheckExpectations);
 
-  MyLazy.Lazy.Value.Free;
-
-  MyLazy.Free;
-
   Loader.Free;
 end;
 
@@ -308,16 +266,14 @@ begin
 
   Assert.AreEqual<Integer>(2, Length(Result));
 
-  for var Obj in Result do
-    Obj.Free;
   Loader.Free;
 end;
 procedure TClassLoaderTest.WhenLoadAllIsCallWithTheSamePrimaryKeyValueMustReturnASingleObject;
 begin
   var Loader := CreateLoader<TMyClass>([['aaa', 222], ['aaa', 222], ['aaa', 222]]);
   var Result := Loader.LoadAll<TMyClass>;
+
   Assert.AreEqual<Integer>(1, Length(Result));
-  Result[0].Free;
 
   Loader.Free;
 end;
@@ -338,11 +294,6 @@ begin
   var Result := Loader.Load<TMyEntityWithManyValueAssociation>;
 
   Assert.AreEqual<Integer>(1, Length(Result.ManyValueAssociationList));
-
-  for var Obj in Result.ManyValueAssociationList do
-    Obj.Free;
-
-  Result.Free;
 
   Loader.Free;
 end;
@@ -367,11 +318,6 @@ begin
 
   Assert.AreEqual<Integer>(3, Length(Result.ManyValueAssociationList));
 
-  for var Obj in Result.ManyValueAssociationList do
-    Obj.Free;
-
-  Result.Free;
-
   Loader.Free;
 end;
 
@@ -385,12 +331,6 @@ begin
   Assert.IsTrue(Assigned(MyClass.ForeignKey2.ForeignKey3));
 
   Assert.AreEqual(555, MyClass.ForeignKey2.ForeignKey3.Id);
-
-  MyClass.ForeignKey2.ForeignKey3.Free;
-
-  MyClass.ForeignKey2.Free;
-
-  MyClass.Free;
 
   Loader.Free;
 end;
@@ -406,10 +346,6 @@ begin
   Assert.AreEqual('My Field', MyClass.ForeignKey3.Field1);
   Assert.AreEqual<Double>(222.333, MyClass.ForeignKey3.Field2);
 
-  MyClass.ForeignKey3.Free;
-
-  MyClass.Free;
-
   Loader.Free;
 end;
 
@@ -424,8 +360,6 @@ begin
 
   Assert.AreEqual(MyGuid.ToString, MyClass.Guid.ToString);
 
-  MyClass.Free;
-
   Loader.Free;
 end;
 
@@ -438,8 +372,6 @@ begin
   Assert.AreEqual('aaa', Result[0].AnotherProperty);
   Assert.AreEqual('bbb', Result[0].BaseProperty);
 
-  Result[0].Free;
-
   Loader.Free;
 end;
 
@@ -450,8 +382,6 @@ begin
   var MyClass := Loader.Load<TMyEntityWithoutPrimaryKey>;
 
   Assert.IsNotNull(MyClass);
-
-  MyClass.Free;
 
   Loader.Free;
 end;
@@ -472,28 +402,22 @@ begin
 
   Assert.AreEqual(EmptyStr, LazyFactory.CheckExpectations);
 
-  MyLazy.Lazy.Value.Free;
-
-  MyLazy.Free;
-
   Loader.Free;
 end;
 
 procedure TClassLoaderTest.WhenTheLoaderCreateANewObjectMustAddItToTheCacheControl;
 begin
-  var Cache := TCache.Create;
   var Context := TRttiContext.Create;
   var Cursor := TCursorMock.Create([['aaa', 333]]);
   var Loader := CreateLoaderCursor<TMyClass>(Cursor);
-  Loader.Cache := Cache;
+  Loader.Cache := TCache.Create;
+  var SharedObject: ISharedObject;
 
   var MyClass := Loader.Load<TMyClass>;
 
-  Assert.AreEqual(1, Cache.Values.Count);
+  Assert.IsTrue(Loader.Cache.Get('Delphi.ORM.Test.Entity.TMyClass.aaa', SharedObject));
 
   Loader.Free;
-
-  MyClass.Free;
 end;
 
 procedure TClassLoaderTest.WhenTheManyValueAssociationFieldHasRepetedKeyMustLoadJustOnceThenProperty;
@@ -512,14 +436,6 @@ begin
 
   Assert.AreEqual<Integer>(2, Length(Result[0].ManyValueAssociationList) + Length(Result[1].ManyValueAssociationList));
 
-  for var ParentObj in Result do
-  begin
-    for var Obj in ParentObj.ManyValueAssociationList do
-      Obj.Free;
-
-    ParentObj.Free;
-  end;
-
   Loader.Free;
 end;
 
@@ -530,11 +446,6 @@ begin
 
   Assert.AreEqual<Integer>(4, Length(Obj.Childs));
 
-  for var Value in Obj.Childs do
-    Value.Free;
-
-  Obj.Free;
-
   Loader.Free;
 end;
 
@@ -544,14 +455,6 @@ begin
   var Result := Loader.LoadAll<TMyEntityWithManyValueAssociation>;
 
   Assert.AreEqual<Integer>(2, Length(Result));
-
-  for var ParentObj in Result do
-  begin
-    for var Obj in ParentObj.ManyValueAssociationList do
-      Obj.Free;
-
-    ParentObj.Free;
-  end;
 
   Loader.Free;
 end;
@@ -564,18 +467,17 @@ begin
   var MyClass := TMyClass.Create;
   MyClass.Name := 'aaa';
   MyClass.Value := 111;
+  var Table := TMapper.Default.FindTable(TMyClass);
 
   Loader.Cache := TCache.Create;
 
-  Loader.Cache.Add(Context.GetType(TMyClass), 'aaa', MyClass);
+  Loader.Cache.Add(Table.GetCacheKey(MyClass), MyClass);
 
   Loader.Load<TMyClass>;
 
   Assert.AreEqual(333, MyClass.Value);
 
   Loader.Free;
-
-  MyClass.Free;
 end;
 
 procedure TClassLoaderTest.WhenThePrimaryKeyOfAForeignKeyIsNullCantLoadTheEntireObject;
@@ -584,8 +486,6 @@ begin
   var Result := Loader.Load<TMyEntityWithManyValueAssociationChild>;
 
   Assert.IsNull(Result.ManyValueAssociation);
-
-  Result.Free;
 
   Loader.Free;
 end;
@@ -597,8 +497,6 @@ begin
 
   Assert.AreEqual<Integer>(0, Length(Result.ManyValueAssociationList));
 
-  Result.Free;
-
   Loader.Free;
 end;
 
@@ -608,10 +506,6 @@ begin
   var Result := Loader.Load<TClassWithForeignKey>;
 
   Assert.AreEqual(222, Result.AnotherClass.Id);
-
-  Result.AnotherClass.Free;
-
-  Result.Free;
 
   Loader.Free;
 end;
@@ -643,9 +537,7 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      var MyClass := Loader.Load<TMyClassWithSpecialTypes>;
-
-      MyClass.Free;
+      Loader.Load<TMyClassWithSpecialTypes>;
     end);
 
   Loader.Free;

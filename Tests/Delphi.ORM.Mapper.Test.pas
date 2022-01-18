@@ -1,4 +1,4 @@
-unit Delphi.ORM.Mapper.Test;
+﻿unit Delphi.ORM.Mapper.Test;
 
 interface
 
@@ -256,6 +256,24 @@ type
     procedure WhenTheFieldHasTheInsertCascadeAndUpdateCascadeAnotationMustLoadTheInfoInTheForeignKey;
     [Test]
     procedure WhenTheClassIsInheritedMustLoadTheCascadeInfoWithUpdateAndInsertCascade;
+    [Test]
+    procedure WhenGenerateTheCacheKeyMustBeTheQualifiedNameOfTheClassPlusThePrimaryKeyValue;
+    [Test]
+    procedure WhenCallGetCacheKeyMustBuildTheValueOfTheCacheKeyWithThePrimaryKeyValueFromTheClass;
+    [Test]
+    procedure WhenTheClassDontHaveAPrimaryKeyMustLoadTheCacheKeyWithoutThePrimaryKeyValue;
+    [Test]
+    procedure IfTheValueVariantIsNullValueMustReturnAEmptyTValue;
+    [Test]
+    procedure IfTheFieldIsAnEnumeratorMustReturnTheOrdinalValueFromVariant;
+    [Test]
+    procedure IfTheVariantValueIsGUIDValueMustConvertToTValueAsExpected;
+    [Test]
+    procedure TheAnotherVariantValuesMustJustConvertToTValue;
+    [Test]
+    procedure WhenCallGetCacheValueWithVariantMustBuildTheKeyAsExpected;
+    [Test]
+    procedure WhenCallGetCacheValueWithVariantAndTheTableDontHavePrimaryKeyMustLoadTheKeyAsExpected;
   end;
 
   [TestFixture]
@@ -317,6 +335,20 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.IfTheFieldIsAnEnumeratorMustReturnTheOrdinalValueFromVariant;
+begin
+  var Field: TField;
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Value: Variant := Enum3;
+
+  Table.FindField('Enumerator', Field);
+
+  Assert.AreEqual(Enum3, Field.ConvertVariant(Value).AsType<TMyEnumerator>);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.IfTheFindTableNotFoundTheClassMustRaiseAnError;
 begin
   var Mapper := TMapper.Create;
@@ -326,6 +358,34 @@ begin
     begin
       Mapper.FindTable(TMyEntityWithoutEntityAttribute);
     end, ETableNotFound);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.IfTheValueVariantIsNullValueMustReturnAEmptyTValue;
+begin
+  var Field: TField;
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntityWithAllTypeOfFields);
+
+  Table.FindField('AnsiString', Field);
+
+  Assert.IsTrue(Field.ConvertVariant(NULL).IsEmpty);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.IfTheVariantValueIsGUIDValueMustConvertToTValueAsExpected;
+begin
+  var Field: TField;
+  var GUIDValue := StringToGUID('{12345678-1234-1234-1234-123456789012}');
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Value: Variant := GUIDValue.ToString;
+
+  Table.FindField('GUID', Field);
+
+  Assert.AreEqual(GUIDValue, Field.ConvertVariant(Value).AsType<TGUID>);
 
   Mapper.Free;
 end;
@@ -350,7 +410,26 @@ begin
   except
   end;
 
-  FContext.GetType(TMyEntity);
+  try
+    Mapper.LoadClass(TMyEntityWithInvalidDefaultValue);
+  except
+  end;
+
+  FContext.GetType(TClassWithPrimaryKey).QualifiedName;
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.TheAnotherVariantValuesMustJustConvertToTValue;
+begin
+  var Field: TField;
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Value: Variant := 123456;
+
+  Table.FindField('Integer', Field);
+
+  Assert.AreEqual(123456, Field.ConvertVariant(Value).AsInteger);
 
   Mapper.Free;
 end;
@@ -815,6 +894,40 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.WhenCallGetCacheKeyMustBuildTheValueOfTheCacheKeyWithThePrimaryKeyValueFromTheClass;
+begin
+  var Mapper := TMapper.Create;
+  var MyClass := TClassWithPrimaryKey.Create;
+  MyClass.Id := 123456;
+  var Table := Mapper.LoadClass(TClassWithPrimaryKey);
+
+  Assert.AreEqual('Delphi.ORM.Test.Entity.TClassWithPrimaryKey.123456', Table.GetCacheKey(MyClass));
+
+  MyClass.Free;
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenCallGetCacheValueWithVariantAndTheTableDontHavePrimaryKeyMustLoadTheKeyAsExpected;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntityWithoutPrimaryKey);
+
+  Assert.AreEqual('Delphi.ORM.Test.Entity.TMyEntityWithoutPrimaryKey.', Table.GetCacheKey(1234));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenCallGetCacheValueWithVariantMustBuildTheKeyAsExpected;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TClassWithPrimaryKey);
+
+  Assert.AreEqual('Delphi.ORM.Test.Entity.TClassWithPrimaryKey.123456', Table.GetCacheKey(123456));
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.WhenCallLoadAllMoreThemOneTimeCantRaiseAnError;
 begin
   var Mapper := TMapper.Create;
@@ -833,6 +946,16 @@ begin
   Mapper.LoadAll;
 
   Assert.IsTrue(Length(Mapper.Tables) > 0, 'No entities loaded!');
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenGenerateTheCacheKeyMustBeTheQualifiedNameOfTheClassPlusThePrimaryKeyValue;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TClassWithPrimaryKey);
+
+  Assert.AreEqual('Delphi.ORM.Test.Entity.TClassWithPrimaryKey.MyKey', Table.GenerateCacheKey('MyKey'));
 
   Mapper.Free;
 end;
@@ -1183,6 +1306,19 @@ begin
   var Table := Mapper.LoadClass(TMyEntityWithManyValueAssociation);
 
   Assert.AreEqual<Integer>(1, Length(Table.ManyValueAssociations));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheClassDontHaveAPrimaryKeyMustLoadTheCacheKeyWithoutThePrimaryKeyValue;
+begin
+  var Mapper := TMapper.Create;
+  var MyClass := TMyEntityWithoutPrimaryKey.Create;
+  var Table := Mapper.LoadClass(TMyEntityWithoutPrimaryKey);
+
+  Assert.AreEqual('Delphi.ORM.Test.Entity.TMyEntityWithoutPrimaryKey.', Table.GetCacheKey(MyClass));
+
+  MyClass.Free;
 
   Mapper.Free;
 end;

@@ -1,4 +1,4 @@
-unit Delphi.ORM.Classes.Loader;
+﻿unit Delphi.ORM.Classes.Loader;
 
 interface
 
@@ -14,8 +14,7 @@ type
 
     function CreateObject(Table: TTable; const FieldIndexStart: Integer; var NewObject: Boolean): TObject;
     function GetCache: ICache;
-    function GetFieldValueVariant(const Index: Integer): Variant;
-    function GetPrimaryKeyFromTable(Table: TTable; const FieldIndexStart: Integer): TValue;
+    function GetFieldValueFromCursor(const Index: Integer): Variant;
     function LoadClass(var NewObject: Boolean): TObject;
 
     procedure LoadObject(Obj: TObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
@@ -46,24 +45,25 @@ end;
 
 function TClassLoader.CreateObject(Table: TTable; const FieldIndexStart: Integer; var NewObject: Boolean): TObject;
 begin
-  var CacheValue := TValue.Empty;
-  var PrimaryKeyValue := GetPrimaryKeyFromTable(Table, FieldIndexStart);
+  var PrimaryKeyValue := GetFieldValueFromCursor(FieldIndexStart);
+  var SharedObject: ISharedObject := nil;
 
-  NewObject := not PrimaryKeyValue.IsEmpty and not FLoadedObjects.Get(Table.ClassTypeInfo, PrimaryKeyValue, CacheValue);
+  var CacheKey := Table.GetCacheKey(PrimaryKeyValue);
+
+  NewObject := (not Assigned(Table.PrimaryKey) or not VarIsNull(PrimaryKeyValue)) and not FLoadedObjects.Get(CacheKey, SharedObject);
 
   if NewObject then
   begin
-    if Assigned(Cache) and not Cache.Get(Table.ClassTypeInfo, PrimaryKeyValue, CacheValue) then
-    begin
-      CacheValue := Table.ClassTypeInfo.MetaclassType.Create;
+    if not Cache.Get(CacheKey, SharedObject) then
+      SharedObject := Cache.Add(CacheKey, Table.ClassTypeInfo.MetaclassType.Create);
 
-      Cache.Add(Table.ClassTypeInfo, PrimaryKeyValue, CacheValue);
-    end;
-
-    FLoadedObjects.Add(Table.ClassTypeInfo, PrimaryKeyValue, CacheValue);
+    FLoadedObjects.Add(CacheKey, SharedObject);
   end;
 
-  Result := CacheValue.AsObject;
+  if Assigned(SharedObject) then
+    Result := SharedObject.&Object
+  else
+    Result := nil;
 end;
 
 function TClassLoader.GetCache: ICache;
@@ -74,22 +74,9 @@ begin
   Result := FCache;
 end;
 
-function TClassLoader.GetFieldValueVariant(const Index: Integer): Variant;
+function TClassLoader.GetFieldValueFromCursor(const Index: Integer): Variant;
 begin
   Result := FCursor.GetFieldValue(Index);
-end;
-
-function TClassLoader.GetPrimaryKeyFromTable(Table: TTable; const FieldIndexStart: Integer): TValue;
-begin
-  if Assigned(Table.PrimaryKey) then
-  begin
-    var FieldValue := GetFieldValueVariant(FieldIndexStart);
-
-    if not VarIsNull(FieldValue) then
-      Result := TValue.FromVariantNull(FieldValue);
-  end
-  else
-    Result := 'E';
 end;
 
 function TClassLoader.Load<T>: T;
@@ -145,10 +132,10 @@ begin
     begin
       if Assigned(Obj) then
       begin
-        var FieldValue := GetFieldValueVariant(FieldIndexStart);
+        var FieldValue := GetFieldValueFromCursor(FieldIndexStart);
 
         if Field.IsLazy then
-          GetLazyLoadingAccess(Field.PropertyInfo.GetValue(Obj)).Key := TValue.FromVariantNull(FieldValue)
+          GetLazyLoadingAccess(Field.PropertyInfo.GetValue(Obj)).Key := Field.ConvertVariant(FieldValue)
         else if not Field.ReadOnly then
           Field.SetValue(Obj, FieldValue);
       end;

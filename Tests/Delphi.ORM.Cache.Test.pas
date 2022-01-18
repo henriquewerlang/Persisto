@@ -1,4 +1,4 @@
-unit Delphi.ORM.Cache.Test;
+﻿unit Delphi.ORM.Cache.Test;
 
 interface
 
@@ -10,22 +10,14 @@ type
   private
     function CreateCache: ICache;
   public
-    [SetupFixture]
-    procedure SetupFixture;
     [Test]
-    procedure MustGenerateTheKeyOfCacheAsExpected;
+    procedure WhenAddAnObjectToTheCacheMustReturnTheSharedInstanceOfThatObject;
     [Test]
-    procedure WhenAddAnItemMustGoToTheList;
+    procedure AfterAddTheObjectMustReturnTheValueAddedToTheCacheUsingTheSameKey;
     [Test]
-    procedure TheKeyValueAddedMustBeTheKeyGeneratedByTheCache;
+    procedure WhenTheKeyValueDontExistMustReturnFalseInGetValue;
     [Test]
-    procedure TheValueAddedMustByTheValuePassedInTheParameter;
-    [Test]
-    procedure WhenTryToGetAValueThatDontExtistMustReturnFalseInGetValue;
-    [Test]
-    procedure WhenFindTheValueInTheCacheMustReturnTrueInGetValue;
-    [Test]
-    procedure WhenFindTheValueMustReturnTheValueInTheKey;
+    procedure WhenAddASharedObjectJustMustAddToTheCacheTheObject;
   end;
 
 implementation
@@ -34,113 +26,54 @@ uses System.Rtti, Delphi.ORM.Test.Entity;
 
 { TCacheTest }
 
+procedure TCacheTest.AfterAddTheObjectMustReturnTheValueAddedToTheCacheUsingTheSameKey;
+begin
+  var Cache := CreateCache;
+  var MyObject := TObject.Create;
+  var SharedObject: ISharedObject;
+
+  Cache.Add('MyKey', MyObject);
+
+  Cache.Get('MyKey', SharedObject);
+
+  Assert.AreEqual(MyObject, SharedObject.&Object);
+end;
+
 function TCacheTest.CreateCache: ICache;
 begin
   Result := TCache.Create;
 end;
 
-procedure TCacheTest.MustGenerateTheKeyOfCacheAsExpected;
-begin
-  var Context := TRttiContext.Create;
-  var RttiType := Context.GetType(TMyClass);
-
-  Assert.AreEqual('Delphi.ORM.Test.Entity.TMyClass.MyKey', TCache.GenerateKey(RttiType, 'MyKey'));
-end;
-
-procedure TCacheTest.SetupFixture;
-begin
-  var RttiType := TRttiContext.Create.GetType(TMyClass);
-
-  RttiType.GetProperties;
-
-  RttiType.QualifiedName;
-end;
-
-procedure TCacheTest.TheKeyValueAddedMustBeTheKeyGeneratedByTheCache;
-begin
-  var Cache := TCache.Create;
-  var CacheInterface: ICache := Cache;
-  var Context := TRttiContext.Create;
-  var MyClass := TMyClass.Create;
-  var RttiType := Context.GetType(TMyClass);
-
-  CacheInterface.Add(RttiType, 'MyKey', MyClass);
-
-  Assert.AreEqual('Delphi.ORM.Test.Entity.TMyClass.MyKey', Cache.Values.Keys.ToArray[0]);
-
-  MyClass.Free;
-end;
-
-procedure TCacheTest.TheValueAddedMustByTheValuePassedInTheParameter;
-begin
-  var Cache := TCache.Create;
-  var CacheInterface: ICache := Cache;
-  var Context := TRttiContext.Create;
-  var MyClass := TMyClass.Create;
-  var RttiType := Context.GetType(TMyClass);
-
-  CacheInterface.Add(RttiType, 'MyKey', MyClass);
-
-  Assert.AreEqual<TObject>(MyClass, Cache.Values.Values.ToArray[0].AsObject);
-
-  MyClass.Free;
-end;
-
-procedure TCacheTest.WhenAddAnItemMustGoToTheList;
-begin
-  var Cache := TCache.Create;
-  var CacheInterface: ICache := Cache;
-  var Context := TRttiContext.Create;
-  var MyClass := TMyClass.Create;
-  var RttiType := Context.GetType(TMyClass);
-
-  CacheInterface.Add(RttiType, 'MyKey', MyClass);
-
-  Assert.AreEqual(1, Cache.Values.Count);
-
-  MyClass.Free;
-end;
-
-procedure TCacheTest.WhenFindTheValueInTheCacheMustReturnTrueInGetValue;
+procedure TCacheTest.WhenAddAnObjectToTheCacheMustReturnTheSharedInstanceOfThatObject;
 begin
   var Cache := CreateCache;
-  var Context := TRttiContext.Create;
-  var MyClass := TMyClass.Create;
-  var RttiType := Context.GetType(TMyClass);
-  var Value := TValue.Empty;
+  var MyObject := TObject.Create;
 
-  Cache.Add(RttiType, 'MyKey', MyClass);
+  var SharedObject := Cache.Add('MyKey', MyObject);
 
-  Assert.IsTrue(Cache.Get(RttiType, 'MyKey', Value));
-
-  MyClass.Free;
+  Assert.AreEqual(MyObject, SharedObject.&Object);
 end;
 
-procedure TCacheTest.WhenFindTheValueMustReturnTheValueInTheKey;
+procedure TCacheTest.WhenAddASharedObjectJustMustAddToTheCacheTheObject;
 begin
   var Cache := CreateCache;
-  var Context := TRttiContext.Create;
-  var MyClass := TMyClass.Create;
-  var RttiType := Context.GetType(TMyClass);
-  var Value := TValue.Empty;
+  var MyObject := TObject.Create;
 
-  Cache.Add(RttiType, 'MyKey', MyClass);
+  var SharedObject := Cache.Add('MyKey', MyObject);
 
-  Cache.Get(RttiType, 'MyKey', Value);
+  Cache.Add('MyKey2', SharedObject);
 
-  Assert.AreEqual<TObject>(MyClass, Value.AsObject);
+  Cache.Get('MyKey2', SharedObject);
 
-  MyClass.Free;
+  Assert.AreEqual(MyObject, SharedObject.&Object);
 end;
 
-procedure TCacheTest.WhenTryToGetAValueThatDontExtistMustReturnFalseInGetValue;
+procedure TCacheTest.WhenTheKeyValueDontExistMustReturnFalseInGetValue;
 begin
   var Cache := CreateCache;
-  var Context := TRttiContext.Create;
-  var RttiType := Context.GetType(TMyClass);
-  var Value := TValue.Empty;
+  var SharedObject: ISharedObject;
 
-  Assert.IsFalse(Cache.Get(RttiType, 'MyKey', Value));
+  Assert.IsFalse(Cache.Get('MyKey', SharedObject));
 end;
 
 end.

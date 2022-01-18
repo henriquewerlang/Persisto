@@ -1,4 +1,4 @@
-unit Delphi.ORM.Mapper;
+﻿unit Delphi.ORM.Mapper;
 
 interface
 
@@ -59,6 +59,9 @@ type
     destructor Destroy; override;
 
     function FindField(const FieldName: String; var Field: TField): Boolean;
+    function GenerateCacheKey(const PrimaryKeyValue: TValue): String;
+    function GetCacheKey(const Instance: TObject): String; overload;
+    function GetCacheKey(const PrimaryKeyValue: Variant): String; overload;
 
     property BaseTable: TTable read FBaseTable;
     property ClassTypeInfo: TRttiInstanceType read FClassTypeInfo;
@@ -90,6 +93,7 @@ type
     FPropertyInfo: TRttiInstanceProperty;
     FReadOnly: Boolean;
   public
+    function ConvertVariant(const Value: Variant): TValue;
     function GetAsString(const Instance: TObject): String; overload;
     function GetAsString(const Value: TValue): String; overload;
     function GetValue(const Instance: TObject): TValue; virtual;
@@ -601,6 +605,27 @@ begin
     end;
 end;
 
+function TTable.GenerateCacheKey(const PrimaryKeyValue: TValue): String;
+begin
+  Result := Format('%s.%s', [ClassTypeInfo.QualifiedName, PrimaryKeyValue.GetAsString]);
+end;
+
+function TTable.GetCacheKey(const PrimaryKeyValue: Variant): String;
+begin
+  if Assigned(PrimaryKey) then
+    Result := GenerateCacheKey(PrimaryKey.ConvertVariant(PrimaryKeyValue))
+  else
+    Result := GenerateCacheKey(EmptyStr);
+end;
+
+function TTable.GetCacheKey(const Instance: TObject): String;
+begin
+  if Assigned(PrimaryKey) then
+    Result := GenerateCacheKey(PrimaryKey.GetValue(Instance))
+  else
+    Result := GenerateCacheKey(EmptyStr);
+end;
+
 { TFieldAlias }
 
 constructor TFieldAlias.Create(TableAlias: String; Field: TField);
@@ -626,6 +651,18 @@ end;
 function TField.GetAsString(const Instance: TObject): String;
 begin
   Result := GetAsString(GetValue(Instance));
+end;
+
+function TField.ConvertVariant(const Value: Variant): TValue;
+begin
+  if VarIsNull(Value) then
+    Result := TValue.Empty
+  else if FieldType is TRttiEnumerationType then
+    Result := TValue.FromOrdinal(FieldType.Handle, Value)
+  else if FieldType.Handle = System.TypeInfo(TGUID) then
+    Result := TValue.From(StringToGuid(Value))
+  else
+    Result := TValue.FromVariant(Value);
 end;
 
 function TField.GetAsString(const Value: TValue): String;
@@ -706,14 +743,7 @@ end;
 
 procedure TField.SetValue(const Instance: TObject; const Value: Variant);
 begin
-  if Value = System.Variants.NULL then
-    SetValue(Instance, TValue.Empty)
-  else if FieldType is TRttiEnumerationType then
-    SetValue(Instance, TValue.FromOrdinal(FieldType.Handle, Value))
-  else if FieldType.Handle = System.TypeInfo(TGUID) then
-    SetValue(Instance, TValue.From(StringToGuid(Value)))
-  else
-    SetValue(Instance, TValue.FromVariant(Value));
+  SetValue(Instance, ConvertVariant(Value));
 end;
 
 { EManyValueAssociationLinkError }

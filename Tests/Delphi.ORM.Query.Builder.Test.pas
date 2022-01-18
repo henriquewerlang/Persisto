@@ -955,8 +955,6 @@ begin
 
   Assert.AreEqual<Double>(123.456, Result.Value);
 
-  Result.Free;
-
   Query.Free;
 end;
 

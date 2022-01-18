@@ -34,10 +34,6 @@ type
     [TestCase('String', 'String,String')]
     [TestCase('Time', 'Time,12:34:56')]
     procedure TheConversionOfTheTValueMustBeLikeExpected(TypeToConvert, ValueToCompare: String);
-    [Test]
-    procedure WhenConvertANullVariantInATValueMustGenerateAEmptyTValue;
-    [Test]
-    procedure ANormalVariantMustBeLoadedByTheDefaultFunction;
   end;
 
   [TestFixture]
@@ -107,13 +103,6 @@ end;
 
 { TValueHelperTest }
 
-procedure TValueHelperTest.ANormalVariantMustBeLoadedByTheDefaultFunction;
-begin
-  var MyValue := TValue.FromVariantNull(Variant('abc'));
-
-  Assert.AreEqual('abc', MyValue.AsString);
-end;
-
 procedure TValueHelperTest.Setup;
 begin
   try
@@ -166,13 +155,6 @@ begin
   Value.ArrayLength := 4;
 
   Assert.AreEqual<Integer>(4, Length(Value.AsType<TArray<Integer>>));
-end;
-
-procedure TValueHelperTest.WhenConvertANullVariantInATValueMustGenerateAEmptyTValue;
-begin
-  var MyValue := TValue.FromVariantNull(NULL);
-
-  Assert.IsTrue(MyValue.IsEmpty);
 end;
 
 procedure TValueHelperTest.WhenGetAnArrayElementMustReturnTheValueExpected;

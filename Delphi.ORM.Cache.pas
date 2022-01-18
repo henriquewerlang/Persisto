@@ -1,50 +1,71 @@
-unit Delphi.ORM.Cache;
+﻿unit Delphi.ORM.Cache;
 
 interface
 
-uses System.Rtti, System.Generics.Collections;
+uses System.Generics.Collections;
 
 type
+  ISharedObject = interface
+    function GetObject: TObject;
+
+    property &Object: TObject read GetObject;
+  end;
+
   ICache = interface
     ['{E910CEFC-7423-4307-B805-0B313BF46735}']
-    function Get(RttiType: TRttiType; const PrimaryKey: TValue; var Value: TValue): Boolean;
+    function Add(const Key: String; const Value: TObject): ISharedObject; overload;
+    function Get(const Key: String; var Value: ISharedObject): Boolean;
 
-    procedure Add(RttiType: TRttiType; const PrimaryKey, Value: TValue);
+    procedure Add(const Key: String; const Value: ISharedObject); overload;
   end;
 
   TCache = class(TInterfacedObject, ICache)
   private
-    FValues: TDictionary<String, TValue>;
+    FValues: TDictionary<String, ISharedObject>;
 
-    function Get(RttiType: TRttiType; const PrimaryKey: TValue; var Value: TValue): Boolean;
+    function Add(const Key: String; const Value: TObject): ISharedObject; overload;
+    function Get(const Key: String; var Value: ISharedObject): Boolean;
 
-    procedure Add(RttiType: TRttiType; const PrimaryKey, Value: TValue);
+    procedure Add(const Key: String; const Value: ISharedObject); overload;
   public
     constructor Create;
 
     destructor Destroy; override;
-
-    class function GenerateKey(RttiType: TRttiType; const PrimaryKey: TValue): String;
-
-    property Values: TDictionary<String, TValue> read FValues write FValues;
   end;
 
 implementation
 
-uses System.SysUtils, Delphi.ORM.Rtti.Helper;
+type
+  TSharedObject = class(TInterfacedObject, ISharedObject)
+  private
+    FObject: TObject;
+
+    function GetObject: TObject;
+  public
+    constructor Create(const Instance: TObject);
+
+    destructor Destroy; override;
+  end;
 
 { TCache }
 
-procedure TCache.Add(RttiType: TRttiType; const PrimaryKey, Value: TValue);
+function TCache.Add(const Key: String; const Value: TObject): ISharedObject;
 begin
-  Values.Add(GenerateKey(RttiType, PrimaryKey), Value);
+  Result := TSharedObject.Create(Value);
+
+  Add(Key, Result);
+end;
+
+procedure TCache.Add(const Key: String; const Value: ISharedObject);
+begin
+  FValues.Add(Key, Value);
 end;
 
 constructor TCache.Create;
 begin
   inherited;
 
-  FValues := TObjectDictionary<String, TValue>.Create;
+  FValues := TObjectDictionary<String, ISharedObject>.Create;
 end;
 
 destructor TCache.Destroy;
@@ -54,14 +75,30 @@ begin
   inherited;
 end;
 
-class function TCache.GenerateKey(RttiType: TRttiType; const PrimaryKey: TValue): String;
+function TCache.Get(const Key: String; var Value: ISharedObject): Boolean;
 begin
-  Result := Format('%s.%s', [RttiType.QualifiedName, PrimaryKey.GetAsString]);
+  Result := FValues.TryGetValue(Key, Value);
 end;
 
-function TCache.Get(RttiType: TRttiType; const PrimaryKey: TValue; var Value: TValue): Boolean;
+{ TSharedObject }
+
+constructor TSharedObject.Create(const Instance: TObject);
 begin
-  Result := Values.TryGetValue(GenerateKey(RttiType, PrimaryKey), Value);
+  inherited Create;
+
+  FObject := Instance;
+end;
+
+destructor TSharedObject.Destroy;
+begin
+  FObject.Free;
+
+  inherited;
+end;
+
+function TSharedObject.GetObject: TObject;
+begin
+  Result := FObject;
 end;
 
 end.
