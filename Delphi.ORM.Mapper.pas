@@ -215,7 +215,7 @@ type
 
 implementation
 
-uses System.Variants, Delphi.ORM.Rtti.Helper, Delphi.ORM.Nullable, Delphi.ORM.Lazy;
+uses System.Variants, Delphi.ORM.Rtti.Helper, Delphi.ORM.Nullable, Delphi.ORM.Lazy, Delphi.ORM.Cache;
 
 function SortFieldFunction(const Left, Right: TField): Integer;
 
@@ -607,7 +607,7 @@ end;
 
 function TTable.GenerateCacheKey(const PrimaryKeyValue: TValue): String;
 begin
-  Result := Format('%s.%s', [ClassTypeInfo.QualifiedName, PrimaryKeyValue.GetAsString]);
+  Result := TCache.GenerateKey(ClassTypeInfo, PrimaryKeyValue);
 end;
 
 function TTable.GetCacheKey(const PrimaryKeyValue: Variant): String;

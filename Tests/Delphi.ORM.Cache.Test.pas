@@ -18,6 +18,8 @@ type
     procedure WhenTheKeyValueDontExistMustReturnFalseInGetValue;
     [Test]
     procedure WhenAddASharedObjectJustMustAddToTheCacheTheObject;
+    [Test]
+    procedure TheGenerateKeyFunctionMustReturnTheQualifiedClassNamePlusTheKeyValue;
   end;
 
 implementation
@@ -42,6 +44,11 @@ end;
 function TCacheTest.CreateCache: ICache;
 begin
   Result := TCache.Create;
+end;
+
+procedure TCacheTest.TheGenerateKeyFunctionMustReturnTheQualifiedClassNamePlusTheKeyValue;
+begin
+  Assert.AreEqual('Delphi.ORM.Cache.Test.TCacheTest.MyKey', TCache.GenerateKey(TRttiContext.Create.GetType(TCacheTest), 'MyKey'));
 end;
 
 procedure TCacheTest.WhenAddAnObjectToTheCacheMustReturnTheSharedInstanceOfThatObject;
