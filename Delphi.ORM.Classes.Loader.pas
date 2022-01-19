@@ -157,7 +157,10 @@ begin
     var NewChildObject: Boolean;
 
     if Link.IsInheritedLink then
-      ForeignKeyObject := Obj
+    begin
+      ForeignKeyObject := Obj;
+      NewChildObject := NewObject;
+    end
     else
       ForeignKeyObject := CreateObject(Link.Table, FieldIndexStart, NewChildObject);
 

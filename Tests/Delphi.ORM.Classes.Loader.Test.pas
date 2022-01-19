@@ -83,6 +83,12 @@ type
     procedure WhenLoadingAClassWithAReadOnlyFieldCantRaiseAnyError;
     [Test]
     procedure WhenTheClassBeenLoadedIsInheritedFromAnotherClassMustLoadAllFieldsAsExpected;
+    [Test]
+    procedure WhenTheManyValueRepeatTheKeyCantDuplicateTheValueInTheList;
+    [Test]
+    procedure WhenTheParentClassAsAForeignKeyToTheChildWithManyValueAssociationAndTheValueOfTheForeignKeyIsInTheManyValueAssociationTheValueMustBeAddedToTheList;
+    [Test]
+    procedure WhenTheManyValueAssociationHasInheritedClassMustLoadTheValuesAsExpected;
   end;
 
 implementation
@@ -129,7 +135,8 @@ procedure TClassLoaderTest.EvenIfTheCursorReturnsMoreThanOneRecordTheLoadClassHa
 begin
   var Cursor := TCursorMock.Create([['aaa', 111], ['aaa', 222], ['aaa', 222]]);
   var Loader := CreateLoaderCursor<TMyClass>(Cursor);
-  var Result := Loader.Load<TMyClass>;
+
+  Loader.Load<TMyClass>;
 
   Assert.AreEqual(3, Cursor.CurrentRecord);
 
@@ -413,7 +420,7 @@ begin
   Loader.Cache := TCache.Create;
   var SharedObject: ISharedObject;
 
-  var MyClass := Loader.Load<TMyClass>;
+  Loader.Load<TMyClass>;
 
   Assert.IsTrue(Loader.Cache.Get('Delphi.ORM.Test.Entity.TMyClass.aaa', SharedObject));
 
@@ -441,10 +448,20 @@ end;
 
 procedure TClassLoaderTest.WhenTheManyValueAssociationHasAValueInAForeignKeyAndInsideTheManyValueMustLoadTheManyValueAssociationWithAllValues;
 begin
-  var Loader := CreateLoader<TManyValueParent>([[1, 2, 1, 2, 1], [1, 2, 1, 3, 1], [1, 2, 1, 4, 1], [1, 2, 1, 4, 1]]);
+  var Loader := CreateLoader<TManyValueParent>([[11, 222, 11, 222, 222], [11, 222, 11, 222, 333], [11, 222, 11, 222, 444], [11, 222, 11, 222, 555]]);
   var Obj := Loader.Load<TManyValueParent>;
 
   Assert.AreEqual<Integer>(4, Length(Obj.Childs));
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenTheManyValueAssociationHasInheritedClassMustLoadTheValuesAsExpected;
+begin
+  var Loader := CreateLoader<TManyValueParentInherited>([[1, 2, 2, 3, 1234]]);
+  var Result := Loader.Load<TManyValueParentInherited>;
+
+  Assert.AreEqual<Integer>(1234, Result.Childs[0].Value.Value);
 
   Loader.Free;
 end;
@@ -455,6 +472,17 @@ begin
   var Result := Loader.LoadAll<TMyEntityWithManyValueAssociation>;
 
   Assert.AreEqual<Integer>(2, Length(Result));
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenTheManyValueRepeatTheKeyCantDuplicateTheValueInTheList;
+begin
+  var Loader := CreateLoader<TManyValueParent>([[11, 222, 11, 222, 222], [11, 222, 11, 222, 333], [11, 222, 11, 222, 444], [11, 222, 11, 222, 555], [11, 222, 11, 222, 222],
+    [11, 222, 11, 222, 333], [11, 222, 11, 222, 444], [11, 222, 11, 222, 555]]);
+  var Obj := Loader.Load<TManyValueParent>;
+
+  Assert.AreEqual<Integer>(4, Length(Obj.Childs));
 
   Loader.Free;
 end;
@@ -496,6 +524,16 @@ begin
   var Result := Loader.Load<TMyEntityWithManyValueAssociation>;
 
   Assert.AreEqual<Integer>(0, Length(Result.ManyValueAssociationList));
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenTheParentClassAsAForeignKeyToTheChildWithManyValueAssociationAndTheValueOfTheForeignKeyIsInTheManyValueAssociationTheValueMustBeAddedToTheList;
+begin
+  var Loader := CreateLoader<TManyValueParent>([[11, 222, 11, 222, 222], [11, 222, 11, 222, 333], [11, 222, 11, 222, 444], [11, 222, 11, 222, 555]]);
+  var Obj := Loader.Load<TManyValueParent>;
+
+  Assert.AreEqual<Integer>(4, Length(Obj.Childs));
 
   Loader.Free;
 end;

@@ -699,6 +699,37 @@ type
     property Id: Integer read FId write FId;
   end;
 
+  TManyValueParentInherited = class;
+
+  [Entity]
+  TManyValueChildInheritedBase = class
+  private
+    FId: Integer;
+    FValue: TClassWithPrimaryKey;
+  published
+    property Id: Integer read FId write FId;
+    property Value: TClassWithPrimaryKey read FValue write FValue;
+  end;
+
+  [Entity]
+  TManyValueChildInherited = class(TManyValueChildInheritedBase)
+  private
+    FParent: TManyValueParentInherited;
+  published
+    property Parent: TManyValueParentInherited read FParent write FParent;
+  end;
+
+  [Entity]
+  TManyValueParentInherited = class
+  private
+    FId: Integer;
+    FChilds: TArray<TManyValueChildInherited>;
+  published
+    [ManyValueAssociationLinkName('Parent')]
+    property Childs: TArray<TManyValueChildInherited> read FChilds write FChilds;
+    property Id: Integer read FId write FId;
+  end;
+
   TManyValueParentError = class;
 
   [Entity]
