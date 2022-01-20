@@ -118,7 +118,7 @@ end;
 
 function TClassLoaderTest.CreateLoaderConnection<T>(Connection: IDatabaseConnection): TClassLoader;
 begin
-  var Builder := TQueryBuilder.Create(Connection);
+  var Builder := TQueryBuilder.Create(Connection, TCache.Create);
   var From := Builder.Select.All;
 
   From.From<T>;

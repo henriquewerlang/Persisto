@@ -1,4 +1,4 @@
-unit Delphi.ORM.Query.Builder.Test;
+﻿unit Delphi.ORM.Query.Builder.Test;
 
 interface
 
@@ -377,6 +377,22 @@ type
     procedure WhenInsertingAClassMustInsertOnlyTheForeignKeyWithInsertCascadeAttribute;
     [Test]
     procedure WhenUpdatingAClassMustInsertOnlyTheForeignKeyWithUpdateCascadeAttribute;
+    [Test]
+    procedure WhenTryToUpdateAClassThatIsNotCachedHaveToRaiseAnError;
+    [Test]
+    procedure WhenUpdateAClassMustUpdateOnlyTheChangedFields;
+    [Test]
+    procedure TheValuesFromTheForeignObjectMustBeLoadedInTheCachedObject;
+    [Test]
+    procedure WhenInsertANewObjectThisObjectMustBeAddedToTheCache;
+    [Test]
+    procedure ReadOnlyFieldsCantBeUpdatedInUpdateFunction;
+    [Test]
+    procedure WhenNoFieldIsUpdatedCantRunAnySQL;
+    [Test]
+    procedure AfterUpdateAnObjectTheForeignObjectMustBeDestroyed;
+    [Test]
+    procedure WHenUpdateAnInheritedClassCantRaiseAccessViolationInTheDestructionProcess;
   end;
 
   [TestFixture]
@@ -430,11 +446,31 @@ type
 
 implementation
 
-uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Cursor.Mock, Delphi.ORM.Nullable, Delphi.ORM.Cache, Delphi.Mock;
+uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Cursor.Mock, Delphi.ORM.Nullable, Delphi.ORM.Cache, Delphi.Mock, Delphi.ORM.Rtti.Helper;
 
 const
   COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '', '');
-  
+
+procedure AddObjectToCache(const Cache: ICache; const Obj: TObject; const KeyValue: TValue);
+begin
+  Cache.Add(Format('Delphi.ORM.Test.Entity.%s.%s', [Obj.ClassName, KeyValue.GetAsString]), Obj);
+end;
+
+function CreateQueryBuilder(const Connection: IDatabaseConnection; const Cache: ICache): TQueryBuilder; overload;
+begin
+  Result := TQueryBuilder.Create(Connection, Cache);
+end;
+
+function CreateQueryBuilder(const Connection: IDatabaseConnection): TQueryBuilder; overload;
+begin
+  Result := CreateQueryBuilder(Connection, TCache.Create);
+end;
+
+function CreateQueryBuilder: TQueryBuilder; overload;
+begin
+  Result := CreateQueryBuilder(TDatabaseTest.Create(nil));
+end;
+
 { TQueryBuilderTest }
 
 procedure TQueryBuilderTest.AllTheDirectForeignKeyMustBeGeneratedInTheResultingSQL;
@@ -450,7 +486,7 @@ end;
 
 procedure TQueryBuilderTest.IfNoCommandCalledTheSQLMustReturnEmpty;
 begin
-  var Query := TQueryBuilder.Create(nil);
+  var Query := CreateQueryBuilder;
 
   Assert.AreEqual(EmptyStr, Query.GetSQL);
 
@@ -459,7 +495,7 @@ end;
 
 procedure TQueryBuilderTest.IfNoCommandIsCalledCantRaiseAnExceptionOfAccessViolation;
 begin
-  var Query := TQueryBuilder.Create(nil);
+  var Query := CreateQueryBuilder;
 
   Assert.WillNotRaise(
     procedure
@@ -473,7 +509,7 @@ end;
 procedure TQueryBuilderTest.IfNotExistsAFilterInWhereMustReturnTheQueryWithoutWhereCommand;
 begin
   var Database := TDatabaseTest.Create(nil);
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   Query.Select.All.From<TMyTestClass>.Open;
 
@@ -484,7 +520,7 @@ end;
 
 procedure TQueryBuilderTest.IfTheAllFieldNoCalledCantRaiseAnExceptionOfAccessViolation;
 begin
-  var Query := TQueryBuilder.Create(nil);
+  var Query := CreateQueryBuilder;
 
   Query.Select;
 
@@ -524,7 +560,7 @@ end;
 procedure TQueryBuilderTest.OnlyPublishedPropertiesMustAppearInInsertSQL;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var MyClass := TClassOnlyPublic.Create;
   MyClass.Name := 'My name';
@@ -534,26 +570,22 @@ begin
 
   Assert.AreEqual('insert into ClassOnlyPublic()values()', Database.SQL);
 
-  MyClass.Free;
-
   Query.Free;
 end;
 
 procedure TQueryBuilderTest.OnlyPublishedPropertiesMustAppearInUpdateSQL;
 begin
   var Database := TDatabaseTest.Create(nil);
-  var Query := TQueryBuilder.Create(Database);
-  var SQL := 'update ClassOnlyPublic set ';
-
   var MyClass := TClassOnlyPublic.Create;
   MyClass.Name := 'My name';
   MyClass.Value := 222;
+  var Query := CreateQueryBuilder(Database);
+
+  AddObjectToCache(Query.Cache, TClassOnlyPublic.Create, '');
 
   Query.Update(MyClass);
 
-  Assert.AreEqual(SQL, Database.SQL.Substring(0, SQL.Length));
-
-  MyClass.Free;
+  Assert.IsEmpty(Database.SQL);
 
   Query.Free;
 end;
@@ -578,7 +610,7 @@ end;
 
 procedure TQueryBuilderTest.TheFieldsHaveToBeGeneratedWithTheAliasOfTheRespectiveTables;
 begin
-  var Query := TQueryBuilder.Create(nil);
+  var Query := CreateQueryBuilder;
 
   Query.Select.All.From<TMyTestClass>;
 
@@ -601,7 +633,7 @@ end;
 procedure TQueryBuilderTest.TheKeyFieldCantBeUpdatedInTheUpdateProcedure;
 begin
   var Database := TDatabaseTest.Create(nil);
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
   var SQL := 'update ClassWithPrimaryKeyAttribute set Id=123,Value=222';
 
   var MyClass := TClassWithPrimaryKeyAttribute.Create;
@@ -609,11 +641,11 @@ begin
   MyClass.Id2 := 456;
   MyClass.Value := 222;
 
+  AddObjectToCache(Query.Cache, TClassWithPrimaryKeyAttribute.Create, 456);
+
   Query.Update(MyClass);
 
   Assert.AreEqual(SQL, Database.SQL.Substring(0, SQL.Length));
-
-  MyClass.Free;
 
   Query.Free;
 end;
@@ -666,7 +698,7 @@ end;
 procedure TQueryBuilderTest.TheValuesReturnedInTheCursorOfTheInsertMustLoadTheFieldsOfTheClassBeenInserted;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create([[123, 'My value']]));
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Value := 'abc';
@@ -676,14 +708,12 @@ begin
   Assert.AreEqual(123, MyClass.Id);
   Assert.AreEqual('My value', MyClass.AnotherField);
 
-  MyClass.Free;
-
   Query.Free;
 end;
 
 procedure TQueryBuilderTest.OnlyPublishedPropertiesCanAppearInSQL;
 begin
-  var Query := TQueryBuilder.Create(nil);
+  var Query := CreateQueryBuilder;
 
   Query.Select.All.From<TMyTestClass>;
 
@@ -695,7 +725,7 @@ end;
 procedure TQueryBuilderTest.WhenAFieldIsMarkedWithAutoGeneratedItCantBeInTheInsertSQL;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Value := 'abc';
@@ -704,15 +734,13 @@ begin
 
   Assert.AreEqual('insert into AutoGeneratedClass(Value)values(''abc'')', Database.SQL);
 
-  MyClass.Free;
-
   Query.Free;
 end;
 
 procedure TQueryBuilderTest.WhenAFilterConditionMustBuildTheSQLAsExpected;
 begin
   var Database := TDatabaseTest.Create(nil);
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   Query.Select.All.From<TMyTestClass>.Where(Field('Field') = 1234).Open;
 
@@ -724,7 +752,7 @@ end;
 procedure TQueryBuilderTest.WhenCallInsertProcedureMustBuildTheSQLWithAllFieldsAndValuesFromTheClassParameter;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var MyClass := TMyTestClass.Create;
   MyClass.Field := 123;
@@ -735,15 +763,13 @@ begin
 
   Assert.AreEqual('insert into MyTestClass(Field,Name,Value)values(123,''My name'',222.333)', Database.SQL);
 
-  MyClass.Free;
-
   Query.Free;
 end;
 
 procedure TQueryBuilderTest.WhenCallOpenProcedureMustOpenTheDatabaseCursor;
 begin
   var Database := TDatabaseTest.Create(nil);
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   Query.Select.All.From<TMyTestClass>.Open;
 
@@ -754,7 +780,7 @@ end;
 
 procedure TQueryBuilderTest.WhenCallSelectCommandTheSQLMustReturnTheWordSelect;
 begin
-  var Query := TQueryBuilder.Create(nil);
+  var Query := CreateQueryBuilder;
 
   Query.Select;
 
@@ -766,7 +792,7 @@ end;
 procedure TQueryBuilderTest.WhenCallTheDeleteProcedureMustBuildTheSQLWithTheValuesOfKeysOfClass;
 begin
   var Database := TDatabaseTest.Create(nil);
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var MyClass := TClassWithPrimaryKeyAttribute.Create;
   MyClass.Id2 := 456;
@@ -783,18 +809,18 @@ end;
 procedure TQueryBuilderTest.WhenCallUpdateMustBuildTheSQLWithAllPropertiesInTheObjectParameter;
 begin
   var Database := TDatabaseTest.Create(nil);
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var MyClass := TMyTestClass.Create;
   MyClass.Field := 123;
   MyClass.Name := 'My name';
   MyClass.Value := 222.333;
 
+  AddObjectToCache(Query.Cache, TMyTestClass.Create, '');
+
   Query.Update(MyClass);
 
   Assert.AreEqual('update MyTestClass set Field=123,Name=''My name'',Value=222.333', Database.SQL);
-
-  MyClass.Free;
 
   Query.Free;
 end;
@@ -812,7 +838,7 @@ end;
 
 procedure TQueryBuilderTest.WhenConfiguredTheRecursivityLevelTheJoinsMustFollowTheConfiguration;
 begin
-  var Query := TQueryBuilder.Create(nil);
+  var Query := CreateQueryBuilder;
 
   var From := Query.Select.RecursivityLevel(3).All;
 
@@ -848,7 +874,7 @@ end;
 procedure TQueryBuilderTest.WhenDontHaveAResultingCursorCantLoadTheProperties;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Value := 'abc';
@@ -857,8 +883,6 @@ begin
 
   Assert.AreEqual(0, MyClass.Id);
   Assert.AreEqual(EmptyStr, MyClass.AnotherField);
-
-  MyClass.Free;
 
   Query.Free;
 end;
@@ -881,7 +905,7 @@ end;
 procedure TQueryBuilderTest.WhenInsertAClassWithTheAutoGeneratedAttributeMustLoadTheFieldNamesInTheArrayOfTheProcedure;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create([[123, 'My value']]));
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Value := 'abc';
@@ -891,15 +915,13 @@ begin
   Assert.AreEqual('Id', Database.OutputFields[0]);
   Assert.AreEqual('AnotherField', Database.OutputFields[1]);
 
-  MyClass.Free;
-
   Query.Free;
 end;
 
 procedure TQueryBuilderTest.WhenInsertingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheInsert;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var MyClass := TMyEntityWithManyValueAssociation.Create;
   MyClass.Id := 12345;
@@ -908,15 +930,13 @@ begin
 
   Assert.AreEqual('insert into MyEntityWithManyValueAssociation(Id)values(12345)', Database.SQL);
 
-  MyClass.Free;
-
   Query.Free;
 end;
 
 procedure TQueryBuilderTest.WhenInsertingAClassWithTheKeyValueAlreadyLoadedMustInsertWithThisValue;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Id := 1234;
@@ -925,8 +945,6 @@ begin
   Query.Insert(MyClass);
 
   Assert.AreEqual('insert into AutoGeneratedClass(Id,Value)values(1234,''abc'')', Database.SQL);
-
-  MyClass.Free;
 
   Query.Free;
 end;
@@ -945,7 +963,7 @@ end;
 procedure TQueryBuilderTest.WhenOpenOneMustFillTheClassWithTheValuesOfCursor;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create([[123, 'My name', 123.456]]));
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var Result := Query.Select.All.From<TMyTestClass>.Open.One;
 
@@ -960,7 +978,7 @@ end;
 
 procedure TQueryBuilderTest.WhenSelectAllFieldsFromAClassMustPutAllThenInTheResultingSQL;
 begin
-  var Query := TQueryBuilder.Create(nil);
+  var Query := CreateQueryBuilder;
 
   Query.Select.All.From<TMyTestClass>;
 
@@ -972,7 +990,7 @@ end;
 procedure TQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustInsertThenValueOfThePropertyIfNotIsNull;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var MyClass := TClassWithNullableProperty.Create;
   MyClass.Nullable := 1234;
@@ -981,15 +999,13 @@ begin
 
   Assert.AreEqual('insert into ClassWithNullableProperty(Id,Nullable)values(0,1234)', Database.SQL);
 
-  MyClass.Free;
-
   Query.Free;
 end;
 
 procedure TQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustInsertTheValueNullInSQLIfIsNull;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var MyClass := TClassWithNullableProperty.Create;
 
@@ -997,25 +1013,23 @@ begin
 
   Assert.AreEqual('insert into ClassWithNullableProperty(Id,Nullable)values(0,null)', Database.SQL);
 
-  MyClass.Free;
-
   Query.Free;
 end;
 
 procedure TQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustUpdateThenValueOfThePropertyIfNotIsNull;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var MyClass := TClassWithNullableProperty.Create;
   MyClass.Id := 123;
   MyClass.Nullable := 456;
 
+  AddObjectToCache(Query.Cache, TClassWithNullableProperty.Create, 123);
+
   Query.Update(MyClass);
 
   Assert.AreEqual('update ClassWithNullableProperty set Nullable=456 where Id=123', Database.SQL);
-
-  MyClass.Free;
 
   Query.Free;
 end;
@@ -1023,16 +1037,18 @@ end;
 procedure TQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustUpdateTheValueNullInSQLIfIsNull;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var Query := TQueryBuilder.Create(Database);
-
   var MyClass := TClassWithNullableProperty.Create;
   MyClass.Id := 123;
+  var MyClassCache := TClassWithNullableProperty.Create;
+  MyClassCache.Id := 123;
+  MyClassCache.Nullable := 123;
+  var Query := CreateQueryBuilder(Database);
+
+  AddObjectToCache(Query.Cache, MyClassCache, 123);
 
   Query.Update(MyClass);
 
   Assert.AreEqual('update ClassWithNullableProperty set Nullable=null where Id=123', Database.SQL);
-
-  MyClass.Free;
 
   Query.Free;
 end;
@@ -1040,7 +1056,7 @@ end;
 procedure TQueryBuilderTest.WhenTheClassDontHaveAnyPrimaryKeyTheDeleteMustBuildTheSQLWithoutWhereCondition;
 begin
   var Database := TDatabaseTest.Create(nil);
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var MyClass := TMyTestClass.Create;
 
@@ -1057,7 +1073,7 @@ procedure TQueryBuilderTest.WhenTheClassDontHaveThePrimaryKeyAttributeCantRaiseA
 begin
   var Database := TDatabaseTest.Create(nil);
   var MyClass := TClassOnlyPublic.Create;
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   Assert.WillNotRaise(
     procedure
@@ -1103,18 +1119,18 @@ end;
 procedure TQueryBuilderTest.WhenTheClassHaveThePrimaryKeyAttributeMustBuildTheWhereWithTheValuesOfFieldInTheKeyList;
 begin
   var Database := TDatabaseTest.Create(nil);
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var MyClass := TClassWithPrimaryKeyAttribute.Create;
   MyClass.Id := 123;
   MyClass.Id2 := 456;
   MyClass.Value := 222;
 
+  AddObjectToCache(Query.Cache, TClassWithPrimaryKeyAttribute.Create, 456);
+
   Query.Update(MyClass);
 
   Assert.AreEqual('update ClassWithPrimaryKeyAttribute set Id=123,Value=222 where Id2=456', Database.SQL);
-
-  MyClass.Free;
 
   Query.Free;
 end;
@@ -1159,13 +1175,11 @@ procedure TQueryBuilderTest.WhenTryToSaveAnEntityWithThePrimaryKeyEmptyMustInser
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Obj := TMyEntityWithPrimaryKey.Create;
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   Query.Save(Obj);
 
   Assert.AreEqual('insert into MyEntityWithPrimaryKey(Value,Id)values(0,0)', Database.SQL);
-
-  Obj.Free;
 
   Query.Free;
 end;
@@ -1175,13 +1189,16 @@ begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Obj := TMyEntityWithPrimaryKey.Create;
   Obj.Value := 12345;
-  var Query := TQueryBuilder.Create(Database);
+  var ObjCache := TMyEntityWithPrimaryKey.Create;
+  ObjCache.Value := 12345;
+  ObjCache.Id := 123;
+  var Query := CreateQueryBuilder(Database);
+
+  AddObjectToCache(Query.Cache, ObjCache, 12345);
 
   Query.Save(Obj);
 
   Assert.AreEqual('update MyEntityWithPrimaryKey set Id=0 where Value=12345', Database.SQL);
-
-  Obj.Free;
 
   Query.Free;
 end;
@@ -1190,13 +1207,17 @@ procedure TQueryBuilderTest.WhenUpdateAnEntityWithoutPrimaryKeyMustUpdateAllReco
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
   var Obj := TMyTestClass.Create;
-  var Query := TQueryBuilder.Create(Database);
+  var ObjCache := TMyTestClass.Create;
+  ObjCache.Field := 1;
+  ObjCache.Name := 'Name';
+  ObjCache.Value := 2;
+  var Query := CreateQueryBuilder(Database);
+
+  AddObjectToCache(Query.Cache, ObjCache, '');
 
   Query.Save(Obj);
 
   Assert.AreEqual('update MyTestClass set Field=0,Name='''',Value=0', Database.SQL);
-
-  Obj.Free;
 
   Query.Free;
 end;
@@ -1204,16 +1225,15 @@ end;
 procedure TQueryBuilderTest.WhenUpdatingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheUpdateList;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create(nil));
-  var Query := TQueryBuilder.Create(Database);
-
   var MyClass := TMyEntityWithManyValueAssociation.Create;
   MyClass.Id := 12345;
+  var Query := CreateQueryBuilder(Database);
+
+  AddObjectToCache(Query.Cache, TMyEntityWithManyValueAssociation.Create, 12345);
 
   Query.Update(MyClass);
 
-  Assert.AreEqual('update MyEntityWithManyValueAssociation set  where Id=12345', Database.SQL);
-
-  MyClass.Free;
+  Assert.IsEmpty(Database.SQL);
 
   Query.Free;
 end;
@@ -1221,7 +1241,7 @@ end;
 procedure TQueryBuilderTest.WhenUseTheOrderByClauseMustLoadTheSQLHasExpected;
 begin
   var Database := TDatabaseTest.Create(nil);
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   Query.Select.All.From<TMyTestClass>.OrderBy.Field('Field').Open;
 
@@ -1412,7 +1432,7 @@ end;
 procedure TQueryBuilderSelectTest.WhenFillTheFirstRecordsMustBuildTheSQLAsExpectedForSQLServer;
 begin
   var Database := TDatabaseTest.Create(nil);
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   Query.Select.First(10).All.From<TClassWithForeignKey>.Open;
 
@@ -1442,7 +1462,7 @@ end;
 procedure TQueryBuilderSelectTest.WhenSelectingATableAsAParameterMustUseThisParameterAndNotTryingToFindTheGenericTable;
 begin
   var Database := TDatabaseTest.Create(nil);
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   Assert.WillNotRaise(
     procedure
@@ -1456,7 +1476,7 @@ end;
 procedure TQueryBuilderSelectTest.WhenTheClassHaveForeignKeyMustBuildTheSQLWithTheAliasOfTheJoinMapped;
 begin
   var Database := TDatabaseTest.Create(nil);
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   Query.Select.All.From<TClassWithForeignKey>.Open;
 
@@ -2137,6 +2157,43 @@ end;
 
 { TQueryBuilderDataManipulationTest }
 
+procedure TQueryBuilderDataManipulationTest.AfterUpdateAnObjectTheForeignObjectMustBeDestroyed;
+begin
+  var MyClass := TMock.CreateClass<TMyEntityWithPrimaryKeyInLastField>(nil, True);
+  MyClass.Instance.Id := 123;
+  var MyClassCache := TMyEntityWithPrimaryKeyInLastField.Create;
+  MyClassCache.Id := 123;
+  var Query := CreateQueryBuilder(TDatabaseTest.Create(nil));
+
+  AddObjectToCache(Query.Cache, MyClassCache, 123);
+
+  MyClass.Expect.Once.When.BeforeDestruction;
+
+  Query.Update(MyClass.Instance);
+
+  Assert.CheckExpectation(MyClass.CheckExpectations);
+
+  MyClass.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.ReadOnlyFieldsCantBeUpdatedInUpdateFunction;
+begin
+  var MyClass := TMyEntityInheritedFromSimpleClass.Create;
+  var Query := CreateQueryBuilder(TDatabaseTest.Create(TCursorMock.Create(nil)));
+
+  AddObjectToCache(Query.Cache, TMyEntityInheritedFromSimpleClass.Create, 0);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Query.Update(MyClass);
+    end);
+
+  Query.Free;
+end;
+
 procedure TQueryBuilderDataManipulationTest.SetupFixture;
 begin
   TMapper.Default.LoadAll;
@@ -2146,13 +2203,15 @@ begin
   TMock.CreateInterface<IDatabaseCursor>;
 
   TMock.CreateInterface<IDatabaseTransaction>;
+
+  TMock.CreateClass<TMyEntityWithPrimaryKeyInLastField>(nil, True).Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.TheDeleteErrorMustRaiseAfterTheRollbackTheTransaction;
 begin
   var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
+  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
@@ -2179,7 +2238,7 @@ procedure TQueryBuilderDataManipulationTest.TheInsertionErrorMustBeRaiseAfterThe
 begin
   var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
+  var Query := TQueryBuilder.Create(Database.Instance, nil);
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
@@ -2208,7 +2267,7 @@ procedure TQueryBuilderDataManipulationTest.TheSaveErrorMustRaiseAfterTheRollbac
 begin
   var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
+  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Id := 123;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
@@ -2236,7 +2295,7 @@ procedure TQueryBuilderDataManipulationTest.TheUpdateErrorMustRaiseAfterTheRollb
 begin
   var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
+  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
@@ -2259,11 +2318,30 @@ begin
   Query.Free;
 end;
 
+procedure TQueryBuilderDataManipulationTest.TheValuesFromTheForeignObjectMustBeLoadedInTheCachedObject;
+begin
+  var MyClass := TMyEntityWithPrimaryKeyInLastField.Create;
+  MyClass.Id := 123;
+  MyClass.Field3 := 'abc';
+  var MyClassCache := TMyEntityWithPrimaryKeyInLastField.Create;
+  MyClassCache.Id := 123;
+  MyClassCache.Field3 := '888';
+  var Query := CreateQueryBuilder(TDatabaseTest.Create(nil));
+
+  AddObjectToCache(Query.Cache, MyClassCache, 123);
+
+  Query.Update(MyClass);
+
+  Assert.AreEqual('abc', MyClassCache.Field3);
+
+  Query.Free;
+end;
+
 procedure TQueryBuilderDataManipulationTest.WhenAnDeleteErrorOccurrsMustCallRollbackFunctionOfTheTransaction;
 begin
   var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
+  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
@@ -2293,7 +2371,7 @@ procedure TQueryBuilderDataManipulationTest.WhenAnInsertErrorOccurrsMustCallRoll
 begin
   var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
+  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
@@ -2323,7 +2401,7 @@ procedure TQueryBuilderDataManipulationTest.WhenAnSaveErrorOccurrsMustCallRollba
 begin
   var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
+  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Id := 123;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
@@ -2354,7 +2432,7 @@ procedure TQueryBuilderDataManipulationTest.WhenAnUpdateErrorOccurrsMustCallRoll
 begin
   var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
+  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
@@ -2383,7 +2461,7 @@ end;
 procedure TQueryBuilderDataManipulationTest.WhenCallDeleteMustStartATransactionInDatabase;
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
+  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
 
   Database.Expect.Once.When.StartTransaction;
@@ -2402,7 +2480,7 @@ end;
 procedure TQueryBuilderDataManipulationTest.WhenCallInsertMustStartATransactionInDatabase;
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
+  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
 
   Database.Expect.Once.When.StartTransaction;
@@ -2415,17 +2493,17 @@ begin
 
   Assert.CheckExpectation(Database.CheckExpectations);
 
-  MyClass.Free;
-
   Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenCallSaveMustStartATransactionInDatabase;
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Id := 123;
+  var Query := CreateQueryBuilder(Database.Instance);
+
+  AddObjectToCache(Query.Cache, TAutoGeneratedClass.Create, 123);
 
   Database.Expect.Once.When.StartTransaction;
 
@@ -2435,16 +2513,16 @@ begin
 
   Assert.CheckExpectation(Database.CheckExpectations);
 
-  MyClass.Free;
-
   Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenCallUpdateMustStartATransactionInDatabase;
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
+  var Query := CreateQueryBuilder(Database.Instance);
+
+  AddObjectToCache(Query.Cache, TAutoGeneratedClass.Create, '0');
 
   Database.Expect.Once.When.StartTransaction;
 
@@ -2454,8 +2532,6 @@ begin
 
   Assert.CheckExpectation(Database.CheckExpectations);
 
-  MyClass.Free;
-
   Query.Free;
 end;
 
@@ -2463,7 +2539,7 @@ procedure TQueryBuilderDataManipulationTest.WhenInsertAnEntityMustSaveTheForeign
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
   var ForeignKeySaved := False;
-  var Query := TQueryBuilder.Create(Database.Instance);
+  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TClassWithForeignKey.Create;
   MyClass.AnotherClass := TClassWithPrimaryKey.Create;
 
@@ -2486,10 +2562,6 @@ begin
 
   Query.Insert(MyClass);
 
-  MyClass.AnotherClass.Free;
-
-  MyClass.Free;
-
   Query.Free;
 end;
 
@@ -2497,7 +2569,7 @@ procedure TQueryBuilderDataManipulationTest.WhenInsertAnEntityMustSaveTheManyVal
 begin
   var CanSaveManyValueAssociation := False;
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
+  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TManyValueParent.Create;
   MyClass.Childs := [TManyValueChild.Create];
 
@@ -2520,9 +2592,22 @@ begin
 
   Query.Insert(MyClass);
 
-  MyClass.Childs[0].Free;
+  Query.Free;
+end;
 
-  MyClass.Free;
+procedure TQueryBuilderDataManipulationTest.WhenInsertANewObjectThisObjectMustBeAddedToTheCache;
+begin
+  var CachedObject: ISharedObject := nil;
+  var MyClass := TMyEntityWithPrimaryKeyInLastField.Create;
+  MyClass.Id := 123;
+  MyClass.Field3 := 'abc';
+  var Query := CreateQueryBuilder(TDatabaseTest.Create(TCursorMock.Create(nil)));
+
+  Query.Insert(MyClass);
+
+  Query.Cache.Get('Delphi.ORM.Test.Entity.TMyEntityWithPrimaryKeyInLastField.123', CachedObject);
+
+  Assert.AreSame(MyClass, CachedObject.&Object);
 
   Query.Free;
 end;
@@ -2534,7 +2619,7 @@ begin
   MyClass.InsertCascade := TMyEntityWithPrimaryKey.Create;
   MyClass.UpdateCascade := TMyEntityWithPrimaryKey.Create;
   MyClass.UpdateInsertCascade := TMyEntityWithPrimaryKey.Create;
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   Query.Insert(MyClass);
 
@@ -2543,21 +2628,13 @@ begin
     'insert into MyEntityWithPrimaryKey(Value,Id)values(0,0)'#13#10 +
     'insert into ClassWithCascadeAttribute(Id,IdInsertCascade,IdUpdateCascade,IdUpdateInsertCascade)values(0,0,0,0)', Database.SQL);
 
-  MyClass.InsertCascade.Free;
-
-  MyClass.UpdateCascade.Free;
-
-  MyClass.UpdateInsertCascade.Free;
-
-  MyClass.Free;
-
   Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertingAnEntityInheritedFromAnotherMustInsertTheParentClassFirst;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create([[123]]));
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var MyClass := TMyEntityInheritedFromSimpleClass.Create;
 
@@ -2567,7 +2644,23 @@ begin
     'insert into MyEntityInheritedFromSingle(AnotherProperty,BaseProperty)values('''','''')'#13#10 +
     'insert into MyEntityInheritedFromSimpleClass(Id,SimpleProperty)values(123,0)', Database.SQL);
 
-  MyClass.Free;
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenNoFieldIsUpdatedCantRunAnySQL;
+begin
+  var Connection := TDatabaseTest.Create(nil);
+  var MyClass := TMyEntityWithPrimaryKeyInLastField.Create;
+  MyClass.Id := 123;
+  var MyClassCache := TMyEntityWithPrimaryKeyInLastField.Create;
+  MyClassCache.Id := 123;
+  var Query := CreateQueryBuilder(Connection);
+
+  AddObjectToCache(Query.Cache, MyClassCache, 123);
+
+  Query.Update(MyClass);
+
+  Assert.IsEmpty(Connection.SQL);
 
   Query.Free;
 end;
@@ -2575,7 +2668,7 @@ end;
 procedure TQueryBuilderDataManipulationTest.WhenSaveAManyValueAssocitationEntityMustAvoidSaveTheParentLinkOfTheChildToAvoidStackOverflow;
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
+  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TManyValueParentError.Create;
   MyClass.PassCount := 1;
   MyClass.Values := [TManyValueParentChildError.Create];
@@ -2590,17 +2683,13 @@ begin
       Query.Insert(MyClass);
     end);
 
-  MyClass.Values[0].Free;
-
-  MyClass.Free;
-
   Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenSaveAManyValueAssocitationEntityMustLoadTheParentObjectInTheChildObjects;
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
+  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TManyValueParentError.Create;
   MyClass.PassCount := 2;
   MyClass.Values := [TManyValueParentChildError.Create];
@@ -2614,11 +2703,7 @@ begin
   except
   end;
 
-   Assert.IsNotNull(MyClass.Values[0].ManyValueParentError);
-
-  MyClass.Values[0].Free;
-
-  MyClass.Free;
+  Assert.IsNotNull(MyClass.Values[0].ManyValueParentError);
 
   Query.Free;
 end;
@@ -2626,9 +2711,11 @@ end;
 procedure TQueryBuilderDataManipulationTest.WhenSavingAnEntityInheritedFromAnotherTableCantRaiseAnyError;
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
   var MyClass := TMyEntityInheritedFromSimpleClass.Create;
   MyClass.Id := 123;
+  var Query := CreateQueryBuilder(Database.Instance);
+
+  AddObjectToCache(Query.Cache, TMyEntityInheritedFromSimpleClass.Create, 123);
 
   Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
 
@@ -2640,15 +2727,13 @@ begin
       Query.Save(MyClass);
     end);
 
-  MyClass.Free;
-
   Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenTheDeleteOccursSuccessfullyMustCommitTheTransaction;
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
+  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
@@ -2668,7 +2753,7 @@ end;
 procedure TQueryBuilderDataManipulationTest.WhenTheInsertOccursSuccessfullyMustCommitTheTransaction;
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
+  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
@@ -2682,16 +2767,16 @@ begin
 
   Assert.CheckExpectation(Transaction.CheckExpectations);
 
-  MyClass.Free;
-
   Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenThenObjectOfAForeignKeyIsNilCantRaiseAnyError;
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
   var MyClass := TClassWithForeignKey.Create;
+  var Query := CreateQueryBuilder(Database.Instance);
+
+  AddObjectToCache(Query.Cache, TClassWithForeignKey.Create, 0);
 
   Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
 
@@ -2703,18 +2788,18 @@ begin
     Query.Update(MyClass);
   end);
 
-  MyClass.Free;
-
   Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenTheSaveOccursSuccessfullyMustCommitTheTransaction;
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Id := 123;
+  var Query := CreateQueryBuilder(Database.Instance);
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
+
+  AddObjectToCache(Query.Cache, TAutoGeneratedClass.Create, 123);
 
   Transaction.Expect.Once.When.Commit;
 
@@ -2724,17 +2809,17 @@ begin
 
   Assert.CheckExpectation(Transaction.CheckExpectations);
 
-  MyClass.Free;
-
   Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenTheUpdateOccursSuccessfullyMustCommitTheTransaction;
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
+  var Query := CreateQueryBuilder(Database.Instance);
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
+
+  AddObjectToCache(Query.Cache, TAutoGeneratedClass.Create, '0');
 
   Transaction.Expect.Once.When.Commit;
 
@@ -2744,7 +2829,43 @@ begin
 
   Assert.CheckExpectation(Transaction.CheckExpectations);
 
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenTryToUpdateAClassThatIsNotCachedHaveToRaiseAnError;
+begin
+  var MyClass := TClassWithPrimaryKey.Create;
+  var Query := CreateQueryBuilder(TDatabaseTest.Create(nil));
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Query.Update(MyClass);
+    end, EObjectReferenceWasNotFound);
+
+  Query.Free;
+
   MyClass.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenUpdateAClassMustUpdateOnlyTheChangedFields;
+begin
+  var Connection := TDatabaseTest.Create(nil);
+  var MyClass := TMyEntityWithPrimaryKeyInLastField.Create;
+  MyClass.Id := 123;
+  MyClass.Field1 := 555;
+  MyClass.Field2 := 777;
+  MyClass.Field3 := '888';
+  var MyClassCache := TMyEntityWithPrimaryKeyInLastField.Create;
+  MyClassCache.Id := 123;
+  MyClassCache.Field3 := '888';
+  var Query := CreateQueryBuilder(Connection);
+
+  AddObjectToCache(Query.Cache, MyClassCache, 123);
+
+  Query.Update(MyClass);
+
+  Assert.AreEqual('update MyEntityWithPrimaryKeyInLastField set Field1=555,Field2=777 where Id=123', Connection.SQL);
 
   Query.Free;
 end;
@@ -2753,9 +2874,11 @@ procedure TQueryBuilderDataManipulationTest.WhenUpdateAnEntityMustSaveTheForeign
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
   var ForeignKeySaved := False;
-  var Query := TQueryBuilder.Create(Database.Instance);
   var MyClass := TClassWithForeignKey.Create;
   MyClass.AnotherClass := TClassWithPrimaryKey.Create;
+  var Query := CreateQueryBuilder(Database.Instance);
+
+  AddObjectToCache(Query.Cache, TClassWithForeignKey.Create, 0);
 
   Database.Setup.WillExecute(
     function (const Args: TArray<TValue>): TValue
@@ -2776,10 +2899,6 @@ begin
 
   Query.Update(MyClass);
 
-  MyClass.AnotherClass.Free;
-
-  MyClass.Free;
-
   Query.Free;
 end;
 
@@ -2787,9 +2906,13 @@ procedure TQueryBuilderDataManipulationTest.WhenUpdateAnEntityMustSaveTheManyVal
 begin
   var CanSaveManyValueAssociation := False;
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance);
   var MyClass := TManyValueParent.Create;
   MyClass.Childs := [TManyValueChild.Create];
+  var MyClassCache := TManyValueParent.Create;
+  MyClassCache.Child := MyClass.Childs[0];
+  var Query := CreateQueryBuilder(Database.Instance);
+
+  AddObjectToCache(Query.Cache, MyClassCache, 0);
 
   Database.Setup.WillExecute(
     function (const Args: TArray<TValue>): TValue
@@ -2810,9 +2933,22 @@ begin
 
   Query.Update(MyClass);
 
-  MyClass.Childs[0].Free;
+  Query.Free;
+end;
 
-  MyClass.Free;
+procedure TQueryBuilderDataManipulationTest.WHenUpdateAnInheritedClassCantRaiseAccessViolationInTheDestructionProcess;
+begin
+  var MyClass := TMyEntityInheritedFromSimpleClass.Create;
+  MyClass.Id := 123;
+  var Query := CreateQueryBuilder(TDatabaseTest.Create(nil));
+
+  AddObjectToCache(Query.Cache, TMyEntityInheritedFromSimpleClass.Create, 123);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Query.Save(MyClass);
+    end);
 
   Query.Free;
 end;
@@ -2824,7 +2960,9 @@ begin
   MyClass.InsertCascade := TMyEntityWithPrimaryKey.Create;
   MyClass.UpdateCascade := TMyEntityWithPrimaryKey.Create;
   MyClass.UpdateInsertCascade := TMyEntityWithPrimaryKey.Create;
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
+
+  AddObjectToCache(Query.Cache, TClassWithCascadeAttribute.Create, 0);
 
   Query.Update(MyClass);
 
@@ -2832,14 +2970,6 @@ begin
     'insert into MyEntityWithPrimaryKey(Value,Id)values(0,0)'#13#10 +
     'insert into MyEntityWithPrimaryKey(Value,Id)values(0,0)'#13#10 +
     'update ClassWithCascadeAttribute set IdInsertCascade=0,IdUpdateCascade=0,IdUpdateInsertCascade=0 where Id=0', Database.SQL);
-
-  MyClass.InsertCascade.Free;
-
-  MyClass.UpdateCascade.Free;
-
-  MyClass.UpdateInsertCascade.Free;
-
-  MyClass.Free;
 
   Query.Free;
 end;
@@ -2889,7 +3019,7 @@ end;
 procedure TQueryBuilderOrderByTeste.WhenTheFieldIsDescendingMustLoadTheSQLAsExpected;
 begin
   var Database := TDatabaseTest.Create(nil);
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var OrderBy := Query.Select.All.From<TMyTestClass>.OrderBy;
 
@@ -2912,7 +3042,7 @@ end;
 procedure TQueryBuilderOrderByTeste.WhenTheFieldListIsNotEmptyMustReturnTheOrderByClauseWithTheFieldList;
 begin
   var Database := TDatabaseTest.Create(nil);
-  var Query := TQueryBuilder.Create(Database);
+  var Query := CreateQueryBuilder(Database);
 
   var OrderBy := Query.Select.All.From<TMyTestClass>.OrderBy;
 

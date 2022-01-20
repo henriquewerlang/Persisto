@@ -39,13 +39,16 @@ type
     function Add(const Key: String; const Value: TObject): TSharedObjectType; overload;
     function Get(const Key: String; var Value: TSharedObjectType): Boolean;
 
+    class function GenerateKey(const KeyName: String; const KeyValue: TValue): String; overload;
+
     procedure Add(const Key: String; const Value: TSharedObjectType); overload;
   public
     constructor Create;
 
     destructor Destroy; override;
 
-    class function GenerateKey(RttiType: TRttiType; const KeyValue: TValue): String;
+    class function GenerateKey(AClass: TClass; const KeyValue: TValue): String; overload;
+    class function GenerateKey(RttiType: TRttiType; const KeyValue: TValue): String; overload;
   end;
 
 implementation
@@ -56,9 +59,12 @@ uses System.SysUtils, Delphi.ORM.Rtti.Helper;
 
 function TCache.Add(const Key: String; const Value: TObject): TSharedObjectType;
 begin
-  Result := TSharedObject.Create(Value);
+  if not FValues.TryGetValue(Key, Result) then
+  begin
+    Result := TSharedObject.Create(Value);
 
-  Add(Key, Result);
+    Add(Key, Result);
+  end;
 end;
 
 procedure TCache.Add(const Key: String; const Value: TSharedObjectType);
@@ -70,7 +76,7 @@ constructor TCache.Create;
 begin
   inherited;
 
-  FValues := TObjectDictionary<String, TSharedObjectType>.Create;
+  FValues := TDictionary<String, TSharedObjectType>.Create;
 end;
 
 destructor TCache.Destroy;
@@ -82,7 +88,19 @@ end;
 
 class function TCache.GenerateKey(RttiType: TRttiType; const KeyValue: TValue): String;
 begin
-  Result := Format('%s.%s', [RttiType.QualifiedName, KeyValue.GetAsString]);
+  Result := GenerateKey(RttiType.QualifiedName, KeyValue);
+end;
+
+class function TCache.GenerateKey(const KeyName: String; const KeyValue: TValue): String;
+begin
+  Result := Format('%s.%s', [KeyName, KeyValue.GetAsString]);
+end;
+
+class function TCache.GenerateKey(AClass: TClass; const KeyValue: TValue): String;
+begin
+{$IFDEF DCC}
+  Result := GenerateKey(AClass.QualifiedClassName, KeyValue);
+{$ENDIF}
 end;
 
 function TCache.Get(const Key: String; var Value: TSharedObjectType): Boolean;

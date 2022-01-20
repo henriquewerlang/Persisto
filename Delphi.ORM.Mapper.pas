@@ -59,7 +59,6 @@ type
     destructor Destroy; override;
 
     function FindField(const FieldName: String; var Field: TField): Boolean;
-    function GenerateCacheKey(const PrimaryKeyValue: TValue): String;
     function GetCacheKey(const Instance: TObject): String; overload;
     function GetCacheKey(const PrimaryKeyValue: Variant): String; overload;
 
@@ -605,25 +604,28 @@ begin
     end;
 end;
 
-function TTable.GenerateCacheKey(const PrimaryKeyValue: TValue): String;
-begin
-  Result := TCache.GenerateKey(ClassTypeInfo, PrimaryKeyValue);
-end;
-
 function TTable.GetCacheKey(const PrimaryKeyValue: Variant): String;
 begin
+  var KeyValue: TValue;
+
   if Assigned(PrimaryKey) then
-    Result := GenerateCacheKey(PrimaryKey.ConvertVariant(PrimaryKeyValue))
+    KeyValue := PrimaryKey.ConvertVariant(PrimaryKeyValue)
   else
-    Result := GenerateCacheKey(EmptyStr);
+    KeyValue := EmptyStr;
+
+  Result := TCache.GenerateKey(ClassTypeInfo, KeyValue);
 end;
 
 function TTable.GetCacheKey(const Instance: TObject): String;
 begin
+  var KeyValue: TValue;
+
   if Assigned(PrimaryKey) then
-    Result := GenerateCacheKey(PrimaryKey.GetValue(Instance))
+    KeyValue := PrimaryKey.GetValue(Instance)
   else
-    Result := GenerateCacheKey(EmptyStr);
+    KeyValue := EmptyStr;
+
+  Result := TCache.GenerateKey(Instance.ClassType, KeyValue);
 end;
 
 { TFieldAlias }

@@ -257,8 +257,6 @@ type
     [Test]
     procedure WhenTheClassIsInheritedMustLoadTheCascadeInfoWithUpdateAndInsertCascade;
     [Test]
-    procedure WhenGenerateTheCacheKeyMustBeTheQualifiedNameOfTheClassPlusThePrimaryKeyValue;
-    [Test]
     procedure WhenCallGetCacheKeyMustBuildTheValueOfTheCacheKeyWithThePrimaryKeyValueFromTheClass;
     [Test]
     procedure WhenTheClassDontHaveAPrimaryKeyMustLoadTheCacheKeyWithoutThePrimaryKeyValue;
@@ -274,6 +272,8 @@ type
     procedure WhenCallGetCacheValueWithVariantMustBuildTheKeyAsExpected;
     [Test]
     procedure WhenCallGetCacheValueWithVariantAndTheTableDontHavePrimaryKeyMustLoadTheKeyAsExpected;
+    [Test]
+    procedure TheGetCacheFunctionWithAnInstanceMustBuildTheKeyWithTheClassOfTheInstanceNotFromTable;
   end;
 
   [TestFixture]
@@ -659,6 +659,20 @@ begin
   MyClass.Free;
 end;
 
+procedure TMapperTest.TheGetCacheFunctionWithAnInstanceMustBuildTheKeyWithTheClassOfTheInstanceNotFromTable;
+begin
+  var Mapper := TMapper.Create;
+  var MyClass := TClassForeignKey.Create;
+  MyClass.Id := 123456;
+  var Table := Mapper.LoadClass(TClassWithPrimaryKey);
+
+  Assert.AreEqual('Delphi.ORM.Test.Entity.TClassForeignKey.123456', Table.GetCacheKey(MyClass));
+
+  MyClass.Free;
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.TheLoadingOfForeingKeyMustBeAfterAllTablesAreLoadedToTheFindTableWorksPropertily;
 begin
   var Mapper := TMapper.Create;
@@ -946,16 +960,6 @@ begin
   Mapper.LoadAll;
 
   Assert.IsTrue(Length(Mapper.Tables) > 0, 'No entities loaded!');
-
-  Mapper.Free;
-end;
-
-procedure TMapperTest.WhenGenerateTheCacheKeyMustBeTheQualifiedNameOfTheClassPlusThePrimaryKeyValue;
-begin
-  var Mapper := TMapper.Create;
-  var Table := Mapper.LoadClass(TClassWithPrimaryKey);
-
-  Assert.AreEqual('Delphi.ORM.Test.Entity.TClassWithPrimaryKey.MyKey', Table.GenerateCacheKey('MyKey'));
 
   Mapper.Free;
 end;
