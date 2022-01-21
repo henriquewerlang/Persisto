@@ -395,7 +395,8 @@ begin
     for var A := Low(OutputFieldList) to High(OutputFieldList) do
       OutputFieldList[A].SetValue(CurrentObject, Cursor.GetFieldValue(A));
 
-  Cache.Add(Table.GetCacheKey(CurrentObject), CurrentObject);
+  if CurrentObject.ClassInfo = AObject.TypeInfo then
+    Cache.Add(Table.GetCacheKey(CurrentObject), CurrentObject);
 
   SaveManyValueAssociations(Table, AObject);
 end;
@@ -520,6 +521,9 @@ begin
       FConnection.ExecuteDirect(Format('update %s set %s%s', [Table.DatabaseName, SQL, BuildPrimaryKeyFilter(Table, CurrentObject)]));
 
     SaveManyValueAssociations(Table, AObject);
+
+    for var ManyValue in Table.ManyValueAssociations do
+      ManyValue.Field.SetValue(CurrentCachedObject, ManyValue.Field.GetValue(CurrentObject));
 
     if CurrentObject.ClassInfo = AObject.TypeInfo then
       CurrentObject.Free;

@@ -22,8 +22,6 @@ type
     procedure TheGenerateKeyFunctionMustReturnTheQualifiedClassNamePlusTheKeyValue;
     [Test]
     procedure WhenGenerateKeyFunctionIsATClassMustReturnTheQualifiedClassNamePlusTheKeyValue;
-    [Test]
-    procedure WhenAddTheSameKeyToTheCacheCantRaiseAnyError;
   end;
 
 implementation
@@ -77,19 +75,6 @@ begin
   Cache.Get('MyKey2', SharedObject);
 
   Assert.AreEqual(MyObject, SharedObject.&Object);
-end;
-
-procedure TCacheTest.WhenAddTheSameKeyToTheCacheCantRaiseAnyError;
-begin
-  var Cache := CreateCache;
-
-  Cache.Add('MyKey', nil);
-
-  Assert.WillNotRaise(
-    procedure
-    begin
-      Cache.Add('MyKey', nil);
-    end);
 end;
 
 procedure TCacheTest.WhenGenerateKeyFunctionIsATClassMustReturnTheQualifiedClassNamePlusTheKeyValue;

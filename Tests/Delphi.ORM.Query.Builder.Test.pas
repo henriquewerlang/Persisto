@@ -392,7 +392,11 @@ type
     [Test]
     procedure AfterUpdateAnObjectTheForeignObjectMustBeDestroyed;
     [Test]
-    procedure WHenUpdateAnInheritedClassCantRaiseAccessViolationInTheDestructionProcess;
+    procedure WhenUpdateAnInheritedClassCantRaiseAccessViolationInTheDestructionProcess;
+    [Test]
+    procedure WhenUpdateAClassWithManyValueAssociationMustUpdateTheListOfTheObjectInTheCache;
+    [Test]
+    procedure WhenInsertingAInheritedClassCantRaiseErrorFromDuplicateCacheValue;
   end;
 
   [TestFixture]
@@ -2614,19 +2618,35 @@ end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertingAClassMustInsertOnlyTheForeignKeyWithInsertCascadeAttribute;
 begin
-  var Database := TDatabaseTest.Create(TCursorMock.Create([[123]]));
+  var Database := TDatabaseTest.Create(TCursorMock.Create([[1], [2]]));
   var MyClass := TClassWithCascadeAttribute.Create;
-  MyClass.InsertCascade := TMyEntityWithPrimaryKey.Create;
-  MyClass.UpdateCascade := TMyEntityWithPrimaryKey.Create;
-  MyClass.UpdateInsertCascade := TMyEntityWithPrimaryKey.Create;
+  MyClass.InsertCascade := TClassWithCascadeForeignClass.Create;
+  MyClass.UpdateCascade := TClassWithCascadeForeignClass.Create;
+  MyClass.UpdateInsertCascade := TClassWithCascadeForeignClass.Create;
   var Query := CreateQueryBuilder(Database);
 
   Query.Insert(MyClass);
 
   Assert.AreEqual(
-    'insert into MyEntityWithPrimaryKey(Value,Id)values(0,0)'#13#10 +
-    'insert into MyEntityWithPrimaryKey(Value,Id)values(0,0)'#13#10 +
-    'insert into ClassWithCascadeAttribute(Id,IdInsertCascade,IdUpdateCascade,IdUpdateInsertCascade)values(0,0,0,0)', Database.SQL);
+    'insert into ClassWithCascadeForeignClass(Value)values(0)'#13#10 +
+    'insert into ClassWithCascadeForeignClass(Value)values(0)'#13#10 +
+    'insert into ClassWithCascadeAttribute(Id,IdInsertCascade,IdUpdateCascade,IdUpdateInsertCascade)values(0,1,0,2)', Database.SQL);
+
+  MyClass.UpdateCascade.Free;
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenInsertingAInheritedClassCantRaiseErrorFromDuplicateCacheValue;
+begin
+  var MyClass := TMyEntityInheritedFromSimpleClass.Create;
+  var Query := CreateQueryBuilder(TDatabaseTest.Create(TCursorMock.Create([[123]])));
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Query.Insert(MyClass);
+    end);
 
   Query.Free;
 end;
@@ -2634,9 +2654,8 @@ end;
 procedure TQueryBuilderDataManipulationTest.WhenInsertingAnEntityInheritedFromAnotherMustInsertTheParentClassFirst;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create([[123]]));
-  var Query := CreateQueryBuilder(Database);
-
   var MyClass := TMyEntityInheritedFromSimpleClass.Create;
+  var Query := CreateQueryBuilder(Database);
 
   Query.Insert(MyClass);
 
@@ -2870,6 +2889,22 @@ begin
   Query.Free;
 end;
 
+procedure TQueryBuilderDataManipulationTest.WhenUpdateAClassWithManyValueAssociationMustUpdateTheListOfTheObjectInTheCache;
+begin
+  var MyClass := TManyValueParent.Create;
+  MyClass.Childs := [TManyValueChild.Create];
+  var MyClassCache := TManyValueParent.Create;
+  var Query := CreateQueryBuilder(TDatabaseTest.Create(TCursorMock.Create(nil)));
+
+  AddObjectToCache(Query.Cache, MyClassCache, 0);
+
+  Query.Update(MyClass);
+
+  Assert.AreEqual<Integer>(1, Length(MyClassCache.Childs));
+
+  Query.Free;
+end;
+
 procedure TQueryBuilderDataManipulationTest.WhenUpdateAnEntityMustSaveTheForeignKeysFirstAfterThisMustUpdateTheEntity;
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
@@ -2936,7 +2971,7 @@ begin
   Query.Free;
 end;
 
-procedure TQueryBuilderDataManipulationTest.WHenUpdateAnInheritedClassCantRaiseAccessViolationInTheDestructionProcess;
+procedure TQueryBuilderDataManipulationTest.WhenUpdateAnInheritedClassCantRaiseAccessViolationInTheDestructionProcess;
 begin
   var MyClass := TMyEntityInheritedFromSimpleClass.Create;
   MyClass.Id := 123;
@@ -2955,11 +2990,11 @@ end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdatingAClassMustInsertOnlyTheForeignKeyWithUpdateCascadeAttribute;
 begin
-  var Database := TDatabaseTest.Create(TCursorMock.Create([[123]]));
+  var Database := TDatabaseTest.Create(TCursorMock.Create([[1], [2]]));
   var MyClass := TClassWithCascadeAttribute.Create;
-  MyClass.InsertCascade := TMyEntityWithPrimaryKey.Create;
-  MyClass.UpdateCascade := TMyEntityWithPrimaryKey.Create;
-  MyClass.UpdateInsertCascade := TMyEntityWithPrimaryKey.Create;
+  MyClass.InsertCascade := TClassWithCascadeForeignClass.Create;
+  MyClass.UpdateCascade := TClassWithCascadeForeignClass.Create;
+  MyClass.UpdateInsertCascade := TClassWithCascadeForeignClass.Create;
   var Query := CreateQueryBuilder(Database);
 
   AddObjectToCache(Query.Cache, TClassWithCascadeAttribute.Create, 0);
@@ -2967,9 +3002,9 @@ begin
   Query.Update(MyClass);
 
   Assert.AreEqual(
-    'insert into MyEntityWithPrimaryKey(Value,Id)values(0,0)'#13#10 +
-    'insert into MyEntityWithPrimaryKey(Value,Id)values(0,0)'#13#10 +
-    'update ClassWithCascadeAttribute set IdInsertCascade=0,IdUpdateCascade=0,IdUpdateInsertCascade=0 where Id=0', Database.SQL);
+    'insert into ClassWithCascadeForeignClass(Value)values(0)'#13#10 +
+    'insert into ClassWithCascadeForeignClass(Value)values(0)'#13#10 +
+    'update ClassWithCascadeAttribute set IdInsertCascade=0,IdUpdateCascade=1,IdUpdateInsertCascade=2 where Id=0', Database.SQL);
 
   Query.Free;
 end;

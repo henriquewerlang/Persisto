@@ -59,12 +59,9 @@ uses System.SysUtils, Delphi.ORM.Rtti.Helper;
 
 function TCache.Add(const Key: String; const Value: TObject): TSharedObjectType;
 begin
-  if not FValues.TryGetValue(Key, Result) then
-  begin
-    Result := TSharedObject.Create(Value);
+  Result := TSharedObject.Create(Value);
 
-    Add(Key, Result);
-  end;
+  Add(Key, Result);
 end;
 
 procedure TCache.Add(const Key: String; const Value: TSharedObjectType);
