@@ -2,7 +2,8 @@
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Classes.Loader, Delphi.ORM.Database.Connection, Delphi.ORM.Attributes, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder;
+uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Classes.Loader, Delphi.ORM.Database.Connection, Delphi.ORM.Attributes, Delphi.ORM.Mapper, Delphi.ORM.Cache,
+  Delphi.ORM.Query.Builder;
 
 type
   [TestFixture]
@@ -11,9 +12,9 @@ type
     FBuilderInterface: TObject;
 
     function CreateCursor(const CursorValues: TArray<TArray<Variant>>): IDatabaseCursor;
-    function CreateLoader<T: class>(const CursorValues: TArray<TArray<Variant>>): TClassLoader;
-    function CreateLoaderConnection<T: class>(Connection: IDatabaseConnection): TClassLoader;
-    function CreateLoaderCursor<T: class>(Cursor: IDatabaseCursor): TClassLoader;
+    function CreateLoader<T: class>(const CursorValues: TArray<TArray<Variant>>; const Cache: ICache = nil): TClassLoader;
+    function CreateLoaderConnection<T: class>(Connection: IDatabaseConnection; Cache: ICache = nil): TClassLoader;
+    function CreateLoaderCursor<T: class>(Cursor: IDatabaseCursor; const Cache: ICache = nil): TClassLoader;
   public
     [Setup]
     procedure Setup;
@@ -89,42 +90,65 @@ type
     procedure WhenTheParentClassAsAForeignKeyToTheChildWithManyValueAssociationAndTheValueOfTheForeignKeyIsInTheManyValueAssociationTheValueMustBeAddedToTheList;
     [Test]
     procedure WhenTheManyValueAssociationHasInheritedClassMustLoadTheValuesAsExpected;
+    [Test]
+    procedure AfterLoadTheObjectMustLoadTheOldValuesFromStateObject;
   end;
 
 implementation
 
-uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Test.Entity, Delphi.ORM.Cursor.Mock, Delphi.ORM.Cache, Delphi.ORM.Lazy;
+uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Test.Entity, Delphi.ORM.Cursor.Mock, Delphi.ORM.Lazy,
+  Delphi.ORM.Shared.Obj;
 
 { TClassLoaderTest }
+
+procedure TClassLoaderTest.AfterLoadTheObjectMustLoadTheOldValuesFromStateObject;
+begin
+  var Cache := TCache.Create as ICache;
+  var Loader := CreateLoader<TMyClass>([['abc', 123]], Cache);
+  var SharedObject: ISharedObject;
+
+  Loader.Load<TMyClass>;
+
+  Cache.Get('Delphi.ORM.Test.Entity.TMyClass.abc', SharedObject);
+
+  var OldObject := (SharedObject as IStateObject).OldObject as TMyClass;
+
+  Assert.AreEqual('abc', OldObject.Name);
+  Assert.AreEqual(123, OldObject.Value);
+
+  Loader.Free;
+end;
 
 function TClassLoaderTest.CreateCursor(const CursorValues: TArray<TArray<Variant>>): IDatabaseCursor;
 begin
   Result := TCursorMock.Create(CursorValues);
 end;
 
-function TClassLoaderTest.CreateLoader<T>(const CursorValues: TArray<TArray<Variant>>): TClassLoader;
+function TClassLoaderTest.CreateLoader<T>(const CursorValues: TArray<TArray<Variant>>; const Cache: ICache): TClassLoader;
 begin
-  Result := CreateLoaderCursor<T>(CreateCursor(CursorValues));
+  Result := CreateLoaderCursor<T>(CreateCursor(CursorValues), Cache);
 end;
 
-function TClassLoaderTest.CreateLoaderCursor<T>(Cursor: IDatabaseCursor): TClassLoader;
+function TClassLoaderTest.CreateLoaderCursor<T>(Cursor: IDatabaseCursor; const Cache: ICache): TClassLoader;
 begin
   var Connection := TMock.CreateInterface<IDatabaseConnection>;
 
   Connection.Setup.WillReturn(TValue.From(Cursor)).When.OpenCursor(It.IsAny<String>);
 
-  Result := CreateLoaderConnection<T>(Connection.Instance);
+  Result := CreateLoaderConnection<T>(Connection.Instance, Cache);
 end;
 
-function TClassLoaderTest.CreateLoaderConnection<T>(Connection: IDatabaseConnection): TClassLoader;
+function TClassLoaderTest.CreateLoaderConnection<T>(Connection: IDatabaseConnection; Cache: ICache): TClassLoader;
 begin
   var Builder := TQueryBuilder.Create(Connection, TCache.Create);
   var From := Builder.Select.All;
 
   From.From<T>;
 
-  Result := TClassLoader.Create(Connection.OpenCursor(Builder.GetSQL), From);
-  Result.Cache := TCache.Create;
+  if not Assigned(Cache) then
+    Cache := TCache.Create;
+
+  Result := TClassLoader.Create(Connection.OpenCursor(Builder.GetSQL), From, Cache);
 
   FreeAndNil(FBuilderInterface);
 
@@ -288,15 +312,13 @@ end;
 procedure TClassLoaderTest.WhenLoadAnObjectMoreThenOnceAndHaveAManyValueAssociationMustResetTheFieldBeforeLoadTheValues;
 begin
   var Cache: ICache := TCache.Create;
-  var Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[1, 11]]);
-  Loader.Cache := Cache;
+  var Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[1, 11]], Cache);
 
   Loader.Load<TMyEntityWithManyValueAssociation>;
 
   Loader.Free;
 
-  Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[1, 11]]);
-  Loader.Cache := Cache;
+  Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[1, 11]], Cache);
 
   var Result := Loader.Load<TMyEntityWithManyValueAssociation>;
 
@@ -397,7 +419,9 @@ procedure TClassLoaderTest.WhenTheFieldIsLazyLoadingMustCallTheLazyFactoryToLoad
 begin
   var Connection := TMock.CreateInterface<IDatabaseConnection>;
   var LazyFactory := TMock.CreateInterface<ILazyFactory>(True);
+
   TLazyAccess.GlobalFactory := LazyFactory.Instance;
+
   Connection.Setup.WillReturn(TValue.From(CreateCursor([[1, 222]]))).When.OpenCursor(It.IsEqualTo('select T1.Id F1,T1.IdLazy F2 from LazyClass T1'));
 
   var Loader := CreateLoaderConnection<TLazyClass>(Connection.Instance);
@@ -414,15 +438,14 @@ end;
 
 procedure TClassLoaderTest.WhenTheLoaderCreateANewObjectMustAddItToTheCacheControl;
 begin
-  var Context := TRttiContext.Create;
+  var Cache := TCache.Create as ICache;
   var Cursor := TCursorMock.Create([['aaa', 333]]);
-  var Loader := CreateLoaderCursor<TMyClass>(Cursor);
-  Loader.Cache := TCache.Create;
+  var Loader := CreateLoaderCursor<TMyClass>(Cursor, Cache);
   var SharedObject: ISharedObject;
 
   Loader.Load<TMyClass>;
 
-  Assert.IsTrue(Loader.Cache.Get('Delphi.ORM.Test.Entity.TMyClass.aaa', SharedObject));
+  Assert.IsTrue(Cache.Get('Delphi.ORM.Test.Entity.TMyClass.aaa', SharedObject));
 
   Loader.Free;
 end;
@@ -430,14 +453,12 @@ end;
 procedure TClassLoaderTest.WhenTheManyValueAssociationFieldHasRepetedKeyMustLoadJustOnceThenProperty;
 begin
   var Cache: ICache := TCache.Create;
-  var Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[1, 11], [1, 11], [1, 11], [2, 22], [2, 22], [2, 22]]);
-  Loader.Cache := Cache;
+  var Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[1, 11], [1, 11], [1, 11], [2, 22], [2, 22], [2, 22]], Cache);
   var Result := Loader.LoadAll<TMyEntityWithManyValueAssociation>;
 
   Loader.Free;
 
-  Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[1, 11], [1, 11], [1, 11], [2, 22], [2, 22], [2, 22]]);
-  Loader.Cache := Cache;
+  Loader := CreateLoader<TMyEntityWithManyValueAssociation>([[1, 11], [1, 11], [1, 11], [2, 22], [2, 22], [2, 22]], Cache);
 
   Result := Loader.LoadAll<TMyEntityWithManyValueAssociation>;
 
@@ -489,17 +510,15 @@ end;
 
 procedure TClassLoaderTest.WhenTheObjectAlreadyInCacheMustGetThisInstanceToLoadTheData;
 begin
-  var Context := TRttiContext.Create;
+  var Cache := TCache.Create as ICache;
   var Cursor := TCursorMock.Create([['aaa', 333]]);
-  var Loader := CreateLoaderCursor<TMyClass>(Cursor);
+  var Loader := CreateLoaderCursor<TMyClass>(Cursor, Cache);
   var MyClass := TMyClass.Create;
   MyClass.Name := 'aaa';
   MyClass.Value := 111;
   var Table := TMapper.Default.FindTable(TMyClass);
 
-  Loader.Cache := TCache.Create;
-
-  Loader.Cache.Add(Table.GetCacheKey(MyClass), MyClass);
+  Cache.Add(Table.GetCacheKey(MyClass), TStateObject.Create(MyClass, False) as ISharedObject);
 
   Loader.Load<TMyClass>;
 

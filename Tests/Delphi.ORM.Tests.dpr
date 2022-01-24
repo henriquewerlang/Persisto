@@ -34,7 +34,9 @@ uses
   Delphi.ORM.Lazy in '..\Delphi.ORM.Lazy.pas',
   Delphi.ORM.Lazy.Test in 'Delphi.ORM.Lazy.Test.pas',
   Delphi.ORM.Cache in '..\Delphi.ORM.Cache.pas',
-  Delphi.ORM.Cache.Test in 'Delphi.ORM.Cache.Test.pas';
+  Delphi.ORM.Cache.Test in 'Delphi.ORM.Cache.Test.pas',
+  Delphi.ORM.Shared.Obj in '..\Delphi.ORM.Shared.Obj.pas',
+  Delphi.ORM.Shared.Obj.Test in 'Delphi.ORM.Shared.Obj.Test.pas';
 
 // Para não remover o valor abaixo
 {$IFNDEF TESTINSIGHT}

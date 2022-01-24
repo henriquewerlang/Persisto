@@ -732,12 +732,15 @@ end;
 procedure TField.SetValue(const Instance: TObject; const Value: TValue);
 begin
   if IsNullable then
-    GetNullableAccess(PropertyInfo.GetValue(Instance)).SetValue(Value)
+    GetNullableAccess(PropertyInfo.GetValue(Instance)).Value := Value
   else if IsLazy then
   begin
-    var LazyAccess := GetLazyLoadingAccess(PropertyInfo.GetValue(Instance));
+    var Access := GetLazyLoadingAccess(PropertyInfo.GetValue(Instance));
 
-    LazyAccess.SetValue(Value);
+    if not Value.IsEmpty and Value.IsObject then
+      Access.Value := Value
+    else
+      Access.Key := Value
   end
   else
     PropertyInfo.SetValue(Instance, Value);

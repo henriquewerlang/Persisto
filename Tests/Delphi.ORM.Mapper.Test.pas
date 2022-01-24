@@ -274,6 +274,10 @@ type
     procedure WhenCallGetCacheValueWithVariantAndTheTableDontHavePrimaryKeyMustLoadTheKeyAsExpected;
     [Test]
     procedure TheGetCacheFunctionWithAnInstanceMustBuildTheKeyWithTheClassOfTheInstanceNotFromTable;
+    [Test]
+    procedure WhenFillTheFieldValueOfALazyFieldAndTheValueIsNotAnInstanceOfAnObjectMustLoadTheKeyValueFromLazy;
+    [Test]
+    procedure WhenFillAnEmptyValueToALazyFieldTheLazyValueCantBeMarkedAsLoaded;
   end;
 
   [TestFixture]
@@ -964,6 +968,42 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.WhenFillAnEmptyValueToALazyFieldTheLazyValueCantBeMarkedAsLoaded;
+begin
+  var Mapper := TMapper.Create;
+  var MyClass := TLazyClass.Create;
+  var Table := Mapper.LoadClass(TLazyClass);
+
+  var Field := Table.Fields[1];
+
+  Field.SetValue(MyClass, 1234);
+
+  Field.SetValue(MyClass, TValue.Empty);
+
+  Assert.IsTrue(MyClass.Lazy.GetAccess.Key.IsEmpty);
+
+  Mapper.Free;
+
+  MyClass.Free;
+end;
+
+procedure TMapperTest.WhenFillTheFieldValueOfALazyFieldAndTheValueIsNotAnInstanceOfAnObjectMustLoadTheKeyValueFromLazy;
+begin
+  var Mapper := TMapper.Create;
+  var MyClass := TLazyClass.Create;
+  var Table := Mapper.LoadClass(TLazyClass);
+
+  var Field := Table.Fields[1];
+
+  Field.SetValue(MyClass, 1234);
+
+  Assert.AreEqual(1234, MyClass.Lazy.GetAccess.Key.AsInteger);
+
+  Mapper.Free;
+
+  MyClass.Free;
+end;
+
 procedure TMapperTest.WhenGetTheStringValueOfANullableTypeAndTheValueIsFilledMustReturnTheValue;
 begin
   var Mapper := TMapper.Create;
@@ -1264,7 +1304,6 @@ begin
   var LazyValue := TMyEntity.Create;
   var Mapper := TMapper.Create;
   var MyClass := TLazyClass.Create;
-
   var Table := Mapper.LoadClass(TLazyClass);
 
   var Field := Table.Fields[1];
@@ -1287,7 +1326,6 @@ begin
   var LazyValue := TMyEntity.Create;
   var Mapper := TMapper.Create;
   var MyClass := TLazyClass.Create;
-
   var Table := Mapper.LoadClass(TLazyClass);
 
   var Field := Table.Fields[1];

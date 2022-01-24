@@ -2,26 +2,9 @@
 
 interface
 
-uses System.Rtti, System.Generics.Collections;
+uses System.Rtti, System.Generics.Collections, Delphi.ORM.Shared.Obj;
 
 type
-  ISharedObject = interface
-    function GetObject: TObject;
-
-    property &Object: TObject read GetObject;
-  end;
-
-  TSharedObject = class(TInterfacedObject, ISharedObject)
-  private
-    FObject: TObject;
-
-    function GetObject: TObject;
-  public
-    constructor Create(const Instance: TObject);
-
-    destructor Destroy; override;
-  end;
-
   TSharedObjectType = {$IFDEF PAS2JS}TSharedObject{$ELSE}ISharedObject{$ENDIF};
 
   ICache = interface
@@ -103,27 +86,6 @@ end;
 function TCache.Get(const Key: String; var Value: TSharedObjectType): Boolean;
 begin
   Result := FValues.TryGetValue(Key, Value);
-end;
-
-{ TSharedObject }
-
-constructor TSharedObject.Create(const Instance: TObject);
-begin
-  inherited Create;
-
-  FObject := Instance;
-end;
-
-destructor TSharedObject.Destroy;
-begin
-  FObject.Free;
-
-  inherited;
-end;
-
-function TSharedObject.GetObject: TObject;
-begin
-  Result := FObject;
 end;
 
 end.

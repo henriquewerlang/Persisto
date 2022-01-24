@@ -2,29 +2,27 @@
 
 interface
 
-uses System.Rtti, System.Generics.Collections, System.SysUtils, Delphi.ORM.Database.Connection, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder, Delphi.ORM.Cache;
+uses System.Rtti, System.Generics.Collections, System.SysUtils, Delphi.ORM.Database.Connection, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder, Delphi.ORM.Cache,
+  Delphi.ORM.Shared.Obj;
 
 type
   TClassLoader = class
   private
-    FLoadedObjects: ICache;
+    FCache: ICache;
     FCursor: IDatabaseCursor;
     FFrom: TQueryBuilderFrom;
-    FCache: ICache;
+    FLoadedObjects: ICache;
 
-    function CreateObject(Table: TTable; const FieldIndexStart: Integer; var NewObject: Boolean): TObject;
-    function GetCache: ICache;
+    function CreateObject(Table: TTable; const FieldIndexStart: Integer; var SharedObject: ISharedObject): Boolean;
     function GetFieldValueFromCursor(const Index: Integer): Variant;
-    function LoadClass(var NewObject: Boolean): TObject;
+    function LoadClass(var SharedObject: ISharedObject): Boolean;
 
-    procedure LoadObject(Obj: TObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
+    procedure LoadObject(var SharedObject: ISharedObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
   public
-    constructor Create(Cursor: IDatabaseCursor; From: TQueryBuilderFrom);
+    constructor Create(const Cursor: IDatabaseCursor; const From: TQueryBuilderFrom; const Cache: ICache);
 
     function Load<T: class>: T;
     function LoadAll<T: class>: TArray<T>;
-
-    property Cache: ICache read GetCache write FCache;
   end;
 
 implementation
@@ -33,45 +31,35 @@ uses System.Variants, System.TypInfo, System.SysConst, Delphi.ORM.Rtti.Helper, D
 
 { TClassLoader }
 
-constructor TClassLoader.Create(Cursor: IDatabaseCursor; From: TQueryBuilderFrom);
+constructor TClassLoader.Create(const Cursor: IDatabaseCursor; const From: TQueryBuilderFrom; const Cache: ICache);
 begin
   inherited Create;
 
-  FCache := From.Builder.Cache;
+  FCache := Cache;
   FCursor := Cursor;
   FFrom := From;
   FLoadedObjects := TCache.Create;
 end;
 
-function TClassLoader.CreateObject(Table: TTable; const FieldIndexStart: Integer; var NewObject: Boolean): TObject;
+function TClassLoader.CreateObject(Table: TTable; const FieldIndexStart: Integer; var SharedObject: ISharedObject): Boolean;
 begin
   var PrimaryKeyValue := GetFieldValueFromCursor(FieldIndexStart);
-  var SharedObject: ISharedObject := nil;
 
   var CacheKey := Table.GetCacheKey(PrimaryKeyValue);
 
-  NewObject := (not Assigned(Table.PrimaryKey) or not VarIsNull(PrimaryKeyValue)) and not FLoadedObjects.Get(CacheKey, SharedObject);
+  Result := (not Assigned(Table.PrimaryKey) or not VarIsNull(PrimaryKeyValue)) and not FLoadedObjects.Get(CacheKey, SharedObject);
 
-  if NewObject then
+  if Result then
   begin
-    if not Cache.Get(CacheKey, SharedObject) then
-      SharedObject := Cache.Add(CacheKey, Table.ClassTypeInfo.MetaclassType.Create);
+    if not FCache.Get(CacheKey, SharedObject) then
+    begin
+      SharedObject := TStateObject.Create(Table.ClassTypeInfo.MetaclassType.Create, False);
+
+      FCache.Add(CacheKey, SharedObject);
+    end;
 
     FLoadedObjects.Add(CacheKey, SharedObject);
   end;
-
-  if Assigned(SharedObject) then
-    Result := SharedObject.&Object
-  else
-    Result := nil;
-end;
-
-function TClassLoader.GetCache: ICache;
-begin
-  if not Assigned(FCache) then
-    FCache := TCache.Create;
-
-  Result := FCache;
 end;
 
 function TClassLoader.GetFieldValueFromCursor(const Index: Integer): Variant;
@@ -90,28 +78,28 @@ end;
 
 function TClassLoader.LoadAll<T>: TArray<T>;
 begin
-  var NewObject: Boolean;
-  var ObjectLoaded: TObject := nil;
+  var SharedObject: ISharedObject := nil;
   Result := nil;
 
   while FCursor.Next do
   begin
-    ObjectLoaded := LoadClass(NewObject);
+    SharedObject := nil;
 
-    if NewObject then
-      Result := Result + [ObjectLoaded as T];
+    if LoadClass(SharedObject) then
+      Result := Result + [SharedObject.&Object as T];
   end;
 end;
 
-function TClassLoader.LoadClass(var NewObject: Boolean): TObject;
+function TClassLoader.LoadClass(var SharedObject: ISharedObject): Boolean;
 begin
   var FieldIndex := 0;
-  Result := CreateObject(FFrom.Join.Table, FieldIndex, NewObject);
 
-  LoadObject(Result, FFrom.Join, FieldIndex, NewObject);
+  Result := CreateObject(FFrom.Join.Table, FieldIndex, SharedObject);
+
+  LoadObject(SharedObject, FFrom.Join, FieldIndex, Result);
 end;
 
-procedure TClassLoader.LoadObject(Obj: TObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
+procedure TClassLoader.LoadObject(var SharedObject: ISharedObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
 
   procedure AddItemToParentArray(const ParentObject: TObject; ParentField: TField; const Item: TObject);
   begin
@@ -127,17 +115,21 @@ procedure TClassLoader.LoadObject(Obj: TObject; Join: TQueryBuilderJoin; var Fie
   end;
 
 begin
+  var StateObject := SharedObject as IStateObject;
+
   for var Field in Join.Table.Fields do
     if not Field.IsJoinLink or Field.IsLazy then
     begin
-      if Assigned(Obj) then
+      if Assigned(SharedObject) then
       begin
-        var FieldValue := GetFieldValueFromCursor(FieldIndexStart);
+        var FieldValue := Field.ConvertVariant(GetFieldValueFromCursor(FieldIndexStart));
 
-        if Field.IsLazy then
-          GetLazyLoadingAccess(Field.PropertyInfo.GetValue(Obj)).Key := Field.ConvertVariant(FieldValue)
-        else if not Field.ReadOnly then
-          Field.SetValue(Obj, FieldValue);
+        if not Field.ReadOnly then
+        begin
+          Field.SetValue(SharedObject.&Object, FieldValue);
+
+          Field.SetValue(StateObject.OldObject, FieldValue);
+        end;
       end;
 
       Inc(FieldIndexStart);
@@ -148,37 +140,37 @@ begin
 
       TValue.Make(nil, Field.PropertyInfo.PropertyType.Handle, ArrayValue);
 
-      Field.SetValue(Obj, ArrayValue);
+      Field.SetValue(SharedObject.&Object, ArrayValue);
     end;
 
   for var Link in Join.Links do
   begin
-    var ForeignKeyObject: TObject;
+    var ForeignKeyObject: ISharedObject := nil;
     var NewChildObject: Boolean;
 
     if Link.IsInheritedLink then
     begin
-      ForeignKeyObject := Obj;
+      ForeignKeyObject := SharedObject;
       NewChildObject := NewObject;
     end
     else
-      ForeignKeyObject := CreateObject(Link.Table, FieldIndexStart, NewChildObject);
+      NewChildObject := CreateObject(Link.Table, FieldIndexStart, ForeignKeyObject);
 
     LoadObject(ForeignKeyObject, Link, FieldIndexStart, NewChildObject);
 
     if Assigned(ForeignKeyObject) then
       if NewObject and Link.Field.IsForeignKey then
       begin
-        Link.Field.SetValue(Obj, ForeignKeyObject);
+        Link.Field.SetValue(SharedObject.&Object, ForeignKeyObject.&Object);
 
         if Assigned(Link.Field.ForeignKey.ManyValueAssociation) then
-          AddItemToParentArray(ForeignKeyObject, Link.Field.ForeignKey.ManyValueAssociation.Field, Obj);
+          AddItemToParentArray(ForeignKeyObject.&Object, Link.Field.ForeignKey.ManyValueAssociation.Field, SharedObject.&Object);
       end
       else if NewChildObject and Link.Field.IsManyValueAssociation then
       begin
-        Link.RightField.SetValue(ForeignKeyObject, Obj);
+        Link.RightField.SetValue(ForeignKeyObject.&Object, SharedObject.&Object);
 
-        AddItemToParentArray(Obj, Link.Field, ForeignKeyObject);
+        AddItemToParentArray(SharedObject.&Object, Link.Field, ForeignKeyObject.&Object);
       end;
   end;
 end;

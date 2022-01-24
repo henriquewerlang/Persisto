@@ -26,7 +26,7 @@ type
 
 implementation
 
-uses System.Rtti, Delphi.ORM.Test.Entity;
+uses System.Rtti, Delphi.ORM.Test.Entity, Delphi.ORM.Shared.Obj;
 
 { TCacheTest }
 

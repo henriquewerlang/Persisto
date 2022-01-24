@@ -14,6 +14,8 @@ type
 
     procedure Clear;
     procedure SetValue(const Value: TValue);
+
+    property Value: TValue read GetValue write SetValue;
   end;
 
   TNullableAccess = class(TInterfacedObject, INullableAccess)

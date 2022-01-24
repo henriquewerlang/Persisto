@@ -59,7 +59,6 @@ type
 
     procedure Delete<T: class>(const AObject: T);
 
-    property Cache: ICache read FCache;
     property Connection: IDatabaseConnection read FConnection;
   end;
 
@@ -297,7 +296,7 @@ function Field(const Name: String): TQueryBuilderComparisonHelper;
 
 implementation
 
-uses System.TypInfo, Delphi.ORM.Rtti.Helper, Delphi.ORM.Classes.Loader;
+uses System.TypInfo, Delphi.ORM.Rtti.Helper, Delphi.ORM.Classes.Loader, Delphi.ORM.Shared.Obj;
 
 function Field(const Name: String): TQueryBuilderComparisonHelper;
 begin
@@ -396,7 +395,7 @@ begin
       OutputFieldList[A].SetValue(Result, Cursor.GetFieldValue(A));
 
   if Result.ClassInfo = AObject.TypeInfo then
-    Cache.Add(Table.GetCacheKey(Result), Result);
+    FCache.Add(Table.GetCacheKey(Result), TStateObject.Create(Result, True) as ISharedObject);
 
   SaveManyValueAssociations(Table, AObject);
 end;
@@ -489,15 +488,16 @@ end;
 
 function TQueryBuilder.UpdateObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey): TObject;
 begin
-  var CachedObject: ISharedObject;
+  var SharedObject: ISharedObject;
   var CurrentObject := AObject.AsObject;
   var SQL := EmptyStr;
   var Table := TMapper.Default.FindTable(AObject.TypeInfo);
 
-  if Cache.Get(Table.GetCacheKey(CurrentObject), CachedObject) then
+  if FCache.Get(Table.GetCacheKey(CurrentObject), SharedObject) then
   begin
-    Result := CachedObject.&Object;
-    var SameInstance := CachedObject.&Object = CurrentObject;
+    Result := SharedObject.&Object;
+    var SameInstance := Result = CurrentObject;
+    var StateObject := SharedObject as IStateObject;
 
     SaveForeignKeys(Table, AObject, ForeignKeyToIgnore, ctUpdate);
 
@@ -506,7 +506,7 @@ begin
       begin
         var FieldValueString := Field.GetAsString(CurrentObject);
 
-        if SameInstance or (FieldValueString <> Field.GetAsString(Result)) then
+        if SameInstance or (FieldValueString <> Field.GetAsString(StateObject.OldObject)) then
         begin
           if not SQL.IsEmpty then
             SQL := SQL + ',';
@@ -898,7 +898,7 @@ constructor TQueryBuilderOpen<T>.Create(From: TQueryBuilderFrom);
 begin
   inherited Create;
 
-  FLoader := TClassLoader.Create(From.GetBuilder.GetConnection.OpenCursor(From.Builder.GetSQL), From);
+  FLoader := TClassLoader.Create(From.Builder.GetConnection.OpenCursor(From.Builder.GetSQL), From, From.Builder.FCache);
 end;
 
 destructor TQueryBuilderOpen<T>.Destroy;

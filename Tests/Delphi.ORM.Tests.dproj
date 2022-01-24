@@ -129,6 +129,8 @@
         <DCCReference Include="Delphi.ORM.Lazy.Test.pas"/>
         <DCCReference Include="..\Delphi.ORM.Cache.pas"/>
         <DCCReference Include="Delphi.ORM.Cache.Test.pas"/>
+        <DCCReference Include="..\Delphi.ORM.Shared.Obj.pas"/>
+        <DCCReference Include="Delphi.ORM.Shared.Obj.Test.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -155,12 +157,6 @@
                 </Source>
             </Delphi.Personality>
             <Deployment Version="3">
-                <DeployFile LocalName="Win64\Debug\Delphi.ORM.Tests.rsm" Configuration="Debug" Class="DebugSymbols">
-                    <Platform Name="Win64">
-                        <RemoteName>Delphi_ORM_Tests.rsm</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
                 <DeployFile LocalName="Win64\Debug\Delphi.ORM.Tests.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win64">
                         <RemoteName>Delphi_ORM_Tests.exe</RemoteName>
