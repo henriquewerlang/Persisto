@@ -449,18 +449,18 @@ begin
 
   for var ManyValue in Table.ManyValueAssociations do
   begin
-    var FieldValue := ManyValue.Field.GetValue(ForeignObject);
+    var ForeignArrayValue := ManyValue.Field.GetValue(ForeignObject);
 
-    ManyValue.Field.SetValue(CurrentObject, ManyValue.Field.GetValue(ForeignObject));
-
-    for var A := 0 to Pred(FieldValue.GetArrayLength) do
+    for var A := 0 to Pred(ForeignArrayValue.ArrayLength) do
     begin
-      var ChildFieldValue := FieldValue.GetArrayElement(A);
+      var ChildFieldValue := ForeignArrayValue.ArrayElement[A];
 
       ManyValue.ForeignKey.Field.SetValue(ChildFieldValue.AsObject, CurrentObject);
 
-      SaveObject(ChildFieldValue, ManyValue.ForeignKey);
+      ForeignArrayValue.SetArrayElement(A, SaveObject(ChildFieldValue, ManyValue.ForeignKey));
     end;
+
+    ManyValue.Field.SetValue(CurrentObject, ForeignArrayValue);
   end;
 end;
 
