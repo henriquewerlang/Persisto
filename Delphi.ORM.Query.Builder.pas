@@ -45,7 +45,7 @@ type
     function UpdateObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey): TObject;
 
     procedure SaveForeignKeys(const Table: TTable; const AObject: TValue; const ForeignKeyToIgnore: TForeignKey; const CascadeType: TCascadeType);
-    procedure SaveManyValueAssociations(const Table: TTable; const AObject: TValue);
+    procedure SaveManyValueAssociations(const Table: TTable; const CurrentObject: TObject; const AForeignObject: TValue);
   public
     constructor Create(const Connection: IDatabaseConnection; const Cache: ICache);
 
@@ -397,7 +397,7 @@ begin
   if Result.ClassInfo = AObject.TypeInfo then
     FCache.Add(Table.GetCacheKey(Result), TStateObject.Create(Result, True) as ISharedObject);
 
-  SaveManyValueAssociations(Table, AObject);
+  SaveManyValueAssociations(Table, Result, AObject);
 end;
 
 function TQueryBuilder.Insert<T>(const AObject: T): T;
@@ -443,17 +443,21 @@ begin
     end;
 end;
 
-procedure TQueryBuilder.SaveManyValueAssociations(const Table: TTable; const AObject: TValue);
+procedure TQueryBuilder.SaveManyValueAssociations(const Table: TTable; const CurrentObject: TObject; const AForeignObject: TValue);
 begin
+  var ForeignObject := AForeignObject.AsObject;
+
   for var ManyValue in Table.ManyValueAssociations do
   begin
-    var FieldValue := ManyValue.Field.GetValue(AObject.AsObject);
+    var FieldValue := ManyValue.Field.GetValue(ForeignObject);
+
+    ManyValue.Field.SetValue(CurrentObject, ManyValue.Field.GetValue(ForeignObject));
 
     for var A := 0 to Pred(FieldValue.GetArrayLength) do
     begin
       var ChildFieldValue := FieldValue.GetArrayElement(A);
 
-      ManyValue.ForeignKey.Field.SetValue(ChildFieldValue.AsObject, AObject);
+      ManyValue.ForeignKey.Field.SetValue(ChildFieldValue.AsObject, CurrentObject);
 
       SaveObject(ChildFieldValue, ManyValue.ForeignKey);
     end;
@@ -488,15 +492,15 @@ end;
 
 function TQueryBuilder.UpdateObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey): TObject;
 begin
+  var ForeignObject := AObject.AsObject;
   var SharedObject: ISharedObject;
-  var CurrentObject := AObject.AsObject;
   var SQL := EmptyStr;
   var Table := TMapper.Default.FindTable(AObject.TypeInfo);
 
-  if FCache.Get(Table.GetCacheKey(CurrentObject), SharedObject) then
+  if FCache.Get(Table.GetCacheKey(ForeignObject), SharedObject) then
   begin
     Result := SharedObject.&Object;
-    var SameInstance := Result = CurrentObject;
+    var SameInstance := Result = ForeignObject;
     var StateObject := SharedObject as IStateObject;
 
     SaveForeignKeys(Table, AObject, ForeignKeyToIgnore, ctUpdate);
@@ -504,7 +508,7 @@ begin
     for var Field in Table.Fields do
       if not Field.InPrimaryKey and not Field.IsManyValueAssociation then
       begin
-        var FieldValueString := Field.GetAsString(CurrentObject);
+        var FieldValueString := Field.GetAsString(ForeignObject);
 
         if SameInstance or (FieldValueString <> Field.GetAsString(StateObject.OldObject)) then
         begin
@@ -515,19 +519,16 @@ begin
         end;
 
         if not Field.ReadOnly then
-          Field.SetValue(Result, Field.GetValue(CurrentObject));
+          Field.SetValue(Result, Field.GetValue(ForeignObject));
       end;
 
     if not SQL.IsEmpty then
-      FConnection.ExecuteDirect(Format('update %s set %s%s', [Table.DatabaseName, SQL, BuildPrimaryKeyFilter(Table, CurrentObject)]));
+      FConnection.ExecuteDirect(Format('update %s set %s%s', [Table.DatabaseName, SQL, BuildPrimaryKeyFilter(Table, ForeignObject)]));
 
-    SaveManyValueAssociations(Table, AObject);
+    SaveManyValueAssociations(Table, Result, AObject);
 
-    for var ManyValue in Table.ManyValueAssociations do
-      ManyValue.Field.SetValue(Result, ManyValue.Field.GetValue(CurrentObject));
-
-    if not SameInstance and (CurrentObject.ClassInfo = AObject.TypeInfo) then
-      CurrentObject.Free;
+    if not SameInstance and (ForeignObject.ClassInfo = AObject.TypeInfo) then
+      ForeignObject.Free;
   end
   else
     raise EObjectReferenceWasNotFound.Create;

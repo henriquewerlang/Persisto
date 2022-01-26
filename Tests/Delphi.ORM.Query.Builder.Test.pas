@@ -411,6 +411,8 @@ type
     procedure AfterInsertTheObjectInDatabaseMustAddAStateObjectToTheCache;
     [Test]
     procedure TheStateObjectMustCopyTheValueOfAllPropertiesFromTheOriginalObject;
+    [Test]
+    procedure WhenUpdateAnObjectWithManyValueAssociationTheParentForeignKeyOfTheChildObjectMustBeTheReferenceToTheCacheObject;
   end;
 
   [TestFixture]
@@ -3049,6 +3051,20 @@ begin
   var Query := CreateQueryBuilder(MyCacheClass, '0');
 
   Assert.AreEqual<Pointer>(MyCacheClass, Query.Update(MyClass));
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenUpdateAnObjectWithManyValueAssociationTheParentForeignKeyOfTheChildObjectMustBeTheReferenceToTheCacheObject;
+begin
+  var MyClass := TManyValueParent.Create;
+  MyClass.Childs := [TManyValueChild.Create];
+  var MyClassCache := TManyValueParent.Create;
+  var Query := CreateQueryBuilder(MyClassCache, 0);
+
+  Query.Update(MyClass);
+
+  Assert.AreEqual<Pointer>(MyClassCache, MyClassCache.Childs[0].Parent);
 
   Query.Free;
 end;
