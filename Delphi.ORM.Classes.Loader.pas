@@ -12,6 +12,7 @@ type
     FCursor: IDatabaseCursor;
     FFrom: TQueryBuilderFrom;
     FLoadedObjects: ICache;
+    FMainLoadedObject: TDictionary<ISharedObject, Boolean>;
 
     function CreateObject(Table: TTable; const FieldIndexStart: Integer; var SharedObject: ISharedObject): Boolean;
     function GetFieldValueFromCursor(const Index: Integer): Variant;
@@ -20,6 +21,8 @@ type
     procedure LoadObject(var SharedObject: ISharedObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
   public
     constructor Create(const Cursor: IDatabaseCursor; const From: TQueryBuilderFrom; const Cache: ICache);
+
+    destructor Destroy; override;
 
     function Load<T: class>: T;
     function LoadAll<T: class>: TArray<T>;
@@ -39,6 +42,7 @@ begin
   FCursor := Cursor;
   FFrom := From;
   FLoadedObjects := TCache.Create;
+  FMainLoadedObject := TDictionary<ISharedObject, Boolean>.Create;
 end;
 
 function TClassLoader.CreateObject(Table: TTable; const FieldIndexStart: Integer; var SharedObject: ISharedObject): Boolean;
@@ -60,6 +64,13 @@ begin
 
     FLoadedObjects.Add(CacheKey, SharedObject);
   end;
+end;
+
+destructor TClassLoader.Destroy;
+begin
+  FMainLoadedObject.Free;
+
+  inherited;
 end;
 
 function TClassLoader.GetFieldValueFromCursor(const Index: Integer): Variant;
@@ -94,7 +105,12 @@ function TClassLoader.LoadClass(var SharedObject: ISharedObject): Boolean;
 begin
   var FieldIndex := 0;
 
-  Result := CreateObject(FFrom.Join.Table, FieldIndex, SharedObject);
+  CreateObject(FFrom.Join.Table, FieldIndex, SharedObject);
+
+  Result := not FMainLoadedObject.ContainsKey(SharedObject);
+
+  if Result then
+    FMainLoadedObject.Add(SharedObject, False);
 
   LoadObject(SharedObject, FFrom.Join, FieldIndex, Result);
 end;

@@ -795,6 +795,31 @@ type
     property UpdateInsertCascade: TClassWithCascadeForeignClass read FUpdateInsertCascade write FUpdateInsertCascade;
   end;
 
+  TManyValueParentSelfReference = class;
+
+  [Entity]
+  TManyValueParentSelfReferenceChild = class
+  private
+    FChild: TManyValueParentSelfReference;
+    FId: Integer;
+    FParent: TManyValueParentSelfReference;
+  published
+    property Child: TManyValueParentSelfReference read FChild write FChild;
+    property Id: Integer read FId write FId;
+    property Parent: TManyValueParentSelfReference read FParent write FParent;
+  end;
+
+  [Entity]
+  TManyValueParentSelfReference = class
+  private
+    FChilds: TArray<TManyValueParentSelfReferenceChild>;
+    FId: Integer;
+  published
+    [ManyValueAssociationLinkName('Parent')]
+    property Childs: TArray<TManyValueParentSelfReferenceChild> read FChilds write FChilds;
+    property Id: Integer read FId write FId;
+  end;
+
 implementation
 
 uses System.SysUtils;

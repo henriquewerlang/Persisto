@@ -92,6 +92,8 @@ type
     procedure WhenTheManyValueAssociationHasInheritedClassMustLoadTheValuesAsExpected;
     [Test]
     procedure AfterLoadTheObjectMustLoadTheOldValuesFromStateObject;
+    [Test]
+    procedure WhenLoadAManyValueAssociationThatTheObjectInTheManyValueIsInTheMainObjectListMustBeLoaded;
   end;
 
 implementation
@@ -305,6 +307,16 @@ begin
   var Result := Loader.LoadAll<TMyClass>;
 
   Assert.AreEqual<Integer>(1, Length(Result));
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenLoadAManyValueAssociationThatTheObjectInTheManyValueIsInTheMainObjectListMustBeLoaded;
+begin
+  var Loader := CreateLoader<TManyValueParentSelfReference>([[111, 111, 222], [222, NULL, NULL]]);
+  var Obj := Loader.LoadAll<TManyValueParentSelfReference>;
+
+  Assert.AreEqual<Integer>(2, Length(Obj));
 
   Loader.Free;
 end;
