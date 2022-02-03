@@ -291,6 +291,8 @@ type
     procedure IfTryToFillAValueMustRaiseAnError;
     [Test]
     procedure WhenTheFieldIsCreatedMustBeMarkedAsReadOnly;
+    [Test]
+    procedure TheReferenceFieldMustBeMarkedHasPrimaryKey;
   end;
 
 implementation
@@ -1856,6 +1858,15 @@ begin
     begin
       Field.SetValue(nil, TValue.Empty)
     end, ECanSetValueForFieldPrimaryKeyReference);
+
+  Field.Free;
+end;
+
+procedure TFieldPrimaryKeyReferenceTest.TheReferenceFieldMustBeMarkedHasPrimaryKey;
+begin
+  var Field := TFieldPrimaryKeyReference.Create;
+
+  Assert.IsTrue(Field.InPrimaryKey);
 
   Field.Free;
 end;

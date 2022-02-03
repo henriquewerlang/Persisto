@@ -793,6 +793,7 @@ constructor TFieldPrimaryKeyReference.Create;
 begin
   inherited;
 
+  FInPrimaryKey := True;
   FReadOnly := True;
 end;
 

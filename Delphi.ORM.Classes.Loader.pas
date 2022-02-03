@@ -18,7 +18,7 @@ type
     function GetFieldValueFromCursor(const Index: Integer): Variant;
     function LoadClass(var SharedObject: ISharedObject): Boolean;
 
-    procedure LoadObject(var SharedObject: ISharedObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
+    procedure LoadObject(const SharedObject: ISharedObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
   public
     constructor Create(const Cursor: IDatabaseCursor; const From: TQueryBuilderFrom; const Cache: ICache);
 
@@ -115,7 +115,7 @@ begin
   LoadObject(SharedObject, FFrom.Join, FieldIndex, Result);
 end;
 
-procedure TClassLoader.LoadObject(var SharedObject: ISharedObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
+procedure TClassLoader.LoadObject(const SharedObject: ISharedObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
 
   procedure AddItemToParentArray(const ParentObject: TObject; ParentField: TField; const Item: TObject);
   begin
