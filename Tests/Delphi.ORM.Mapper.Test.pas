@@ -278,6 +278,8 @@ type
     procedure WhenFillTheFieldValueOfALazyFieldAndTheValueIsNotAnInstanceOfAnObjectMustLoadTheKeyValueFromLazy;
     [Test]
     procedure WhenFillAnEmptyValueToALazyFieldTheLazyValueCantBeMarkedAsLoaded;
+    [Test]
+    procedure IfTheChildTableOfAManyValueAssociationHasntPrimaryKeyMustRaiseAnError;
   end;
 
   [TestFixture]
@@ -337,6 +339,19 @@ begin
   var Table := Mapper.LoadClass(TMyEntityInheritedFromSingle);
 
   Assert.IsTrue(Table.IsSingleTableInheritance);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.IfTheChildTableOfAManyValueAssociationHasntPrimaryKeyMustRaiseAnError;
+begin
+  var Mapper := TMapper.Create;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Mapper.LoadClass(TManyValueParentWithoutPrimaryKey);
+    end, EChildTableMustHasToHaveAPrimaryKey);
 
   Mapper.Free;
 end;

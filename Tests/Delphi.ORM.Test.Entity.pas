@@ -820,6 +820,24 @@ type
     property Id: Integer read FId write FId;
   end;
 
+  TManyValueParentWithoutPrimaryKey = class;
+
+  TManyValueParentWithoutPrimaryKeyChild = class
+  private
+    FManyValueParentWithoutPrimaryKey: TManyValueParentWithoutPrimaryKey;
+  published
+    property ManyValueParentWithoutPrimaryKey: TManyValueParentWithoutPrimaryKey read FManyValueParentWithoutPrimaryKey write FManyValueParentWithoutPrimaryKey;
+  end;
+
+  TManyValueParentWithoutPrimaryKey = class
+  private
+    FId: String;
+    FChild: TArray<TManyValueParentWithoutPrimaryKeyChild>;
+  published
+    property Child: TArray<TManyValueParentWithoutPrimaryKeyChild> read FChild write FChild;
+    property Id: String read FId write FId;
+  end;
+
 implementation
 
 uses System.SysUtils;

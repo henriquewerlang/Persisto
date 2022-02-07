@@ -41,6 +41,11 @@ type
     constructor Create;
   end;
 
+  EChildTableMustHasToHaveAPrimaryKey = class(Exception)
+  public
+    constructor Create(ChildTable: TTable);
+  end;
+
   TTable = class
   private
     FBaseTable: TTable;
@@ -554,7 +559,10 @@ begin
 
       for var ForeignKey in ChildTable.ForeignKeys do
         if (ForeignKey.ParentTable = Table) and (ForeignKey.Field.Name = LinkName) then
-          ManyValueAssociation := TManyValueAssociation.Create(Field, ChildTable, ForeignKey);
+          if Assigned(ChildTable.PrimaryKey) then
+            ManyValueAssociation := TManyValueAssociation.Create(Field, ChildTable, ForeignKey)
+          else
+            raise EChildTableMustHasToHaveAPrimaryKey.Create(ChildTable);
 
       if Assigned(ManyValueAssociation) then
         Table.FManyValueAssociations := Table.FManyValueAssociations + [ManyValueAssociation]
@@ -812,6 +820,14 @@ end;
 constructor ECanSetValueForFieldPrimaryKeyReference.Create;
 begin
   inherited Create('Can''t set value for the primary key reference field!');
+end;
+
+{ EChildTableMustHasToHaveAPrimaryKey }
+
+constructor EChildTableMustHasToHaveAPrimaryKey.Create(ChildTable: TTable);
+begin
+  inherited CreateFmt('The child table %s hasn''t a primary key, check the implementation!',
+    [ChildTable.ClassTypeInfo.Name]);
 end;
 
 end.
