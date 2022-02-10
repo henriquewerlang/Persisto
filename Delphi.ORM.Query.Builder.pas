@@ -424,7 +424,7 @@ end;
 
 function TQueryBuilder.Save<T>(const AObject: T): T;
 begin
-  Result :=ExecuteInTrasaction(
+  Result := ExecuteInTrasaction(
     function: TObject
     begin
       Result := SaveObject(AObject, nil);
