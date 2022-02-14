@@ -46,6 +46,11 @@ type
     constructor Create(ChildTable: TTable);
   end;
 
+  EForeignKeyToSingleTableInheritanceTable = class(Exception)
+  public
+    constructor Create(ParentTable: TRttiInstanceType);
+  end;
+
   TTable = class
   private
     FBaseTable: TTable;
@@ -253,7 +258,12 @@ end;
 
 procedure TMapper.AddTableForeignKey(const Table: TTable; const Field: TField; const ClassInfoType: TRttiInstanceType);
 begin
-  AddTableForeignKey(Table, Field, LoadTable(ClassInfoType), False);
+  var ParentTable := LoadTable(ClassInfoType);
+
+  if Assigned(ParentTable) then
+    AddTableForeignKey(Table, Field, ParentTable, False)
+  else
+    raise EForeignKeyToSingleTableInheritanceTable.Create(ClassInfoType);
 end;
 
 procedure TMapper.AddTableForeignKey(const Table: TTable; const Field: TField; const ForeignTable: TTable; const IsInheritedLink: Boolean);
@@ -519,16 +529,21 @@ end;
 
 procedure TMapper.LoadTableInfo(TypeInfo: TRttiInstanceType; const Table: TTable);
 begin
-  var BaseClass := TypeInfo.BaseType;
-  Table.FIsSingleTableInheritance := IsSingleTableInheritance(BaseClass);
+  var BaseClassInfo := TypeInfo.BaseType as TRttiInstanceType;
+  Table.FIsSingleTableInheritance := IsSingleTableInheritance(BaseClassInfo);
 
-  if not Table.IsSingleTableInheritance and (BaseClass.MetaclassType <> TObject) then
-    Table.FBaseTable := LoadClassInTable(BaseClass);
+  if not Table.IsSingleTableInheritance and (BaseClassInfo.MetaclassType <> TObject) then
+    Table.FBaseTable := LoadClassInTable(BaseClassInfo);
 
   LoadTableFields(TypeInfo, Table);
 
   if Table.IsSingleTableInheritance then
-    LoadTableFields(Table.ClassTypeInfo.BaseType, Table);
+    while Assigned(BaseClassInfo) do
+    begin
+      LoadTableFields(BaseClassInfo, Table);
+
+      BaseClassInfo := BaseClassInfo.BaseType;
+    end;
 
   if Assigned(Table.BaseTable) then
   begin
@@ -828,6 +843,13 @@ constructor EChildTableMustHasToHaveAPrimaryKey.Create(ChildTable: TTable);
 begin
   inherited CreateFmt('The child table %s hasn''t a primary key, check the implementation!',
     [ChildTable.ClassTypeInfo.Name]);
+end;
+
+{ EForeignKeyToSingleTableInheritanceTable }
+
+constructor EForeignKeyToSingleTableInheritanceTable.Create(ParentTable: TRttiInstanceType);
+begin
+  inherited CreateFmt('The parent table %s can''t be single inheritence table, check the implementation!', [ParentTable.Name]);
 end;
 
 end.

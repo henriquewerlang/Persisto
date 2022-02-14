@@ -280,6 +280,12 @@ type
     procedure WhenFillAnEmptyValueToALazyFieldTheLazyValueCantBeMarkedAsLoaded;
     [Test]
     procedure IfTheChildTableOfAManyValueAssociationHasntPrimaryKeyMustRaiseAnError;
+    [Test]
+    procedure ThenMakeAForeignKeyToASingleTableInheritanceMustRaiseAnError;
+    [Test]
+    procedure MappingAEntityWithForeignKeyToASingleInheritedClassCantRaiseError;
+    [Test]
+    procedure WhenLoadATableWithSingleInheritenceMustLoadTheFieldsOfAllLevels;
   end;
 
   [TestFixture]
@@ -411,6 +417,19 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.MappingAEntityWithForeignKeyToASingleInheritedClassCantRaiseError;
+begin
+  var Mapper := TMapper.Create;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Mapper.LoadClass(TMyEntityForeignKeyToConcrete);
+    end);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.OnlyPublishedFieldMutsBeLoadedInTheTable;
 begin
   var Mapper := TMapper.Create;
@@ -428,11 +447,6 @@ begin
 
   try
     Mapper.LoadAll;
-  except
-  end;
-
-  try
-    Mapper.LoadClass(TMyEntityWithInvalidDefaultValue);
   except
   end;
 
@@ -723,6 +737,19 @@ begin
   var Table := Mapper.LoadClass(TMyEntityWithManyValueAssociation);
 
   Assert.AreEqual('ManyValueAssociation', Table.ManyValueAssociations[0].ForeignKey.Field.PropertyInfo.Name);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.ThenMakeAForeignKeyToASingleTableInheritanceMustRaiseAnError;
+begin
+  var Mapper := TMapper.Create;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Mapper.LoadClass(TMyEntityForeignKeyToAnotherSingle);
+    end, EForeignKeyToSingleTableInheritanceTable);
 
   Mapper.Free;
 end;
@@ -1226,6 +1253,15 @@ begin
   var Table := Mapper.LoadClass(TMyEntity);
 
   Assert.AreEqual<Integer>(3, Length(Table.Fields));
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenLoadATableWithSingleInheritenceMustLoadTheFieldsOfAllLevels;
+begin
+  var Mapper := TMapper.Create;
+
+  Assert.AreEqual(4, Length(Mapper.LoadClass(TAnotherSingleInheritedConcrete).Fields));
 
   Mapper.Free;
 end;

@@ -440,7 +440,6 @@ type
     property Value: String read FValue write FValue;
   end;
 
-  [Entity]
   [SingleTableInheritance]
   TMyEntityWithSingleTableInheritanceAttribute = class
   private
@@ -466,6 +465,41 @@ type
     FSimpleProperty: Integer;
   published
     property SimpleProperty: Integer read FSimpleProperty write FSimpleProperty;
+  end;
+
+  [SingleTableInheritance]
+  TAnotherSingleInherited = class(TMyEntityWithSingleTableInheritanceAttribute)
+  private
+    FAProperty: String;
+  published
+    property AProperty: String read FAProperty write FAProperty;
+  end;
+
+  [Entity]
+  TAnotherSingleInheritedConcrete = class(TAnotherSingleInherited)
+  private
+    FValue: String;
+  published
+    property Value: String read FValue write FValue;
+  end;
+
+  TMyEntityForeignKeyToAnotherSingle = class
+  private
+    FId: String;
+    FMyForeignKey: TAnotherSingleInherited;
+  published
+    property Id: String read FId write FId;
+    property MyForeignKey: TAnotherSingleInherited read FMyForeignKey write FMyForeignKey;
+  end;
+
+  [Entity]
+  TMyEntityForeignKeyToConcrete = class
+  private
+    FAnotherClass: TAnotherSingleInheritedConcrete;
+    FId: Integer;
+  published
+    property AnotherClass: TAnotherSingleInheritedConcrete read FAnotherClass write FAnotherClass;
+    property Id: Integer read FId write FId;
   end;
 
   TMyEntityAlias = class;
