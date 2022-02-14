@@ -286,6 +286,8 @@ type
     procedure MappingAEntityWithForeignKeyToASingleInheritedClassCantRaiseError;
     [Test]
     procedure WhenLoadATableWithSingleInheritenceMustLoadTheFieldsOfAllLevels;
+    [Test]
+    procedure WhenTheTableIsInheritedMustLoadAllManyValueAssociationOfTheClass;
   end;
 
   [TestFixture]
@@ -446,7 +448,7 @@ begin
   var Mapper := TMapper.Create;
 
   try
-    Mapper.LoadAll;
+//    Mapper.LoadAll;
   except
   end;
 
@@ -1884,6 +1886,15 @@ begin
   var Table := Mapper.LoadClass(TClassWithNullableProperty);
 
   Assert.IsTrue(Table.Fields[1].IsNullable);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheTableIsInheritedMustLoadAllManyValueAssociationOfTheClass;
+begin
+  var Mapper := TMapper.Create;
+
+  Assert.AreEqual(1, Length(Mapper.LoadClass(TManyValueClassInherited).ManyValueAssociations));
 
   Mapper.Free;
 end;

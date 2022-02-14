@@ -872,6 +872,48 @@ type
     property Id: String read FId write FId;
   end;
 
+  TManyValueClassBase = class;
+
+  [Entity]
+  TManyValueClassBaseChild = class
+  private
+    FManyValueClassBase: TManyValueClassBase;
+    FId: Integer;
+  published
+    property Id: Integer read FId write FId;
+    property ManyValueClassBase: TManyValueClassBase read FManyValueClassBase write FManyValueClassBase;
+  end;
+
+  [Entity]
+  TManyValueClassBase = class
+  private
+    FValues: TArray<TManyValueClassBaseChild>;
+    FId: Integer;
+  published
+    property Id: Integer read FId write FId;
+    property Values: TArray<TManyValueClassBaseChild> read FValues write FValues;
+  end;
+
+  TManyValueClassInherited = class;
+
+  [Entity]
+  TManyValueClassInheritedChild = class
+  private
+    FManyValueClassInherited: TManyValueClassInherited;
+    FId: Integer;
+  published
+    property Id: Integer read FId write FId;
+    property ManyValueClassInherited: TManyValueClassInherited read FManyValueClassInherited write FManyValueClassInherited;
+  end;
+
+  [Entity]
+  TManyValueClassInherited = class(TManyValueClassBase)
+  private
+    FAnotherValues: TArray<TManyValueClassInheritedChild>;
+  published
+    property AnotherValues: TArray<TManyValueClassInheritedChild> read FAnotherValues write FAnotherValues;
+  end;
+
 implementation
 
 uses System.SysUtils;

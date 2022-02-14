@@ -183,8 +183,8 @@ type
     class destructor Destroy;
   private
     FContext: TRttiContext;
+    FDelayLoadTable: TList<TTable>;
     FTables: TDictionary<TRttiInstanceType, TTable>;
-    FLateLoadTables: TList<TTable>;
 
     function CheckAttribute<T: TCustomAttribute>(TypeInfo: TRttiType): Boolean;
     function GetDefaultValue(AProperty: TRttiProperty): TValue;
@@ -195,11 +195,11 @@ type
     function GetTableDatabaseName(Table: TTable): String;
     function GetTables: TArray<TTable>;
     function IsSingleTableInheritance(RttiType: TRttiType): Boolean;
-    function LoadClassInTable(TypeInfo: TRttiInstanceType): TTable;
     function LoadTable(TypeInfo: TRttiInstanceType): TTable;
 
     procedure AddTableForeignKey(const Table: TTable; const Field: TField; const ForeignTable: TTable; const IsInheritedLink: Boolean); overload;
     procedure AddTableForeignKey(const Table: TTable; const Field: TField; const ClassInfoType: TRttiInstanceType); overload;
+    procedure LoadDelayedTables;
     procedure LoadFieldInfo(const Table: TTable; const PropertyInfo: TRttiInstanceProperty; const Field: TField);
     procedure LoadTableFields(TypeInfo: TRttiInstanceType; const Table: TTable);
     procedure LoadTableForeignKeys(const Table: TTable);
@@ -307,13 +307,13 @@ begin
   inherited;
 
   FContext := TRttiContext.Create;
-  FLateLoadTables := TList<TTable>.Create;
+  FDelayLoadTable := TList<TTable>.Create;
   FTables := TObjectDictionary<TRttiInstanceType, TTable>.Create([doOwnsValues]);
 end;
 
 destructor TMapper.Destroy;
 begin
-  FLateLoadTables.Free;
+  FDelayLoadTable.Free;
 
   FTables.Free;
 
@@ -440,22 +440,22 @@ begin
 
   for var TypeInfo in FContext.GetTypes do
     if CheckAttribute<EntityAttribute>(TypeInfo) then
-      LoadClassInTable(TypeInfo.AsInstance);
+      LoadTable(TypeInfo.AsInstance);
+
+  LoadDelayedTables;
 end;
 
 function TMapper.LoadClass(ClassInfo: TClass): TTable;
 begin
-  Result := LoadClassInTable(FContext.GetType(ClassInfo).AsInstance);
+  Result := LoadTable(FContext.GetType(ClassInfo).AsInstance);
+
+  LoadDelayedTables;
 end;
 
-function TMapper.LoadClassInTable(TypeInfo: TRttiInstanceType): TTable;
+procedure TMapper.LoadDelayedTables;
 begin
-  Result := LoadTable(TypeInfo);
-
-  for var Table in FLateLoadTables do
-    LoadTableManyValueAssociations(Table);
-
-  FLateLoadTables.Clear;
+  while FDelayLoadTable.Count > 0 do
+    LoadTableManyValueAssociations(FDelayLoadTable.ExtractAt(0));
 end;
 
 procedure TMapper.LoadFieldInfo(const Table: TTable; const PropertyInfo: TRttiInstanceProperty; const Field: TField);
@@ -495,7 +495,7 @@ begin
 
     FTables.Add(TypeInfo, Result);
 
-    FLateLoadTables.Add(Result);
+    FDelayLoadTable.Add(Result);
 
     LoadTableInfo(TypeInfo, Result);
   end;
@@ -533,7 +533,7 @@ begin
   Table.FIsSingleTableInheritance := IsSingleTableInheritance(BaseClassInfo);
 
   if not Table.IsSingleTableInheritance and (BaseClassInfo.MetaclassType <> TObject) then
-    Table.FBaseTable := LoadClassInTable(BaseClassInfo);
+    Table.FBaseTable := LoadTable(BaseClassInfo);
 
   LoadTableFields(TypeInfo, Table);
 
