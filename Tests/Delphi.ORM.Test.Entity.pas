@@ -101,6 +101,17 @@ type
   end;
 
   [Entity]
+  [PrimaryKey('AnotherClass')]
+  TClassWithTwoForeignKeyAndOneIsAPrimaryKey = class
+  private
+    FAnotherClass: TClassWithPrimaryKey;
+    FAnotherClass2: TClassWithPrimaryKey;
+  published
+    property AnotherClass: TClassWithPrimaryKey read FAnotherClass write FAnotherClass;
+    property AnotherClass2: TClassWithPrimaryKey read FAnotherClass2 write FAnotherClass2;
+  end;
+
+  [Entity]
   TClassWithForeignKeyRecursive = class
   private
     FAnotherClass: TClassWithForeignKey;
