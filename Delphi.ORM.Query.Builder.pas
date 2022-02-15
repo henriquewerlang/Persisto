@@ -616,7 +616,7 @@ begin
 
       if RecursionControl[ForeignKey.ParentTable] < FRecursivityLevel then
       begin
-        var NewJoin := TQueryBuilderJoin.Create(ForeignKey.ParentTable, ForeignKey.Field, ForeignKey.Field, Join.Table.PrimaryKey, ForeignKey.IsInheritedLink);
+        var NewJoin := TQueryBuilderJoin.Create(ForeignKey.ParentTable, ForeignKey.Field, ForeignKey.Field, ForeignKey.ParentTable.PrimaryKey, ForeignKey.IsInheritedLink);
         RecursionControl[ForeignKey.ParentTable] := RecursionControl[ForeignKey.ParentTable] + 1;
 
         Join.Links := Join.Links + [NewJoin];

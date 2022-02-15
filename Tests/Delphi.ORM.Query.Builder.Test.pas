@@ -136,6 +136,8 @@ type
     procedure Setup;
     [Test]
     procedure WhenCallFromFunctionMustLoadTheTablePropertyWithTheDataOfThatTable;
+    [Test]
+    procedure WhenCallFromFunctionWithAClassWithTwoForeignKeyAndOneOfThisIsSettedOfPrimaryKeyAttributeMustGenerateJoinComparingRightAliasLikePrimaryKeyOfClassForeign;
   end;
 
   [TestFixture]
@@ -3261,6 +3263,21 @@ begin
   Query.From<TClassWithTwoForeignKey>;
 
   Assert.AreNotEqual<Pointer>(nil, Query.Table);
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderFromTest.WhenCallFromFunctionWithAClassWithTwoForeignKeyAndOneOfThisIsSettedOfPrimaryKeyAttributeMustGenerateJoinComparingRightAliasLikePrimaryKeyOfClassForeign;
+begin
+  var Query := TQueryBuilderFrom.Create(nil, 1);
+
+  Query.From<TClassWithTwoForeignKeyAndOneIsAPrimaryKey>;
+
+  var ExpectedSQL := ' from ClassWithTwoForeignKeyAndOneIsAPrimaryKey T1 ' +
+  'left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id ' +
+  'left join ClassWithPrimaryKey T3 on T1.IdAnotherClass2=T3.Id';
+
+  Assert.AreEqual(ExpectedSQL, Query.GetSQL);
 
   Query.Free;
 end;
