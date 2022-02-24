@@ -272,6 +272,7 @@ type
 
     constructor Create(const Table: TTable); overload;
 
+    function FindInheritedLink(const Join: TQueryBuilderJoin): TQueryBuilderJoin;
     function GetField(const QueryField: TQueryBuilderFieldAlias): String; overload;
     function GetField(const QueryField: TQueryBuilderFieldAlias; var Field: TField): String; overload;
     function GetFieldValue(const Comparison: TQueryBuilderComparison; const Field: TField): String;
@@ -737,54 +738,36 @@ end;
 
 function TQueryBuilderWhere<T>.GetField(const QueryField: TQueryBuilderFieldAlias; var Field: TField): String;
 begin
+  Field := nil;
+  var FieldNameToFind := QueryField.FieldNames[High(QueryField.FieldNames)];
+  var FieldNames := QueryField.FieldNames;
   var Table := FTable;
+
+  SetLength(FieldNames, High(QueryField.FieldNames));
 
   if Assigned(FFrom) then
   begin
     var CurrentJoin := FFrom.Join;
-    Field := nil;
-    var FieldCount := High(QueryField.FieldNames);
 
-    if FieldCount = 0 then
-    begin
-      while Assigned(Table) and not CurrentJoin.Table.FindField(QueryField.FieldName, Field) do
-      begin
-        Table := Table.BaseTable;
+    for var FieldName in FieldNames do
+      for var Join in CurrentJoin.Links do
+        if Join.Field.Name = FieldName then
+        begin
+          CurrentJoin := Join;
 
-        for var Join in CurrentJoin.Links do
-          if Join.Table = Table then
-          begin
-            CurrentJoin := Join;
+          Break;
+        end;
 
-            Break;
-          end;
-      end;
-    end
-    else
-    begin
-      for var A := Low(QueryField.FieldNames) to Pred(FieldCount) do
-      begin
-        var FieldName := QueryField.FieldNames[A];
-
-        for var Join in CurrentJoin.Links do
-          if Join.Field.Name = FieldName then
-          begin
-            CurrentJoin := Join;
-
-            Break;
-          end;
-      end;
-
-      CurrentJoin.Table.FindField(QueryField.FieldNames[FieldCount], Field);
-    end;
+    while Assigned(CurrentJoin) and not CurrentJoin.Table.FindField(FieldNameToFind, Field) do
+      CurrentJoin := FindInheritedLink(CurrentJoin);
 
     if Assigned(Field) then
       Exit(Format('%s.%s', [CurrentJoin.Alias, Field.DatabaseName]));
   end
-  else if Table.FindField(QueryField.FieldName, Field) then
+  else if Table.FindField(FieldNameToFind, Field) then
     Exit(Field.DatabaseName);
 
-  raise EFieldNotFoundInTable.Create(QueryField.FieldName);
+  raise EFieldNotFoundInTable.Create(FieldNameToFind);
 end;
 
 function TQueryBuilderWhere<T>.GetField(const QueryField: TQueryBuilderFieldAlias): String;
@@ -868,6 +851,15 @@ begin
   FOrderBy.Free;
 
   inherited;
+end;
+
+function TQueryBuilderWhere<T>.FindInheritedLink(const Join: TQueryBuilderJoin): TQueryBuilderJoin;
+begin
+  Result := nil;
+
+  for var Link in Join.Links do
+    if Link.IsInheritedLink then
+      Exit(Link);
 end;
 
 function TQueryBuilderWhere<T>.Open: TQueryBuilderOpen<T>;
