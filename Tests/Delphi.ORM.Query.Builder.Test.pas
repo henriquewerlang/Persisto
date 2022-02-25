@@ -318,6 +318,10 @@ type
     procedure WhenTheComparisionWithATimeMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
     [Test]
     procedure WhenTheClassIsInheritedMustFindTheFieldInTheBaseClass;
+    [Test]
+    procedure WhenBuildingTheFilterMustCheckTheFieldsJoinsIfExistsAndRaiseAnErrorIfNotFind;
+    [Test]
+    procedure WhenTheWhereFilterUsesAFieldFromABaseClassCantRaiseAnyError;
   end;
 
   [TestFixture]
@@ -1993,6 +1997,19 @@ begin
   From.Free;
 end;
 
+procedure TQueryBuilderWhereTest.WhenBuildingTheFilterMustCheckTheFieldsJoinsIfExistsAndRaiseAnErrorIfNotFind;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 5);
+
+  Assert.WillRaiseWithMessage(
+    procedure
+    begin
+      From.From<TMyTestClass>.Where(Field('NotExitst.Field') = 'abc');
+    end, EFieldNotFoundInTable, 'Field "NotExitst" not found in current table!');
+
+  From.Free;
+end;
+
 procedure TQueryBuilderWhereTest.WhenCompareAFieldWithAnValueMustBuildTheFilterAsExpected;
 begin
   var From := TQueryBuilderFrom.Create(nil, 1);
@@ -2174,6 +2191,19 @@ begin
   var Where := From.From<TMyEntityWithAllTypeOfFields>.Where(Comparison);
 
   Assert.AreEqual(Format(' where T1.Time%s''12:34:56''', [COMPARISON_OPERATOR[Operation]]), Where.GetSQL);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.WhenTheWhereFilterUsesAFieldFromABaseClassCantRaiseAnyError;
+begin
+  var From := TQueryBuilderFrom.Create(nil, 5);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      From.From<TMyClassWithForeignKeyInherited>.Where(Field('MyField.AnotherValues.Id') = 'abc');
+    end);
 
   From.Free;
 end;

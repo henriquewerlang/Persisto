@@ -925,6 +925,24 @@ type
     property AnotherValues: TArray<TManyValueClassInheritedChild> read FAnotherValues write FAnotherValues;
   end;
 
+  [Entity]
+  TMyClassWithForeignKeyBase = class
+  private
+    FMyField: TManyValueClassInherited;
+    FId: Integer;
+  published
+    property Id: Integer read FId write FId;
+    property MyField: TManyValueClassInherited read FMyField write FMyField;
+  end;
+
+  [Entity]
+  TMyClassWithForeignKeyInherited = class(TMyClassWithForeignKeyBase)
+  private
+    FValue: String;
+  published
+    property Value: String read FValue write FValue;
+  end;
+
 implementation
 
 uses System.SysUtils;
