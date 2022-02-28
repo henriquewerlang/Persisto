@@ -435,13 +435,20 @@ end;
 
 procedure TQueryBuilder.SaveForeignKeys(const Table: TTable; const AObject: TValue; const ForeignKeyToIgnore: TForeignKey; const CascadeType: TCascadeType);
 begin
+  var CurrentObject := AObject.AsObject;
+
   for var ForeignKey in Table.ForeignKeys do
     if (ForeignKey <> ForeignKeyToIgnore) and (CascadeType in ForeignKey.Cascade) then
     begin
-      var FieldValue := ForeignKey.Field.GetValue(AObject.AsObject);
+      var FieldValue := ForeignKey.Field.GetValue(CurrentObject);
 
       if not FieldValue.IsEmpty then
-        SaveObject(FieldValue, ForeignKey);
+      begin
+        var SavedObject := SaveObject(FieldValue, ForeignKey);
+
+        if not ForeignKey.Field.ReadOnly then
+          ForeignKey.Field.SetValue(CurrentObject, SavedObject);
+      end;
     end;
 end;
 
@@ -518,10 +525,10 @@ begin
             SQL := SQL + ',';
 
           SQL := SQL + Format('%s=%s', [Field.DatabaseName, FieldValueString]);
-        end;
 
-        if not Field.ReadOnly then
-          Field.SetValue(Result, Field.GetValue(ForeignObject));
+          if not Field.ReadOnly then
+            Field.SetValue(Result, Field.GetValue(ForeignObject));
+        end;
       end;
 
     if not SQL.IsEmpty then

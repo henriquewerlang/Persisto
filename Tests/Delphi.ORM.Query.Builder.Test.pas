@@ -421,6 +421,10 @@ type
     procedure WhenUpdateAnObjectWithManyValueAssociationTheParentForeignKeyOfTheChildObjectMustBeTheReferenceToTheCacheObject;
     [Test]
     procedure AfterUpdateTheManyValueAssociationMustUpdateTheReferenceOfTheObjectInTheChildList;
+    [Test]
+    procedure WhenUpdateAnEntityWithAnForeignKeyInTheCacheCantRaiseAnyError;
+    [Test]
+    procedure WhenUpdateAnEntityAndForeignKeyIsInTheCaheMustUpdateTheReferenceWithThisObject;
   end;
 
   [TestFixture]
@@ -3024,6 +3028,27 @@ begin
   Query.Free;
 end;
 
+procedure TQueryBuilderDataManipulationTest.WhenUpdateAnEntityAndForeignKeyIsInTheCaheMustUpdateTheReferenceWithThisObject;
+begin
+  var Cache := TCache.Create as ICache;
+  var ForeignKey := TClassWithCascadeForeignClass.Create;
+  var MyClass := TClassWithCascadeAttribute.Create;
+  MyClass.Id := 1;
+  MyClass.UpdateCascade := TClassWithCascadeForeignClass.Create;
+  MyClass.UpdateCascade.Id := 1;
+  var Query := CreateQueryBuilder(CreateDatabaseConnection, Cache);
+
+  AddObjectToCache(Cache, ForeignKey, 1);
+
+  AddObjectToCache(Cache, MyClass, 1);
+
+  Query.Update(MyClass);
+
+  Assert.AreEqual<Pointer>(ForeignKey, MyClass.UpdateCascade);
+
+  Query.Free;
+end;
+
 procedure TQueryBuilderDataManipulationTest.WhenUpdateAnEntityMustSaveTheForeignKeysFirstAfterThisMustUpdateTheEntity;
 begin
   var Database := TMock.CreateInterface<IDatabaseConnection>(True);
@@ -3082,6 +3107,29 @@ begin
   Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
   Query.Update(MyClass);
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenUpdateAnEntityWithAnForeignKeyInTheCacheCantRaiseAnyError;
+begin
+  var Cache := TCache.Create as ICache;
+  var ForeignKey := TClassWithCascadeForeignClass.Create;
+  var MyClass := TClassWithCascadeAttribute.Create;
+  MyClass.Id := 1;
+  MyClass.UpdateCascade := TClassWithCascadeForeignClass.Create;
+  MyClass.UpdateCascade.Id := 1;
+  var Query := CreateQueryBuilder(CreateDatabaseConnection, Cache);
+
+  AddObjectToCache(Cache, ForeignKey, 1);
+
+  AddObjectToCache(Cache, MyClass, 1);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Query.Update(MyClass);
+    end);
 
   Query.Free;
 end;
