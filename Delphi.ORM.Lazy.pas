@@ -77,6 +77,9 @@ type
   private
     FAccess: TLazyAccessType;
 
+    function GetHasKey: Boolean;
+    function GetKey: TValue;
+
     procedure SetValue(const Value: T);
   public
     function GetAccess: TLazyAccessType;
@@ -92,6 +95,8 @@ type
 {$ENDIF}
 
     property Access: TLazyAccessType read GetAccess;
+    property HasKey: Boolean read GetHasKey;
+    property Key: TValue read GetKey;
     property Value: T read GetValue write SetValue;
   end;
 
@@ -135,6 +140,16 @@ begin
     FAccess := TLazyAccess.Create(GetRttiType(TypeInfo(T)));
 
   Result := FAccess;
+end;
+
+function Lazy<T>.GetHasKey: Boolean;
+begin
+  Result := not Key.IsEmpty;
+end;
+
+function Lazy<T>.GetKey: TValue;
+begin
+  Result := Access.Key;
 end;
 
 function Lazy<T>.GetValue: T;

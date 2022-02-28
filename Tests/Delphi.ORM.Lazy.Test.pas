@@ -38,6 +38,10 @@ type
     procedure WhenGetValueAndTheLoaderNotExistsMustReturnLoadedAsTrue;
     [Test]
     procedure WhenGetTheAccessPropertyMustReturnTheInternalRttiTypeOfTheLazyValue;
+    [Test]
+    procedure WhenTheLazyValueHasAKeyMustReturnTrueInTheFunction;
+    [Test]
+    procedure TheKeyPropertyMustReturnTheKeyValueProperty;
   end;
 
   [TestFixture]
@@ -101,6 +105,15 @@ begin
   FContext.GetType(TypeInfo(Lazy<TMyEntity>)).GetMethod('GetValue');
 
   TMock.CreateInterface<ILazyAccess>;
+end;
+
+procedure TLazyTest.TheKeyPropertyMustReturnTheKeyValueProperty;
+begin
+  var Lazy: Lazy<TMyEntity>;
+
+  Lazy.Access.Key := 'abc';
+
+  Assert.AreEqual('abc', Lazy.Key.AsString);
 end;
 
 procedure TLazyTest.WhenAssignALazyVariableToAnotherMustCopyTheInternalAccess;
@@ -204,6 +217,15 @@ begin
   Assert.AreEqual<TObject>(TheValue, GetLazyLoadingAccess(TValue.From(Lazy)).GetValue.AsObject);
 
   TheValue.Free;
+end;
+
+procedure TLazyTest.WhenTheLazyValueHasAKeyMustReturnTrueInTheFunction;
+begin
+  var Lazy: Lazy<TMyEntity>;
+
+  Lazy.Access.Key := 'abc';
+
+  Assert.IsTrue(Lazy.HasKey);
 end;
 
 procedure TLazyTest.WhenUsingTheImplicitOperatorMustLoadWithTheValueFilled;
