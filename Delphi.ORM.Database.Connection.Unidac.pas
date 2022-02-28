@@ -118,7 +118,7 @@ begin
   for var Field in OutputFields do
   begin
     if not OutputSQL.IsEmpty then
-      OutputSQL := ',';
+      OutputSQL := OutputSQL + ',';
 
     OutputSQL := OutputSQL + Format('Inserted.%s', [Field]);
   end;
