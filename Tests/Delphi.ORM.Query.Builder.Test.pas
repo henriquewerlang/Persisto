@@ -7,9 +7,15 @@ uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Query.Builder, Delphi.ORM.Dat
 type
   [TestFixture]
   TQueryBuilderTest = class
+  private
+    FBuilder: TQueryBuilder;
   public
     [SetupFixture]
+    procedure SetupFixture;
+    [Setup]
     procedure Setup;
+    [TearDown]
+    procedure TearDown;
     [Test]
     procedure IfNoCommandCalledTheSQLMustReturnEmpty;
     [Test]
@@ -110,13 +116,21 @@ type
     procedure WhenUseTheOrderByClauseMustLoadTheSQLHasExpected;
     [Test]
     procedure WhenTheJoinLinkIsFromAnInheritedClassMustMarkTheIsInheritedLinkHasTrue;
+    [Test]
+    procedure WhenTheBeautifyQueryIsEnabledMustBuildTheQueryHasExpected;
+    [Test]
+    procedure WhenTheJoinMappingEnabledMustLoadTheJoinInfoOnQueryComments;
+    [Test]
+    procedure WhenTheBeautifyQueryAndJoinMappingIsEnabledMustBuildTheQueryAsExpected;
+    [Test]
+    procedure WhenTheJoinMappingEnabledAnTheEntityHasAlignedJoinsMustLoadTheJoinInfoOfAllLinks;
   end;
 
   [TestFixture]
   TQueryBuilderSelectTest = class
   public
     [SetupFixture]
-    procedure Setup;
+    procedure SetupFixture;
     [Test]
     procedure WhenIsNotDefinedTheRecursivityLevelMustBeOneTheDefaultValue;
     [Test]
@@ -131,9 +145,15 @@ type
 
   [TestFixture]
   TQueryBuilderFromTest = class
+  private
+    FBuilder: TQueryBuilder;
   public
     [SetupFixture]
+    procedure SetupFixture;
+    [Setup]
     procedure Setup;
+    [TearDown]
+    procedure TearDown;
     [Test]
     procedure WhenCallFromFunctionMustLoadTheTablePropertyWithTheDataOfThatTable;
     [Test]
@@ -144,7 +164,7 @@ type
   TQueryBuilderComparisonTest = class
   public
     [SetupFixture]
-    procedure Setup;
+    procedure SetupFixture;
     [Test]
     procedure WhenCallTheFieldFuncitionMustLoadTheFieldNameInTheLeftOperator;
     [Test]
@@ -196,9 +216,15 @@ type
 
   [TestFixture]
   TQueryBuilderAllFieldsTest = class
+  private
+    FBuilder: TQueryBuilder;
   public
     [SetupFixture]
+    procedure SetupFixture;
+    [Setup]
     procedure Setup;
+    [Teardown]
+    procedure Teardown;
     [Test]
     procedure InASingleClassMustLoadAllFieldsFromThatClass;
     [Test]
@@ -219,9 +245,15 @@ type
 
   [TestFixture]
   TQueryBuilderWhereTest = class
+  private
+    FBuilder: TQueryBuilder;
   public
     [SetupFixture]
+    procedure SetupFixture;
+    [Setup]
     procedure Setup;
+    [TearDown]
+    procedure TearDown;
     [Test]
     procedure WhenCompareAFieldWithAnValueMustBuildTheFilterAsExpected;
     [Test]
@@ -534,7 +566,7 @@ end;
 
 procedure TQueryBuilderTest.AllTheDirectForeignKeyMustBeGeneratedInTheResultingSQL;
 begin
-  var Query := TQueryBuilderFrom.Create(nil, 1);
+  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   Query.From<TClassWithTwoForeignKey>;
 
@@ -594,7 +626,7 @@ end;
 
 procedure TQueryBuilderTest.MustGenerateTheSQLFollowingTheHierarchyAsSpected;
 begin
-  var Query := TQueryBuilderFrom.Create(nil, 1);
+  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   Query.From<TClassHierarchy1>;
 
@@ -649,14 +681,24 @@ end;
 
 procedure TQueryBuilderTest.Setup;
 begin
+  FBuilder := CreateQueryBuilder;
+end;
+
+procedure TQueryBuilderTest.SetupFixture;
+begin
   TMapper.Default.LoadAll;
 
   TMock.CreateInterface<IDatabaseTransaction>;
 end;
 
+procedure TQueryBuilderTest.TearDown;
+begin
+  FBuilder.Free;
+end;
+
 procedure TQueryBuilderTest.TheClassBeingSelectedMustHaveTheAliasDefined;
 begin
-  var Query := TQueryBuilderFrom.Create(nil, 1);
+  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   Query.From<TMyTestClass>;
 
@@ -678,11 +720,12 @@ end;
 
 procedure TQueryBuilderTest.TheForeignKeyMustBeLoadedRecursive;
 begin
-  var Query := TQueryBuilderFrom.Create(nil, 1);
+  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   Query.From<TClassWithForeignKeyRecursive>;
 
-  Assert.AreEqual(' from ClassWithForeignKeyRecursive T1 left join ClassWithForeignKey T2 on T1.IdAnotherClass=T2.Id left join ClassWithPrimaryKey T3 on T2.IdAnotherClass=T3.Id', Query.GetSQL);
+  Assert.AreEqual(' from ClassWithForeignKeyRecursive T1 left join ClassWithForeignKey T2 on T1.IdAnotherClass=T2.Id left join ClassWithPrimaryKey T3 on T2.IdAnotherClass=T3.Id',
+    Query.GetSQL);
 
   Query.Free;
 end;
@@ -707,7 +750,7 @@ end;
 
 procedure TQueryBuilderTest.TheManyValueAssociationMustAvoidRecursivilyLoadTheParentClassWhenLoadingTheChildClass;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 5);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 5);
 
   From.From<TMyEntityWithManyValueAssociation>;
 
@@ -722,7 +765,7 @@ end;
 
 procedure TQueryBuilderTest.TheManyValueAssociationMustLoadTheLinkingFieldBetweenTheClasses;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   From.From<TMyEntityWithManyValueAssociation>;
 
@@ -733,7 +776,7 @@ end;
 
 procedure TQueryBuilderTest.ThenForeignKeyLinkOfAnManyValueAssociationCantAppearInTheSQL;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   From.From<TManyValueAssociationParent>;
 
@@ -880,7 +923,7 @@ end;
 
 procedure TQueryBuilderTest.WhenClassHasOtherClassesLinkedToItYouHaveToGenerateTheJoinBetweenThem;
 begin
-  var Query := TQueryBuilderFrom.Create(nil, 1);
+  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   Query.From<TClassWithForeignKey>;
 
@@ -942,7 +985,7 @@ end;
 
 procedure TQueryBuilderTest.WhenGetAllFieldsOfATableMustPutThePrimaryKeyFieldInTheBeginningOfTheResultingArray;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   var Fields := TQueryBuilderAllFields.Create(From);
 
@@ -1004,7 +1047,7 @@ end;
 
 procedure TQueryBuilderTest.WhenIsLoadedAJoinMustLoadTheFieldThatIsTheLinkBetweenTheClasses;
 begin
-  var Query := TQueryBuilderFrom.Create(nil, 1);
+  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   Query.From<TClassWithForeignKey>;
 
@@ -1036,6 +1079,61 @@ begin
   Query.Select.All.From<TMyTestClass>;
 
   Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Query.GetSQL);
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderTest.WhenTheBeautifyQueryAndJoinMappingIsEnabledMustBuildTheQueryAsExpected;
+begin
+  var Database := TDatabaseTest.Create(nil);
+  var Query := CreateQueryBuilder(Database);
+
+  Query.Options := [boBeautifyQuery, boJoinMapping];
+
+  Query.Select.All.From<TClassWithTwoForeignKey>.Open;
+
+  Assert.AreEqual(
+    '   select T1.Id F1,'#13#10 +
+    '          T2.Id F2,'#13#10 +
+    '          T2.Value F3,'#13#10 +
+    '          T3.Id F4,'#13#10 +
+    '          T3.Value F5'#13#10 +
+    '     from ClassWithTwoForeignKey T1'#13#10 +
+    '       /* ClassWithTwoForeignKey -> ClassWithPrimaryKey (AnotherClass) */'#13#10 +
+    'left join ClassWithPrimaryKey T2'#13#10 +
+    '       on T1.IdAnotherClass=T2.Id'#13#10 +
+    '       /* ClassWithTwoForeignKey -> ClassWithPrimaryKey (AnotherClass2) */'#13#10 +
+    'left join ClassWithPrimaryKey T3'#13#10 +
+    '       on T1.IdAnotherClass2=T3.Id'#13#10, Database.SQL);
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderTest.WhenTheBeautifyQueryIsEnabledMustBuildTheQueryHasExpected;
+begin
+  var Database := TDatabaseTest.Create(nil);
+  var Query := CreateQueryBuilder(Database);
+
+  Query.Options := [boBeautifyQuery];
+
+  Query.Select.First(20).All.From<TClassWithTwoForeignKey>.Where((Field('AnotherClass.Value') = 123) and (Field('AnotherClass.Value') = 456) or (Field('AnotherClass.Value') = 789))
+    .OrderBy.Field('Id').Open;
+
+  Assert.AreEqual(
+    '   select top 20 T1.Id F1,'#13#10 +
+    '          T2.Id F2,'#13#10 +
+    '          T2.Value F3,'#13#10 +
+    '          T3.Id F4,'#13#10 +
+    '          T3.Value F5'#13#10 +
+    '     from ClassWithTwoForeignKey T1'#13#10 +
+    'left join ClassWithPrimaryKey T2'#13#10 +
+    '       on T1.IdAnotherClass=T2.Id'#13#10 +
+    'left join ClassWithPrimaryKey T3'#13#10 +
+    '       on T1.IdAnotherClass2=T3.Id'#13#10 +
+    '    where ((T2.Value=123'#13#10 +
+    '      and T2.Value=456)'#13#10 +
+    '      or T2.Value=789)'#13#10 +
+    ' order by T1.Id'#13#10, Database.SQL);
 
   Query.Free;
 end;
@@ -1137,7 +1235,7 @@ end;
 
 procedure TQueryBuilderTest.WhenTheClassHaveForeignKeysThatsLoadsRecursivelyCantRaiseAnError;
 begin
-  var Query := TQueryBuilderFrom.Create(nil, 1);
+  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   Assert.WillNotRaise(
     procedure
@@ -1152,7 +1250,7 @@ end;
 
 procedure TQueryBuilderTest.WhenTheClassHaveManyValueAssociationMustLoadTheJoinBetweenTheParentAndChildTable;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   From.From<TMyEntityWithManyValueAssociation>;
 
@@ -1184,7 +1282,7 @@ end;
 
 procedure TQueryBuilderTest.WhenTheClassRecursivelyItselfMoreThenOneTimeMustBuildTheSQLAsEspected;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 2);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 2);
 
   From.From<TClassRecursiveItSelf>;
 
@@ -1209,13 +1307,57 @@ end;
 
 procedure TQueryBuilderTest.WhenTheJoinLinkIsFromAnInheritedClassMustMarkTheIsInheritedLinkHasTrue;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   From.From<TMyEntityInheritedFromSimpleClass>;
 
   Assert.IsTrue(From.Join.Links[0].IsInheritedLink);
 
   From.Free;
+end;
+
+procedure TQueryBuilderTest.WhenTheJoinMappingEnabledAnTheEntityHasAlignedJoinsMustLoadTheJoinInfoOfAllLinks;
+begin
+  var Database := TDatabaseTest.Create(nil);
+  var Query := CreateQueryBuilder(Database);
+
+  Query.Options := [boJoinMapping];
+
+  Query.Select.All.From<TClassWithForeignKeyRecursive>.Open;
+
+  Assert.AreEqual(
+          'select T1.Id F1,T2.Id F2,T3.Id F3,T3.Value F4 ' +
+            'from ClassWithForeignKeyRecursive T1' +
+              '/* ClassWithForeignKeyRecursive -> ClassWithForeignKey (AnotherClass) */' +
+       'left join ClassWithForeignKey T2 ' +
+              'on T1.IdAnotherClass=T2.Id' +
+              '/* ClassWithForeignKeyRecursive -> ClassWithForeignKey -> ClassWithPrimaryKey (AnotherClass) */' +
+       'left join ClassWithPrimaryKey T3 ' +
+              'on T2.IdAnotherClass=T3.Id', Database.SQL);
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderTest.WhenTheJoinMappingEnabledMustLoadTheJoinInfoOnQueryComments;
+begin
+  var Database := TDatabaseTest.Create(nil);
+  var Query := CreateQueryBuilder(Database);
+
+  Query.Options := [boJoinMapping];
+
+  Query.Select.All.From<TClassWithTwoForeignKey>.Open;
+
+  Assert.AreEqual(
+       'select T1.Id F1,T2.Id F2,T2.Value F3,T3.Id F4,T3.Value F5 ' +
+         'from ClassWithTwoForeignKey T1' +
+              '/* ClassWithTwoForeignKey -> ClassWithPrimaryKey (AnotherClass) */' +
+    'left join ClassWithPrimaryKey T2 ' +
+           'on T1.IdAnotherClass=T2.Id' +
+              '/* ClassWithTwoForeignKey -> ClassWithPrimaryKey (AnotherClass2) */' +
+    'left join ClassWithPrimaryKey T3 ' +
+           'on T1.IdAnotherClass2=T3.Id', Database.SQL);
+
+  Query.Free;
 end;
 
 procedure TQueryBuilderTest.WhenTryToSaveAnEntityWithThePrimaryKeyEmptyMustInsertTheEntity;
@@ -1335,7 +1477,7 @@ end;
 
 procedure TQueryBuilderAllFieldsTest.FieldsOfAnObjectCantBeLoadedInTheListOfFields;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   var FieldList := TQueryBuilderAllFields.Create(From);
 
@@ -1351,7 +1493,7 @@ end;
 
 procedure TQueryBuilderAllFieldsTest.InASingleClassMustLoadAllFieldsFromThatClass;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   var FieldList := TQueryBuilderAllFields.Create(From);
 
@@ -1366,12 +1508,22 @@ end;
 
 procedure TQueryBuilderAllFieldsTest.Setup;
 begin
+  FBuilder := CreateQueryBuilder;
+end;
+
+procedure TQueryBuilderAllFieldsTest.SetupFixture;
+begin
   TMapper.Default.LoadAll;
+end;
+
+procedure TQueryBuilderAllFieldsTest.Teardown;
+begin
+  FBuilder.Free;
 end;
 
 procedure TQueryBuilderAllFieldsTest.TheFieldsMustBeLoadedRecursivelyInAllForeignKeys;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   var FieldList := TQueryBuilderAllFields.Create(From);
 
@@ -1386,7 +1538,7 @@ end;
 
 procedure TQueryBuilderAllFieldsTest.TheRecursivelyMustBeRespectedAndLoadAllFieldFromTheClasses;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 3);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 3);
 
   var FieldList := TQueryBuilderAllFields.Create(From);
 
@@ -1401,7 +1553,7 @@ end;
 
 procedure TQueryBuilderAllFieldsTest.WhenAFieldIsLazyLoadingThisMustLoadInFieldList;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   var Fields := TQueryBuilderAllFields.Create(From);
 
@@ -1416,7 +1568,7 @@ end;
 
 procedure TQueryBuilderAllFieldsTest.WhenTheClassHaveForeignKeyMustLoadAllFieldsOfAllClassesInvolved;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   var FieldList := TQueryBuilderAllFields.Create(From);
 
@@ -1431,7 +1583,7 @@ end;
 
 procedure TQueryBuilderAllFieldsTest.WhenTheClassIsRecursiveItselfCantRaiseAnErrorInTheExecution;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   var FieldList := TQueryBuilderAllFields.Create(From);
 
@@ -1450,7 +1602,7 @@ end;
 
 procedure TQueryBuilderAllFieldsTest.WhenThePropertyIsAnArrayCantLoadTheFieldInTheList;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   var FieldList := TQueryBuilderAllFields.Create(From);
 
@@ -1465,7 +1617,7 @@ end;
 
 { TQueryBuilderSelectTest }
 
-procedure TQueryBuilderSelectTest.Setup;
+procedure TQueryBuilderSelectTest.SetupFixture;
 begin
   TMapper.Default.LoadAll;
 end;
@@ -1528,7 +1680,7 @@ end;
 
 { TQueryBuilderComparisonTest }
 
-procedure TQueryBuilderComparisonTest.Setup;
+procedure TQueryBuilderComparisonTest.SetupFixture;
 begin
   TMapper.Default.LoadAll;
 end;
@@ -1816,7 +1968,7 @@ end;
 
 procedure TQueryBuilderWhereTest.AComposeLogicalOperationMustBeGeneratedAsExpected;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var Where := From.From<TWhereClassTest>.Where((Field('Field1') = 1) and (Field('Field2') = 2) or (Field('Field3') = 3));
 
   Assert.AreEqual(' where ((T1.Field1=1 and T1.Field2=2) or T1.Field3=3)', Where.GetSQL);
@@ -1826,7 +1978,7 @@ end;
 
 procedure TQueryBuilderWhereTest.ASimpleLogicalAndOperationMustBeGeneratedAsExpected;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var Where := From.From<TWhereClassTest>.Where((Field('Field1') = 1111) and (Field('Field2') = 222));
 
   Assert.AreEqual(' where (T1.Field1=1111 and T1.Field2=222)', Where.GetSQL);
@@ -1836,7 +1988,7 @@ end;
 
 procedure TQueryBuilderWhereTest.ASimpleLogicalOrOperationMustBeGeneratedAsExpected;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var Where := From.From<TWhereClassTest>.Where((Field('Field1') = 1111) or (Field('Field2') = 222));
 
   Assert.AreEqual(' where (T1.Field1=1111 or T1.Field2=222)', Where.GetSQL);
@@ -1846,7 +1998,7 @@ end;
 
 procedure TQueryBuilderWhereTest.IfTheWhereDontFoundTheFieldMustRaiseAnError;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var Where := From.From<TWhereClassTest>;
 
   Assert.WillRaise(
@@ -1860,12 +2012,22 @@ end;
 
 procedure TQueryBuilderWhereTest.Setup;
 begin
+  FBuilder := CreateQueryBuilder;
+end;
+
+procedure TQueryBuilderWhereTest.SetupFixture;
+begin
   TMapper.Default.LoadAll;
+end;
+
+procedure TQueryBuilderWhereTest.TearDown;
+begin
+  FBuilder.Free;
 end;
 
 procedure TQueryBuilderWhereTest.TheComparisonOfTheValuesMustOccurAsExpected(TypeToConvert, ValueToCompare: String);
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var Value: TValue;
   var Prefix := EmptyStr;
 
@@ -1962,7 +2124,7 @@ begin
 
   if Operation <> qbcoNone then
   begin
-    var From := TQueryBuilderFrom.Create(nil, 1);
+    var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
     Assert.AreEqual(Format(' where T1.MyField%s%s', [COMPARISON_OPERATOR[Operation], ValueString]), From.From<TWhereClassTest>.Where(Comparison).GetSQL);
 
@@ -1972,7 +2134,7 @@ end;
 
 procedure TQueryBuilderWhereTest.TheLasNameInTheComposeNameMustBeTheFieldToBeFoundInAClass;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var Where := From.From<TWhereClassTest>.Where(Field('Where') = 1);
 
   Assert.AreEqual(' where T1.IdWhere=1', Where.GetSQL);
@@ -1982,7 +2144,7 @@ end;
 
 procedure TQueryBuilderWhereTest.WhenAPropertyIsLazyLoadingCantAppearInTheFromClause;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   From.From<TLazyClass>;
 
@@ -1993,7 +2155,7 @@ end;
 
 procedure TQueryBuilderWhereTest.WhenBothOperationsAreLogicalHaveToGenerateSQLAsExpected;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var Where := From.From<TWhereClassTest>.Where((Field('Field1') = 1) and (Field('Field2') = 2) or (Field('Field3') = 3) and (Field('Field4') = 4));
 
   Assert.AreEqual(' where ((T1.Field1=1 and T1.Field2=2) or (T1.Field3=3 and T1.Field4=4))', Where.GetSQL);
@@ -2003,7 +2165,7 @@ end;
 
 procedure TQueryBuilderWhereTest.WhenBuildingTheFilterMustCheckTheFieldsJoinsIfExistsAndRaiseAnErrorIfNotFind;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 5);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 5);
 
   Assert.WillRaiseWithMessage(
     procedure
@@ -2016,7 +2178,7 @@ end;
 
 procedure TQueryBuilderWhereTest.WhenCompareAFieldWithAnValueMustBuildTheFilterAsExpected;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var Where := From.From<TWhereClassTest>.Where(Field('Value') = 1234);
 
   Assert.AreEqual(' where T1.Value=1234', Where.GetSQL);
@@ -2047,7 +2209,7 @@ begin
     else raise Exception.Create('Test not implemented');
   end;
 
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var Where := From.From<TMyEntityWithAllTypeOfFields>.Where(Comparison);
 
   Assert.AreEqual(Format(' where T1.Enumerator%s1', [COMPARISON_OPERATOR[Operation]]), Where.GetSQL);
@@ -2080,7 +2242,7 @@ begin
     else raise Exception.Create('Test not implemented');
   end;
 
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   Assert.AreEqual(Format(' where T1.MyField%sT1.Value', [COMPARISON_OPERATOR[Operation]]), From.From<TWhereClassTest>.Where(Comparison).GetSQL);
 
@@ -2089,7 +2251,7 @@ end;
 
 procedure TQueryBuilderWhereTest.WhenExistsAJoinLoadedMustPutTheAliasOfTheTableBeforeTheFieldName;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 2);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 2);
   var Where := From.From<TWhereClassTest>.Where(Field('Field1') = 1);
 
   Assert.AreEqual(' where T1.Field1=1', Where.GetSQL);
@@ -2099,7 +2261,7 @@ end;
 
 procedure TQueryBuilderWhereTest.WhenLeftOperationIsASimpleComparisonAndRightIsALogicalOperationItHasToGenerateSQLAsExpected;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var Where := From.From<TWhereClassTest>.Where((Field('Field1') = 1) and ((Field('Field2') = 2) or (Field('Field3') = 3)));
 
   Assert.AreEqual(' where (T1.Field1=1 and (T1.Field2=2 or T1.Field3=3))', Where.GetSQL);
@@ -2109,7 +2271,7 @@ end;
 
 procedure TQueryBuilderWhereTest.WhenTheClassIsInheritedMustFindTheFieldInTheBaseClass;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 5);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 5);
   var Where := From.From<TMyEntityInheritedFromSimpleClass>.Where(Field('BaseProperty') = 'abc');
 
   Assert.AreEqual(' where T2.BaseProperty=''abc''', Where.GetSQL);
@@ -2119,7 +2281,7 @@ end;
 
 procedure TQueryBuilderWhereTest.WhenTheClassIsRecursiveInItselfHasToPutTheRightAlias;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 5);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 5);
   var Where := From.From<TClassRecursiveItSelf>.Where(Field('Recursive1.Recursive1.Recursive1.Recursive1.Recursive1') = 1);
 
   Assert.AreEqual(' where T5.IdRecursive1=1', Where.GetSQL);
@@ -2131,7 +2293,7 @@ procedure TQueryBuilderWhereTest.WhenTheComparisionWithADateMustCreateTheCompari
 begin
   var Comparison: TQueryBuilderComparisonHelper;
   var Field := Field('Date');
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var DateVar: TDate := EncodeDate(2021, 01, 01);
 
   case Operation of
@@ -2155,7 +2317,7 @@ procedure TQueryBuilderWhereTest.WhenTheComparisionWithADateTimeMustCreateTheCom
 begin
   var Comparison: TQueryBuilderComparisonHelper;
   var Field := Field('DateTime');
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var DateVar: TDateTime := EncodeDateTime(2021, 01, 01, 12, 34, 56, 0);
 
   case Operation of
@@ -2179,7 +2341,7 @@ procedure TQueryBuilderWhereTest.WhenTheComparisionWithATimeMustCreateTheCompari
 begin
   var Comparison: TQueryBuilderComparisonHelper;
   var Field := Field('Time');
-  var From := TQueryBuilderFrom.Create(nil, 1);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var DateVar: TTime := EncodeTime(12, 34, 56, 0);
 
   case Operation of
@@ -2201,7 +2363,7 @@ end;
 
 procedure TQueryBuilderWhereTest.WhenTheWhereFilterUsesAFieldFromABaseClassCantRaiseAnyError;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 5);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 5);
 
   Assert.WillNotRaise(
     procedure
@@ -2214,7 +2376,7 @@ end;
 
 procedure TQueryBuilderWhereTest.WhenUsingAComposeNameMustPutTheAliasOfTheTableBeforeTheFieldName;
 begin
-  var From := TQueryBuilderFrom.Create(nil, 2);
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 2);
   var Where := From.From<TWhereClassTest>.Where(Field('Where.Class1.Class3.Id') = 1);
 
   Assert.AreEqual(' where T4.Id=1', Where.GetSQL);
@@ -3177,8 +3339,9 @@ end;
 procedure TQueryBuilderDataManipulationTest.WhenUpdatingAClassMustInsertOnlyTheForeignKeyWithUpdateCascadeAttribute;
 begin
   var Database := TDatabaseTest.Create(TCursorMock.Create([[1], [2]]));
+  var InsertClass := TClassWithCascadeForeignClass.Create;
   var MyClass := TClassWithCascadeAttribute.Create;
-  MyClass.InsertCascade := TClassWithCascadeForeignClass.Create;
+  MyClass.InsertCascade := InsertClass;
   MyClass.UpdateCascade := TClassWithCascadeForeignClass.Create;
   MyClass.UpdateInsertCascade := TClassWithCascadeForeignClass.Create;
   var Query := CreateQueryBuilder(Database, TClassWithCascadeAttribute.Create, 0);
@@ -3191,6 +3354,8 @@ begin
     'update ClassWithCascadeAttribute set IdInsertCascade=0,IdUpdateCascade=1,IdUpdateInsertCascade=2 where Id=0', Database.SQL);
 
   Query.Free;
+
+  InsertClass.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdatingTheCachedObjectCantDestroyTheObject;
@@ -3206,6 +3371,8 @@ begin
   Assert.CheckExpectation(MyClass.CheckExpectations);
 
   Query.Free;
+
+  MyClass.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdatingTheCachedObjectMustUpdateAllFieldsFromTheClass;
@@ -3331,12 +3498,22 @@ end;
 
 procedure TQueryBuilderFromTest.Setup;
 begin
+  FBuilder := CreateQueryBuilder;
+end;
+
+procedure TQueryBuilderFromTest.SetupFixture;
+begin
   TMapper.Default.LoadAll;
+end;
+
+procedure TQueryBuilderFromTest.TearDown;
+begin
+  FBuilder.Free;
 end;
 
 procedure TQueryBuilderFromTest.WhenCallFromFunctionMustLoadTheTablePropertyWithTheDataOfThatTable;
 begin
-  var Query := TQueryBuilderFrom.Create(nil, 1);
+  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   Query.From<TClassWithTwoForeignKey>;
 
@@ -3347,7 +3524,7 @@ end;
 
 procedure TQueryBuilderFromTest.WhenCallFromFunctionWithAClassWithTwoForeignKeyAndOneOfThisIsSettedOfPrimaryKeyAttributeMustGenerateJoinComparingRightAliasLikePrimaryKeyOfClassForeign;
 begin
-  var Query := TQueryBuilderFrom.Create(nil, 1);
+  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
 
   Query.From<TClassWithTwoForeignKeyAndOneIsAPrimaryKey>;
 
