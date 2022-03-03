@@ -1632,7 +1632,7 @@ begin
         begin
           LazyAccess := GetLazyLoadingAccess(Value);
 
-          if LazyAccess.Loaded then
+          if LazyAccess.HasValue then
             Value := LazyAccess.Value
           else
           begin

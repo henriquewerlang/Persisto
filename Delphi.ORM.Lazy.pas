@@ -12,8 +12,9 @@ type
 
   ILazyAccess = interface
     ['{670D3E65-9747-4192-A4CE-CD612B5C16A2}']
+    function GetHasKey: Boolean;
+    function GetHasValue: Boolean;
     function GetKey: TValue;
-    function GetLoaded: Boolean;
     function GetRttiType: TRttiType;
     function GetValue: TValue;
 {$IFDEF PAS2JS}
@@ -23,8 +24,9 @@ type
     procedure SetKey(const Value: TValue);
     procedure SetValue(const Value: TValue);
 
+    property HasKey: Boolean read GetHasKey;
+    property HasValue: Boolean read GetHasValue;
     property Key: TValue read GetKey write SetKey;
-    property Loaded: Boolean read GetLoaded;
     property RttiType: TRttiType read GetRttiType;
     property Value: TValue read GetValue write SetValue;
   end;
@@ -37,23 +39,21 @@ type
   TLazyAccess = class(TInterfacedObject, ILazyAccess)
   private
     FFactory: ILazyFactory;
+    FHasValue: Boolean;
     FKey: TValue;
-    FLoaded: Boolean;
     FRttiType: TRttiType;
     FValue: TValue;
 
     class var FGlobalFactory: ILazyFactory;
 
     function GetFactory: ILazyFactory;
+    function GetHasKey: Boolean;
+    function GetHasValue: Boolean;
     function GetKey: TValue; inline;
-    function GetLoaded: Boolean; inline;
     function GetRttiType: TRttiType;
     function GetValue: TValue;
 
     procedure LoadValue;
-{$IFDEF PAS2JS}
-    procedure LoadValueAsync; async;
-{$ENDIF}
     procedure SetKey(const Value: TValue); inline;
     procedure SetValue(const Value: TValue); inline;
   public
@@ -63,8 +63,9 @@ type
 {$ENDIF}
 
     property Factory: ILazyFactory read GetFactory write FFactory;
+    property HasKey: Boolean read GetHasKey;
+    property HasValue: Boolean read GetHasValue;
     property Key: TValue read GetKey write SetKey;
-    property Loaded: Boolean read GetLoaded;
     property RttiType: TRttiType read GetRttiType;
     property Value: TValue read GetValue write SetValue;
 
@@ -94,7 +95,7 @@ type
     class operator Implicit(const Value: T): Lazy<T>;
 {$ENDIF}
 
-    property Access: TLazyAccessType read GetAccess;
+    property Access: TLazyAccessType read GetAccess write FAccess;
     property HasKey: Boolean read GetHasKey;
     property Key: TValue read GetKey;
     property Value: T read GetValue write SetValue;
@@ -144,7 +145,7 @@ end;
 
 function Lazy<T>.GetHasKey: Boolean;
 begin
-  Result := not Key.IsEmpty;
+  Result := Access.HasKey or Access.HasValue;
 end;
 
 function Lazy<T>.GetKey: TValue;
@@ -194,8 +195,6 @@ begin
 
   FKey := TValue.Empty;
   FRttiType := RttiType;
-
-  TValue.Make(nil, RttiType.Handle, FValue);
 end;
 
 function TLazyAccess.GetFactory: ILazyFactory;
@@ -209,15 +208,19 @@ begin
   Result := FFactory;
 end;
 
+function TLazyAccess.GetHasKey: Boolean;
+begin
+  Result := not FKey.IsEmpty;
+end;
+
+function TLazyAccess.GetHasValue: Boolean;
+begin
+  Result := FHasValue;
+end;
+
 function TLazyAccess.GetKey: TValue;
 begin
   Result := FKey;
-end;
-
-function TLazyAccess.GetLoaded: Boolean;
-begin
-  FLoaded := FLoaded or FKey.IsEmpty or not Assigned(FRttiType);
-  Result := FLoaded;
 end;
 
 function TLazyAccess.GetRttiType: TRttiType;
@@ -227,7 +230,7 @@ end;
 
 function TLazyAccess.GetValue: TValue;
 begin
-  if not Loaded then
+  if not HasValue then
     LoadValue;
 
   Result := FValue;
@@ -236,8 +239,7 @@ end;
 {$IFDEF PAS2JS}
 function TLazyAccess.GetValueAsync: TValue;
 begin
-  if not Loaded then
-    await(LoadValueAsync);
+  LoadValue;
 
   Result := FValue;
 end;
@@ -245,15 +247,13 @@ end;
 
 procedure TLazyAccess.LoadValue;
 begin
-  Value := Factory.Load(FRttiType, FKey);
-end;
+  FHasValue := True;
 
-{$IFDEF PAS2JS}
-procedure TLazyAccess.LoadValueAsync;
-begin
-  Value := Factory.Load(FRttiType, FKey);
+  if HasKey then
+    FValue := Factory.Load(FRttiType, FKey)
+  else
+    TValue.Make(nil, RttiType.Handle, FValue);
 end;
-{$ENDIF}
 
 procedure TLazyAccess.SetKey(const Value: TValue);
 begin
@@ -262,7 +262,7 @@ end;
 
 procedure TLazyAccess.SetValue(const Value: TValue);
 begin
-  FLoaded := True;
+  FHasValue := True;
   FValue := Value;
 end;
 

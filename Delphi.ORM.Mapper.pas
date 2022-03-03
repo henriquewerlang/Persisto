@@ -745,7 +745,7 @@ begin
   begin
     var LazyAccess := GetLazyLoadingAccess(Result);
 
-    if LazyAccess.Loaded then
+    if LazyAccess.HasValue then
       Result := LazyAccess.GetValue
     else
       Result := LazyAccess.GetKey;
