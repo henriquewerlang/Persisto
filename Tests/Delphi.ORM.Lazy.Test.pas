@@ -80,8 +80,6 @@ type
     [Test]
     procedure WhenTheFactoryIsntLoadedMustGetTheGlobalReferenceOfTheFactory;
     [Test]
-    procedure WhenTheKeyIsEmptyMustReturnThePropertyLoadedAsTrue;
-    [Test]
     procedure WhenTheLazyIsEmptyTheValueMustHaveTheSameTypeInfoOfTheValue;
   end;
 
@@ -375,13 +373,6 @@ begin
   Assert.AreEqual(EmptyStr, Factory.CheckExpectations);
 
   LazyAccess.GlobalFactory := nil;
-end;
-
-procedure TLazyAccessTest.WhenTheKeyIsEmptyMustReturnThePropertyLoadedAsTrue;
-begin
-  var LazyAccess: ILazyAccess := TLazyAccess.Create(GetRttiType(TMyEntity));
-
-  Assert.IsTrue(LazyAccess.HasValue);
 end;
 
 procedure TLazyAccessTest.WhenTheKeyIsEmptyTheGetValueMustReturnAEmptyValue;
