@@ -943,6 +943,19 @@ type
     property Value: String read FValue write FValue;
   end;
 
+  [Entity]
+  TClassWithNoUpdateAttribute = class
+  private
+    FId: String;
+    FNoUpdate: String;
+    FValue: String;
+  published
+    property Id: String read FId write FId;
+    [NoUpdate]
+    property NoUpdate: String read FNoUpdate write FNoUpdate;
+    property Value: String read FValue write FValue;
+  end;
+
 implementation
 
 uses System.SysUtils;

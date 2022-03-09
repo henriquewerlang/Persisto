@@ -288,6 +288,8 @@ type
     procedure WhenLoadATableWithSingleInheritenceMustLoadTheFieldsOfAllLevels;
     [Test]
     procedure WhenTheTableIsInheritedMustLoadAllManyValueAssociationOfTheClass;
+    [Test]
+    procedure WhenTheFieldHasTheNoUpdateAttributeTheFieldMustBeMarkedAsReadOnly;
   end;
 
   [TestFixture]
@@ -300,7 +302,7 @@ type
     [Test]
     procedure IfTryToFillAValueMustRaiseAnError;
     [Test]
-    procedure WhenTheFieldIsCreatedMustBeMarkedAsReadOnly;
+    procedure WhenTheFieldIsCreatedMustBeMarkedIsReference;
     [Test]
     procedure TheReferenceFieldMustBeMarkedHasPrimaryKey;
   end;
@@ -1657,6 +1659,16 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.WhenTheFieldHasTheNoUpdateAttributeTheFieldMustBeMarkedAsReadOnly;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TClassWithNoUpdateAttribute);
+
+  Assert.IsTrue(Table.Fields[1].IsReadOnly);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.WhenTheFieldHasTheUpdateCascadeAnotationMustLoadTheInfoInTheForeignKey;
 begin
   var Mapper := TMapper.Create;
@@ -1957,11 +1969,11 @@ begin
   AClass.Free;
 end;
 
-procedure TFieldPrimaryKeyReferenceTest.WhenTheFieldIsCreatedMustBeMarkedAsReadOnly;
+procedure TFieldPrimaryKeyReferenceTest.WhenTheFieldIsCreatedMustBeMarkedIsReference;
 begin
   var Field := TFieldPrimaryKeyReference.Create;
 
-  Assert.IsTrue(Field.ReadOnly);
+  Assert.IsTrue(Field.IsReference);
 
   Field.Free;
 end;

@@ -140,7 +140,7 @@ begin
       begin
         var FieldValue := Field.ConvertVariant(GetFieldValueFromCursor(FieldIndexStart));
 
-        if not Field.ReadOnly then
+        if not Field.IsReference then
         begin
           Field.SetValue(SharedObject.&Object, FieldValue);
 

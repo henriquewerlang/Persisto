@@ -391,7 +391,7 @@ begin
       OutputFieldList := OutputFieldList + [Field];
       OutputFieldNameList := OutputFieldNameList + [Field.DatabaseName];
     end
-    else if not Field.IsManyValueAssociation then
+    else if not Field.IsManyValueAssociation and not Field.IsReadOnly then
       SQL := Format(SQL, [Field.DatabaseName + '%2:s%0:s', Field.GetAsString(FieldValue) + '%2:s%1:s', ',']);
   end;
 
@@ -472,7 +472,7 @@ begin
       begin
         var SavedObject := SaveObject(FieldValue, ForeignKey);
 
-        if not ForeignKey.Field.ReadOnly then
+        if not ForeignKey.Field.IsReference then
           ForeignKey.Field.SetValue(CurrentObject, SavedObject);
       end;
     end;
@@ -541,7 +541,7 @@ begin
     SaveForeignKeys(Table, AObject, ForeignKeyToIgnore, ctUpdate);
 
     for var Field in Table.Fields do
-      if not Field.InPrimaryKey and not Field.IsManyValueAssociation then
+      if not Field.InPrimaryKey and not Field.IsManyValueAssociation and not Field.IsReadOnly then
       begin
         var FieldValueString := Field.GetAsString(ForeignObject);
 
@@ -552,7 +552,7 @@ begin
 
           SQL := SQL + Format('%s=%s', [Field.DatabaseName, FieldValueString]);
 
-          if not Field.ReadOnly then
+          if not Field.IsReference then
             Field.SetValue(Result, Field.GetValue(ForeignObject));
         end;
       end;

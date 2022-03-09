@@ -457,6 +457,10 @@ type
     procedure WhenUpdateAnEntityWithAnForeignKeyInTheCacheCantRaiseAnyError;
     [Test]
     procedure WhenUpdateAnEntityAndForeignKeyIsInTheCaheMustUpdateTheReferenceWithThisObject;
+    [Test]
+    procedure WhenThePropertyHasTheNoUpdateAttributeThisFieldCantBeInTheInsertSQL;
+    [Test]
+    procedure WhenThePropertyHasTheNoUpdateAttributeThisFieldCantBeInTheUpdateSQL;
   end;
 
   [TestFixture]
@@ -3099,6 +3103,39 @@ begin
   begin
     Query.Update(MyClass);
   end);
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenThePropertyHasTheNoUpdateAttributeThisFieldCantBeInTheInsertSQL;
+begin
+  var Database := CreateDatabaseConnection;
+  var MyClass := TClassWithNoUpdateAttribute.Create;
+  MyClass.Id := 'abc';
+  MyClass.NoUpdate := 'def';
+  MyClass.Value := 'ghi';
+  var Query := CreateQueryBuilder(Database);
+
+  Query.Insert(MyClass);
+
+  Assert.AreEqual('insert into ClassWithNoUpdateAttribute(Id,Value)values(''abc'',''ghi'')', Database.SQL);
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenThePropertyHasTheNoUpdateAttributeThisFieldCantBeInTheUpdateSQL;
+begin
+  var Database := TDatabaseTest.Create(nil);
+  var Query := CreateQueryBuilder(Database, TClassWithNoUpdateAttribute.Create, 'abc');
+
+  var MyClass := TClassWithNoUpdateAttribute.Create;
+  MyClass.Id := 'abc';
+  MyClass.NoUpdate := 'def';
+  MyClass.Value := 'ghi';
+
+  Query.Update(MyClass);
+
+  Assert.AreEqual('update ClassWithNoUpdateAttribute set Value=''ghi'' where Id=''abc''', Database.SQL);
 
   Query.Free;
 end;

@@ -10,6 +10,7 @@ type
 
   EntityAttribute = class(TCustomAttribute);
   InsertCascadeAttribute = class(TCustomAttribute);
+  NoUpdateAttribute = class(TCustomAttribute);
   UpdateCascadeAttribute = class(TCustomAttribute);
 
   TCustomNameAttribute = class(TCustomAttribute)
