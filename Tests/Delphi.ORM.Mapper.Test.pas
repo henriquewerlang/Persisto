@@ -1028,7 +1028,7 @@ begin
 
   Field.SetValue(MyClass, TValue.Empty);
 
-  Assert.IsTrue(MyClass.Lazy.GetAccess.Key.IsEmpty);
+  Assert.IsFalse(MyClass.Lazy.GetAccess.HasValue);
 
   Mapper.Free;
 

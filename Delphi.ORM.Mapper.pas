@@ -763,7 +763,7 @@ begin
   begin
     var Access := GetLazyLoadingAccess(PropertyInfo.GetValue(Instance));
 
-    if not Value.IsEmpty and Value.IsObject then
+    if Value.IsObject then
       Access.Value := Value
     else
       Access.Key := Value
