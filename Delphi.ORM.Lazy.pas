@@ -262,9 +262,10 @@ end;
 
 procedure TLazyAccess.SetValue(const Value: TValue);
 begin
-  FHasValue := True;
   FKey := TValue.Empty;
   FValue := Value;
+
+  FHasValue := not FValue.IsEmpty;
 end;
 
 { ELazyFactoryNotLoaded }

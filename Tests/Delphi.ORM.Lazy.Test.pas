@@ -83,6 +83,8 @@ type
     procedure WhenTheLazyIsEmptyTheValueMustHaveTheSameTypeInfoOfTheValue;
     [Test]
     procedure WhenFillTheValueMustReturnFalseInTheHasKey;
+    [Test]
+    procedure WhenFillAnEmptyValueInLazyMustReturnFalseInTheHasValueFunction;
   end;
 
 implementation
@@ -306,13 +308,22 @@ begin
   GetRttiType(TMyEntity);
 end;
 
+procedure TLazyAccessTest.WhenFillAnEmptyValueInLazyMustReturnFalseInTheHasValueFunction;
+begin
+  var LazyAccess: ILazyAccess := TLazyAccess.Create(GetRttiType(TMyEntity));
+
+  LazyAccess.Value := TValue.Empty;
+
+  Assert.IsFalse(LazyAccess.HasValue);
+end;
+
 procedure TLazyAccessTest.WhenFillTheKeyValueMustReturnTheValueFilled;
 begin
   var LazyAccess: ILazyAccess := TLazyAccess.Create(GetRttiType(TMyEntity));
 
   LazyAccess.Key := 1234;
 
-  Assert.AreEqual(1234, LazyAccess.Key.AsInteger)
+  Assert.AreEqual(1234, LazyAccess.Key.AsInteger);
 end;
 
 procedure TLazyAccessTest.WhenFillTheValueMustMarkTheLoadedAsTrue;
