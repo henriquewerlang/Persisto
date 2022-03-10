@@ -26,6 +26,8 @@ type
     constructor Create(const Instance: TObject);
 
     destructor Destroy; override;
+
+    property &Object: TObject read GetObject;
   end;
 
   TStateObject = class(TSharedObject, IStateObject)
