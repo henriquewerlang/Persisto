@@ -78,7 +78,7 @@ type
   private
     FAccess: TLazyAccessType;
 
-    function GetHasKey: Boolean;
+    function GetHasValue: Boolean;
     function GetKey: TValue;
 
     procedure SetValue(const Value: T);
@@ -96,7 +96,7 @@ type
 {$ENDIF}
 
     property Access: TLazyAccessType read GetAccess write FAccess;
-    property HasKey: Boolean read GetHasKey;
+    property HasValue: Boolean read GetHasValue;
     property Key: TValue read GetKey;
     property Value: T read GetValue write SetValue;
   end;
@@ -143,7 +143,7 @@ begin
   Result := FAccess;
 end;
 
-function Lazy<T>.GetHasKey: Boolean;
+function Lazy<T>.GetHasValue: Boolean;
 begin
   Result := Access.HasKey or Access.HasValue;
 end;
@@ -263,6 +263,7 @@ end;
 procedure TLazyAccess.SetValue(const Value: TValue);
 begin
   FHasValue := True;
+  FKey := TValue.Empty;
   FValue := Value;
 end;
 

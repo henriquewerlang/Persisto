@@ -81,6 +81,8 @@ type
     procedure WhenTheFactoryIsntLoadedMustGetTheGlobalReferenceOfTheFactory;
     [Test]
     procedure WhenTheLazyIsEmptyTheValueMustHaveTheSameTypeInfoOfTheValue;
+    [Test]
+    procedure WhenFillTheValueMustReturnFalseInTheHasKey;
   end;
 
 implementation
@@ -249,7 +251,7 @@ begin
 
   Lazy.Access.Key := 'abc';
 
-  Assert.IsTrue(Lazy.HasKey);
+  Assert.IsTrue(Lazy.HasValue);
 end;
 
 procedure TLazyTest.WhenTheValueIsLoadedTheHasKeyFunctionMustReturnTrue;
@@ -259,7 +261,7 @@ begin
 
   Lazy.Access.Value := MyEntity;
 
-  Assert.IsTrue(Lazy.HasKey);
+  Assert.IsTrue(Lazy.HasValue);
 
   MyEntity.Free;
 end;
@@ -320,6 +322,16 @@ begin
   LazyAccess.Value := 'abc';
 
   Assert.IsTrue(LazyAccess.HasValue);
+end;
+
+procedure TLazyAccessTest.WhenFillTheValueMustReturnFalseInTheHasKey;
+begin
+  var LazyAccess: ILazyAccess := TLazyAccess.Create(GetRttiType(TMyEntity));
+
+  LazyAccess.Key := 'abc';
+  LazyAccess.Value := 'abc';
+
+  Assert.IsFalse(LazyAccess.HasKey);
 end;
 
 procedure TLazyAccessTest.WhenFillTheValueMustReturnTheValueLoaded;
