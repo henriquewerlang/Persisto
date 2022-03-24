@@ -444,8 +444,6 @@ type
     [Test]
     procedure WhenUpdatingTheCachedObjectCantDestroyTheObject;
     [Test]
-    procedure WhenUpdatingTheCachedObjectMustUpdateAllFieldsFromTheClass;
-    [Test]
     procedure AfterInsertTheObjectInDatabaseMustAddAStateObjectToTheCache;
     [Test]
     procedure TheStateObjectMustCopyTheValueOfAllPropertiesFromTheOriginalObject;
@@ -3410,21 +3408,6 @@ begin
   Query.Free;
 
   MyClass.Free;
-end;
-
-procedure TQueryBuilderDataManipulationTest.WhenUpdatingTheCachedObjectMustUpdateAllFieldsFromTheClass;
-begin
-  var Connection := CreateDatabaseConnection;
-  var MyClass := TClassWithPrimaryKey.Create;
-  MyClass.Id := 123;
-  MyClass.Value := 456;
-  var Query := CreateQueryBuilder(Connection, MyClass, '123');
-
-  Query.Update(MyClass);
-
-  Assert.AreEqual('update ClassWithPrimaryKey set Value=456 where Id=123', Connection.SQL);
-
-  Query.Free;
 end;
 
 { TQueryBuilderOrderByTeste }

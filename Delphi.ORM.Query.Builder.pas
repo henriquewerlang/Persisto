@@ -545,7 +545,7 @@ begin
       begin
         var FieldValueString := Field.GetAsString(ForeignObject);
 
-        if SameInstance or (FieldValueString <> Field.GetAsString(StateObject.OldObject)) then
+        if FieldValueString <> Field.GetAsString(StateObject.OldObject) then
         begin
           if not SQL.IsEmpty then
             SQL := SQL + ',';
