@@ -25,18 +25,23 @@ type
 
   TBuilderOptions = set of (boBeautifyQuery, boJoinMapping);
 
-  TQueryBuilderCommand = class
-    function GetSQL: String; virtual; abstract;
+  IQueryBuilderCommand = interface
+    function GetSQL: String;
   end;
 
-  TQueryBuilderFieldList = class
-    function GetFields: TArray<TFieldAlias>; virtual; abstract;
+  IQueryBuilderFieldList = interface
+    function GetFields: TArray<TFieldAlias>;
+  end;
+
+  IQueryBuilderOpen<T> = interface
+    function All: TArray<T>;
+    function One: T;
   end;
 
   TQueryBuilder = class
   private
     FCache: ICache;
-    FCommand: TQueryBuilderCommand;
+    FCommand: IQueryBuilderCommand;
     FConnection: IDatabaseConnection;
     FOptions: TBuilderOptions;
 
@@ -54,8 +59,6 @@ type
   public
     constructor Create(const Connection: IDatabaseConnection; const Cache: ICache);
 
-    destructor Destroy; override;
-
     function GetSQL: String;
     function Insert<T: class>(const AObject: T): T;
     function Save<T: class>(const AObject: T): T;
@@ -68,10 +71,10 @@ type
     property Options: TBuilderOptions read FOptions write FOptions;
   end;
 
-  TQueryBuilderFrom = class
+  TQueryBuilderFrom = class(TInterfacedObject, IQueryBuilderCommand)
   private
     FJoin: TQueryBuilderJoin;
-    FWhere: TQueryBuilderCommand;
+    FWhere: IQueryBuilderCommand;
     FRecursivityLevel: Word;
     FSelect: TQueryBuilderSelect;
     FTable: TTable;
@@ -122,7 +125,7 @@ type
     property Table: TTable read FTable write FTable;
   end;
 
-  TQueryBuilderOpen<T: class> = class
+  TQueryBuilderOpen<T: class> = class(TInterfacedObject, IQueryBuilderOpen<T>)
   private
     FLoader: TObject;
   public
@@ -134,7 +137,7 @@ type
     function One: T;
   end;
 
-  TQueryBuilderAllFields = class(TQueryBuilderFieldList)
+  TQueryBuilderAllFields = class(TInterfacedObject, IQueryBuilderFieldList)
   private
     FFrom: TQueryBuilderFrom;
 
@@ -142,13 +145,14 @@ type
   public
     constructor Create(From: TQueryBuilderFrom);
 
-    function GetFields: TArray<TFieldAlias>; override;
+    function GetFields: TArray<TFieldAlias>;
   end;
 
-  TQueryBuilderSelect = class(TQueryBuilderCommand)
+  TQueryBuilderSelect = class(TInterfacedObject, IQueryBuilderCommand)
   private
     FBuilder: TQueryBuilder;
-    FFieldList: TQueryBuilderFieldList;
+    FCommand: IQueryBuilderCommand;
+    FFieldList: IQueryBuilderFieldList;
     FFirstRecords: Cardinal;
     FFrom: TQueryBuilderFrom;
     FRecursivityLevel: Word;
@@ -159,10 +163,8 @@ type
   public
     constructor Create(Builder: TQueryBuilder);
 
-    destructor Destroy; override;
-
     function All: TQueryBuilderFrom;
-    function GetSQL: String; override;
+    function GetSQL: String;
     function RecursivityLevel(const Level: Word): TQueryBuilderSelect;
     function First(Total: Cardinal): TQueryBuilderSelect;
 
@@ -252,7 +254,7 @@ type
     class operator NotEqual(const Left: TQueryBuilderComparisonHelper; const Value: Variant): TQueryBuilderComparisonHelper;
   end;
 
-  TQueryBuilderOrderBy<T: class> = class(TQueryBuilderCommand)
+  TQueryBuilderOrderBy<T: class> = class(TInterfacedObject, IQueryBuilderCommand)
   private
     FFields: TArray<TQueryBuilderOrderByField>;
     FWhere: TQueryBuilderWhere<T>;
@@ -262,19 +264,19 @@ type
     destructor Destroy; override;
 
     function Field(const FieldName: String; const Ascending: Boolean = True): TQueryBuilderOrderBy<T>;
-    function GetSQL: String; override;
-    function Open: TQueryBuilderOpen<T>;
+    function GetSQL: String;
+    function Open: IQueryBuilderOpen<T>;
 
     property Fields: TArray<TQueryBuilderOrderByField> read FFields;
   end;
 
-  TQueryBuilderWhere<T: class> = class(TQueryBuilderCommand)
+  TQueryBuilderWhere<T: class> = class(TInterfacedObject, IQueryBuilderCommand)
   private
     FBuilder: TQueryBuilder;
     FFilter: String;
     FFrom: TQueryBuilderFrom;
-    FOpen: TQueryBuilderOpen<T>;
-    FOrderBy: TQueryBuilderOrderBy<T>;
+    FOpen: IQueryBuilderOpen<T>;
+    FOrderBy: IQueryBuilderCommand;
     FTable: TTable;
 
     constructor Create(const Builder: TQueryBuilder; const Table: TTable); overload;
@@ -293,10 +295,8 @@ type
   public
     constructor Create(const From: TQueryBuilderFrom); overload;
 
-    destructor Destroy; override;
-
-    function GetSQL: String; override;
-    function Open: TQueryBuilderOpen<T>;
+    function GetSQL: String;
+    function Open: IQueryBuilderOpen<T>;
     function OrderBy: TQueryBuilderOrderBy<T>;
     function Where(const Condition: TQueryBuilderComparisonHelper): TQueryBuilderWhere<T>;
   end;
@@ -347,13 +347,6 @@ begin
 
       FConnection.ExecuteDirect(Format('delete from %s%s', [Table.DatabaseName, BuildPrimaryKeyFilter(Table, AObject)]));
     end);
-end;
-
-destructor TQueryBuilder.Destroy;
-begin
-  FCommand.Free;
-
-  inherited;
 end;
 
 function TQueryBuilder.ExecuteInTrasaction(const Func: TFunc<TObject>): TObject;
@@ -596,8 +589,6 @@ end;
 
 destructor TQueryBuilderFrom.Destroy;
 begin
-  FWhere.Free;
-
   FJoin.Free;
 
   inherited;
@@ -697,6 +688,7 @@ function TQueryBuilderSelect.All: TQueryBuilderFrom;
 begin
   Result := TQueryBuilderFrom.Create(Self, FRecursivityLevel);
 
+  FCommand := Result;
   FFieldList := TQueryBuilderAllFields.Create(Result);
   FFrom := Result;
 end;
@@ -707,15 +699,6 @@ begin
 
   FBuilder := Builder;
   FRecursivityLevel := 1;
-end;
-
-destructor TQueryBuilderSelect.Destroy;
-begin
-  FFrom.Free;
-
-  FFieldList.Free;
-
-  inherited;
 end;
 
 function TQueryBuilderSelect.First(Total: Cardinal): TQueryBuilderSelect;
@@ -836,7 +819,10 @@ end;
 
 function TQueryBuilderWhere<T>.GetSQL: String;
 begin
-  Result := FFilter + FOrderBy.GetSQL;
+  Result := FFilter;
+
+  if Assigned(FOrderBy) then
+    Result := Result + FOrderBy.GetSQL;
 end;
 
 function TQueryBuilderWhere<T>.GetValueToCompare(const Comparison: TQueryBuilderComparison; const Field: TField): String;
@@ -886,17 +872,7 @@ begin
   inherited Create;
 
   FBuilder := Builder;
-  FOrderBy := TQueryBuilderOrderBy<T>.Create(Self);
   FTable := Table;
-end;
-
-destructor TQueryBuilderWhere<T>.Destroy;
-begin
-  FOpen.Free;
-
-  FOrderBy.Free;
-
-  inherited;
 end;
 
 function TQueryBuilderWhere<T>.FindJoinInheritedLink(const Join: TQueryBuilderJoin): TQueryBuilderJoin;
@@ -922,7 +898,7 @@ begin
   end;
 end;
 
-function TQueryBuilderWhere<T>.Open: TQueryBuilderOpen<T>;
+function TQueryBuilderWhere<T>.Open: IQueryBuilderOpen<T>;
 begin
   FOpen := TQueryBuilderOpen<T>.Create(FFrom);
   Result := FOpen;
@@ -930,7 +906,8 @@ end;
 
 function TQueryBuilderWhere<T>.OrderBy: TQueryBuilderOrderBy<T>;
 begin
-  Result := FOrderBy;
+  Result := TQueryBuilderOrderBy<T>.Create(Self);
+  FOrderBy := Result;
 end;
 
 function TQueryBuilderWhere<T>.Where(const Condition: TQueryBuilderComparisonHelper): TQueryBuilderWhere<T>;
@@ -1272,7 +1249,7 @@ begin
     Result := FWhere.FFrom.Builder.GetIdention(1) + 'order by ' + Result + FWhere.FFrom.Builder.GetLineBreak;
 end;
 
-function TQueryBuilderOrderBy<T>.Open: TQueryBuilderOpen<T>;
+function TQueryBuilderOrderBy<T>.Open: IQueryBuilderOpen<T>;
 begin
   Result := FWhere.Open;
 end;
