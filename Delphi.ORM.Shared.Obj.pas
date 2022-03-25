@@ -10,7 +10,7 @@ type
     property &Object: TObject read GetObject;
   end;
 
-  IStateObject = interface
+  IStateObject = interface(ISharedObject)
     ['{55D7B4C2-0700-4CE8-A6DC-CD31D98CF67E}']
     function GetOldObject: TObject;
 
@@ -30,7 +30,7 @@ type
     property &Object: TObject read GetObject;
   end;
 
-  TStateObject = class(TSharedObject, IStateObject)
+  TStateObject = class(TSharedObject, ISharedObject, IStateObject)
   private
     FOldObject: TObject;
 

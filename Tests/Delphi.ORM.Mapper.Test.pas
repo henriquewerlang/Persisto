@@ -290,6 +290,10 @@ type
     procedure WhenTheTableIsInheritedMustLoadAllManyValueAssociationOfTheClass;
     [Test]
     procedure WhenTheFieldHasTheNoUpdateAttributeTheFieldMustBeMarkedAsReadOnly;
+    [Test]
+    procedure WhenSetValueToAFieldWithASharedObjectMustUpdateThePropertyHasExpected;
+    [Test]
+    procedure WhenSetValueToAFieldWithAStateObjectMustUpdateBothObjectsHasExpected;
   end;
 
   [TestFixture]
@@ -309,7 +313,7 @@ type
 
 implementation
 
-uses System.Variants, System.SysUtils, System.DateUtils, Delphi.ORM.Test.Entity, Delphi.ORM.Lazy, Delphi.Mock;
+uses System.Variants, System.SysUtils, System.DateUtils, Delphi.ORM.Test.Entity, Delphi.ORM.Lazy, Delphi.Mock, Delphi.ORM.Shared.Obj;
 
 { TMapperTest }
 
@@ -1354,6 +1358,46 @@ begin
   Mapper.Free;
 
   MyClass.Free;
+end;
+
+procedure TMapperTest.WhenSetValueToAFieldWithASharedObjectMustUpdateThePropertyHasExpected;
+begin
+  var Field: TField;
+  var Mapper := TMapper.Create;
+  var MyClass := TMyEntityWithAllTypeOfFields.Create;
+  var MyObject := TSharedObject.Create(MyClass) as ISharedObject;
+  var Table := Mapper.LoadClass(TMyEntityWithAllTypeOfFields);
+
+  Table.FindField('Integer', Field);
+
+  Field.SetValue(MyObject, 20);
+
+  Assert.AreEqual(20, MyClass.Integer);
+
+  Mapper.Free;
+
+  MyObject := nil;
+end;
+
+procedure TMapperTest.WhenSetValueToAFieldWithAStateObjectMustUpdateBothObjectsHasExpected;
+begin
+  var Field: TField;
+  var Mapper := TMapper.Create;
+  var MyClass := TMyEntityWithAllTypeOfFields.Create;
+  var MyObject := TStateObject.Create(MyClass, False) as IStateObject;
+  var Table := Mapper.LoadClass(TMyEntityWithAllTypeOfFields);
+
+  Table.FindField('Integer', Field);
+
+  Field.SetValue(MyObject, 20);
+
+  Assert.AreEqual(20, MyClass.Integer, 'The object');
+
+  Assert.AreEqual(20, TMyEntityWithAllTypeOfFields(MyObject.OldObject).Integer, 'The old object');
+
+  Mapper.Free;
+
+  MyObject := nil;
 end;
 
 procedure TMapperTest.WhenSetValueToALazyPropertyCantRaiseAnyError;

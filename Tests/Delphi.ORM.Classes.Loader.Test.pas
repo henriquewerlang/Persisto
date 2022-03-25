@@ -94,6 +94,10 @@ type
     procedure AfterLoadTheObjectMustLoadTheOldValuesFromStateObject;
     [Test]
     procedure WhenLoadAManyValueAssociationThatTheObjectInTheManyValueIsInTheMainObjectListMustBeLoaded;
+    [Test]
+    procedure WhenLoadTheForeignKeyOfAClassMustLoadTheValueOfOldObjectToo;
+    [Test]
+    procedure WhenLoadTheForeignKeyOfTheOldValueMustLoadTheOldObjectReference;
   end;
 
 implementation
@@ -301,6 +305,7 @@ begin
 
   Loader.Free;
 end;
+
 procedure TClassLoaderTest.WhenLoadAllIsCallWithTheSamePrimaryKeyValueMustReturnASingleObject;
 begin
   var Loader := CreateLoader<TMyClass>([['aaa', 222], ['aaa', 222], ['aaa', 222]]);
@@ -348,6 +353,44 @@ begin
     begin
       Loader.LoadAll<TMyEntityInheritedFromSimpleClass>;
     end);
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenLoadTheForeignKeyOfAClassMustLoadTheValueOfOldObjectToo;
+begin
+  var Cache := TCache.Create as ICache;
+  var Loader := CreateLoader<TClassWithForeignKey>([[123, 456, 789]], Cache);
+  var SharedObject: ISharedObject;
+
+  var MyClass := Loader.Load<TClassWithForeignKey>;
+
+  Cache.Get('Delphi.ORM.Test.Entity.TClassWithForeignKey.123', SharedObject);
+
+  var MyOldClass := (SharedObject as IStateObject).OldObject as TClassWithForeignKey;
+
+  Assert.IsNotNull(MyOldClass.AnotherClass);
+
+  Loader.Free;
+end;
+
+procedure TClassLoaderTest.WhenLoadTheForeignKeyOfTheOldValueMustLoadTheOldObjectReference;
+begin
+  var Cache := TCache.Create as ICache;
+  var Loader := CreateLoader<TClassWithForeignKey>([[123, 456, 789]], Cache);
+  var SharedObject: ISharedObject;
+
+  var MyClass := Loader.Load<TClassWithForeignKey>;
+
+  Cache.Get('Delphi.ORM.Test.Entity.TClassWithForeignKey.123', SharedObject);
+
+  var MyOldClass := (SharedObject as IStateObject).OldObject as TClassWithForeignKey;
+
+  Cache.Get('Delphi.ORM.Test.Entity.TClassWithPrimaryKey.456', SharedObject);
+
+  var MyOldAnotherClass := (SharedObject as IStateObject).OldObject as TClassWithPrimaryKey;
+
+  Assert.AreEqual(MyOldAnotherClass, MyOldClass.AnotherClass);
 
   Loader.Free;
 end;
