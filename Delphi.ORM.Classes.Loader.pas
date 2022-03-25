@@ -100,7 +100,7 @@ begin
     StateObject := nil;
 
     if LoadClass(StateObject) then
-      Result := Result + [StateObject.&Object as T];
+      Result := Result + [(StateObject as ISharedObject).&Object as T];
   end;
 end;
 
@@ -135,9 +135,18 @@ procedure TClassLoader.LoadObject(const StateObject: IStateObject; Join: TQueryB
 
   procedure UpdateForeignKey(const Field: TField; const AObject, AForeignKeyObject: IStateObject);
   begin
-    Field.SetValue(AObject.&Object, AForeignKeyObject.&Object);
+    if Assigned(AForeignKeyObject) then
+    begin
+      Field.SetValue(AObject.&Object, AForeignKeyObject.&Object);
 
-    Field.SetValue(AObject.OldObject, AForeignKeyObject.OldObject);
+      Field.SetValue(AObject.OldObject, AForeignKeyObject.OldObject);
+    end
+    else
+    begin
+      Field.SetValue(AObject.&Object, nil);
+
+      Field.SetValue(AObject.OldObject, nil);
+    end;
   end;
 
 begin
@@ -178,20 +187,19 @@ begin
 
     LoadObject(ForeignKeyObject, Link, FieldIndexStart, NewChildObject);
 
-    if Assigned(ForeignKeyObject) then
-      if NewObject and Link.Field.IsForeignKey then
-      begin
-        UpdateForeignKey(Link.Field, StateObject, ForeignKeyObject);
+    if NewObject and Link.Field.IsForeignKey then
+    begin
+      UpdateForeignKey(Link.Field, StateObject, ForeignKeyObject);
 
-        if Assigned(Link.Field.ForeignKey.ManyValueAssociation) then
-          AddItemToParentArray(ForeignKeyObject.&Object, Link.Field.ForeignKey.ManyValueAssociation.Field, StateObject.&Object);
-      end
-      else if NewChildObject and Link.Field.IsManyValueAssociation then
-      begin
-        Link.RightField.SetValue(ForeignKeyObject.&Object, StateObject.&Object);
+      if Assigned(ForeignKeyObject) and Assigned(Link.Field.ForeignKey.ManyValueAssociation) then
+        AddItemToParentArray(ForeignKeyObject.&Object, Link.Field.ForeignKey.ManyValueAssociation.Field, StateObject.&Object);
+    end
+    else if NewChildObject and Link.Field.IsManyValueAssociation then
+    begin
+      Link.RightField.SetValue(ForeignKeyObject.&Object, StateObject.&Object);
 
-        AddItemToParentArray(StateObject.&Object, Link.Field, ForeignKeyObject.&Object);
-      end;
+      AddItemToParentArray(StateObject.&Object, Link.Field, ForeignKeyObject.&Object);
+    end;
   end;
 end;
 

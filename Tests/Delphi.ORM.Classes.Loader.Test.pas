@@ -98,6 +98,8 @@ type
     procedure WhenLoadTheForeignKeyOfAClassMustLoadTheValueOfOldObjectToo;
     [Test]
     procedure WhenLoadTheForeignKeyOfTheOldValueMustLoadTheOldObjectReference;
+    [Test]
+    procedure WhenAForeignKeyIsChangedInTheDatabaseTheReferenceMustBeUpdatedToo;
   end;
 
 implementation
@@ -276,6 +278,29 @@ begin
   Loader.Free;
 end;
 
+procedure TClassLoaderTest.WhenAForeignKeyIsChangedInTheDatabaseTheReferenceMustBeUpdatedToo;
+begin
+  var Cache := TCache.Create as ICache;
+  var Loader := CreateLoader<TClassWithForeignKey>([[123, 456, 789]], Cache);
+  var SharedObject: ISharedObject;
+
+  Loader.Load<TClassWithForeignKey>;
+
+  Loader.Free;
+
+  Loader := CreateLoader<TClassWithForeignKey>([[123, NULL, NULL]], Cache);
+
+  var MyClass := Loader.Load<TClassWithForeignKey>;
+
+  Cache.Get('Delphi.ORM.Test.Entity.TClassWithForeignKey.123', SharedObject);
+
+  Assert.IsNull(MyClass.AnotherClass);
+
+  Assert.IsNull(TClassWithForeignKey((SharedObject as IStateObject).OldObject).AnotherClass);
+
+  Loader.Free;
+end;
+
 procedure TClassLoaderTest.WhenCallLoadOfTheLazyFactoryMustCallWithTheForeignKeyRttiType;
 begin
   var Connection := TMock.CreateInterface<IDatabaseConnection>;
@@ -363,7 +388,7 @@ begin
   var Loader := CreateLoader<TClassWithForeignKey>([[123, 456, 789]], Cache);
   var SharedObject: ISharedObject;
 
-  var MyClass := Loader.Load<TClassWithForeignKey>;
+  Loader.Load<TClassWithForeignKey>;
 
   Cache.Get('Delphi.ORM.Test.Entity.TClassWithForeignKey.123', SharedObject);
 
@@ -380,7 +405,7 @@ begin
   var Loader := CreateLoader<TClassWithForeignKey>([[123, 456, 789]], Cache);
   var SharedObject: ISharedObject;
 
-  var MyClass := Loader.Load<TClassWithForeignKey>;
+  Loader.Load<TClassWithForeignKey>;
 
   Cache.Get('Delphi.ORM.Test.Entity.TClassWithForeignKey.123', SharedObject);
 
