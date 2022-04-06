@@ -1,4 +1,4 @@
-unit Delphi.ORM.Lazy;
+﻿unit Delphi.ORM.Lazy;
 
 interface
 

@@ -1,4 +1,4 @@
-unit Delphi.ORM.Lazy.Test;
+﻿unit Delphi.ORM.Lazy.Test;
 
 interface
 
