@@ -13,6 +13,11 @@ type
   TQueryBuilderSelect = class;
   TQueryBuilderWhere<T: class> = class;
 
+  ECantFilterManyValueAssociation = class(Exception)
+  public
+    constructor Create(Field: TField);
+  end;
+
   EFieldNotFoundInTable = class(Exception)
   public
     constructor Create(FieldName: String);
@@ -78,14 +83,19 @@ type
     FRecursivityLevel: Word;
     FSelect: TQueryBuilderSelect;
     FTable: TTable;
+    FTableIndexJoin: Integer;
 
     function BuildJoinSQL: String;
+    function CreateJoin(const CurrentJoin: TQueryBuilderJoin; const Table: TTable; const Field, LeftField, RightField: TField; const IsInheritedLink, MakeLink: Boolean): TQueryBuilderJoin;
+    function CreateJoinForeignKey(const CurrentJoin: TQueryBuilderJoin; const ForeignKey: TForeignKey; const MakeLink: Boolean): TQueryBuilderJoin;
+    function CreateJoinManyValueAssociation(const CurrentJoin: TQueryBuilderJoin; const ManyValueAssociation: TManyValueAssociation; const MakeLink: Boolean): TQueryBuilderJoin;
+    function CreateJoinTable(const Table: TTable): TQueryBuilderJoin;
     function GetBuilder: TQueryBuilder;
     function GetFields: TArray<TFieldAlias>;
     function MakeJoinSQL(const Join: TQueryBuilderJoin; const JoinInfo: String): String;
 
     procedure BuildJoin;
-    procedure MakeJoin(const Join: TQueryBuilderJoin; var TableIndex: Integer; RecursionControl: TDictionary<TTable, Word>; const ManyValueAssociationToIgnore: TManyValueAssociation);
+    procedure MakeJoin(const Join: TQueryBuilderJoin; RecursionControl: TDictionary<TTable, Word>; const ManyValueAssociationToIgnore: TManyValueAssociation);
   public
     constructor Create(Select: TQueryBuilderSelect; RecursivityLevel: Word);
 
@@ -104,12 +114,15 @@ type
   TQueryBuilderJoin = class
   private
     FAlias: String;
-    FLinks: TArray<TQueryBuilderJoin>;
-    FTable: TTable;
-    FLeftField: TField;
-    FRightField: TField;
     FField: TField;
+    FFilterLinks: TArray<TQueryBuilderJoin>;
     FIsInheritedLink: Boolean;
+    FLeftField: TField;
+    FLinks: TArray<TQueryBuilderJoin>;
+    FRightField: TField;
+    FTable: TTable;
+
+    function GetAllLinks: TArray<TQueryBuilderJoin>;
   public
     constructor Create(const Table: TTable); overload;
     constructor Create(const Table: TTable; const Field, LeftField, RightField: TField; const IsInheritedLink: Boolean); overload;
@@ -117,7 +130,9 @@ type
     destructor Destroy; override;
 
     property Alias: String read FAlias write FAlias;
+    property AllLinks: TArray<TQueryBuilderJoin> read GetAllLinks;
     property Field: TField read FField write FField;
+    property FilterLinks: TArray<TQueryBuilderJoin> read FFilterLinks write FFilterLinks;
     property IsInheritedLink: Boolean read FIsInheritedLink write FIsInheritedLink;
     property LeftField: TField read FLeftField write FLeftField;
     property Links: TArray<TQueryBuilderJoin> read FLinks write FLinks;
@@ -566,10 +581,10 @@ end;
 
 procedure TQueryBuilderFrom.BuildJoin;
 begin
+  FTableIndexJoin := 1;
   var RecursionControl := TDictionary<TTable, Word>.Create;
-  var TableIndex := 1;
 
-  MakeJoin(FJoin, TableIndex, RecursionControl, nil);
+  MakeJoin(FJoin, RecursionControl, nil);
 
   RecursionControl.Free;
 end;
@@ -587,6 +602,38 @@ begin
   FRecursivityLevel := RecursivityLevel;
 end;
 
+function TQueryBuilderFrom.CreateJoin(const CurrentJoin: TQueryBuilderJoin; const Table: TTable; const Field, LeftField, RightField: TField;
+  const IsInheritedLink, MakeLink: Boolean): TQueryBuilderJoin;
+begin
+  Result := TQueryBuilderJoin.Create(Table, Field, LeftField, RightField, IsInheritedLink);
+
+  Inc(FTableIndexJoin);
+
+  Result.Alias := 'T' + FTableIndexJoin.ToString;
+
+  if Assigned(CurrentJoin) then
+    if MakeLink then
+      CurrentJoin.Links := CurrentJoin.Links + [Result]
+    else
+      CurrentJoin.FilterLinks := CurrentJoin.FilterLinks + [Result];
+end;
+
+function TQueryBuilderFrom.CreateJoinForeignKey(const CurrentJoin: TQueryBuilderJoin; const ForeignKey: TForeignKey; const MakeLink: Boolean): TQueryBuilderJoin;
+begin
+  Result := CreateJoin(CurrentJoin, ForeignKey.ParentTable, ForeignKey.Field, ForeignKey.Field, ForeignKey.ParentTable.PrimaryKey, ForeignKey.IsInheritedLink, MakeLink);
+end;
+
+function TQueryBuilderFrom.CreateJoinManyValueAssociation(const CurrentJoin: TQueryBuilderJoin; const ManyValueAssociation: TManyValueAssociation;
+  const MakeLink: Boolean): TQueryBuilderJoin;
+begin
+  Result := CreateJoin(CurrentJoin, ManyValueAssociation.ChildTable, ManyValueAssociation.Field, Join.Table.PrimaryKey, ManyValueAssociation.ForeignKey.Field, False, MakeLink);
+end;
+
+function TQueryBuilderFrom.CreateJoinTable(const Table: TTable): TQueryBuilderJoin;
+begin
+  Result := CreateJoin(nil, Table, nil, nil, nil, False, False);
+end;
+
 destructor TQueryBuilderFrom.Destroy;
 begin
   FJoin.Free;
@@ -596,7 +643,7 @@ end;
 
 function TQueryBuilderFrom.From<T>(Table: TTable): TQueryBuilderWhere<T>;
 begin
-  FJoin := TQueryBuilderJoin.Create(Table);
+  FJoin := CreateJoinTable(Table);
   FTable := Table;
   Result := TQueryBuilderWhere<T>.Create(Self);
 
@@ -628,12 +675,8 @@ begin
     Result := Result + FWhere.GetSQL;
 end;
 
-procedure TQueryBuilderFrom.MakeJoin(const Join: TQueryBuilderJoin; var TableIndex: Integer; RecursionControl: TDictionary<TTable, Word>; const ManyValueAssociationToIgnore: TManyValueAssociation);
+procedure TQueryBuilderFrom.MakeJoin(const Join: TQueryBuilderJoin; RecursionControl: TDictionary<TTable, Word>; const ManyValueAssociationToIgnore: TManyValueAssociation);
 begin
-  Join.Alias := 'T' + TableIndex.ToString;
-
-  Inc(TableIndex);
-
   for var ForeignKey in Join.Table.ForeignKeys do
     if not ForeignKey.Field.IsLazy and (not Assigned(ManyValueAssociationToIgnore) or (ForeignKey <> ManyValueAssociationToIgnore.ForeignKey)) then
     begin
@@ -642,12 +685,9 @@ begin
 
       if RecursionControl[ForeignKey.ParentTable] < FRecursivityLevel then
       begin
-        var NewJoin := TQueryBuilderJoin.Create(ForeignKey.ParentTable, ForeignKey.Field, ForeignKey.Field, ForeignKey.ParentTable.PrimaryKey, ForeignKey.IsInheritedLink);
         RecursionControl[ForeignKey.ParentTable] := RecursionControl[ForeignKey.ParentTable] + 1;
 
-        Join.Links := Join.Links + [NewJoin];
-
-        MakeJoin(NewJoin, TableIndex, RecursionControl, ManyValueAssociationToIgnore);
+        MakeJoin(CreateJoinForeignKey(Join, ForeignKey, True), RecursionControl, ManyValueAssociationToIgnore);
 
         RecursionControl[ForeignKey.ParentTable] := RecursionControl[ForeignKey.ParentTable] - 1;
       end;
@@ -655,13 +695,7 @@ begin
 
   for var ManyValueAssociation in Join.Table.ManyValueAssociations do
     if not Assigned(ManyValueAssociationToIgnore) or (ManyValueAssociation <> ManyValueAssociationToIgnore) then
-    begin
-      var NewJoin := TQueryBuilderJoin.Create(ManyValueAssociation.ChildTable, ManyValueAssociation.Field, Join.Table.PrimaryKey, ManyValueAssociation.ForeignKey.Field, False);
-
-      Join.Links := Join.Links + [NewJoin];
-
-      MakeJoin(NewJoin, TableIndex, RecursionControl, ManyValueAssociation);
-    end;
+      MakeJoin(CreateJoinManyValueAssociation(Join, ManyValueAssociation, True), RecursionControl, ManyValueAssociation);
 end;
 
 function TQueryBuilderFrom.MakeJoinSQL(const Join: TQueryBuilderJoin; const JoinInfo: String): String;
@@ -677,7 +711,7 @@ function TQueryBuilderFrom.MakeJoinSQL(const Join: TQueryBuilderJoin; const Join
 begin
   Result := Builder.GetLineBreak;
 
-  for var Link in Join.Links do
+  for var Link in Join.AllLinks do
     Result := Result + Format('%sleft join %s %s%son %s.%s=%s.%s', [MakeJoinInfo(Link), Link.Table.DatabaseName, Link.Alias, Builder.GetLineBreak + Builder.GetIdention(7),
       Join.Alias, Link.LeftField.DatabaseName, Link.Alias, Link.RightField.DatabaseName]) + MakeJoinSQL(Link, JoinInfo + ' -> ' + Link.Table.Name);
 end;
@@ -890,9 +924,17 @@ begin
 
   if Assigned(Join) then
   begin
-    for var Link in Join.Links do
+    var Field: TField;
+
+    for var Link in Join.AllLinks do
       if Link.Field.Name = FieldName then
         Exit(Link);
+
+    if Join.Table.FindField(FieldName, Field) then
+      if Field.IsManyValueAssociation then
+        raise ECantFilterManyValueAssociation.Create(Field)
+      else
+        Exit(FFrom.CreateJoinForeignKey(Join, Field.ForeignKey, False));
 
     Result := FindJoinLink(FindJoinInheritedLink(Join), FieldName);
   end;
@@ -907,6 +949,7 @@ end;
 function TQueryBuilderWhere<T>.OrderBy: TQueryBuilderOrderBy<T>;
 begin
   Result := TQueryBuilderOrderBy<T>.Create(Self);
+
   FOrderBy := Result;
 end;
 
@@ -990,10 +1033,15 @@ end;
 
 destructor TQueryBuilderJoin.Destroy;
 begin
-  for var Link in Links do
+  for var Link in AllLinks do
     Link.Free;
 
   inherited;
+end;
+
+function TQueryBuilderJoin.GetAllLinks: TArray<TQueryBuilderJoin>;
+begin
+  Result := Links + FilterLinks;
 end;
 
 { TQueryBuilderFieldAlias }
@@ -1268,6 +1316,13 @@ end;
 constructor EObjectReferenceWasNotFound.Create;
 begin
   inherited Create('The object reference was not found, reload the data and try again!');
+end;
+
+{ ECantFilterManyValueAssociation }
+
+constructor ECantFilterManyValueAssociation.Create(Field: TField);
+begin
+  inherited CreateFmt('Can''t create a filter of many value association field %s from class %s!', [Field.Name, Field.Table.Name]);
 end;
 
 end.

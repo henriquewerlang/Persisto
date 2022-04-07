@@ -956,6 +956,26 @@ type
     property Value: String read FValue write FValue;
   end;
 
+  [Entity]
+  TLazyFilterClass = class
+  private
+    FMany: TManyValueParent;
+    FId: Integer;
+  published
+    property Id: Integer read FId write FId;
+    property Many: TManyValueParent read FMany write FMany;
+  end;
+
+  [Entity]
+  TFilterClass = class
+  private
+    FLazyFilterClass: Lazy<TLazyFilterClass>;
+    FId: Integer;
+  published
+    property Id: Integer read FId write FId;
+    property LazyFilterClass: Lazy<TLazyFilterClass> read FLazyFilterClass write FLazyFilterClass;
+  end;
+
 implementation
 
 uses System.SysUtils;

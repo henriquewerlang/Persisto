@@ -158,6 +158,10 @@ type
     procedure WhenCallFromFunctionMustLoadTheTablePropertyWithTheDataOfThatTable;
     [Test]
     procedure WhenCallFromFunctionWithAClassWithTwoForeignKeyAndOneOfThisIsSettedOfPrimaryKeyAttributeMustGenerateJoinComparingRightAliasLikePrimaryKeyOfClassForeign;
+    [Test]
+    procedure WhenFilterringALazyFieldMustBuildTheJoinsToTheFilterWork;
+    [Test]
+    procedure WhenUseALazyFieldInTheFilterMoreThenOnceMustLoadASingleJoin;
   end;
 
   [TestFixture]
@@ -241,6 +245,8 @@ type
     procedure WhenThePropertyIsAnArrayCantLoadTheFieldInTheList;
     [Test]
     procedure WhenAFieldIsLazyLoadingThisMustLoadInFieldList;
+    [Test]
+    procedure WhenFilterALazyFieldCantLoadTheFieldInTheSelect;
   end;
 
   [TestFixture]
@@ -354,6 +360,10 @@ type
     procedure WhenBuildingTheFilterMustCheckTheFieldsJoinsIfExistsAndRaiseAnErrorIfNotFind;
     [Test]
     procedure WhenTheWhereFilterUsesAFieldFromABaseClassCantRaiseAnyError;
+    [Test]
+    procedure WhenUseAnLazyFieldInTheFilterCantRaiseAnyError;
+    [Test]
+    procedure WhenFilterringALazyFieldWithAManyValuePropertyMustRaiseError;
   end;
 
   [TestFixture]
@@ -1568,6 +1578,21 @@ begin
   Fields.Free;
 end;
 
+procedure TQueryBuilderAllFieldsTest.WhenFilterALazyFieldCantLoadTheFieldInTheSelect;
+begin
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+
+  var FieldList := TQueryBuilderAllFields.Create(From);
+
+  From.From<TLazyClass>.Where(Field('Lazy.Name') = 'abc');
+
+  Assert.AreEqual<Integer>(2, Length(FieldList.GetFields));
+
+  From.Free;
+
+  FieldList.Free;
+end;
+
 procedure TQueryBuilderAllFieldsTest.WhenTheClassHaveForeignKeyMustLoadAllFieldsOfAllClassesInvolved;
 begin
   var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
@@ -2261,6 +2286,19 @@ begin
   From.Free;
 end;
 
+procedure TQueryBuilderWhereTest.WhenFilterringALazyFieldWithAManyValuePropertyMustRaiseError;
+begin
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+
+  Assert.WillRaise(
+    procedure
+    begin
+      From.From<TFilterClass>.Where(Field('LazyFilterClass.Many.Childs.Id') = 123);
+    end, ECantFilterManyValueAssociation);
+
+  From.Free;
+end;
+
 procedure TQueryBuilderWhereTest.WhenLeftOperationIsASimpleComparisonAndRightIsALogicalOperationItHasToGenerateSQLAsExpected;
 begin
   var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
@@ -2371,6 +2409,19 @@ begin
     procedure
     begin
       From.From<TMyClassWithForeignKeyInherited>.Where(Field('MyField.AnotherValues.Id') = 'abc');
+    end);
+
+  From.Free;
+end;
+
+procedure TQueryBuilderWhereTest.WhenUseAnLazyFieldInTheFilterCantRaiseAnyError;
+begin
+  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      From.From<TLazyClass>.Where(Field('Lazy.Name') = 'abc');
     end);
 
   From.Free;
@@ -3553,6 +3604,37 @@ begin
   'left join ClassWithPrimaryKey T3 on T1.IdAnotherClass2=T3.Id';
 
   Assert.AreEqual(ExpectedSQL, Query.GetSQL);
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderFromTest.WhenFilterringALazyFieldMustBuildTheJoinsToTheFilterWork;
+begin
+  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+
+  Query.From<TLazyClass>.Where(Field('Lazy.Name') = 'abc');
+
+  Assert.AreEqual(
+        ' from LazyClass T1 ' +
+    'left join MyEntity T2 ' +
+           'on T1.IdLazy=T2.Id ' +
+        'where T2.Name=''abc''', Query.GetSQL);
+
+  Query.Free;
+end;
+
+procedure TQueryBuilderFromTest.WhenUseALazyFieldInTheFilterMoreThenOnceMustLoadASingleJoin;
+begin
+  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+
+  Query.From<TLazyClass>.Where((Field('Lazy.Name') = 'abc') and (Field('Lazy.Name') = 'def'));
+
+  Assert.AreEqual(
+        ' from LazyClass T1 ' +
+    'left join MyEntity T2 ' +
+           'on T1.IdLazy=T2.Id ' +
+        'where (T2.Name=''abc''' +
+         ' and T2.Name=''def'')', Query.GetSQL);
 
   Query.Free;
 end;
