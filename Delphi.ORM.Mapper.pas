@@ -776,7 +776,7 @@ begin
   else if IsLazy then
   begin
     var Access := GetLazyLoadingAccess(PropertyInfo.GetValue(Instance));
-    Access.FieldName := Name;
+    Access.FieldName := Table.PrimaryKey.Name;
 
     if Value.IsObject then
       Access.Value := Value

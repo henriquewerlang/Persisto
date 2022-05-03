@@ -295,7 +295,7 @@ type
     [Test]
     procedure WhenSetValueToAFieldWithAStateObjectMustUpdateBothObjectsHasExpected;
     [Test]
-    procedure WhenFillTheFieldValueOfALazyPropertyMustLoadTheFieldNameToo;
+    procedure WhenFillTheFieldValueOfALazyPropertyMustLoadPrimaryKeyFieldName;
     [Test]
     procedure WhenMappingALazyArrayClassCantRaiseAnyError;
     [Test]
@@ -1053,7 +1053,7 @@ begin
   MyClass.Free;
 end;
 
-procedure TMapperTest.WhenFillTheFieldValueOfALazyPropertyMustLoadTheFieldNameToo;
+procedure TMapperTest.WhenFillTheFieldValueOfALazyPropertyMustLoadPrimaryKeyFieldName;
 begin
   var Mapper := TMapper.Create;
   var MyClass := TLazyClass.Create;
@@ -1063,7 +1063,7 @@ begin
 
   Field.SetValue(MyClass, 1234);
 
-  Assert.AreEqual('Lazy', MyClass.Lazy.Access.FieldName);
+  Assert.AreEqual('Id', MyClass.Lazy.Access.FieldName);
 
   Mapper.Free;
 
