@@ -2,25 +2,23 @@
 
 interface
 
-uses System.Rtti, System.Generics.Collections, System.SysUtils, Delphi.ORM.Database.Connection, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder, Delphi.ORM.Cache,
-  Delphi.ORM.Shared.Obj;
+uses System.Generics.Collections, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder, Delphi.ORM.Shared.Obj, Delphi.ORM.Cache, Delphi.ORM.Database.Connection;
 
 type
   TClassLoader = class
   private
-    FCache: ICache;
+    FAccess: IQueryBuilderAccess;
     FCursor: IDatabaseCursor;
-    FFrom: TQueryBuilderFrom;
     FLoadedObjects: ICache;
     FMainLoadedObject: TDictionary<IStateObject, Boolean>;
 
-    function CreateObject(Table: TTable; const FieldIndexStart: Integer; var StateObject: IStateObject): Boolean;
+    function CreateObject(const Table: TTable; const FieldIndexStart: Integer; var StateObject: IStateObject): Boolean;
     function GetFieldValueFromCursor(const Index: Integer): Variant;
     function LoadClass(var StateObject: IStateObject): Boolean;
 
     procedure LoadObject(const StateObject: IStateObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
   public
-    constructor Create(const Cursor: IDatabaseCursor; const From: TQueryBuilderFrom; const Cache: ICache);
+    constructor Create(const Access: IQueryBuilderAccess);
 
     destructor Destroy; override;
 
@@ -30,22 +28,19 @@ type
 
 implementation
 
-uses System.Variants, System.TypInfo, System.SysConst, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy;
+uses System.Rtti, System.Variants, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy, Delphi.ORM.Lazy.Factory;
 
 { TClassLoader }
 
-constructor TClassLoader.Create(const Cursor: IDatabaseCursor; const From: TQueryBuilderFrom; const Cache: ICache);
+constructor TClassLoader.Create(const Access: IQueryBuilderAccess);
 begin
   inherited Create;
 
-  FCache := Cache;
-  FCursor := Cursor;
-  FFrom := From;
-  FLoadedObjects := TCache.Create;
+  FAccess := Access;
   FMainLoadedObject := TDictionary<IStateObject, Boolean>.Create;
 end;
 
-function TClassLoader.CreateObject(Table: TTable; const FieldIndexStart: Integer; var StateObject: IStateObject): Boolean;
+function TClassLoader.CreateObject(const Table: TTable; const FieldIndexStart: Integer; var StateObject: IStateObject): Boolean;
 var
   SharedObject: ISharedObject absolute StateObject;
 
@@ -58,11 +53,11 @@ begin
 
   if Result then
   begin
-    if not FCache.Get(CacheKey, SharedObject) then
+    if not FAccess.Cache.Get(CacheKey, SharedObject) then
     begin
       SharedObject := TStateObject.Create(Table.ClassTypeInfo.MetaclassType.Create, False);
 
-      FCache.Add(CacheKey, SharedObject);
+      FAccess.Cache.Add(CacheKey, SharedObject);
     end;
 
     FLoadedObjects.Add(CacheKey, SharedObject);
@@ -92,8 +87,12 @@ end;
 
 function TClassLoader.LoadAll<T>: TArray<T>;
 begin
-  var StateObject: IStateObject := nil;
+  FCursor := FAccess.OpenCursor;
+  FLoadedObjects := TCache.Create;
   Result := nil;
+  var StateObject: IStateObject := nil;
+
+  FMainLoadedObject.Clear;
 
   while FCursor.Next do
   begin
@@ -108,14 +107,14 @@ function TClassLoader.LoadClass(var StateObject: IStateObject): Boolean;
 begin
   var FieldIndex := 0;
 
-  CreateObject(FFrom.Join.Table, FieldIndex, StateObject);
+  CreateObject(FAccess.Table, FieldIndex, StateObject);
 
   Result := not FMainLoadedObject.ContainsKey(StateObject);
 
   if Result then
     FMainLoadedObject.Add(StateObject, False);
 
-  LoadObject(StateObject, FFrom.Join, FieldIndex, Result);
+  LoadObject(StateObject, FAccess.Join, FieldIndex, Result);
 end;
 
 procedure TClassLoader.LoadObject(const StateObject: IStateObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
@@ -158,7 +157,12 @@ begin
         var FieldValue := Field.ConvertVariant(GetFieldValueFromCursor(FieldIndexStart));
 
         if not Field.IsReference then
+        begin
           Field.SetValue(StateObject, FieldValue);
+
+          if Field.IsLazy then
+            GetLazyLoadingAccess(Field.PropertyInfo.GetValue(StateObject.&Object)).Factory := TLazyFactory.Create(FAccess.Connection, FAccess.Cache);
+        end;
       end;
 
       Inc(FieldIndexStart);

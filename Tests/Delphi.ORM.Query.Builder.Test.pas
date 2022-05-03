@@ -2,24 +2,48 @@
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Query.Builder, Delphi.ORM.Database.Connection, Delphi.ORM.Attributes, Delphi.ORM.Test.Entity;
+uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Query.Builder, Delphi.ORM.Database.Connection, Delphi.ORM.Attributes, Delphi.ORM.Test.Entity, Delphi.ORM.Cache, Delphi.Mock.Intf,
+  Delphi.ORM.Cursor.Mock;
 
 type
-  [TestFixture]
-  TQueryBuilderTest = class
+  TDatabaseTest = class;
+
+  TQueryBuilderBaseTest = class
   private
     FBuilder: TQueryBuilder;
+    FBuilderAccess: IQueryBuilderAccess;
+    FCache: ICache;
+    FCursor: IDatabaseCursor;
+    FCursorClass: TCursorMock;
+    FDatabase: IDatabaseConnection;
+    FDatabaseClass: TDatabaseTest;
+    FDatabaseMock: IMock<IDatabaseConnection>;
+
+    function GetBuilder: TQueryBuilder;
+
+    procedure AddObjectToCache(const Obj: TObject; const KeyValue: TValue);
+    function GetDatabaseClass: TDatabaseTest;
+    function GetDatabaseMock: IMock<IDatabaseConnection>;
+    function GetDatabase: IDatabaseConnection;
+
+    property Builder: TQueryBuilder read GetBuilder;
+    property Database: IDatabaseConnection read GetDatabase;
+    property DatabaseClass: TDatabaseTest read GetDatabaseClass;
+    property DatabaseMock: IMock<IDatabaseConnection> read GetDatabaseMock;
   public
-    [SetupFixture]
-    procedure SetupFixture;
     [Setup]
     procedure Setup;
+    [SetupFixture]
+    procedure SetupFixture;
     [TearDown]
     procedure TearDown;
+  end;
+
+  [TestFixture]
+  TQueryBuilderTest = class(TQueryBuilderBaseTest)
+  public
     [Test]
     procedure IfNoCommandCalledTheSQLMustReturnEmpty;
-    [Test]
-    procedure WhenCallSelectCommandTheSQLMustReturnTheWordSelect;
     [Test]
     procedure IfNoCommandIsCalledCantRaiseAnExceptionOfAccessViolation;
     [Test]
@@ -124,13 +148,13 @@ type
     procedure WhenTheBeautifyQueryAndJoinMappingIsEnabledMustBuildTheQueryAsExpected;
     [Test]
     procedure WhenTheJoinMappingEnabledAnTheEntityHasAlignedJoinsMustLoadTheJoinInfoOfAllLinks;
+    [Test]
+    procedure AllSelectsMustHaveAFromClauseIfNotMustRaiseAnError;
   end;
 
   [TestFixture]
-  TQueryBuilderSelectTest = class
+  TQueryBuilderSelectTest = class(TQueryBuilderBaseTest)
   public
-    [SetupFixture]
-    procedure SetupFixture;
     [Test]
     procedure WhenIsNotDefinedTheRecursivityLevelMustBeOneTheDefaultValue;
     [Test]
@@ -144,16 +168,8 @@ type
   end;
 
   [TestFixture]
-  TQueryBuilderFromTest = class
-  private
-    FBuilder: TQueryBuilder;
+  TQueryBuilderFromTest = class(TQueryBuilderBaseTest)
   public
-    [SetupFixture]
-    procedure SetupFixture;
-    [Setup]
-    procedure Setup;
-    [TearDown]
-    procedure TearDown;
     [Test]
     procedure WhenCallFromFunctionMustLoadTheTablePropertyWithTheDataOfThatTable;
     [Test]
@@ -167,8 +183,6 @@ type
   [TestFixture]
   TQueryBuilderComparisonTest = class
   public
-    [SetupFixture]
-    procedure SetupFixture;
     [Test]
     procedure WhenCallTheFieldFuncitionMustLoadTheFieldNameInTheLeftOperator;
     [Test]
@@ -219,16 +233,8 @@ type
   end;
 
   [TestFixture]
-  TQueryBuilderAllFieldsTest = class
-  private
-    FBuilder: TQueryBuilder;
+  TQueryBuilderAllFieldsTest = class(TQueryBuilderBaseTest)
   public
-    [SetupFixture]
-    procedure SetupFixture;
-    [Setup]
-    procedure Setup;
-    [Teardown]
-    procedure Teardown;
     [Test]
     procedure InASingleClassMustLoadAllFieldsFromThatClass;
     [Test]
@@ -250,16 +256,8 @@ type
   end;
 
   [TestFixture]
-  TQueryBuilderWhereTest = class
-  private
-    FBuilder: TQueryBuilder;
+  TQueryBuilderWhereTest = class(TQueryBuilderBaseTest)
   public
-    [SetupFixture]
-    procedure SetupFixture;
-    [Setup]
-    procedure Setup;
-    [TearDown]
-    procedure TearDown;
     [Test]
     procedure WhenCompareAFieldWithAnValueMustBuildTheFilterAsExpected;
     [Test]
@@ -367,10 +365,8 @@ type
   end;
 
   [TestFixture]
-  TQueryBuilderDataManipulationTest = class
+  TQueryBuilderDataManipulationTest = class(TQueryBuilderBaseTest)
   public
-    [SetupFixture]
-    procedure SetupFixture;
     [Test]
     procedure WhenCallInsertMustStartATransactionInDatabase;
     [Test]
@@ -472,10 +468,8 @@ type
   end;
 
   [TestFixture]
-  TQueryBuilderOrderByTeste = class
+  TQueryBuilderOrderByTeste = class(TQueryBuilderBaseTest)
   public
-    [SetupFixture]
-    procedure SetupFixture;
     [Test]
     procedure EveryTimeTheFieldFunctionFromOrderByIsCalledMustAddTheFieldList;
     [Test]
@@ -491,7 +485,7 @@ type
   end;
 
   [TestFixture]
-  TQueryBuilderFieldAliasTest = class
+  TQueryBuilderFieldAliasTest = class(TQueryBuilderBaseTest)
   public
     [Test]
     procedure WhenCreateMustLoadThePropertyFieldNameOfTheClass;
@@ -512,8 +506,7 @@ type
     procedure ExecuteDirect(const SQL: String);
     procedure SaveSQL(const SQL: String);
   public
-    constructor Create(const Cursor: IDatabaseCursor); 
-
+    property Cursor: IDatabaseCursor read FCursor write FCursor;
     property SQL: String read FSQL;
     property OutputFields: TArray<String> read FOutputFields;
   end;
@@ -522,127 +515,69 @@ type
 
 implementation
 
-uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Cursor.Mock, Delphi.ORM.Nullable, Delphi.ORM.Cache, Delphi.Mock, Delphi.ORM.Rtti.Helper,
-  Delphi.ORM.Shared.Obj;
+uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Nullable, Delphi.Mock, Delphi.ORM.Rtti.Helper, Delphi.ORM.Shared.Obj;
 
 const
   COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '', '');
 
-procedure AddObjectToCache(const Cache: ICache; const Obj: TObject; const KeyValue: TValue);
-begin
-  Cache.Add(Format('Delphi.ORM.Test.Entity.%s.%s', [Obj.ClassName, KeyValue.GetAsString]), TStateObject.Create(Obj, True) as ISharedObject);
-end;
-
-function CreateDatabaseConnection: TDatabaseTest;
-begin
-  Result := TDatabaseTest.Create(TCursorMock.Create(nil));
-end;
-
-function CreateQueryBuilder(const Connection: IDatabaseConnection; Cache: ICache; const Obj: TObject; const KeyValue: TValue): TQueryBuilder; overload;
-begin
-  if not Assigned(Cache) then
-    Cache := TCache.Create;
-
-  if Assigned(Obj) then
-    AddObjectToCache(Cache, Obj, KeyValue);
-
-  Result := TQueryBuilder.Create(Connection, Cache);
-end;
-
-function CreateQueryBuilder(const Connection: IDatabaseConnection; const Cache: ICache): TQueryBuilder; overload;
-begin
-  Result := CreateQueryBuilder(Connection, Cache, nil, TValue.Empty);
-end;
-
-function CreateQueryBuilder(const Connection: IDatabaseConnection; const Obj: TObject; const KeyValue: TValue): TQueryBuilder; overload;
-begin
-  Result := CreateQueryBuilder(Connection, nil, Obj, KeyValue);
-end;
-
-function CreateQueryBuilder(const Connection: IDatabaseConnection): TQueryBuilder; overload;
-begin
-  Result := CreateQueryBuilder(Connection, nil);
-end;
-
-function CreateQueryBuilder(const Obj: TObject; const KeyValue: TValue): TQueryBuilder; overload;
-begin
-  Result := CreateQueryBuilder(CreateDatabaseConnection, nil, Obj, KeyValue);
-end;
-
-function CreateQueryBuilder: TQueryBuilder; overload;
-begin
-  Result := CreateQueryBuilder(CreateDatabaseConnection);
-end;
-
 { TQueryBuilderTest }
+
+procedure TQueryBuilderTest.AllSelectsMustHaveAFromClauseIfNotMustRaiseAnError;
+begin
+  Builder.Select;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Builder.GetSQL;
+    end, ECommandWithoutFromClause);
+end;
 
 procedure TQueryBuilderTest.AllTheDirectForeignKeyMustBeGeneratedInTheResultingSQL;
 begin
-  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TClassWithTwoForeignKey>;
 
-  Query.From<TClassWithTwoForeignKey>;
-
-  Assert.AreEqual(' from ClassWithTwoForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id left join ClassWithPrimaryKey T3 on T1.IdAnotherClass2=T3.Id', Query.GetSQL);
-
-  Query.Free;
+  Assert.EndsWith(' from ClassWithTwoForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id left join ClassWithPrimaryKey T3 on T1.IdAnotherClass2=T3.Id',
+    Builder.GetSQL);
 end;
 
 procedure TQueryBuilderTest.IfNoCommandCalledTheSQLMustReturnEmpty;
 begin
-  var Query := CreateQueryBuilder;
-
-  Assert.AreEqual(EmptyStr, Query.GetSQL);
-
-  Query.Free;
+  Assert.AreEqual(EmptyStr, Builder.GetSQL);
 end;
 
 procedure TQueryBuilderTest.IfNoCommandIsCalledCantRaiseAnExceptionOfAccessViolation;
 begin
-  var Query := CreateQueryBuilder;
-
   Assert.WillNotRaise(
     procedure
     begin
-      Query.GetSQL
+      Builder.GetSQL
     end, EAccessViolation);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderTest.IfNotExistsAFilterInWhereMustReturnTheQueryWithoutWhereCommand;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database);
+  Builder.Select.All.From<TMyTestClass>.Open;
 
-  Query.Select.All.From<TMyTestClass>.Open;
-
-  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Database.SQL);
-
-  Query.Free;
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderTest.IfTheAllFieldNoCalledCantRaiseAnExceptionOfAccessViolation;
 begin
-  var Query := CreateQueryBuilder;
-
-  Query.Select;
+  Builder.Select;
 
   Assert.WillNotRaise(
     procedure
     begin
-      Query.GetSQL;
+      Builder.GetSQL;
     end, EAccessViolation);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderTest.MustGenerateTheSQLFollowingTheHierarchyAsSpected;
 begin
-  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TClassHierarchy1>;
 
-  Query.From<TClassHierarchy1>;
-
-  Assert.AreEqual(
+  Assert.EndsWith(
         ' from ClassHierarchy1 T1 ' +
     'left join ClassHierarchy2 T2 ' +
            'on T1.IdClass1=T2.Id ' +
@@ -655,144 +590,92 @@ begin
     'left join ClassHierarchy3 T6 ' +
            'on T5.IdClass2=T6.Id ' +
     'left join ClassHierarchy3 T7 ' +
-           'on T1.IdClass2=T7.Id', Query.GetSQL);
-
-  Query.Free;
+           'on T1.IdClass2=T7.Id', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderTest.OnlyPublishedPropertiesMustAppearInInsertSQL;
 begin
-  var Database := CreateDatabaseConnection;
-  var Query := CreateQueryBuilder(Database);
-
   var MyClass := TClassOnlyPublic.Create;
   MyClass.Name := 'My name';
   MyClass.Value := 222;
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
-  Assert.AreEqual('insert into ClassOnlyPublic()values()', Database.SQL);
-
-  Query.Free;
+  Assert.AreEqual('insert into ClassOnlyPublic()values()', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.OnlyPublishedPropertiesMustAppearInUpdateSQL;
 begin
-  var Database := TDatabaseTest.Create(nil);
   var MyClass := TClassOnlyPublic.Create;
   MyClass.Name := 'My name';
   MyClass.Value := 222;
-  var Query := CreateQueryBuilder(Database, TClassOnlyPublic.Create, '');
 
-  Query.Update(MyClass);
+  AddObjectToCache(TClassOnlyPublic.Create, '');
 
-  Assert.IsEmpty(Database.SQL);
+  Builder.Update(MyClass);
 
-  Query.Free;
-end;
-
-procedure TQueryBuilderTest.Setup;
-begin
-  FBuilder := CreateQueryBuilder;
-end;
-
-procedure TQueryBuilderTest.SetupFixture;
-begin
-  TMapper.Default.LoadAll;
-
-  TMock.CreateInterface<IDatabaseTransaction>;
-end;
-
-procedure TQueryBuilderTest.TearDown;
-begin
-  FBuilder.Free;
+  Assert.IsEmpty(DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.TheClassBeingSelectedMustHaveTheAliasDefined;
 begin
-  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TMyTestClass>;
 
-  Query.From<TMyTestClass>;
-
-  Assert.AreEqual(' from MyTestClass T1', Query.GetSQL);
-
-  Query.Free;
+  Assert.EndsWith(' from MyTestClass T1', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderTest.TheFieldsHaveToBeGeneratedWithTheAliasOfTheRespectiveTables;
 begin
-  var Query := CreateQueryBuilder;
+  Builder.Select.All.From<TMyTestClass>;
 
-  Query.Select.All.From<TMyTestClass>;
-
-  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Query.GetSQL);
-
-  Query.Free;
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderTest.TheForeignKeyMustBeLoadedRecursive;
 begin
-  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TClassWithForeignKeyRecursive>;
 
-  Query.From<TClassWithForeignKeyRecursive>;
-
-  Assert.AreEqual(' from ClassWithForeignKeyRecursive T1 left join ClassWithForeignKey T2 on T1.IdAnotherClass=T2.Id left join ClassWithPrimaryKey T3 on T2.IdAnotherClass=T3.Id',
-    Query.GetSQL);
-
-  Query.Free;
+  Assert.EndsWith(' from ClassWithForeignKeyRecursive T1 left join ClassWithForeignKey T2 on T1.IdAnotherClass=T2.Id left join ClassWithPrimaryKey T3 on T2.IdAnotherClass=T3.Id',
+    Builder.GetSQL);
 end;
 
 procedure TQueryBuilderTest.TheKeyFieldCantBeUpdatedInTheUpdateProcedure;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database, TClassWithPrimaryKeyAttribute.Create, 456);
-  var SQL := 'update ClassWithPrimaryKeyAttribute set Id=123,Value=222';
-
   var MyClass := TClassWithPrimaryKeyAttribute.Create;
   MyClass.Id := 123;
   MyClass.Id2 := 456;
   MyClass.Value := 222;
 
-  Query.Update(MyClass);
+  AddObjectToCache(TClassWithPrimaryKeyAttribute.Create, 456);
 
-  Assert.AreEqual(SQL, Database.SQL.Substring(0, SQL.Length));
+  Builder.Update(MyClass);
 
-  Query.Free;
+  Assert.StartsWith('update ClassWithPrimaryKeyAttribute set Id=123,Value=222', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.TheManyValueAssociationMustAvoidRecursivilyLoadTheParentClassWhenLoadingTheChildClass;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 5);
+  Builder.Select.All.From<TMyEntityWithManyValueAssociation>;
 
-  From.From<TMyEntityWithManyValueAssociation>;
-
-  Assert.AreEqual(
+  Assert.EndsWith(
         ' from MyEntityWithManyValueAssociation T1 ' +
     'left join MyEntityWithManyValueAssociationChild T2 ' +
            'on T1.Id=T2.IdManyValueAssociation',
-    From.GetSQL);
-
-  From.Free;
+    Builder.GetSQL);
 end;
 
 procedure TQueryBuilderTest.TheManyValueAssociationMustLoadTheLinkingFieldBetweenTheClasses;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TMyEntityWithManyValueAssociation>;
 
-  From.From<TMyEntityWithManyValueAssociation>;
-
-  Assert.IsNotNull(From.Join.Links[0].Field);
-
-  From.Free;
+  Assert.IsNotNull(FBuilderAccess.Join.Links[0].Field);
 end;
 
 procedure TQueryBuilderTest.ThenForeignKeyLinkOfAnManyValueAssociationCantAppearInTheSQL;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TManyValueAssociationParent>;
 
-  From.From<TManyValueAssociationParent>;
-
-  Assert.AreEqual(
+  Assert.EndsWith(
         ' from ManyValueAssociationParent T1 ' +
     'left join ManyValueAssociationWithThreeForeignKey T2 ' +
            'on T1.Id=T2.IdManyValueAssociationParent ' +
@@ -800,159 +683,102 @@ begin
            'on T2.IdForeignKeyOne=T3.Id ' +
     'left join ManyValueAssociationParent T4 ' +
            'on T2.IdForeignKeyTwo=T4.Id',
-    From.GetSQL);
-
-  From.Free;
+    Builder.GetSQL);
 end;
 
 procedure TQueryBuilderTest.TheValuesReturnedInTheCursorOfTheInsertMustLoadTheFieldsOfTheClassBeenInserted;
 begin
-  var Database := TDatabaseTest.Create(TCursorMock.Create([[123, 'My value']]));
-  var Query := CreateQueryBuilder(Database);
-
+  FCursorClass.Values := [[123, 'My value']];
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Value := 'abc';
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
   Assert.AreEqual(123, MyClass.Id);
   Assert.AreEqual('My value', MyClass.AnotherField);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderTest.OnlyPublishedPropertiesCanAppearInSQL;
 begin
-  var Query := CreateQueryBuilder;
+  Builder.Select.All.From<TMyTestClass>;
 
-  Query.Select.All.From<TMyTestClass>;
-
-  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Query.GetSQL);
-
-  Query.Free;
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderTest.WhenAFieldIsMarkedWithAutoGeneratedItCantBeInTheInsertSQL;
 begin
-  var Database := CreateDatabaseConnection;
-  var Query := CreateQueryBuilder(Database);
-
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Value := 'abc';
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
-  Assert.AreEqual('insert into AutoGeneratedClass(Value)values(''abc'')', Database.SQL);
-
-  Query.Free;
+  Assert.AreEqual('insert into AutoGeneratedClass(Value)values(''abc'')', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenAFilterConditionMustBuildTheSQLAsExpected;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database);
+  Builder.Select.All.From<TMyTestClass>.Where(Field('Field') = 1234).Open.All;
 
-  Query.Select.All.From<TMyTestClass>.Where(Field('Field') = 1234).Open;
-
-  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1 where T1.Field=1234', Database.SQL);
-
-  Query.Free;
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1 where T1.Field=1234', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenCallInsertProcedureMustBuildTheSQLWithAllFieldsAndValuesFromTheClassParameter;
 begin
-  var Database := CreateDatabaseConnection;
-  var Query := CreateQueryBuilder(Database);
-
   var MyClass := TMyTestClass.Create;
   MyClass.Field := 123;
   MyClass.Name := 'My name';
   MyClass.Value := 222.333;
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
-  Assert.AreEqual('insert into MyTestClass(Field,Name,Value)values(123,''My name'',222.333)', Database.SQL);
-
-  Query.Free;
+  Assert.AreEqual('insert into MyTestClass(Field,Name,Value)values(123,''My name'',222.333)', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenCallOpenProcedureMustOpenTheDatabaseCursor;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database);
+  Builder.Select.All.From<TMyTestClass>.Open.All;
 
-  Query.Select.All.From<TMyTestClass>.Open;
-
-  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Database.SQL);
-
-  Query.Free;
-end;
-
-procedure TQueryBuilderTest.WhenCallSelectCommandTheSQLMustReturnTheWordSelect;
-begin
-  var Query := CreateQueryBuilder;
-
-  Query.Select;
-
-  Assert.AreEqual('select ', Query.GetSQL);
-
-  Query.Free;
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenCallTheDeleteProcedureMustBuildTheSQLWithTheValuesOfKeysOfClass;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database);
-
   var MyClass := TClassWithPrimaryKeyAttribute.Create;
   MyClass.Id2 := 456;
 
-  Query.Delete(MyClass);
+  Builder.Delete(MyClass);
 
-  Assert.AreEqual('delete from ClassWithPrimaryKeyAttribute where Id2=456', Database.SQL);
+  Assert.AreEqual('delete from ClassWithPrimaryKeyAttribute where Id2=456', DatabaseClass.SQL);
 
   MyClass.Free;
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderTest.WhenCallUpdateMustBuildTheSQLWithAllPropertiesInTheObjectParameter;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database, TMyTestClass.Create, '');
-
   var MyClass := TMyTestClass.Create;
   MyClass.Field := 123;
   MyClass.Name := 'My name';
   MyClass.Value := 222.333;
 
-  Query.Update(MyClass);
+  AddObjectToCache(TMyTestClass.Create, '');
 
-  Assert.AreEqual('update MyTestClass set Field=123,Name=''My name'',Value=222.333', Database.SQL);
+  Builder.Update(MyClass);
 
-  Query.Free;
+  Assert.AreEqual('update MyTestClass set Field=123,Name=''My name'',Value=222.333', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenClassHasOtherClassesLinkedToItYouHaveToGenerateTheJoinBetweenThem;
 begin
-  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TClassWithForeignKey>;
 
-  Query.From<TClassWithForeignKey>;
-
-  Assert.AreEqual(' from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', Query.GetSQL);
-
-  Query.Free;
+  Assert.EndsWith(' from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderTest.WhenConfiguredTheRecursivityLevelTheJoinsMustFollowTheConfiguration;
 begin
-  var Query := CreateQueryBuilder;
+  Builder.Select.RecursivityLevel(3).All.From<TClassRecursiveFirst>;
 
-  var From := Query.Select.RecursivityLevel(3).All;
-
-  From.From<TClassRecursiveFirst>;
-
-  Assert.AreEqual(
+  Assert.EndsWith(
             ' from ClassRecursiveFirst T1 ' +
         'left join ClassRecursiveThrid T2 ' +
                'on T1.IdRecursive=T2.Id ' +
@@ -972,137 +798,92 @@ begin
                'on T8.IdRecursive=T9.Id ' +
         'left join ClassRecursiveFirst T10 ' +
                'on T9.IdRecursive=T10.Id',
-    From.GetSQL);
-
-  Query.GetSQL;
-
-  Query.Free;
+    Builder.GetSQL);
 end;
 
 procedure TQueryBuilderTest.WhenDontHaveAResultingCursorCantLoadTheProperties;
 begin
-  var Database := CreateDatabaseConnection;
-  var Query := CreateQueryBuilder(Database);
-
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Value := 'abc';
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
   Assert.AreEqual(0, MyClass.Id);
   Assert.AreEqual(EmptyStr, MyClass.AnotherField);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderTest.WhenGetAllFieldsOfATableMustPutThePrimaryKeyFieldInTheBeginningOfTheResultingArray;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TMyEntityWithPrimaryKeyInLastField>;
 
-  var Fields := TQueryBuilderAllFields.Create(From);
+  var Fields := FBuilderAccess.Fields;
 
-  From.From<TMyEntityWithPrimaryKeyInLastField>;
-
-  Assert.IsTrue(Fields.GetFields[0].Field.InPrimaryKey);
-
-  From.Free;
-
-  Fields.Free;
+  Assert.IsTrue(Fields[0].Field.InPrimaryKey);
 end;
 
 procedure TQueryBuilderTest.WhenInsertAClassWithTheAutoGeneratedAttributeMustLoadTheFieldNamesInTheArrayOfTheProcedure;
 begin
-  var Database := TDatabaseTest.Create(TCursorMock.Create([[123, 'My value']]));
-  var Query := CreateQueryBuilder(Database);
-
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Value := 'abc';
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
-  Assert.AreEqual('Id', Database.OutputFields[0]);
-  Assert.AreEqual('AnotherField', Database.OutputFields[1]);
-
-  Query.Free;
+  Assert.AreEqual('Id', DatabaseClass.OutputFields[0]);
+  Assert.AreEqual('AnotherField', DatabaseClass.OutputFields[1]);
 end;
 
 procedure TQueryBuilderTest.WhenInsertingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheInsert;
 begin
-  var Database := CreateDatabaseConnection;
-  var Query := CreateQueryBuilder(Database);
-
   var MyClass := TMyEntityWithManyValueAssociation.Create;
   MyClass.Id := 12345;
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
-  Assert.AreEqual('insert into MyEntityWithManyValueAssociation(Id)values(12345)', Database.SQL);
-
-  Query.Free;
+  Assert.AreEqual('insert into MyEntityWithManyValueAssociation(Id)values(12345)', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenInsertingAClassWithTheKeyValueAlreadyLoadedMustInsertWithThisValue;
 begin
-  var Database := CreateDatabaseConnection;
-  var Query := CreateQueryBuilder(Database);
-
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Id := 1234;
   MyClass.Value := 'abc';
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
-  Assert.AreEqual('insert into AutoGeneratedClass(Id,Value)values(1234,''abc'')', Database.SQL);
-
-  Query.Free;
+  Assert.AreEqual('insert into AutoGeneratedClass(Id,Value)values(1234,''abc'')', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenIsLoadedAJoinMustLoadTheFieldThatIsTheLinkBetweenTheClasses;
 begin
-  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TClassWithForeignKey>;
 
-  Query.From<TClassWithForeignKey>;
-
-  Assert.IsNotNull(Query.Join.Links[0].Field);
-
-  Query.Free;
+  Assert.IsNotNull(FBuilderAccess.Join.Links[0].Field);
 end;
 
 procedure TQueryBuilderTest.WhenOpenOneMustFillTheClassWithTheValuesOfCursor;
 begin
-  var Database := TDatabaseTest.Create(TCursorMock.Create([[123, 'My name', 123.456]]));
-  var Query := CreateQueryBuilder(Database);
-
-  var Result := Query.Select.All.From<TMyTestClass>.Open.One;
+  FCursorClass.Values := [[123, 'My name', 123.456]];
+  var Result := Builder.Select.All.From<TMyTestClass>.Open.One;
 
   Assert.AreEqual(123, Result.Field);
 
   Assert.AreEqual('My name', Result.Name);
 
   Assert.AreEqual<Double>(123.456, Result.Value);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderTest.WhenSelectAllFieldsFromAClassMustPutAllThenInTheResultingSQL;
 begin
-  var Query := CreateQueryBuilder;
+  Builder.Select.All.From<TMyTestClass>;
 
-  Query.Select.All.From<TMyTestClass>;
-
-  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Query.GetSQL);
-
-  Query.Free;
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderTest.WhenTheBeautifyQueryAndJoinMappingIsEnabledMustBuildTheQueryAsExpected;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database);
+  Builder.Options := [boBeautifyQuery, boJoinMapping];
 
-  Query.Options := [boBeautifyQuery, boJoinMapping];
-
-  Query.Select.All.From<TClassWithTwoForeignKey>.Open;
+  Builder.Select.All.From<TClassWithTwoForeignKey>.Open.All;
 
   Assert.AreEqual(
     '   select T1.Id F1,'#13#10 +
@@ -1116,20 +897,15 @@ begin
     '       on T1.IdAnotherClass=T2.Id'#13#10 +
     '       /* ClassWithTwoForeignKey -> ClassWithPrimaryKey (AnotherClass2) */'#13#10 +
     'left join ClassWithPrimaryKey T3'#13#10 +
-    '       on T1.IdAnotherClass2=T3.Id'#13#10, Database.SQL);
-
-  Query.Free;
+    '       on T1.IdAnotherClass2=T3.Id'#13#10, DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenTheBeautifyQueryIsEnabledMustBuildTheQueryHasExpected;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database);
+  Builder.Options := [boBeautifyQuery];
 
-  Query.Options := [boBeautifyQuery];
-
-  Query.Select.First(20).All.From<TClassWithTwoForeignKey>.Where((Field('AnotherClass.Value') = 123) and (Field('AnotherClass.Value') = 456) or (Field('AnotherClass.Value') = 789))
-    .OrderBy.Field('Id').Open;
+  Builder.Select.First(20).All.From<TClassWithTwoForeignKey>.Where((Field('AnotherClass.Value') = 123) and (Field('AnotherClass.Value') = 456) or (Field('AnotherClass.Value') = 789))
+    .OrderBy.Field('Id').Open.All;
 
   Assert.AreEqual(
     '   select top 20 T1.Id F1,'#13#10 +
@@ -1145,160 +921,121 @@ begin
     '    where ((T2.Value=123'#13#10 +
     '      and T2.Value=456)'#13#10 +
     '      or T2.Value=789)'#13#10 +
-    ' order by T1.Id'#13#10, Database.SQL);
-
-  Query.Free;
+    ' order by T1.Id'#13#10, DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustInsertThenValueOfThePropertyIfNotIsNull;
 begin
-  var Database := CreateDatabaseConnection;
-  var Query := CreateQueryBuilder(Database);
-
   var MyClass := TClassWithNullableProperty.Create;
   MyClass.Nullable := 1234;
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
-  Assert.AreEqual('insert into ClassWithNullableProperty(Id,Nullable)values(0,1234)', Database.SQL);
-
-  Query.Free;
+  Assert.AreEqual('insert into ClassWithNullableProperty(Id,Nullable)values(0,1234)', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustInsertTheValueNullInSQLIfIsNull;
 begin
-  var Database := CreateDatabaseConnection;
-  var Query := CreateQueryBuilder(Database);
-
   var MyClass := TClassWithNullableProperty.Create;
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
-  Assert.AreEqual('insert into ClassWithNullableProperty(Id,Nullable)values(0,null)', Database.SQL);
-
-  Query.Free;
+  Assert.AreEqual('insert into ClassWithNullableProperty(Id,Nullable)values(0,null)', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustUpdateThenValueOfThePropertyIfNotIsNull;
 begin
-  var Database := CreateDatabaseConnection;
-  var Query := CreateQueryBuilder(Database, TClassWithNullableProperty.Create, 123);
-
   var MyClass := TClassWithNullableProperty.Create;
   MyClass.Id := 123;
   MyClass.Nullable := 456;
 
-  Query.Update(MyClass);
+  AddObjectToCache(TClassWithNullableProperty.Create, 123);
 
-  Assert.AreEqual('update ClassWithNullableProperty set Nullable=456 where Id=123', Database.SQL);
+  Builder.Update(MyClass);
 
-  Query.Free;
+  Assert.AreEqual('update ClassWithNullableProperty set Nullable=456 where Id=123', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenTheClassAsAFieldWithNullableRecordMustUpdateTheValueNullInSQLIfIsNull;
 begin
-  var Database := CreateDatabaseConnection;
   var MyClass := TClassWithNullableProperty.Create;
   MyClass.Id := 123;
   var MyClassCache := TClassWithNullableProperty.Create;
   MyClassCache.Id := 123;
   MyClassCache.Nullable := 123;
-  var Query := CreateQueryBuilder(Database, MyClassCache, 123);
 
-  Query.Update(MyClass);
+  AddObjectToCache(MyClassCache, 123);
 
-  Assert.AreEqual('update ClassWithNullableProperty set Nullable=null where Id=123', Database.SQL);
+  Builder.Update(MyClass);
 
-  Query.Free;
+  Assert.AreEqual('update ClassWithNullableProperty set Nullable=null where Id=123', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenTheClassDontHaveAnyPrimaryKeyTheDeleteMustBuildTheSQLWithoutWhereCondition;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database);
-
   var MyClass := TMyTestClass.Create;
 
-  Query.Delete(MyClass);
+  Builder.Delete(MyClass);
 
-  Assert.AreEqual('delete from MyTestClass', Database.SQL);
+  Assert.AreEqual('delete from MyTestClass', DatabaseClass.SQL);
 
   MyClass.Free;
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderTest.WhenTheClassDontHaveThePrimaryKeyAttributeCantRaiseAException;
 begin
-  var Database := TDatabaseTest.Create(nil);
   var MyClass := TClassOnlyPublic.Create;
-  var Query := CreateQueryBuilder(Database);
 
   Assert.WillNotRaise(
     procedure
     begin
-      Query.Update(MyClass);
+      Builder.Update(MyClass);
     end, EAccessViolation);
 
   MyClass.Free;
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderTest.WhenTheClassHaveForeignKeysThatsLoadsRecursivelyCantRaiseAnError;
 begin
-  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
-
   Assert.WillNotRaise(
     procedure
     begin
-      Query.From<TClassRecursiveFirst>;
+      Builder.Select.All.From<TClassRecursiveFirst>;
 
-      Query.GetSQL;
+      Builder.GetSQL;
     end);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderTest.WhenTheClassHaveManyValueAssociationMustLoadTheJoinBetweenTheParentAndChildTable;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TMyEntityWithManyValueAssociation>;
 
-  From.From<TMyEntityWithManyValueAssociation>;
-
-  Assert.AreEqual(
+  Assert.EndsWith(
         ' from MyEntityWithManyValueAssociation T1 ' +
     'left join MyEntityWithManyValueAssociationChild T2 ' +
            'on T1.Id=T2.IdManyValueAssociation',
-    From.GetSQL);
-
-  From.Free;
+    Builder.GetSQL);
 end;
 
 procedure TQueryBuilderTest.WhenTheClassHaveThePrimaryKeyAttributeMustBuildTheWhereWithTheValuesOfFieldInTheKeyList;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database, TClassWithPrimaryKeyAttribute.Create, 456);
-
   var MyClass := TClassWithPrimaryKeyAttribute.Create;
   MyClass.Id := 123;
   MyClass.Id2 := 456;
   MyClass.Value := 222;
 
-  Query.Update(MyClass);
+  AddObjectToCache(TClassWithPrimaryKeyAttribute.Create, 456);
 
-  Assert.AreEqual('update ClassWithPrimaryKeyAttribute set Id=123,Value=222 where Id2=456', Database.SQL);
+  Builder.Update(MyClass);
 
-  Query.Free;
+  Assert.AreEqual('update ClassWithPrimaryKeyAttribute set Id=123,Value=222 where Id2=456', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenTheClassRecursivelyItselfMoreThenOneTimeMustBuildTheSQLAsEspected;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 2);
+  Builder.Select.RecursivityLevel(2).All.From<TClassRecursiveItSelf>;
 
-  From.From<TClassRecursiveItSelf>;
-
-  Assert.AreEqual(
+  Assert.EndsWith(
         ' from ClassRecursiveItself T1 ' +
     'left join ClassRecursiveItself T2 ' +
            'on T1.IdRecursive1=T2.Id ' +
@@ -1312,30 +1049,21 @@ begin
            'on T5.IdRecursive1=T6.Id ' +
     'left join ClassRecursiveItself T7 ' +
            'on T5.IdRecursive2=T7.Id',
-    From.GetSQL);
-
-  From.Free;
+    Builder.GetSQL);
 end;
 
 procedure TQueryBuilderTest.WhenTheJoinLinkIsFromAnInheritedClassMustMarkTheIsInheritedLinkHasTrue;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TMyEntityInheritedFromSimpleClass>;
 
-  From.From<TMyEntityInheritedFromSimpleClass>;
-
-  Assert.IsTrue(From.Join.Links[0].IsInheritedLink);
-
-  From.Free;
+  Assert.IsTrue(FBuilderAccess.Join.Links[0].IsInheritedLink);
 end;
 
 procedure TQueryBuilderTest.WhenTheJoinMappingEnabledAnTheEntityHasAlignedJoinsMustLoadTheJoinInfoOfAllLinks;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database);
+  Builder.Options := [boJoinMapping];
 
-  Query.Options := [boJoinMapping];
-
-  Query.Select.All.From<TClassWithForeignKeyRecursive>.Open;
+  Builder.Select.All.From<TClassWithForeignKeyRecursive>.Open.All;
 
   Assert.AreEqual(
           'select T1.Id F1,T2.Id F2,T3.Id F3,T3.Value F4 ' +
@@ -1345,19 +1073,14 @@ begin
               'on T1.IdAnotherClass=T2.Id' +
               '/* ClassWithForeignKeyRecursive -> ClassWithForeignKey -> ClassWithPrimaryKey (AnotherClass) */' +
        'left join ClassWithPrimaryKey T3 ' +
-              'on T2.IdAnotherClass=T3.Id', Database.SQL);
-
-  Query.Free;
+              'on T2.IdAnotherClass=T3.Id', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenTheJoinMappingEnabledMustLoadTheJoinInfoOnQueryComments;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database);
+  Builder.Options := [boJoinMapping];
 
-  Query.Options := [boJoinMapping];
-
-  Query.Select.All.From<TClassWithTwoForeignKey>.Open;
+  Builder.Select.All.From<TClassWithTwoForeignKey>.Open.All;
 
   Assert.AreEqual(
        'select T1.Id F1,T2.Id F2,T2.Value F3,T3.Id F4,T3.Value F5 ' +
@@ -1367,92 +1090,68 @@ begin
            'on T1.IdAnotherClass=T2.Id' +
               '/* ClassWithTwoForeignKey -> ClassWithPrimaryKey (AnotherClass2) */' +
     'left join ClassWithPrimaryKey T3 ' +
-           'on T1.IdAnotherClass2=T3.Id', Database.SQL);
-
-  Query.Free;
+           'on T1.IdAnotherClass2=T3.Id', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenTryToSaveAnEntityWithThePrimaryKeyEmptyMustInsertTheEntity;
 begin
-  var Database := CreateDatabaseConnection;
   var Obj := TMyEntityWithPrimaryKey.Create;
-  var Query := CreateQueryBuilder(Database);
 
-  Query.Save(Obj);
+  Builder.Save(Obj);
 
-  Assert.AreEqual('insert into MyEntityWithPrimaryKey(Value,Id)values(0,0)', Database.SQL);
-
-  Query.Free;
+  Assert.AreEqual('insert into MyEntityWithPrimaryKey(Value,Id)values(0,0)', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenTryToSaveAnEntityWithThePrimaryKeyFilledMustUpdateTheEntity;
 begin
-  var Database := CreateDatabaseConnection;
   var Obj := TMyEntityWithPrimaryKey.Create;
   Obj.Value := 12345;
   var ObjCache := TMyEntityWithPrimaryKey.Create;
   ObjCache.Value := 12345;
   ObjCache.Id := 123;
-  var Query := CreateQueryBuilder(Database, ObjCache, 12345);
 
-  Query.Save(Obj);
+  AddObjectToCache(ObjCache, 12345);
 
-  Assert.AreEqual('update MyEntityWithPrimaryKey set Id=0 where Value=12345', Database.SQL);
+  Builder.Save(Obj);
 
-  Query.Free;
+  Assert.AreEqual('update MyEntityWithPrimaryKey set Id=0 where Value=12345', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenUpdateAnEntityWithoutPrimaryKeyMustUpdateAllRecordFromTable;
 begin
-  var Database := CreateDatabaseConnection;
   var Obj := TMyTestClass.Create;
   var ObjCache := TMyTestClass.Create;
   ObjCache.Field := 1;
   ObjCache.Name := 'Name';
   ObjCache.Value := 2;
-  var Query := CreateQueryBuilder(Database, ObjCache, '');
 
-  Query.Save(Obj);
+  AddObjectToCache(ObjCache, '');
 
-  Assert.AreEqual('update MyTestClass set Field=0,Name='''',Value=0', Database.SQL);
+  Builder.Save(Obj);
 
-  Query.Free;
+  Assert.AreEqual('update MyTestClass set Field=0,Name='''',Value=0', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenUpdatingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheUpdateList;
 begin
-  var Database := CreateDatabaseConnection;
   var MyClass := TMyEntityWithManyValueAssociation.Create;
   MyClass.Id := 12345;
-  var Query := CreateQueryBuilder(Database, TMyEntityWithManyValueAssociation.Create, 12345);
 
-  Query.Update(MyClass);
+  AddObjectToCache(TMyEntityWithManyValueAssociation.Create, 12345);
 
-  Assert.IsEmpty(Database.SQL);
+  Builder.Update(MyClass);
 
-  Query.Free;
+  Assert.IsEmpty(DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenUseTheOrderByClauseMustLoadTheSQLHasExpected;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database);
+  Builder.Select.All.From<TMyTestClass>.OrderBy.Field('Field').Open.All;
 
-  Query.Select.All.From<TMyTestClass>.OrderBy.Field('Field').Open;
-
-  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1 order by T1.Field', Database.SQL);
-
-  Query.Free;
+  Assert.AreEqual('select T1.Field F1,T1.Name F2,T1.Value F3 from MyTestClass T1 order by T1.Field', DatabaseClass.SQL);
 end;
 
 { TDatabaseTest }
-
-constructor TDatabaseTest.Create(const Cursor: IDatabaseCursor);
-begin
-  inherited Create;
-
-  FCursor := Cursor;
-end;
 
 procedure TDatabaseTest.ExecuteDirect(const SQL: String);
 begin
@@ -1489,176 +1188,79 @@ end;
 
 procedure TQueryBuilderAllFieldsTest.FieldsOfAnObjectCantBeLoadedInTheListOfFields;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TClassWithTwoForeignKey>;
 
-  var FieldList := TQueryBuilderAllFields.Create(From);
-
-  From.From<TClassWithTwoForeignKey>;
-
-  for var Field in FieldList.GetFields do
+  for var Field in FBuilderAccess.Fields do
     Assert.IsFalse(Field.Field.PropertyInfo.PropertyType.InheritsFrom(TRttiStructuredType));
-
-  From.Free;
-
-  FieldList.Free;
 end;
 
 procedure TQueryBuilderAllFieldsTest.InASingleClassMustLoadAllFieldsFromThatClass;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TMyTestClass>;
 
-  var FieldList := TQueryBuilderAllFields.Create(From);
-
-  From.From<TMyTestClass>;
-
-  Assert.AreEqual<Integer>(3, Length(FieldList.GetFields));
-
-  From.Free;
-
-  FieldList.Free;
-end;
-
-procedure TQueryBuilderAllFieldsTest.Setup;
-begin
-  FBuilder := CreateQueryBuilder;
-end;
-
-procedure TQueryBuilderAllFieldsTest.SetupFixture;
-begin
-  TMapper.Default.LoadAll;
-end;
-
-procedure TQueryBuilderAllFieldsTest.Teardown;
-begin
-  FBuilder.Free;
+  Assert.AreEqual<Integer>(3, Length(FBuilderAccess.Fields));
 end;
 
 procedure TQueryBuilderAllFieldsTest.TheFieldsMustBeLoadedRecursivelyInAllForeignKeys;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TClassWithForeignKeyRecursive>;
 
-  var FieldList := TQueryBuilderAllFields.Create(From);
-
-  From.From<TClassWithForeignKeyRecursive>;
-
-  Assert.AreEqual<Integer>(4, Length(FieldList.GetFields));
-
-  From.Free;
-
-  FieldList.Free;
+  Assert.AreEqual<Integer>(4, Length(FBuilderAccess.Fields));
 end;
 
 procedure TQueryBuilderAllFieldsTest.TheRecursivelyMustBeRespectedAndLoadAllFieldFromTheClasses;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 3);
+  Builder.Select.RecursivityLevel(3).All.From<TClassRecursiveFirst>;
 
-  var FieldList := TQueryBuilderAllFields.Create(From);
-
-  From.From<TClassRecursiveFirst>;
-
-  Assert.AreEqual<Integer>(10, Length(FieldList.GetFields));
-
-  From.Free;
-
-  FieldList.Free;
+  Assert.AreEqual<Integer>(10, Length(FBuilderAccess.Fields));
 end;
 
 procedure TQueryBuilderAllFieldsTest.WhenAFieldIsLazyLoadingThisMustLoadInFieldList;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TLazyClass>;
 
-  var Fields := TQueryBuilderAllFields.Create(From);
-
-  From.From<TLazyClass>;
-
-  Assert.AreEqual<Integer>(2, Length(Fields.GetFields));
-
-  From.Free;
-
-  Fields.Free;
+  Assert.AreEqual<Integer>(2, Length(FBuilderAccess.Fields));
 end;
 
 procedure TQueryBuilderAllFieldsTest.WhenFilterALazyFieldCantLoadTheFieldInTheSelect;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TLazyClass>.Where(Field('Lazy.Name') = 'abc');
 
-  var FieldList := TQueryBuilderAllFields.Create(From);
-
-  From.From<TLazyClass>.Where(Field('Lazy.Name') = 'abc');
-
-  Assert.AreEqual<Integer>(2, Length(FieldList.GetFields));
-
-  From.Free;
-
-  FieldList.Free;
+  Assert.AreEqual<Integer>(2, Length(FBuilderAccess.Fields));
 end;
 
 procedure TQueryBuilderAllFieldsTest.WhenTheClassHaveForeignKeyMustLoadAllFieldsOfAllClassesInvolved;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TClassWithTwoForeignKey>;
 
-  var FieldList := TQueryBuilderAllFields.Create(From);
-
-  From.From<TClassWithTwoForeignKey>;
-
-  Assert.AreEqual<Integer>(5, Length(FieldList.GetFields));
-
-  From.Free;
-
-  FieldList.Free;
+  Assert.AreEqual<Integer>(5, Length(FBuilderAccess.Fields));
 end;
 
 procedure TQueryBuilderAllFieldsTest.WhenTheClassIsRecursiveItselfCantRaiseAnErrorInTheExecution;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
-
-  var FieldList := TQueryBuilderAllFields.Create(From);
-
-  From.From<TClassRecursiveFirst>;
+  Builder.Select.All.From<TClassRecursiveFirst>;
 
   Assert.WillNotRaise(
     procedure
     begin
-      FieldList.GetFields;
+      FBuilderAccess.Fields;
     end);
-
-  From.Free;
-
-  FieldList.Free;
 end;
 
 procedure TQueryBuilderAllFieldsTest.WhenThePropertyIsAnArrayCantLoadTheFieldInTheList;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TMyEntityWithManyValueAssociation>;
 
-  var FieldList := TQueryBuilderAllFields.Create(From);
-
-  From.From<TMyEntityWithManyValueAssociation>;
-
-  Assert.AreEqual<Integer>(2, Length(FieldList.GetFields));
-
-  From.Free;
-
-  FieldList.Free;
+  Assert.AreEqual<Integer>(2, Length(FBuilderAccess.Fields));
 end;
 
 { TQueryBuilderSelectTest }
 
-procedure TQueryBuilderSelectTest.SetupFixture;
-begin
-  TMapper.Default.LoadAll;
-end;
-
 procedure TQueryBuilderSelectTest.WhenFillTheFirstRecordsMustBuildTheSQLAsExpectedForSQLServer;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database);
+  Builder.Select.First(10).All.From<TClassWithForeignKey>.Open.All;
 
-  Query.Select.First(10).All.From<TClassWithForeignKey>.Open;
-
-  Assert.AreEqual('select top 10 T1.Id F1,T2.Id F2,T2.Value F3 from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', Database.SQL);
-
-  Query.Free;
+  Assert.AreEqual('select top 10 T1.Id F1,T2.Id F2,T2.Value F3 from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderSelectTest.WhenFillTheFirstRecordsMustLoadThePropertyWithThePassedValue;
@@ -1681,36 +1283,21 @@ end;
 
 procedure TQueryBuilderSelectTest.WhenSelectingATableAsAParameterMustUseThisParameterAndNotTryingToFindTheGenericTable;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database);
-
   Assert.WillNotRaise(
     procedure
     begin
-      Query.Select.All.From<TObject>(TMapper.Default.FindTable(TClassWithForeignKey)).Open;
+      Builder.Select.All.From<TObject>(TMapper.Default.FindTable(TClassWithForeignKey)).Open;
     end);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderSelectTest.WhenTheClassHaveForeignKeyMustBuildTheSQLWithTheAliasOfTheJoinMapped;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database);
+  Builder.Select.All.From<TClassWithForeignKey>.Open.All;
 
-  Query.Select.All.From<TClassWithForeignKey>.Open;
-
-  Assert.AreEqual('select T1.Id F1,T2.Id F2,T2.Value F3 from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', Database.SQL);
-
-  Query.Free;
+  Assert.AreEqual('select T1.Id F1,T2.Id F2,T2.Value F3 from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', DatabaseClass.SQL);
 end;
 
 { TQueryBuilderComparisonTest }
-
-procedure TQueryBuilderComparisonTest.SetupFixture;
-begin
-  TMapper.Default.LoadAll;
-end;
 
 procedure TQueryBuilderComparisonTest.WhenCallTheFieldFuncitionMustLoadTheFieldNameInTheLeftOperator;
 begin
@@ -1995,66 +1582,36 @@ end;
 
 procedure TQueryBuilderWhereTest.AComposeLogicalOperationMustBeGeneratedAsExpected;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
-  var Where := From.From<TWhereClassTest>.Where((Field('Field1') = 1) and (Field('Field2') = 2) or (Field('Field3') = 3));
+  Builder.Select.All.From<TWhereClassTest>.Where((Field('Field1') = 1) and (Field('Field2') = 2) or (Field('Field3') = 3));
 
-  Assert.AreEqual(' where ((T1.Field1=1 and T1.Field2=2) or T1.Field3=3)', Where.GetSQL);
-
-  From.Free;
+  Assert.EndsWith(' where ((T1.Field1=1 and T1.Field2=2) or T1.Field3=3)', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.ASimpleLogicalAndOperationMustBeGeneratedAsExpected;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
-  var Where := From.From<TWhereClassTest>.Where((Field('Field1') = 1111) and (Field('Field2') = 222));
+  Builder.Select.All.From<TWhereClassTest>.Where((Field('Field1') = 1111) and (Field('Field2') = 222));
 
-  Assert.AreEqual(' where (T1.Field1=1111 and T1.Field2=222)', Where.GetSQL);
-
-  From.Free;
+  Assert.EndsWith(' where (T1.Field1=1111 and T1.Field2=222)', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.ASimpleLogicalOrOperationMustBeGeneratedAsExpected;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
-  var Where := From.From<TWhereClassTest>.Where((Field('Field1') = 1111) or (Field('Field2') = 222));
+  Builder.Select.All.From<TWhereClassTest>.Where((Field('Field1') = 1111) or (Field('Field2') = 222));
 
-  Assert.AreEqual(' where (T1.Field1=1111 or T1.Field2=222)', Where.GetSQL);
-
-  From.Free;
+  Assert.EndsWith(' where (T1.Field1=1111 or T1.Field2=222)', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.IfTheWhereDontFoundTheFieldMustRaiseAnError;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
-  var Where := From.From<TWhereClassTest>;
-
   Assert.WillRaise(
     procedure
     begin
-      Where.Where(Field('DontExists') = 1234);
+      Builder.Select.All.From<TWhereClassTest>.Where(Field('DontExists') = 1234);
     end, EFieldNotFoundInTable);
-
-  From.Free;
-end;
-
-procedure TQueryBuilderWhereTest.Setup;
-begin
-  FBuilder := CreateQueryBuilder;
-end;
-
-procedure TQueryBuilderWhereTest.SetupFixture;
-begin
-  TMapper.Default.LoadAll;
-end;
-
-procedure TQueryBuilderWhereTest.TearDown;
-begin
-  FBuilder.Free;
 end;
 
 procedure TQueryBuilderWhereTest.TheComparisonOfTheValuesMustOccurAsExpected(TypeToConvert, ValueToCompare: String);
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var Value: TValue;
   var Prefix := EmptyStr;
 
@@ -2097,14 +1654,12 @@ begin
   else
     raise Exception.Create('Test not mapped!');
 
-  var Where := From.From<TMyEntityWithAllTypeOfFields>.Where(Field(TypeToConvert) = Value);
+  Builder.Select.All.From<TMyEntityWithAllTypeOfFields>.Where(Field(TypeToConvert) = Value);
 
-  Assert.AreEqual(Format(' where T1.%s%s=%s', [Prefix, TypeToConvert, ValueToCompare]), Where.GetSQL);
+  Assert.EndsWith(Format(' where T1.%s%s=%s', [Prefix, TypeToConvert, ValueToCompare]), Builder.GetSQL);
 
   if Value.IsObject then
     Value.AsObject.Free;
-
-  From.Free;
 end;
 
 procedure TQueryBuilderWhereTest.TheComparisonOperatorsMustBeGeneratedAsExpected(Operation: TQueryBuilderComparisonOperator);
@@ -2150,67 +1705,44 @@ begin
   end;
 
   if Operation <> qbcoNone then
-  begin
-    var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
-
-    Assert.AreEqual(Format(' where T1.MyField%s%s', [COMPARISON_OPERATOR[Operation], ValueString]), From.From<TWhereClassTest>.Where(Comparison).GetSQL);
-
-    From.Free;
-  end;
+    Assert.AreEqual(Format(' where T1.MyField%s%s', [COMPARISON_OPERATOR[Operation], ValueString]), Builder.Select.All.From<TWhereClassTest>.Where(Comparison).GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.TheLasNameInTheComposeNameMustBeTheFieldToBeFoundInAClass;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
-  var Where := From.From<TWhereClassTest>.Where(Field('Where') = 1);
+  Builder.Select.All.From<TWhereClassTest>.Where(Field('Where') = 1);
 
-  Assert.AreEqual(' where T1.IdWhere=1', Where.GetSQL);
-
-  From.Free;
+  Assert.EndsWith(' where T1.IdWhere=1', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.WhenAPropertyIsLazyLoadingCantAppearInTheFromClause;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TLazyClass>;
 
-  From.From<TLazyClass>;
-
-  Assert.AreEqual(' from LazyClass T1', From.GetSQL);
-
-  From.Free;
+  Assert.EndsWith(' from LazyClass T1', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.WhenBothOperationsAreLogicalHaveToGenerateSQLAsExpected;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
-  var Where := From.From<TWhereClassTest>.Where((Field('Field1') = 1) and (Field('Field2') = 2) or (Field('Field3') = 3) and (Field('Field4') = 4));
+  Builder.Select.All.From<TWhereClassTest>.Where((Field('Field1') = 1) and (Field('Field2') = 2) or (Field('Field3') = 3) and (Field('Field4') = 4));
 
-  Assert.AreEqual(' where ((T1.Field1=1 and T1.Field2=2) or (T1.Field3=3 and T1.Field4=4))', Where.GetSQL);
-
-  From.Free;
+  Assert.EndsWith(' where ((T1.Field1=1 and T1.Field2=2) or (T1.Field3=3 and T1.Field4=4))', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.WhenBuildingTheFilterMustCheckTheFieldsJoinsIfExistsAndRaiseAnErrorIfNotFind;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 5);
-
   Assert.WillRaiseWithMessage(
     procedure
     begin
-      From.From<TMyTestClass>.Where(Field('NotExitst.Field') = 'abc');
+      Builder.Select.RecursivityLevel(5).All.From<TMyTestClass>.Where(Field('NotExitst.Field') = 'abc');
     end, EFieldNotFoundInTable, 'Field "NotExitst" not found in current table!');
-
-  From.Free;
 end;
 
 procedure TQueryBuilderWhereTest.WhenCompareAFieldWithAnValueMustBuildTheFilterAsExpected;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
-  var Where := From.From<TWhereClassTest>.Where(Field('Value') = 1234);
+  Builder.Select.All.From<TWhereClassTest>.Where(Field('Value') = 1234);
 
-  Assert.AreEqual(' where T1.Value=1234', Where.GetSQL);
-
-  From.Free;
+  Assert.EndsWith(' where T1.Value=1234', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.WhenComparingEnumeratorTheComparisonMustHappenAsExpected(Operation: TQueryBuilderComparisonOperator);
@@ -2236,12 +1768,9 @@ begin
     else raise Exception.Create('Test not implemented');
   end;
 
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
-  var Where := From.From<TMyEntityWithAllTypeOfFields>.Where(Comparison);
+  Builder.Select.All.From<TMyEntityWithAllTypeOfFields>.Where(Comparison);
 
-  Assert.AreEqual(Format(' where T1.Enumerator%s1', [COMPARISON_OPERATOR[Operation]]), Where.GetSQL);
-
-  From.Free;
+  Assert.EndsWith(Format(' where T1.Enumerator%s1', [COMPARISON_OPERATOR[Operation]]), Builder.GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.WhenComparingFieldMustBuildTheFilterAsExpected(Operation: TQueryBuilderComparisonOperator);
@@ -2269,71 +1798,50 @@ begin
     else raise Exception.Create('Test not implemented');
   end;
 
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
-
-  Assert.AreEqual(Format(' where T1.MyField%sT1.Value', [COMPARISON_OPERATOR[Operation]]), From.From<TWhereClassTest>.Where(Comparison).GetSQL);
-
-  From.Free;
+  Assert.AreEqual(Format(' where T1.MyField%sT1.Value', [COMPARISON_OPERATOR[Operation]]), Builder.Select.All.From<TWhereClassTest>.Where(Comparison).GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.WhenExistsAJoinLoadedMustPutTheAliasOfTheTableBeforeTheFieldName;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 2);
-  var Where := From.From<TWhereClassTest>.Where(Field('Field1') = 1);
+  Builder.Select.All.From<TWhereClassTest>.Where(Field('Field1') = 1);
 
-  Assert.AreEqual(' where T1.Field1=1', Where.GetSQL);
-
-  From.Free;
+  Assert.EndsWith(' where T1.Field1=1', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.WhenFilterringALazyFieldWithAManyValuePropertyMustRaiseError;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
-
   Assert.WillRaise(
     procedure
     begin
-      From.From<TFilterClass>.Where(Field('LazyFilterClass.Many.Childs.Id') = 123);
+      Builder.Select.All.From<TFilterClass>.Where(Field('LazyFilterClass.Many.Childs.Id') = 123);
     end, ECantFilterManyValueAssociation);
-
-  From.Free;
 end;
 
 procedure TQueryBuilderWhereTest.WhenLeftOperationIsASimpleComparisonAndRightIsALogicalOperationItHasToGenerateSQLAsExpected;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
-  var Where := From.From<TWhereClassTest>.Where((Field('Field1') = 1) and ((Field('Field2') = 2) or (Field('Field3') = 3)));
+  Builder.Select.All.From<TWhereClassTest>.Where((Field('Field1') = 1) and ((Field('Field2') = 2) or (Field('Field3') = 3)));
 
-  Assert.AreEqual(' where (T1.Field1=1 and (T1.Field2=2 or T1.Field3=3))', Where.GetSQL);
-
-  From.Free;
+  Assert.EndsWith(' where (T1.Field1=1 and (T1.Field2=2 or T1.Field3=3))', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.WhenTheClassIsInheritedMustFindTheFieldInTheBaseClass;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 5);
-  var Where := From.From<TMyEntityInheritedFromSimpleClass>.Where(Field('BaseProperty') = 'abc');
+  Builder.Select.All.From<TMyEntityInheritedFromSimpleClass>.Where(Field('BaseProperty') = 'abc');
 
-  Assert.AreEqual(' where T2.BaseProperty=''abc''', Where.GetSQL);
-
-  From.Free;
+  Assert.EndsWith(' where T2.BaseProperty=''abc''', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.WhenTheClassIsRecursiveInItselfHasToPutTheRightAlias;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 5);
-  var Where := From.From<TClassRecursiveItSelf>.Where(Field('Recursive1.Recursive1.Recursive1.Recursive1.Recursive1') = 1);
+  Builder.Select.RecursivityLevel(5).All.From<TClassRecursiveItSelf>.Where(Field('Recursive1.Recursive1.Recursive1.Recursive1.Recursive1') = 1);
 
-  Assert.AreEqual(' where T5.IdRecursive1=1', Where.GetSQL);
-
-  From.Free;
+  Assert.EndsWith(' where T5.IdRecursive1=1', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.WhenTheComparisionWithADateMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
 begin
   var Comparison: TQueryBuilderComparisonHelper;
   var Field := Field('Date');
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var DateVar: TDate := EncodeDate(2021, 01, 01);
 
   case Operation of
@@ -2346,18 +1854,15 @@ begin
     else raise Exception.Create('Test not implemented');
   end;
 
-  var Where := From.From<TMyEntityWithAllTypeOfFields>.Where(Comparison);
+  Builder.Select.All.From<TMyEntityWithAllTypeOfFields>.Where(Comparison);
 
-  Assert.AreEqual(Format(' where T1.Date%s''2021-01-01''', [COMPARISON_OPERATOR[Operation]]), Where.GetSQL);
-
-  From.Free;
+  Assert.EndsWith(Format(' where T1.Date%s''2021-01-01''', [COMPARISON_OPERATOR[Operation]]), Builder.GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.WhenTheComparisionWithADateTimeMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
 begin
   var Comparison: TQueryBuilderComparisonHelper;
   var Field := Field('DateTime');
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var DateVar: TDateTime := EncodeDateTime(2021, 01, 01, 12, 34, 56, 0);
 
   case Operation of
@@ -2370,18 +1875,15 @@ begin
     else raise Exception.Create('Test not implemented');
   end;
 
-  var Where := From.From<TMyEntityWithAllTypeOfFields>.Where(Comparison);
+  Builder.Select.All.From<TMyEntityWithAllTypeOfFields>.Where(Comparison);
 
-  Assert.AreEqual(Format(' where T1.DateTime%s''2021-01-01 12:34:56''', [COMPARISON_OPERATOR[Operation]]), Where.GetSQL);
-
-  From.Free;
+  Assert.EndsWith(Format(' where T1.DateTime%s''2021-01-01 12:34:56''', [COMPARISON_OPERATOR[Operation]]), Builder.GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.WhenTheComparisionWithATimeMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);
 begin
   var Comparison: TQueryBuilderComparisonHelper;
   var Field := Field('Time');
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
   var DateVar: TTime := EncodeTime(12, 34, 56, 0);
 
   case Operation of
@@ -2394,91 +1896,76 @@ begin
     else raise Exception.Create('Test not implemented');
   end;
 
-  var Where := From.From<TMyEntityWithAllTypeOfFields>.Where(Comparison);
+  Builder.Select.All.From<TMyEntityWithAllTypeOfFields>.Where(Comparison);
 
-  Assert.AreEqual(Format(' where T1.Time%s''12:34:56''', [COMPARISON_OPERATOR[Operation]]), Where.GetSQL);
-
-  From.Free;
+  Assert.EndsWith(Format(' where T1.Time%s''12:34:56''', [COMPARISON_OPERATOR[Operation]]), Builder.GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.WhenTheWhereFilterUsesAFieldFromABaseClassCantRaiseAnyError;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 5);
-
   Assert.WillNotRaise(
     procedure
     begin
-      From.From<TMyClassWithForeignKeyInherited>.Where(Field('MyField.AnotherValues.Id') = 'abc');
+      Builder.Select.All.From<TMyClassWithForeignKeyInherited>.Where(Field('MyField.AnotherValues.Id') = 'abc');
     end);
-
-  From.Free;
 end;
 
 procedure TQueryBuilderWhereTest.WhenUseAnLazyFieldInTheFilterCantRaiseAnyError;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 1);
-
   Assert.WillNotRaise(
     procedure
     begin
-      From.From<TLazyClass>.Where(Field('Lazy.Name') = 'abc');
+      Builder.Select.All.From<TLazyClass>.Where(Field('Lazy.Name') = 'abc');
     end);
-
-  From.Free;
 end;
 
 procedure TQueryBuilderWhereTest.WhenUsingAComposeNameMustPutTheAliasOfTheTableBeforeTheFieldName;
 begin
-  var From := TQueryBuilderFrom.Create(FBuilder.Select, 2);
-  var Where := From.From<TWhereClassTest>.Where(Field('Where.Class1.Class3.Id') = 1);
+  Builder.Select.RecursivityLevel(2).All.From<TWhereClassTest>.Where(Field('Where.Class1.Class3.Id') = 1);
+  Builder.Options := [boJoinMapping, boBeautifyQuery];
 
-  Assert.AreEqual(' where T4.Id=1', Where.GetSQL);
-
-  From.Free;
+  Assert.EndsWith(' where T4.Id=1', Builder.GetSQL);
 end;
 
 { TQueryBuilderDataManipulationTest }
 
 procedure TQueryBuilderDataManipulationTest.AfterInsertTheObjectInDatabaseMustAddAStateObjectToTheCache;
 begin
-  var Cache := TCache.Create as ICache;
   var CachedObject: ISharedObject := nil;
   var MyClass := TMyEntityWithPrimaryKeyInLastField.Create;
   MyClass.Id := 123;
   MyClass.Field3 := 'abc';
-  var Query := CreateQueryBuilder(CreateDatabaseConnection, Cache);
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
-  Cache.Get('Delphi.ORM.Test.Entity.TMyEntityWithPrimaryKeyInLastField.123', CachedObject);
+  FCache.Get('Delphi.ORM.Test.Entity.TMyEntityWithPrimaryKeyInLastField.123', CachedObject);
 
   Assert.IsTrue(Supports(CachedObject, IStateObject));
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.AfterUpdateAnObjectTheForeignObjectMustBeDestroyed;
 begin
-  var MyClass := TMock.CreateClass<TMyEntityWithPrimaryKeyInLastField>(nil, True);
-  MyClass.Instance.Id := 123;
-  var MyClassCache := TMyEntityWithPrimaryKeyInLastField.Create;
+  var DestroyCalled := False;
+  var MyClass := TClassWithFunction.Create;
+  MyClass.Id := 123;
+  var MyClassCache := TClassWithFunction.Create;
   MyClassCache.Id := 123;
-  var Query := CreateQueryBuilder(MyClassCache, 123);
 
-  MyClass.Expect.Once.When.BeforeDestruction;
+  MyClass.DestroyCallFunction :=
+    procedure
+    begin
+      DestroyCalled := True;
+    end;
 
-  Query.Update(MyClass.Instance);
+  AddObjectToCache(MyClassCache, 123);
 
-  Assert.CheckExpectation(MyClass.CheckExpectations);
+  Builder.Update(MyClass);
 
-  MyClass.Free;
-
-  Query.Free;
+  Assert.IsTrue(DestroyCalled);
 end;
 
 procedure TQueryBuilderDataManipulationTest.AfterUpdateTheManyValueAssociationMustUpdateTheReferenceOfTheObjectInTheChildList;
 begin
-  var Cache := TCache.Create as ICache;
   var MyChild := TManyValueChild.Create;
   MyChild.Id := 123;
   var MyClass := TManyValueParent.Create;
@@ -2486,57 +1973,37 @@ begin
   MyClass.Childs := [MyChild];
   var MyClassCache := TManyValueParent.Create;
   var MyChildCache := TManyValueChild.Create;
-  var Query := CreateQueryBuilder(CreateDatabaseConnection, Cache);
 
-  AddObjectToCache(Cache, MyClassCache, 123);
+  AddObjectToCache(MyClassCache, 123);
 
-  AddObjectToCache(Cache, MyChildCache, 123);
+  AddObjectToCache(MyChildCache, 123);
 
-  Query.Update(MyClass);
+  Builder.Update(MyClass);
 
   Assert.AreEqual<Pointer>(MyChildCache, MyClassCache.Childs[0]);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.ReadOnlyFieldsCantBeUpdatedInUpdateFunction;
 begin
   var MyClass := TMyEntityInheritedFromSimpleClass.Create;
-  var Query := CreateQueryBuilder(TMyEntityInheritedFromSimpleClass.Create, 0);
+
+  AddObjectToCache(TMyEntityInheritedFromSimpleClass.Create, 0);
 
   Assert.WillNotRaise(
     procedure
     begin
-      Query.Update(MyClass);
+      Builder.Update(MyClass);
     end);
-
-  Query.Free;
-end;
-
-procedure TQueryBuilderDataManipulationTest.SetupFixture;
-begin
-  TMapper.Default.LoadAll;
-
-  TMock.CreateInterface<IDatabaseConnection>;
-
-  TMock.CreateInterface<IDatabaseCursor>;
-
-  TMock.CreateInterface<IDatabaseTransaction>;
-
-  TMock.CreateClass<TMyEntityWithPrimaryKeyInLastField>(nil, True).Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.TheDeleteErrorMustRaiseAfterTheRollbackTheTransaction;
 begin
-  var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
-  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
 
-  Database.Setup.WillExecute(
+  DatabaseMock.Setup.WillExecute(
     procedure
     begin
       raise Exception.Create('An error message');
@@ -2545,27 +2012,22 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      Query.Delete(MyClass);
+      Builder.Delete(MyClass);
     end);
 
   MyClass.Free;
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.TheInsertionErrorMustBeRaiseAfterTheRollbackTheTransaction;
 begin
-  var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := TQueryBuilder.Create(Database.Instance, nil);
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
   Transaction.Expect.Once.When.Rollback;
 
-  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
 
-  Database.Setup.WillExecute(
+  DatabaseMock.Setup.WillExecute(
     procedure
     begin
       raise Exception.Create('An error message');
@@ -2574,26 +2036,21 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      Query.Insert(MyClass);
+      Builder.Insert(MyClass);
     end);
 
   MyClass.Free;
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.TheSaveErrorMustRaiseAfterTheRollbackTheTransaction;
 begin
-  var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Id := 123;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
-  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
 
-  Database.Setup.WillExecute(
+  DatabaseMock.Setup.WillExecute(
     procedure
     begin
       raise Exception.Create('An error message');
@@ -2602,47 +2059,38 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      Query.Save(MyClass);
+      Builder.Save(MyClass);
     end);
 
   MyClass.Free;
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.TheStateObjectMustCopyTheValueOfAllPropertiesFromTheOriginalObject;
 begin
-  var Cache := TCache.Create as ICache;
   var CachedObject: ISharedObject := nil;
   var MyClass := TMyEntityWithPrimaryKeyInLastField.Create;
   MyClass.Id := 123;
   MyClass.Field3 := 'abc';
-  var Query := CreateQueryBuilder(CreateDatabaseConnection, Cache);
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
-  Cache.Get('Delphi.ORM.Test.Entity.TMyEntityWithPrimaryKeyInLastField.123', CachedObject);
+  FCache.Get('Delphi.ORM.Test.Entity.TMyEntityWithPrimaryKeyInLastField.123', CachedObject);
 
   var OldObject := (CachedObject as IStateObject).OldObject as TMyEntityWithPrimaryKeyInLastField;
 
   Assert.AreEqual(123, OldObject.Id);
 
   Assert.AreEqual('abc', OldObject.Field3);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.TheUpdateErrorMustRaiseAfterTheRollbackTheTransaction;
 begin
-  var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
-  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
 
-  Database.Setup.WillExecute(
+  DatabaseMock.Setup.WillExecute(
     procedure
     begin
       raise Exception.Create('An error message');
@@ -2651,12 +2099,10 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      Query.Update(MyClass);
+      Builder.Update(MyClass);
     end);
 
   MyClass.Free;
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.TheValuesFromTheForeignObjectMustBeLoadedInTheCachedObject;
@@ -2667,225 +2113,190 @@ begin
   var MyClassCache := TMyEntityWithPrimaryKeyInLastField.Create;
   MyClassCache.Id := 123;
   MyClassCache.Field3 := '888';
-  var Query := CreateQueryBuilder(MyClassCache, 123);
 
-  Query.Update(MyClass);
+  AddObjectToCache(MyClassCache, 123);
+
+  Builder.Update(MyClass);
 
   Assert.AreEqual('abc', MyClassCache.Field3);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenAnDeleteErrorOccurrsMustCallRollbackFunctionOfTheTransaction;
 begin
-  var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
   Transaction.Expect.Once.When.Rollback;
 
-  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
 
-  Database.Setup.WillExecute(
+  DatabaseMock.Setup.WillExecute(
     procedure
     begin
       raise Exception.Create('An error message');
     end).When.ExecuteDirect(It.IsAny<String>);
 
   try
-    Query.Delete(MyClass);
+    Builder.Delete(MyClass);
   except
   end;
 
   Assert.CheckExpectation(Transaction.CheckExpectations);
 
   MyClass.Free;
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenAnInsertErrorOccurrsMustCallRollbackFunctionOfTheTransaction;
 begin
-  var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
   Transaction.Expect.Once.When.Rollback;
 
-  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
 
-  Database.Setup.WillExecute(
+  DatabaseMock.Setup.WillExecute(
     procedure
     begin
       raise Exception.Create('An error message');
     end).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
 
   try
-    Query.Insert(MyClass);
+    Builder.Insert(MyClass);
   except
   end;
 
   Assert.CheckExpectation(Transaction.CheckExpectations);
 
   MyClass.Free;
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenAnSaveErrorOccurrsMustCallRollbackFunctionOfTheTransaction;
 begin
-  var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Id := 123;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
   Transaction.Expect.Once.When.Rollback;
 
-  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
 
-  Database.Setup.WillExecute(
+  DatabaseMock.Setup.WillExecute(
     procedure
     begin
       raise Exception.Create('An error message');
     end).When.ExecuteDirect(It.IsAny<String>);
 
   try
-    Query.Save(MyClass);
+    Builder.Save(MyClass);
   except
   end;
 
   Assert.CheckExpectation(Transaction.CheckExpectations);
 
   MyClass.Free;
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenAnUpdateErrorOccurrsMustCallRollbackFunctionOfTheTransaction;
 begin
-  var Cursor := TMock.CreateInterface<IDatabaseCursor>(True);
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
   Transaction.Expect.Once.When.Rollback;
 
-  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
 
-  Database.Setup.WillExecute(
+  DatabaseMock.Setup.WillExecute(
     procedure
     begin
       raise Exception.Create('An error message');
     end).When.ExecuteDirect(It.IsAny<String>);
 
   try
-    Query.Update(MyClass);
+    Builder.Update(MyClass);
   except
   end;
 
   Assert.CheckExpectation(Transaction.CheckExpectations);
 
   MyClass.Free;
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenCallDeleteMustStartATransactionInDatabase;
 begin
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
 
-  Database.Expect.Once.When.StartTransaction;
+  DatabaseMock.Expect.Once.When.StartTransaction;
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
-  Query.Delete(MyClass);
+  Builder.Delete(MyClass);
 
-  Assert.CheckExpectation(Database.CheckExpectations);
+  Assert.CheckExpectation(DatabaseMock.CheckExpectations);
 
   MyClass.Free;
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenCallInsertMustStartATransactionInDatabase;
 begin
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
 
-  Database.Expect.Once.When.StartTransaction;
+  DatabaseMock.Expect.Once.When.StartTransaction;
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
-  Assert.CheckExpectation(Database.CheckExpectations);
-
-  Query.Free;
+  Assert.CheckExpectation(DatabaseMock.CheckExpectations);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenCallSaveMustStartATransactionInDatabase;
 begin
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Id := 123;
-  var Query := CreateQueryBuilder(Database.Instance, TAutoGeneratedClass.Create, 123);
 
-  Database.Expect.Once.When.StartTransaction;
+  AddObjectToCache(TAutoGeneratedClass.Create, 123);
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+  DatabaseMock.Expect.Once.When.StartTransaction;
 
-  Query.Save(MyClass);
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
-  Assert.CheckExpectation(Database.CheckExpectations);
+  Builder.Save(MyClass);
 
-  Query.Free;
+  Assert.CheckExpectation(DatabaseMock.CheckExpectations);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenCallUpdateMustStartATransactionInDatabase;
 begin
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
   var MyClass := TAutoGeneratedClass.Create;
-  var Query := CreateQueryBuilder(Database.Instance, TAutoGeneratedClass.Create, '0');
 
-  Database.Expect.Once.When.StartTransaction;
+  AddObjectToCache(TAutoGeneratedClass.Create, '0');
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+  DatabaseMock.Expect.Once.When.StartTransaction;
 
-  Query.Update(MyClass);
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
-  Assert.CheckExpectation(Database.CheckExpectations);
+  Builder.Update(MyClass);
 
-  Query.Free;
+  Assert.CheckExpectation(DatabaseMock.CheckExpectations);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertAnEntityMustSaveTheForeignKeysFirstAfterThisMustInsertTheEntity;
 begin
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
   var ForeignKeySaved := False;
-  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TClassWithForeignKey.Create;
   MyClass.AnotherClass := TClassWithPrimaryKey.Create;
 
-  Database.Setup.WillExecute(
+  DatabaseMock.Setup.WillExecute(
     function (const Args: TArray<TValue>): TValue
     begin
       ForeignKeySaved := True;
       Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
     end).When.ExecuteInsert(It(0).IsEqualTo('insert into ClassWithPrimaryKey(Id,Value)values(0,0)'), It(1).IsAny<TArray<String>>);
 
-  Database.Setup.WillExecute(
+  DatabaseMock.Setup.WillExecute(
     function (const Args: TArray<TValue>): TValue
     begin
       Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
@@ -2893,29 +2304,25 @@ begin
       Assert.IsTrue(ForeignKeySaved, 'The foreign key not saved');
     end).When.ExecuteInsert(It(0).IsEqualTo('insert into ClassWithForeignKey(Id,IdAnotherClass)values(0,0)'), It(1).IsAny<TArray<String>>);
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
-  Query.Insert(MyClass);
-
-  Query.Free;
+  Builder.Insert(MyClass);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertAnEntityMustSaveTheManyValueAssociationsAfterInsertedTheEntity;
 begin
   var CanSaveManyValueAssociation := False;
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TManyValueParent.Create;
   MyClass.Childs := [TManyValueChild.Create];
 
-  Database.Setup.WillExecute(
+  DatabaseMock.Setup.WillExecute(
     function (const Args: TArray<TValue>): TValue
     begin
       CanSaveManyValueAssociation := True;
       Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
     end).When.ExecuteInsert(It(0).IsEqualTo('insert into ManyValueParent(Id,IdChild)values(0,null)'), It(1).IsAny<TArray<String>>);
 
-  Database.Setup.WillExecute(
+  DatabaseMock.Setup.WillExecute(
     function (const Args: TArray<TValue>): TValue
     begin
       Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
@@ -2923,328 +2330,271 @@ begin
       Assert.IsTrue(CanSaveManyValueAssociation, 'The parent entity not saved');
     end).When.ExecuteInsert(It(0).IsEqualTo('insert into ManyValueChild(Id,IdParent)values(0,0)'), It(1).IsAny<TArray<String>>);
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
-  Query.Insert(MyClass);
-
-  Query.Free;
+  Builder.Insert(MyClass);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertANewObjectThisObjectMustBeAddedToTheCache;
 begin
-  var Cache := TCache.Create as ICache;
   var CachedObject: ISharedObject := nil;
   var MyClass := TMyEntityWithPrimaryKeyInLastField.Create;
   MyClass.Id := 123;
   MyClass.Field3 := 'abc';
-  var Query := CreateQueryBuilder(CreateDatabaseConnection, Cache);
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
-  Cache.Get('Delphi.ORM.Test.Entity.TMyEntityWithPrimaryKeyInLastField.123', CachedObject);
+  FCache.Get('Delphi.ORM.Test.Entity.TMyEntityWithPrimaryKeyInLastField.123', CachedObject);
 
   Assert.AreSame(MyClass, CachedObject.&Object);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertAnObjectMustReturnTheObjectFromTheCache;
 begin
   var MyClass := TMyEntityWithPrimaryKey.Create;
-  var Query := CreateQueryBuilder(CreateDatabaseConnection);
 
-  Assert.AreEqual<Pointer>(MyClass, Query.Insert(MyClass));
-
-  Query.Free;
+  Assert.AreEqual<Pointer>(MyClass, Builder.Insert(MyClass));
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertingAClassMustInsertOnlyTheForeignKeyWithInsertCascadeAttribute;
 begin
-  var Database := TDatabaseTest.Create(TCursorMock.Create([[1], [2]]));
+  FCursorClass.Values := [[1], [2]];
   var MyClass := TClassWithCascadeAttribute.Create;
   MyClass.InsertCascade := TClassWithCascadeForeignClass.Create;
   MyClass.UpdateCascade := TClassWithCascadeForeignClass.Create;
   MyClass.UpdateInsertCascade := TClassWithCascadeForeignClass.Create;
-  var Query := CreateQueryBuilder(Database);
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
   Assert.AreEqual(
     'insert into ClassWithCascadeForeignClass(Value)values(0)'#13#10 +
     'insert into ClassWithCascadeForeignClass(Value)values(0)'#13#10 +
-    'insert into ClassWithCascadeAttribute(Id,IdInsertCascade,IdUpdateCascade,IdUpdateInsertCascade)values(0,1,0,2)', Database.SQL);
+    'insert into ClassWithCascadeAttribute(Id,IdInsertCascade,IdUpdateCascade,IdUpdateInsertCascade)values(0,1,0,2)', DatabaseClass.SQL);
 
   MyClass.UpdateCascade.Free;
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertingAInheritedClassCantRaiseErrorFromDuplicateCacheValue;
 begin
+  FCursorClass.Values := [[123]];
   var MyClass := TMyEntityInheritedFromSimpleClass.Create;
-  var Query := CreateQueryBuilder(TDatabaseTest.Create(TCursorMock.Create([[123]])));
 
   Assert.WillNotRaise(
     procedure
     begin
-      Query.Insert(MyClass);
+      Builder.Insert(MyClass);
     end);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertingAnEntityInheritedFromAnotherMustInsertTheParentClassFirst;
 begin
-  var Database := TDatabaseTest.Create(TCursorMock.Create([[123]]));
+  FCursorClass.Values := [[123]];
   var MyClass := TMyEntityInheritedFromSimpleClass.Create;
-  var Query := CreateQueryBuilder(Database);
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
   Assert.AreEqual(
     'insert into MyEntityInheritedFromSingle(AnotherProperty,BaseProperty)values('''','''')'#13#10 +
-    'insert into MyEntityInheritedFromSimpleClass(Id,SimpleProperty)values(123,0)', Database.SQL);
-
-  Query.Free;
+    'insert into MyEntityInheritedFromSimpleClass(Id,SimpleProperty)values(123,0)', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenNoFieldIsUpdatedCantRunAnySQL;
 begin
-  var Connection := CreateDatabaseConnection;
   var MyClass := TMyEntityWithPrimaryKeyInLastField.Create;
   MyClass.Id := 123;
   var MyClassCache := TMyEntityWithPrimaryKeyInLastField.Create;
   MyClassCache.Id := 123;
-  var Query := CreateQueryBuilder(Connection, MyClassCache, 123);
 
-  Query.Update(MyClass);
+  AddObjectToCache(MyClassCache, 123);
 
-  Assert.IsEmpty(Connection.SQL);
+  Builder.Update(MyClass);
 
-  Query.Free;
+  Assert.IsEmpty(DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenSaveAManyValueAssocitationEntityMustAvoidSaveTheParentLinkOfTheChildToAvoidStackOverflow;
 begin
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TManyValueParentError.Create;
   MyClass.PassCount := 2;
   MyClass.Values := [TManyValueParentChildError.Create];
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
   Assert.WillNotRaise(
     procedure
     begin
-      Query.Insert(MyClass);
+      Builder.Insert(MyClass);
     end);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenSaveAManyValueAssocitationEntityMustLoadTheParentObjectInTheChildObjects;
 begin
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TManyValueParentError.Create;
   MyClass.PassCount := 3;
   MyClass.Values := [TManyValueParentChildError.Create];
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
   try
-    Query.Insert(MyClass);
+    Builder.Insert(MyClass);
   except
   end;
 
   Assert.IsNotNull(MyClass.Values[0].ManyValueParentError);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenSaveAnObjectMustReturnTheObjectFromTheCache;
 begin
   var MyClass := TMyEntityWithPrimaryKey.Create;
-  var Query := CreateQueryBuilder(CreateDatabaseConnection);
 
-  Assert.AreEqual<Pointer>(MyClass, Query.Save(MyClass));
-
-  Query.Free;
+  Assert.AreEqual<Pointer>(MyClass, Builder.Save(MyClass));
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenSavingAnEntityInheritedFromAnotherTableCantRaiseAnyError;
 begin
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
   var MyClass := TMyEntityInheritedFromSimpleClass.Create;
   MyClass.Id := 123;
-  var Query := CreateQueryBuilder(Database.Instance, TMyEntityInheritedFromSimpleClass.Create, 123);
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+  AddObjectToCache(TMyEntityInheritedFromSimpleClass.Create, 123);
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
   Assert.WillNotRaise(
     procedure
     begin
-      Query.Save(MyClass);
+      Builder.Save(MyClass);
     end);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenTheDeleteOccursSuccessfullyMustCommitTheTransaction;
 begin
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
   Transaction.Expect.Once.When.Commit;
 
-  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
 
-  Query.Delete(MyClass);
+  Builder.Delete(MyClass);
 
   Assert.CheckExpectation(Transaction.CheckExpectations);
 
   MyClass.Free;
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenTheInsertOccursSuccessfullyMustCommitTheTransaction;
 begin
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
-  var Query := CreateQueryBuilder(Database.Instance);
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
   Transaction.Expect.Once.When.Commit;
 
-  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
   Assert.CheckExpectation(Transaction.CheckExpectations);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenThenObjectOfAForeignKeyIsNilCantRaiseAnyError;
 begin
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
   var MyClass := TClassWithForeignKey.Create;
-  var Query := CreateQueryBuilder(Database.Instance, TClassWithForeignKey.Create, 0);
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+  AddObjectToCache(TClassWithForeignKey.Create, 0);
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
   Assert.WillNotRaise(
   procedure
   begin
-    Query.Update(MyClass);
+    Builder.Update(MyClass);
   end);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenThePropertyHasTheNoUpdateAttributeThisFieldCantBeInTheInsertSQL;
 begin
-  var Database := CreateDatabaseConnection;
   var MyClass := TClassWithNoUpdateAttribute.Create;
   MyClass.Id := 'abc';
   MyClass.NoUpdate := 'def';
   MyClass.Value := 'ghi';
-  var Query := CreateQueryBuilder(Database);
 
-  Query.Insert(MyClass);
+  Builder.Insert(MyClass);
 
-  Assert.AreEqual('insert into ClassWithNoUpdateAttribute(Id,Value)values(''abc'',''ghi'')', Database.SQL);
-
-  Query.Free;
+  Assert.AreEqual('insert into ClassWithNoUpdateAttribute(Id,Value)values(''abc'',''ghi'')', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenThePropertyHasTheNoUpdateAttributeThisFieldCantBeInTheUpdateSQL;
 begin
-  var Database := TDatabaseTest.Create(nil);
-  var Query := CreateQueryBuilder(Database, TClassWithNoUpdateAttribute.Create, 'abc');
-
   var MyClass := TClassWithNoUpdateAttribute.Create;
   MyClass.Id := 'abc';
   MyClass.NoUpdate := 'def';
   MyClass.Value := 'ghi';
 
-  Query.Update(MyClass);
+  AddObjectToCache(TClassWithNoUpdateAttribute.Create, 'abc');
 
-  Assert.AreEqual('update ClassWithNoUpdateAttribute set Value=''ghi'' where Id=''abc''', Database.SQL);
+  Builder.Update(MyClass);
 
-  Query.Free;
+  Assert.AreEqual('update ClassWithNoUpdateAttribute set Value=''ghi'' where Id=''abc''', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenTheSaveOccursSuccessfullyMustCommitTheTransaction;
 begin
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
   var MyClass := TAutoGeneratedClass.Create;
   MyClass.Id := 123;
-  var Query := CreateQueryBuilder(Database.Instance, TAutoGeneratedClass.Create, 123);
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
   Transaction.Expect.Once.When.Commit;
 
-  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
 
-  Query.Save(MyClass);
+  AddObjectToCache(TAutoGeneratedClass.Create, 123);
+
+  Builder.Save(MyClass);
 
   Assert.CheckExpectation(Transaction.CheckExpectations);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenTheUpdateOccursSuccessfullyMustCommitTheTransaction;
 begin
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
   var MyClass := TAutoGeneratedClass.Create;
-  var Query := CreateQueryBuilder(Database.Instance, TAutoGeneratedClass.Create, '0');
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
+
+  AddObjectToCache(TAutoGeneratedClass.Create, '0');
 
   Transaction.Expect.Once.When.Commit;
 
-  Database.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
 
-  Query.Update(MyClass);
+  Builder.Update(MyClass);
 
   Assert.CheckExpectation(Transaction.CheckExpectations);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenTryToUpdateAClassThatIsNotCachedHaveToRaiseAnError;
 begin
   var MyClass := TClassWithPrimaryKey.Create;
-  var Query := CreateQueryBuilder;
 
   Assert.WillRaise(
     procedure
     begin
-      Query.Update(MyClass);
+      Builder.Update(MyClass);
     end, EObjectReferenceWasNotFound);
-
-  Query.Free;
 
   MyClass.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdateAClassMustUpdateOnlyTheChangedFields;
 begin
-  var Connection := CreateDatabaseConnection;
   var MyClass := TMyEntityWithPrimaryKeyInLastField.Create;
   MyClass.Id := 123;
   MyClass.Field1 := 555;
@@ -3253,13 +2603,12 @@ begin
   var MyClassCache := TMyEntityWithPrimaryKeyInLastField.Create;
   MyClassCache.Id := 123;
   MyClassCache.Field3 := '888';
-  var Query := CreateQueryBuilder(Connection, MyClassCache, 123);
 
-  Query.Update(MyClass);
+  AddObjectToCache(MyClassCache, 123);
 
-  Assert.AreEqual('update MyEntityWithPrimaryKeyInLastField set Field1=555,Field2=777 where Id=123', Connection.SQL);
+  Builder.Update(MyClass);
 
-  Query.Free;
+  Assert.AreEqual('update MyEntityWithPrimaryKeyInLastField set Field1=555,Field2=777 where Id=123', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdateAClassWithManyValueAssociationMustUpdateTheListOfTheObjectInTheCache;
@@ -3267,52 +2616,47 @@ begin
   var MyClass := TManyValueParent.Create;
   MyClass.Childs := [TManyValueChild.Create];
   var MyClassCache := TManyValueParent.Create;
-  var Query := CreateQueryBuilder(MyClassCache, 0);
 
-  Query.Update(MyClass);
+  AddObjectToCache(MyClassCache, 0);
+
+  Builder.Update(MyClass);
 
   Assert.AreEqual<Integer>(1, Length(MyClassCache.Childs));
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdateAnEntityAndForeignKeyIsInTheCaheMustUpdateTheReferenceWithThisObject;
 begin
-  var Cache := TCache.Create as ICache;
   var ForeignKey := TClassWithCascadeForeignClass.Create;
   var MyClass := TClassWithCascadeAttribute.Create;
   MyClass.Id := 1;
   MyClass.UpdateCascade := TClassWithCascadeForeignClass.Create;
   MyClass.UpdateCascade.Id := 1;
-  var Query := CreateQueryBuilder(CreateDatabaseConnection, Cache);
 
-  AddObjectToCache(Cache, ForeignKey, 1);
+  AddObjectToCache(ForeignKey, 1);
 
-  AddObjectToCache(Cache, MyClass, 1);
+  AddObjectToCache(MyClass, 1);
 
-  Query.Update(MyClass);
+  Builder.Update(MyClass);
 
   Assert.AreEqual<Pointer>(ForeignKey, MyClass.UpdateCascade);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdateAnEntityMustSaveTheForeignKeysFirstAfterThisMustUpdateTheEntity;
 begin
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
   var ForeignKeySaved := False;
   var MyClass := TClassWithForeignKey.Create;
   MyClass.AnotherClass := TClassWithPrimaryKey.Create;
-  var Query := CreateQueryBuilder(Database.Instance, TClassWithForeignKey.Create, 0);
 
-  Database.Setup.WillExecute(
+  AddObjectToCache(TClassWithForeignKey.Create, 0);
+
+  DatabaseMock.Setup.WillExecute(
     function (const Args: TArray<TValue>): TValue
     begin
       ForeignKeySaved := True;
       Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
     end).When.ExecuteInsert(It(0).IsEqualTo('insert into ClassWithPrimaryKey(Id,Value)values(0,0)'), It(1).IsAny<TArray<String>>);
 
-  Database.Setup.WillExecute(
+  DatabaseMock.Setup.WillExecute(
     function (const Args: TArray<TValue>): TValue
     begin
       Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
@@ -3320,24 +2664,22 @@ begin
       Assert.IsTrue(ForeignKeySaved, 'The foreign key not saved');
     end).When.ExecuteDirect(It(0).IsEqualTo('update ClassWithForeignKey set IdAnotherClass=0 where Id=0'));
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
-  Query.Update(MyClass);
-
-  Query.Free;
+  Builder.Update(MyClass);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdateAnEntityMustSaveTheManyValueAssociationsAfterUpdatedTheEntity;
 begin
   var CanSaveManyValueAssociation := False;
-  var Database := TMock.CreateInterface<IDatabaseConnection>(True);
   var MyClass := TManyValueParent.Create;
   MyClass.Childs := [TManyValueChild.Create];
   var MyClassCache := TManyValueParent.Create;
   MyClassCache.Child := MyClass.Childs[0];
-  var Query := CreateQueryBuilder(Database.Instance, MyClassCache, 0);
 
-  Database.Setup.WillExecute(
+  AddObjectToCache(MyClassCache, 0);
+
+  DatabaseMock.Setup.WillExecute(
     function (const Args: TArray<TValue>): TValue
     begin
       Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
@@ -3345,67 +2687,60 @@ begin
       Assert.IsTrue(CanSaveManyValueAssociation, 'The parent entity not saved');
     end).When.ExecuteInsert(It(0).IsEqualTo('insert into ManyValueChild(Id,IdParent)values(0,0)'), It(1).IsAny<TArray<String>>);
 
-  Database.Setup.WillExecute(
+  DatabaseMock.Setup.WillExecute(
     function (const Args: TArray<TValue>): TValue
     begin
       CanSaveManyValueAssociation := True;
       Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
     end).When.ExecuteDirect(It(0).IsEqualTo('update ManyValueParent set IdChild=null where Id=0'));
 
-  Database.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
+  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
-  Query.Update(MyClass);
-
-  Query.Free;
+  Builder.Update(MyClass);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdateAnEntityWithAnForeignKeyInTheCacheCantRaiseAnyError;
 begin
-  var Cache := TCache.Create as ICache;
   var ForeignKey := TClassWithCascadeForeignClass.Create;
+  ForeignKey.Id := 1;
   var MyClass := TClassWithCascadeAttribute.Create;
   MyClass.Id := 1;
   MyClass.UpdateCascade := TClassWithCascadeForeignClass.Create;
   MyClass.UpdateCascade.Id := 1;
-  var Query := CreateQueryBuilder(CreateDatabaseConnection, Cache);
 
-  AddObjectToCache(Cache, ForeignKey, 1);
+  AddObjectToCache(ForeignKey, 1);
 
-  AddObjectToCache(Cache, MyClass, 1);
+  AddObjectToCache(MyClass, 1);
 
   Assert.WillNotRaise(
     procedure
     begin
-      Query.Update(MyClass);
+      Builder.Update(MyClass);
     end);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdateAnInheritedClassCantRaiseAccessViolationInTheDestructionProcess;
 begin
   var MyClass := TMyEntityInheritedFromSimpleClass.Create;
   MyClass.Id := 123;
-  var Query := CreateQueryBuilder(TMyEntityInheritedFromSimpleClass.Create, 123);
+
+  AddObjectToCache(TMyEntityInheritedFromSimpleClass.Create, 123);
 
   Assert.WillNotRaise(
     procedure
     begin
-      Query.Save(MyClass);
+      Builder.Save(MyClass);
     end);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdateAnObjectMustReturnTheObjectFromTheCache;
 begin
   var MyClass := TMyEntityWithPrimaryKey.Create;
   var MyCacheClass := TMyEntityWithPrimaryKey.Create;
-  var Query := CreateQueryBuilder(MyCacheClass, '0');
 
-  Assert.AreEqual<Pointer>(MyCacheClass, Query.Update(MyClass));
+  AddObjectToCache(MyCacheClass, '0');
 
-  Query.Free;
+  Assert.AreEqual<Pointer>(MyCacheClass, Builder.Update(MyClass));
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdateAnObjectWithManyValueAssociationTheParentForeignKeyOfTheChildObjectMustBeTheReferenceToTheCacheObject;
@@ -3413,52 +2748,52 @@ begin
   var MyClass := TManyValueParent.Create;
   MyClass.Childs := [TManyValueChild.Create];
   var MyClassCache := TManyValueParent.Create;
-  var Query := CreateQueryBuilder(MyClassCache, 0);
 
-  Query.Update(MyClass);
+  AddObjectToCache(MyClassCache, 0);
+
+  Builder.Update(MyClass);
 
   Assert.AreEqual<Pointer>(MyClassCache, MyClassCache.Childs[0].Parent);
-
-  Query.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdatingAClassMustInsertOnlyTheForeignKeyWithUpdateCascadeAttribute;
 begin
-  var Database := TDatabaseTest.Create(TCursorMock.Create([[1], [2]]));
+  FCursorClass.Values := [[1], [2]];
   var InsertClass := TClassWithCascadeForeignClass.Create;
   var MyClass := TClassWithCascadeAttribute.Create;
   MyClass.InsertCascade := InsertClass;
   MyClass.UpdateCascade := TClassWithCascadeForeignClass.Create;
   MyClass.UpdateInsertCascade := TClassWithCascadeForeignClass.Create;
-  var Query := CreateQueryBuilder(Database, TClassWithCascadeAttribute.Create, 0);
 
-  Query.Update(MyClass);
+  AddObjectToCache(TClassWithCascadeAttribute.Create, 0);
+
+  Builder.Update(MyClass);
 
   Assert.AreEqual(
     'insert into ClassWithCascadeForeignClass(Value)values(0)'#13#10 +
     'insert into ClassWithCascadeForeignClass(Value)values(0)'#13#10 +
-    'update ClassWithCascadeAttribute set IdInsertCascade=0,IdUpdateCascade=1,IdUpdateInsertCascade=2 where Id=0', Database.SQL);
-
-  Query.Free;
+    'update ClassWithCascadeAttribute set IdInsertCascade=0,IdUpdateCascade=1,IdUpdateInsertCascade=2 where Id=0', DatabaseClass.SQL);
 
   InsertClass.Free;
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdatingTheCachedObjectCantDestroyTheObject;
 begin
-  var MyClass := TMock.CreateClass<TClassWithPrimaryKey>(nil, True);
-  MyClass.Instance.Id := 123;
-  var Query := CreateQueryBuilder(MyClass.Instance, '123');
+  var DestroyCalled := False;
+  var MyClass := TClassWithFunction.Create;
+  MyClass.Id := 123;
 
-  MyClass.Expect.Never.When.BeforeDestruction;
+  MyClass.DestroyCallFunction :=
+    procedure
+    begin
+      DestroyCalled := True;
+    end;
 
-  Query.Update(MyClass.Instance);
+  AddObjectToCache(MyClass, '123');
 
-  Assert.CheckExpectation(MyClass.CheckExpectations);
+  Builder.Update(MyClass);
 
-  Query.Free;
-
-  MyClass.Free;
+  Assert.IsFalse(DestroyCalled);
 end;
 
 { TQueryBuilderOrderByTeste }
@@ -3476,11 +2811,6 @@ begin
   Assert.AreEqual<Integer>(3, Length(OrderBy.Fields));
 
   OrderBy.Free;
-end;
-
-procedure TQueryBuilderOrderByTeste.SetupFixture;
-begin
-  TMapper.Default.LoadAll;
 end;
 
 procedure TQueryBuilderOrderByTeste.WhenCallTheFieldFunctionMustAddTheFieldAliasToTheFieldList;
@@ -3505,16 +2835,9 @@ end;
 
 procedure TQueryBuilderOrderByTeste.WhenTheFieldIsDescendingMustLoadTheSQLAsExpected;
 begin
-  var Database := CreateDatabaseConnection;
-  var Query := CreateQueryBuilder(Database);
+  Builder.Select.All.From<TMyTestClass>.OrderBy.Field('Value', False);
 
-  var OrderBy := Query.Select.All.From<TMyTestClass>.OrderBy;
-
-  OrderBy.Field('Value', False);
-
-  Assert.AreEqual(' order by T1.Value desc', OrderBy.GetSQL);
-
-  Query.Free;
+  Assert.EndsWith(' order by T1.Value desc', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderOrderByTeste.WhenTheFieldListIsEmptyMustReturnAnEmptySQLValue;
@@ -3528,19 +2851,9 @@ end;
 
 procedure TQueryBuilderOrderByTeste.WhenTheFieldListIsNotEmptyMustReturnTheOrderByClauseWithTheFieldList;
 begin
-  var Query := CreateQueryBuilder;
+  Builder.Select.All.From<TMyTestClass>.OrderBy.Field('Value').Field('Value').Field('Value');
 
-  var OrderBy := Query.Select.All.From<TMyTestClass>.OrderBy;
-
-  OrderBy.Field('Value');
-
-  OrderBy.Field('Value');
-
-  OrderBy.Field('Value');
-
-  Assert.AreEqual(' order by T1.Value,T1.Value,T1.Value', OrderBy.GetSQL);
-
-  Query.Free;
+  Assert.EndsWith(' order by T1.Value,T1.Value,T1.Value', Builder.GetSQL);
 end;
 
 { TQueryBuilderFieldAliasTest }
@@ -3567,76 +2880,123 @@ end;
 
 { TQueryBuilderFromTest }
 
-procedure TQueryBuilderFromTest.Setup;
-begin
-  FBuilder := CreateQueryBuilder;
-end;
-
-procedure TQueryBuilderFromTest.SetupFixture;
-begin
-  TMapper.Default.LoadAll;
-end;
-
-procedure TQueryBuilderFromTest.TearDown;
-begin
-  FBuilder.Free;
-end;
-
 procedure TQueryBuilderFromTest.WhenCallFromFunctionMustLoadTheTablePropertyWithTheDataOfThatTable;
 begin
-  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TClassWithTwoForeignKey>;
 
-  Query.From<TClassWithTwoForeignKey>;
-
-  Assert.AreNotEqual<Pointer>(nil, Query.Table);
-
-  Query.Free;
+  Assert.AreNotEqual<Pointer>(nil, FBuilderAccess.Table);
 end;
 
 procedure TQueryBuilderFromTest.WhenCallFromFunctionWithAClassWithTwoForeignKeyAndOneOfThisIsSettedOfPrimaryKeyAttributeMustGenerateJoinComparingRightAliasLikePrimaryKeyOfClassForeign;
 begin
-  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TClassWithTwoForeignKeyAndOneIsAPrimaryKey>;
 
-  Query.From<TClassWithTwoForeignKeyAndOneIsAPrimaryKey>;
+  var ExpectedSQL :=
+    ' from ClassWithTwoForeignKeyAndOneIsAPrimaryKey T1 ' +
+    'left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id ' +
+    'left join ClassWithPrimaryKey T3 on T1.IdAnotherClass2=T3.Id';
 
-  var ExpectedSQL := ' from ClassWithTwoForeignKeyAndOneIsAPrimaryKey T1 ' +
-  'left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id ' +
-  'left join ClassWithPrimaryKey T3 on T1.IdAnotherClass2=T3.Id';
-
-  Assert.AreEqual(ExpectedSQL, Query.GetSQL);
-
-  Query.Free;
+  Assert.EndsWith(ExpectedSQL, Builder.GetSQL);
 end;
 
 procedure TQueryBuilderFromTest.WhenFilterringALazyFieldMustBuildTheJoinsToTheFilterWork;
 begin
-  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TLazyClass>.Where(Field('Lazy.Name') = 'abc');
 
-  Query.From<TLazyClass>.Where(Field('Lazy.Name') = 'abc');
-
-  Assert.AreEqual(
+  Assert.EndsWith(
         ' from LazyClass T1 ' +
     'left join MyEntity T2 ' +
            'on T1.IdLazy=T2.Id ' +
-        'where T2.Name=''abc''', Query.GetSQL);
-
-  Query.Free;
+        'where T2.Name=''abc''', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderFromTest.WhenUseALazyFieldInTheFilterMoreThenOnceMustLoadASingleJoin;
 begin
-  var Query := TQueryBuilderFrom.Create(FBuilder.Select, 1);
+  Builder.Select.All.From<TLazyClass>.Where((Field('Lazy.Name') = 'abc') and (Field('Lazy.Name') = 'def'));
 
-  Query.From<TLazyClass>.Where((Field('Lazy.Name') = 'abc') and (Field('Lazy.Name') = 'def'));
-
-  Assert.AreEqual(
+  Assert.EndsWith(
         ' from LazyClass T1 ' +
     'left join MyEntity T2 ' +
            'on T1.IdLazy=T2.Id ' +
         'where (T2.Name=''abc''' +
-         ' and T2.Name=''def'')', Query.GetSQL);
+         ' and T2.Name=''def'')', Builder.GetSQL);
+end;
 
-  Query.Free;
+{ TQueryBuilderBaseTest }
+
+procedure TQueryBuilderBaseTest.AddObjectToCache(const Obj: TObject; const KeyValue: TValue);
+begin
+  FCache.Add(Format('Delphi.ORM.Test.Entity.%s.%s', [Obj.ClassName, KeyValue.GetAsString]), TStateObject.Create(Obj, True) as ISharedObject);
+end;
+
+function TQueryBuilderBaseTest.GetBuilder: TQueryBuilder;
+begin
+  if not Assigned(FBuilder) then
+  begin
+    FBuilder := TQueryBuilder.Create(Database, FCache);
+    FBuilder.Options := [];
+    FBuilderAccess := FBuilder;
+  end;
+
+  Result := FBuilder;
+end;
+
+function TQueryBuilderBaseTest.GetDatabase: IDatabaseConnection;
+begin
+  if not Assigned(FDatabase) then
+    if Assigned(FDatabaseMock) then
+      FDatabase := DatabaseMock.Instance
+    else
+      FDatabase := DatabaseClass;
+
+  Result := FDatabase;
+end;
+
+function TQueryBuilderBaseTest.GetDatabaseClass: TDatabaseTest;
+begin
+  if not Assigned(FDatabaseClass) then
+  begin
+    FDatabaseClass := TDatabaseTest.Create;
+    FDatabaseClass.Cursor := FCursor;
+  end;
+
+  Result := FDatabaseClass;
+end;
+
+function TQueryBuilderBaseTest.GetDatabaseMock: IMock<IDatabaseConnection>;
+begin
+  if not Assigned(FDatabaseMock) then
+    FDatabaseMock := TMock.CreateInterface<IDatabaseConnection>(True);
+
+  Result := FDatabaseMock;
+end;
+
+procedure TQueryBuilderBaseTest.Setup;
+begin
+  FCache := TCache.Create;
+  FCursorClass := TCursorMock.Create;
+
+  FCursor := FCursorClass;
+end;
+
+procedure TQueryBuilderBaseTest.SetupFixture;
+begin
+  Setup;
+
+  TearDown;
+end;
+
+procedure TQueryBuilderBaseTest.TearDown;
+begin
+  FBuilderAccess := nil;
+  FCache := nil;
+  FCursor := nil;
+  FCursorClass := nil;
+  FDatabase := nil;
+  FDatabaseClass := nil;
+  FDatabaseMock := nil;
+
+  FreeAndNil(FBuilder);
 end;
 
 end.

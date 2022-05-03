@@ -294,6 +294,12 @@ type
     procedure WhenSetValueToAFieldWithASharedObjectMustUpdateThePropertyHasExpected;
     [Test]
     procedure WhenSetValueToAFieldWithAStateObjectMustUpdateBothObjectsHasExpected;
+    [Test]
+    procedure WhenFillTheFieldValueOfALazyPropertyMustLoadTheFieldNameToo;
+    [Test]
+    procedure WhenMappingALazyArrayClassCantRaiseAnyError;
+    [Test]
+    procedure WhenMappingALazyArrayClassMustLoadTheFieldWithTheExpectedPropertyValueFilled;
   end;
 
   [TestFixture]
@@ -313,7 +319,7 @@ type
 
 implementation
 
-uses System.Variants, System.SysUtils, System.DateUtils, Delphi.ORM.Test.Entity, Delphi.ORM.Lazy, Delphi.Mock, Delphi.ORM.Shared.Obj;
+uses System.Variants, System.SysUtils, System.DateUtils, Delphi.ORM.Test.Entity, Delphi.ORM.Lazy, Delphi.Mock, Delphi.ORM.Shared.Obj, Delphi.ORM.Rtti.Helper;
 
 { TMapperTest }
 
@@ -451,16 +457,7 @@ end;
 
 procedure TMapperTest.Setup;
 begin
-  var Mapper := TMapper.Create;
-
-  try
-//    Mapper.LoadAll;
-  except
-  end;
-
   FContext.GetType(TClassWithPrimaryKey).QualifiedName;
-
-  Mapper.Free;
 end;
 
 procedure TMapperTest.TheAnotherVariantValuesMustJustConvertToTValue;
@@ -1032,7 +1029,7 @@ begin
 
   Field.SetValue(MyClass, TValue.Empty);
 
-  Assert.IsFalse(MyClass.Lazy.GetAccess.HasValue);
+  Assert.IsFalse(MyClass.Lazy.Access.HasValue);
 
   Mapper.Free;
 
@@ -1049,7 +1046,24 @@ begin
 
   Field.SetValue(MyClass, 1234);
 
-  Assert.AreEqual(1234, MyClass.Lazy.GetAccess.Key.AsInteger);
+  Assert.AreEqual(1234, MyClass.Lazy.Access.Key.AsInteger);
+
+  Mapper.Free;
+
+  MyClass.Free;
+end;
+
+procedure TMapperTest.WhenFillTheFieldValueOfALazyPropertyMustLoadTheFieldNameToo;
+begin
+  var Mapper := TMapper.Create;
+  var MyClass := TLazyClass.Create;
+  var Table := Mapper.LoadClass(TLazyClass);
+
+  var Field := Table.Fields[1];
+
+  Field.SetValue(MyClass, 1234);
+
+  Assert.AreEqual('Lazy', MyClass.Lazy.Access.FieldName);
 
   Mapper.Free;
 
@@ -1319,6 +1333,31 @@ begin
     begin
       Mapper.LoadClass(TMyEntityForeignKeyToClassWithoutPrimaryKey);
     end, EClassWithoutPrimaryKeyDefined);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenMappingALazyArrayClassCantRaiseAnyError;
+begin
+  var Mapper := TMapper.Create;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Mapper.LoadClass(TLazyArrayClass);
+    end);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenMappingALazyArrayClassMustLoadTheFieldWithTheExpectedPropertyValueFilled;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TLazyArrayClass);
+
+  Assert.IsTrue(Table.Fields[1].IsForeignKey);
+  Assert.IsTrue(Table.Fields[1].IsJoinLink);
+  Assert.IsTrue(Table.Fields[2].IsManyValueAssociation);
 
   Mapper.Free;
 end;

@@ -131,6 +131,8 @@
         <DCCReference Include="Delphi.ORM.Cache.Test.pas"/>
         <DCCReference Include="..\Delphi.ORM.Shared.Obj.pas"/>
         <DCCReference Include="Delphi.ORM.Shared.Obj.Test.pas"/>
+        <DCCReference Include="Delphi.ORM.Lazy.Factory.Test.pas"/>
+        <DCCReference Include="..\Delphi.ORM.Lazy.Factory.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

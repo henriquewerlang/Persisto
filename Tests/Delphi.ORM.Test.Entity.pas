@@ -2,7 +2,7 @@
 
 interface
 
-uses Delphi.ORM.Attributes, Delphi.ORM.Nullable, Delphi.ORM.Lazy;
+uses System.SysUtils, Delphi.ORM.Attributes, Delphi.ORM.Nullable, Delphi.ORM.Lazy;
 
 type
   TMyEntityInheritedFromSimpleClass = class;
@@ -654,6 +654,30 @@ type
     property Lazy: Lazy<TMyEntity> read FLazy write FLazy;
   end;
 
+  TLazyArrayClass = class;
+
+  [Entity]
+  TLazyArrayClassChild = class
+  private
+    FLazyArrayClass: TLazyArrayClass;
+    FId: Integer;
+  published
+    property Id: Integer read FId write FId;
+    property LazyArrayClass: TLazyArrayClass read FLazyArrayClass write FLazyArrayClass;
+  end;
+
+  [Entity]
+  TLazyArrayClass = class
+  private
+    FId: Integer;
+    FLazy: Lazy<TMyEntity>;
+    FLazyArray: Lazy<TArray<TLazyArrayClassChild>>;
+  published
+    property Id: Integer read FId write FId;
+    property Lazy: Lazy<TMyEntity> read FLazy write FLazy;
+    property LazyArray: Lazy<TArray<TLazyArrayClassChild>> read FLazyArray write FLazyArray;
+  end;
+
   [Entity]
   TUnorderedClass = class
   private
@@ -976,9 +1000,19 @@ type
     property LazyFilterClass: Lazy<TLazyFilterClass> read FLazyFilterClass write FLazyFilterClass;
   end;
 
-implementation
+  [Entity]
+  TClassWithFunction = class
+  private
+    FId: Integer;
+  public
+    DestroyCallFunction: TProc;
 
-uses System.SysUtils;
+    destructor Destroy; override;
+  published
+    property Id: Integer read FId write FId;
+  end;
+
+implementation
 
 { TManyValueParentChildError }
 
@@ -990,6 +1024,16 @@ begin
     raise Exception.Create('Can not access this property!');
 
   Inc(FPassCount);
+end;
+
+{ TClassWithFunction }
+
+destructor TClassWithFunction.Destroy;
+begin
+  if Assigned(DestroyCallFunction) then
+    DestroyCallFunction();
+
+  inherited;
 end;
 
 end.

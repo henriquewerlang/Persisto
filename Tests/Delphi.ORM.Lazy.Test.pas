@@ -48,6 +48,8 @@ type
     procedure IfTheLazyAccessValueIsEmptyMustReturnTheValueWithTheRttiType;
     [Test]
     procedure WhenTheLazyAccessHasTheKeyLoadedTheHasKeyFunctionMustReturnTrue;
+    [Test]
+    procedure WhenLoadTheValueOfTheLazyPropertyMustPassTheTypeAndFieldNameToTheFactory;
   end;
 
   [TestFixture]
@@ -85,6 +87,8 @@ type
     procedure WhenFillTheValueMustReturnFalseInTheHasKey;
     [Test]
     procedure WhenFillAnEmptyValueInLazyMustReturnFalseInTheHasValueFunction;
+    [Test]
+    procedure WhenLoadTheFieldNameMustReturnTheFieldName;
   end;
 
 implementation
@@ -167,9 +171,9 @@ begin
   var Factory := TMock.CreateInterface<ILazyFactory>(True);
   var TheValue := TMyEntity.Create;
 
-  Factory.Expect.Never.When.Load(It.IsAny<TRttiType>, It.IsAny<TValue>);
+  Lazy.Access.Factory := Factory.Instance;
 
-  TLazyAccess.GlobalFactory := Factory.Instance;
+  Factory.Expect.Never.When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<String>, It(2).IsAny<TValue>);
 
   Lazy.Value := TheValue;
 
@@ -222,6 +226,26 @@ begin
   Lazy.Value;
 
   Assert.IsTrue(Lazy.Access.HasValue);
+end;
+
+procedure TLazyTest.WhenLoadTheValueOfTheLazyPropertyMustPassTheTypeAndFieldNameToTheFactory;
+begin
+  var Lazy: Lazy<TMyEntity>;
+  var Factory := TMock.CreateInterface<ILazyFactory>(True);
+
+  Lazy.Access.Factory := Factory.Instance;
+  Lazy.Access.FieldName := 'MyField';
+  Lazy.Access.Key := 123;
+
+  Factory.Setup.WillExecute(
+    procedure (const Params: TArray<TValue>)
+    begin
+      Assert.AreEqual(GetRttiType(TMyEntity), Params[1].AsType<TRttiType>);
+      Assert.AreEqual('MyField', Params[2].AsString);
+      Assert.AreEqual(123, Params[3].AsType<TValue>.AsInteger);
+    end).When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<String>, It(2).IsAny<TValue>);
+
+  Lazy.Value;
 end;
 
 procedure TLazyTest.WhenTheLazyAccessHasTheKeyLoadedTheHasKeyFunctionMustReturnTrue;
@@ -354,6 +378,14 @@ begin
   Assert.AreEqual('abc', LazyAccess.Value.AsString);
 end;
 
+procedure TLazyAccessTest.WhenLoadTheFieldNameMustReturnTheFieldName;
+begin
+  var LazyAccess := TLazyAccess.Create(GetRttiType(TMyEntity)) as ILazyAccess;
+  LazyAccess.FieldName := 'MyField';
+
+  Assert.AreEqual('MyField', LazyAccess.FieldName);
+end;
+
 procedure TLazyAccessTest.WhenCallTheLoadFunctionMustReturnTheValueLoaded;
 begin
   var Factory := TMock.CreateInterface<ILazyFactory>;
@@ -362,7 +394,7 @@ begin
   LazyAccess.Key := 1234;
   var LazyLoaderIntf := LazyAccess as ILazyAccess;
 
-  Factory.Setup.WillReturn(5555).When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<TValue>);
+  Factory.Setup.WillReturn(5555).When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<String>, It(2).IsAny<TValue>);
 
   Assert.AreEqual(5555, LazyLoaderIntf.Value.AsInteger);
 end;
@@ -370,7 +402,6 @@ end;
 procedure TLazyAccessTest.WhenTheFactoryIsntLoadedAndTheGlobalReferenceIsEmptyTooMustRaiseAnError;
 begin
   var LazyAccess := TLazyAccess.Create(GetRttiType(TMyEntity));
-  LazyAccess.GlobalFactory := nil;
   LazyAccess.Key := 1234;
   var LazyLoaderIntf := LazyAccess as ILazyAccess;
 
@@ -385,17 +416,15 @@ procedure TLazyAccessTest.WhenTheFactoryIsntLoadedMustGetTheGlobalReferenceOfThe
 begin
   var Factory := TMock.CreateInterface<ILazyFactory>;
   var LazyAccess := TLazyAccess.Create(GetRttiType(TMyEntity));
-  LazyAccess.GlobalFactory := Factory.Instance;
+  LazyAccess.Factory := Factory.Instance;
   LazyAccess.Key := 1234;
   var LazyLoaderIntf := LazyAccess as ILazyAccess;
 
-  Factory.Expect.Once.When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<TValue>);
+  Factory.Expect.Once.When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<String>, It(2).IsAny<TValue>);
 
   LazyLoaderIntf.GetValue;
 
   Assert.AreEqual(EmptyStr, Factory.CheckExpectations);
-
-  LazyAccess.GlobalFactory := nil;
 end;
 
 procedure TLazyAccessTest.WhenTheKeyIsEmptyTheGetValueMustReturnAEmptyValue;
@@ -416,40 +445,36 @@ procedure TLazyAccessTest.WhenTheTypeAndKeyIsLoadedAndTheValueIsntLoadedMustLoad
 begin
   var Factory := TMock.CreateInterface<ILazyFactory>;
   var LazyAccess: ILazyAccess := TLazyAccess.Create(GetRttiType(TMyEntity));
+  LazyAccess.Factory := Factory.Instance;
   LazyAccess.Key := 1234;
-  TLazyAccess.GlobalFactory := Factory.Instance;
   var TheValue := TMyEntity.Create;
 
-  Factory.Setup.WillReturn(TheValue).When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<TValue>);
+  Factory.Setup.WillReturn(TheValue).When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<String>, It(2).IsAny<TValue>);
 
-  Factory.Expect.Once.When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<TValue>);
+  Factory.Expect.Once.When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<String>, It(2).IsAny<TValue>);
 
   LazyAccess.Value;
 
   Assert.AreEqual(EmptyStr, Factory.CheckExpectations);
 
   TheValue.Free;
-
-  TLazyAccess.GlobalFactory := nil;
 end;
 
 procedure TLazyAccessTest.WhenTheTypeAndKeyIsLoadedAndTheValueIsntLoadedMustMarkTheValueAsLoaded;
 begin
   var Factory := TMock.CreateInterface<ILazyFactory>;
   var LazyAccess: ILazyAccess := TLazyAccess.Create(GetRttiType(TMyEntity));
+  LazyAccess.Factory := Factory.Instance;
   LazyAccess.Key := 1234;
-  TLazyAccess.GlobalFactory := Factory.Instance;
   var TheValue := TMyEntity.Create;
 
-  Factory.Setup.WillReturn(TheValue).When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<TValue>);
+  Factory.Setup.WillReturn(TheValue).When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<String>, It(2).IsAny<TValue>);
 
   LazyAccess.Value;
 
   Assert.IsTrue(LazyAccess.HasValue);
 
   TheValue.Free;
-
-  TLazyAccess.GlobalFactory := nil;
 end;
 
 procedure TLazyAccessTest.WhenTheTypeIsntLoadedTheValueMustReturnEmpty;
@@ -467,7 +492,7 @@ begin
   LazyAccess.Factory := Factory.Instance;
   var LazyLoaderIntf := LazyAccess as ILazyAccess;
 
-  Factory.Expect.Once.When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<TValue>);
+  Factory.Expect.Once.When.Load(It(0).IsAny<TRttiType>, It(1).IsAny<String>, It(2).IsAny<TValue>);
 
   LazyLoaderIntf.GetValue;
 
@@ -475,5 +500,4 @@ begin
 end;
 
 end.
-
 

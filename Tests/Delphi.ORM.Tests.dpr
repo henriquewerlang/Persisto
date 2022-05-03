@@ -36,7 +36,9 @@ uses
   Delphi.ORM.Cache in '..\Delphi.ORM.Cache.pas',
   Delphi.ORM.Cache.Test in 'Delphi.ORM.Cache.Test.pas',
   Delphi.ORM.Shared.Obj in '..\Delphi.ORM.Shared.Obj.pas',
-  Delphi.ORM.Shared.Obj.Test in 'Delphi.ORM.Shared.Obj.Test.pas';
+  Delphi.ORM.Shared.Obj.Test in 'Delphi.ORM.Shared.Obj.Test.pas',
+  Delphi.ORM.Lazy.Factory.Test in 'Delphi.ORM.Lazy.Factory.Test.pas',
+  Delphi.ORM.Lazy.Factory in '..\Delphi.ORM.Lazy.Factory.pas';
 
 // Para não remover o valor abaixo
 {$IFNDEF TESTINSIGHT}
@@ -50,12 +52,17 @@ begin
   FastMM_EnterDebugMode;
 
   FastMM_OutputDebugStringEvents := [];
-  FastMM_LogToFileEvents := [mmetDebugBlockDoubleFree, mmetUnexpectedMemoryLeakSummary, mmetUnexpectedMemoryLeakDetail];
-  FastMM_MessageBoxEvents := [mmetDebugBlockDoubleFree, mmetDebugBlockReallocOfFreedBlock, mmetVirtualMethodCallOnFreedObject];
+  FastMM_LogToFileEvents := [mmetUnexpectedMemoryLeakSummary, mmetUnexpectedMemoryLeakDetail];
+  FastMM_MessageBoxEvents := [mmetDebugBlockDoubleFree, mmetVirtualMethodCallOnFreedObject];
 
   FastMM_DeleteEventLogFile;
 
   FormatSettings := TFormatSettings.Invariant;
+
+  try
+    TMapper.Default.LoadAll;
+  except
+  end;
 
 {$IFDEF TESTINSIGHT}
   TestInsight.DUnitX.RunRegisteredTests;
