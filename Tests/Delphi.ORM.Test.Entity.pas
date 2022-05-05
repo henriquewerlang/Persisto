@@ -651,6 +651,7 @@ type
     FLazy: Lazy<TMyEntity>;
   published
     property Id: Integer read FId write FId;
+    [InsertCascade, UpdateCascade]
     property Lazy: Lazy<TMyEntity> read FLazy write FLazy;
   end;
 

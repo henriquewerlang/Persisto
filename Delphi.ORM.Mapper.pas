@@ -2,7 +2,7 @@
 
 interface
 
-uses System.TypInfo, System.Rtti, System.Generics.Collections, System.Generics.Defaults, System.SysUtils, Delphi.ORM.Attributes, Delphi.ORM.Shared.Obj;
+uses System.TypInfo, System.Rtti, System.Generics.Collections, System.Generics.Defaults, System.SysUtils, Delphi.ORM.Attributes, Delphi.ORM.Lazy, Delphi.ORM.Shared.Obj;
 
 type
   TField = class;
@@ -106,6 +106,8 @@ type
     function ConvertVariant(const Value: Variant): TValue;
     function GetAsString(const Instance: TObject): String; overload;
     function GetAsString(const Value: TValue): String; overload;
+    function GetPropertyValue(const Instance: TObject): TValue;
+    function GetLazyAccess(const Instance: TObject): ILazyAccess;
     function GetValue(const Instance: TObject): TValue; virtual;
 
     procedure SetValue(const Instance: TObject; const Value: TValue); overload; virtual;
@@ -228,7 +230,7 @@ type
 
 implementation
 
-uses System.Variants, Delphi.ORM.Rtti.Helper, Delphi.ORM.Nullable, Delphi.ORM.Lazy, Delphi.ORM.Cache;
+uses System.Variants, Delphi.ORM.Rtti.Helper, Delphi.ORM.Nullable, Delphi.ORM.Cache;
 
 function SortFieldFunction(const Left, Right: TField): Integer;
 
@@ -740,20 +742,33 @@ begin
     end;
 end;
 
-function TField.GetValue(const Instance: TObject): TValue;
+function TField.GetLazyAccess(const Instance: TObject): ILazyAccess;
+begin
+  Result := GetLazyLoadingAccess(GetPropertyValue(Instance));
+end;
+
+function TField.GetPropertyValue(const Instance: TObject): TValue;
 begin
   Result := PropertyInfo.GetValue(Instance);
+end;
 
-  if IsNullable then
-    Result := GetNullableAccess(Result).GetValue
-  else if IsLazy then
+function TField.GetValue(const Instance: TObject): TValue;
+begin
+  if IsLazy then
   begin
-    var LazyAccess := GetLazyLoadingAccess(Result);
+    var LazyAccess := GetLazyAccess(Instance);
 
     if LazyAccess.HasValue then
       Result := LazyAccess.GetValue
     else
       Result := LazyAccess.GetKey;
+  end
+  else
+  begin
+    Result := GetPropertyValue(Instance);
+
+    if IsNullable then
+      Result := GetNullableAccess(Result).GetValue;
   end;
 end;
 
@@ -772,10 +787,10 @@ end;
 procedure TField.SetValue(const Instance: TObject; const Value: TValue);
 begin
   if IsNullable then
-    GetNullableAccess(PropertyInfo.GetValue(Instance)).Value := Value
+    GetNullableAccess(GetPropertyValue(Instance)).Value := Value
   else if IsLazy then
   begin
-    var Access := GetLazyLoadingAccess(PropertyInfo.GetValue(Instance));
+    var Access := GetLazyAccess(Instance);
     Access.FieldName := Table.PrimaryKey.Name;
 
     if Value.IsObject then

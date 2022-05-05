@@ -465,6 +465,10 @@ type
     procedure WhenThePropertyHasTheNoUpdateAttributeThisFieldCantBeInTheInsertSQL;
     [Test]
     procedure WhenThePropertyHasTheNoUpdateAttributeThisFieldCantBeInTheUpdateSQL;
+    [Test]
+    procedure WhenSaveANotLoadedLazyForeignKeyCantRaiseAnyError;
+    [Test]
+    procedure WhenSaveALoadedLazyForeignKeyMustExecuteTheUpdate;
   end;
 
   [TestFixture]
@@ -2412,6 +2416,20 @@ begin
   Assert.IsEmpty(DatabaseClass.SQL);
 end;
 
+procedure TQueryBuilderDataManipulationTest.WhenSaveALoadedLazyForeignKeyMustExecuteTheUpdate;
+begin
+  var MyClass := TLazyClass.Create;
+  MyClass.Id := 1234;
+  MyClass.Lazy := TMyEntity.Create;
+
+  AddObjectToCache(TLazyClass.Create, 1234);
+
+  Builder.Save(MyClass);
+
+  Assert.StartsWith(
+    'insert into MyEntity(Name,Value)values('''',0)'#13#10, DatabaseClass.SQL);
+end;
+
 procedure TQueryBuilderDataManipulationTest.WhenSaveAManyValueAssocitationEntityMustAvoidSaveTheParentLinkOfTheChildToAvoidStackOverflow;
 begin
   var MyClass := TManyValueParentError.Create;
@@ -2754,6 +2772,21 @@ begin
   Builder.Update(MyClass);
 
   Assert.AreEqual<Pointer>(MyClassCache, MyClassCache.Childs[0].Parent);
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenSaveANotLoadedLazyForeignKeyCantRaiseAnyError;
+begin
+  var MyClass := TLazyClass.Create;
+  MyClass.Id := 1234;
+  MyClass.Lazy.Access.Key := 1234;
+
+  AddObjectToCache(TLazyClass.Create, 1234);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Builder.Save(MyClass);
+    end);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdatingAClassMustInsertOnlyTheForeignKeyWithUpdateCascadeAttribute;

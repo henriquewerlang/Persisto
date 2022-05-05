@@ -161,7 +161,7 @@ begin
           Field.SetValue(StateObject, FieldValue);
 
           if Field.IsLazy then
-            GetLazyLoadingAccess(Field.PropertyInfo.GetValue(StateObject.&Object)).Factory := TLazyFactory.Create(FAccess.Connection, FAccess.Cache);
+            Field.GetLazyAccess(StateObject.&Object).Factory := TLazyFactory.Create(FAccess.Connection, FAccess.Cache);
         end;
       end;
 

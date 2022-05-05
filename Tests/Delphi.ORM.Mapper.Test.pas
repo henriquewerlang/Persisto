@@ -300,6 +300,10 @@ type
     procedure WhenMappingALazyArrayClassCantRaiseAnyError;
     [Test]
     procedure WhenMappingALazyArrayClassMustLoadTheFieldWithTheExpectedPropertyValueFilled;
+    [Test]
+    procedure WhenGetPropertyValueMustReturnTheValueOfTheProperty;
+    [Test]
+    procedure WhenGetTheLazyAccessValueMustReturnTheLazyAccess;
   end;
 
   [TestFixture]
@@ -1064,6 +1068,35 @@ begin
   Field.SetValue(MyClass, 1234);
 
   Assert.AreEqual('Id', MyClass.Lazy.Access.FieldName);
+
+  Mapper.Free;
+
+  MyClass.Free;
+end;
+
+procedure TMapperTest.WhenGetPropertyValueMustReturnTheValueOfTheProperty;
+begin
+  var Mapper := TMapper.Create;
+  var MyClass := TLazyClass.Create;
+  MyClass.Id := 123;
+  var Table := Mapper.LoadClass(TLazyClass);
+
+  Assert.AreEqual(123, Table.Fields[0].GetPropertyValue(MyClass).AsInteger);
+
+  Mapper.Free;
+
+  MyClass.Free;
+end;
+
+procedure TMapperTest.WhenGetTheLazyAccessValueMustReturnTheLazyAccess;
+begin
+  var Mapper := TMapper.Create;
+  var MyClass := TLazyClass.Create;
+  var Table := Mapper.LoadClass(TLazyClass);
+
+  var LazyAccess := Table.Fields[1].GetLazyAccess(MyClass);
+
+  Assert.IsNotNull(LazyAccess);
 
   Mapper.Free;
 

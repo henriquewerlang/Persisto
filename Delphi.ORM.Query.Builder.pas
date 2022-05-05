@@ -630,7 +630,7 @@ begin
   var CurrentObject := AObject.AsObject;
 
   for var ForeignKey in Table.ForeignKeys do
-    if (ForeignKey <> ForeignKeyToIgnore) and (CascadeType in ForeignKey.Cascade) then
+    if (ForeignKey <> ForeignKeyToIgnore) and (CascadeType in ForeignKey.Cascade) and (not ForeignKey.Field.IsLazy or ForeignKey.Field.GetLazyAccess(CurrentObject).HasValue) then
     begin
       var FieldValue := ForeignKey.Field.GetValue(CurrentObject);
 
