@@ -150,6 +150,10 @@ type
     procedure WhenTheJoinMappingEnabledAnTheEntityHasAlignedJoinsMustLoadTheJoinInfoOfAllLinks;
     [Test]
     procedure AllSelectsMustHaveAFromClauseIfNotMustRaiseAnError;
+    [Test]
+    procedure WhenIsMadeASelectAndAfterADeleteMustCleanUpTheSelectAndBuildTheFilterAsExpected;
+    [Test]
+    procedure WhenIsMadeASelectAndAfterAnUpdateMustCleanUpTheSelectAndBuildTheFilterAsExpected;
   end;
 
   [TestFixture]
@@ -864,6 +868,35 @@ begin
   Assert.IsNotNull(FBuilderAccess.Join.Links[0].Field);
 end;
 
+procedure TQueryBuilderTest.WhenIsMadeASelectAndAfterADeleteMustCleanUpTheSelectAndBuildTheFilterAsExpected;
+begin
+  var MyClass := TClassWithPrimaryKeyAttribute.Create;
+  MyClass.Id2 := 456;
+
+  Builder.Select.All.From<TClassWithPrimaryKeyAttribute>.Where(Field('Id') = 123);
+
+  Builder.Delete(MyClass);
+
+  Assert.AreEqual('delete from ClassWithPrimaryKeyAttribute where Id2=456', DatabaseClass.SQL);
+
+  MyClass.Free;
+end;
+
+procedure TQueryBuilderTest.WhenIsMadeASelectAndAfterAnUpdateMustCleanUpTheSelectAndBuildTheFilterAsExpected;
+begin
+  var MyClass := TClassWithPrimaryKeyAttribute.Create;
+  MyClass.Id := 123;
+  MyClass.Id2 := 456;
+
+  AddObjectToCache(TClassWithPrimaryKeyAttribute.Create, 456);
+
+  Builder.Select.All.From<TClassWithPrimaryKeyAttribute>.Where(Field('Id') = 123);
+
+  Builder.Update(MyClass);
+
+  Assert.AreEqual('update ClassWithPrimaryKeyAttribute set Id=123 where Id2=456', DatabaseClass.SQL);
+end;
+
 procedure TQueryBuilderTest.WhenOpenOneMustFillTheClassWithTheValuesOfCursor;
 begin
   FCursorClass.Values := [[123, 'My name', 123.456]];
@@ -1269,7 +1302,7 @@ end;
 
 procedure TQueryBuilderSelectTest.WhenFillTheFirstRecordsMustLoadThePropertyWithThePassedValue;
 begin
-  var Select := TQueryBuilderSelect.Create(nil);
+  var Select := TQueryBuilderSelect.Create(Builder);
 
   Assert.AreEqual(20, Select.First(20).FirstRecords);
 
@@ -1278,7 +1311,7 @@ end;
 
 procedure TQueryBuilderSelectTest.WhenIsNotDefinedTheRecursivityLevelMustBeOneTheDefaultValue;
 begin
-  var Select := TQueryBuilderSelect.Create(nil);
+  var Select := TQueryBuilderSelect.Create(Builder);
 
   Assert.AreEqual(1, Select.RecursivityLevelValue);
 

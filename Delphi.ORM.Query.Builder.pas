@@ -210,6 +210,8 @@ type
   public
     constructor Create(const Access: IQueryBuilderAccess);
 
+    destructor Destroy; override;
+
     function All: TQueryBuilderFrom;
     function GetSQL: String;
     function RecursivityLevel(const Level: Word): TQueryBuilderSelect;
@@ -368,6 +370,7 @@ end;
 
 function TQueryBuilder.BuildPrimaryKeyFilter(const Table: TTable; const AObject: TObject): String;
 begin
+  FSelect := nil;
   FTable := Table;
   Result := EmptyStr;
 
@@ -402,12 +405,6 @@ end;
 
 destructor TQueryBuilder.Destroy;
 begin
-  FFrom.Free;
-
-  FFieldList.Free;
-
-  FOpen.Free;
-
   FProcessedObjects.Free;
 
   inherited;
@@ -878,6 +875,19 @@ begin
 
   FAccess := Access;
   FRecursivityLevel := 1;
+end;
+
+destructor TQueryBuilderSelect.Destroy;
+begin
+  FAccess.Builder.FTable := nil;
+
+  FreeAndNil(FAccess.Builder.FFrom);
+
+  FreeAndNil(FAccess.Builder.FFieldList);
+
+  FreeAndNil(FAccess.Builder.FOpen);
+
+  inherited;
 end;
 
 function TQueryBuilderSelect.First(const Total: Cardinal): TQueryBuilderSelect;
