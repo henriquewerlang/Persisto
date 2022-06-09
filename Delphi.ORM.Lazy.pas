@@ -239,8 +239,18 @@ end;
 
 function TLazyAccess.GetValue: TValue;
 begin
-  if not HasValue then
-    LoadValue;
+{$IFDEF DCC}
+  MonitorEnter(Self);
+{$ENDIF}
+
+  try
+    if not HasValue then
+      LoadValue;
+  finally
+{$IFDEF DCC}
+    MonitorExit(Self);
+{$ENDIF}
+  end;
 
   Result := FValue;
 end;

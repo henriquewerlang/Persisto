@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Rtti, System.Generics.Collections, Delphi.ORM.Shared.Obj;
+uses System.Rtti, System.SysUtils, System.Generics.Collections, Delphi.ORM.Shared.Obj;
 
 type
   TSharedObjectType = {$IFDEF PAS2JS}TSharedObject{$ELSE}ISharedObject{$ENDIF};
@@ -17,6 +17,9 @@ type
 
   TCache = class(TInterfacedObject, ICache)
   private
+{$IFDEF DCC}
+    FReadWriteControl: IReadWriteSync;
+{$ENDIF}
     FValues: TDictionary<String, TSharedObjectType>;
 
     function Add(const Key: String; const Value: TObject): TSharedObjectType; overload;
@@ -36,7 +39,7 @@ type
 
 implementation
 
-uses System.SysUtils, Delphi.ORM.Rtti.Helper;
+uses Delphi.ORM.Rtti.Helper;
 
 { TCache }
 
@@ -49,13 +52,26 @@ end;
 
 procedure TCache.Add(const Key: String; const Value: TSharedObjectType);
 begin
-  FValues.Add(Key, Value);
+{$IFDEF DCC}
+  FReadWriteControl.BeginWrite;
+{$ENDIF}
+
+  try
+    FValues.Add(Key, Value);
+  finally
+{$IFDEF DCC}
+    FReadWriteControl.EndWrite;
+{$ENDIF}
+  end;
 end;
 
 constructor TCache.Create;
 begin
   inherited;
 
+{$IFDEF DCC}
+  FReadWriteControl := TMultiReadExclusiveWriteSynchronizer.Create;
+{$ENDIF}
   FValues := TDictionary<String, TSharedObjectType>.Create;
 end;
 
@@ -85,7 +101,17 @@ end;
 
 function TCache.Get(const Key: String; var Value: TSharedObjectType): Boolean;
 begin
-  Result := FValues.TryGetValue(Key, Value);
+{$IFDEF DCC}
+  FReadWriteControl.BeginRead;
+{$ENDIF}
+
+  try
+    Result := FValues.TryGetValue(Key, Value);
+  finally
+{$IFDEF DCC}
+    FReadWriteControl.EndRead;
+{$ENDIF}
+  end;
 end;
 
 end.

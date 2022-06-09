@@ -2,17 +2,20 @@ unit Delphi.ORM.Database.Connection.Unidac;
 
 interface
 
-uses Delphi.ORM.Database.Connection, Uni;
+uses System.SysUtils, System.SyncObjs, Delphi.ORM.Database.Connection, Uni;
 
 type
+  TDatabaseConnectionUnidac = class;
+
   TDatabaseCursorUnidac = class(TInterfacedObject, IDatabaseCursor)
   private
+    FConnection: TDatabaseConnectionUnidac;
     FQuery: TUniQuery;
 
     function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
   public
-    constructor Create(const Connection: TUniConnection; const SQL: String);
+    constructor Create(const Connection: TDatabaseConnectionUnidac; const SQL: String);
 
     destructor Destroy; override;
   end;
@@ -25,17 +28,20 @@ type
 
   TDatabaseTransactionUnidac = class(TInterfacedObject, IDatabaseTransaction)
   private
-    FConnection: TUniConnection;
+    FConnection: TDatabaseConnectionUnidac;
 
     procedure Commit;
     procedure Rollback;
   public
-    constructor Create(const Connection: TUniConnection);
+    constructor Create(const Connection: TDatabaseConnectionUnidac);
+
+    destructor Destroy; override;
   end;
 
   TDatabaseConnectionUnidac = class(TInterfacedObject, IDatabaseConnection)
   private
     FConnection: TUniConnection;
+    FReadWriteControl: IReadWriteSync;
 
     function ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
     function OpenCursor(const SQL: String): IDatabaseCursor;
@@ -52,23 +58,29 @@ type
 
 implementation
 
-uses System.SysUtils, System.Variants, Winapi.ActiveX;
+uses System.Variants, Winapi.ActiveX;
 
 { TDatabaseCursorUnidac }
 
-constructor TDatabaseCursorUnidac.Create(const Connection: TUniConnection; const SQL: String);
+constructor TDatabaseCursorUnidac.Create(const Connection: TDatabaseConnectionUnidac; const SQL: String);
 begin
   inherited Create;
 
+  FConnection := Connection;
   FQuery := TUniQuery.Create(nil);
-  FQuery.Connection := Connection;
+  FQuery.Connection := FConnection.Connection;
   FQuery.SQL.Text := SQL;
+  FQuery.FetchRows := 65000;
   FQuery.UniDirectional := True;
 end;
 
 destructor TDatabaseCursorUnidac.Destroy;
 begin
-  FQuery.Free;
+  try
+    FQuery.Free;
+  finally
+    FConnection.FReadWriteControl.EndWrite;
+  end;
 
   inherited;
 end;
@@ -83,7 +95,11 @@ begin
   if FQuery.Active then
     FQuery.Next
   else
+  begin
+    FConnection.FReadWriteControl.BeginWrite;
+
     FQuery.Open;
+  end;
 
   Result := not FQuery.Eof;
 end;
@@ -97,6 +113,7 @@ begin
   CoInitialize(nil);
 
   FConnection := TUniConnection.Create(nil);
+  FReadWriteControl := TMultiReadExclusiveWriteSynchronizer.Create;
 end;
 
 destructor TDatabaseConnectionUnidac.Destroy;
@@ -108,7 +125,13 @@ end;
 
 procedure TDatabaseConnectionUnidac.ExecuteDirect(const SQL: String);
 begin
-  FConnection.ExecSQL(SQL);
+  FReadWriteControl.BeginWrite;
+
+  try
+    FConnection.ExecSQL(SQL);
+  finally
+    FReadWriteControl.EndWrite;
+  end;
 end;
 
 function TDatabaseConnectionUnidac.ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
@@ -135,12 +158,12 @@ end;
 
 function TDatabaseConnectionUnidac.OpenCursor(const SQL: String): IDatabaseCursor;
 begin
-  Result := TDatabaseCursorUnidac.Create(Connection, SQL);
+  Result := TDatabaseCursorUnidac.Create(Self, SQL);
 end;
 
 function TDatabaseConnectionUnidac.StartTransaction: IDatabaseTransaction;
 begin
-  Result := TDatabaseTransactionUnidac.Create(Connection);
+  Result := TDatabaseTransactionUnidac.Create(Self);
 end;
 
 { TDatabaseEmptyCursorUnidac }
@@ -159,21 +182,30 @@ end;
 
 procedure TDatabaseTransactionUnidac.Commit;
 begin
-  FConnection.Commit;
+  FConnection.FConnection.Commit;
 end;
 
-constructor TDatabaseTransactionUnidac.Create(const Connection: TUniConnection);
+constructor TDatabaseTransactionUnidac.Create(const Connection: TDatabaseConnectionUnidac);
 begin
   inherited Create;
 
   FConnection := Connection;
 
-  FConnection.StartTransaction;
+  FConnection.FReadWriteControl.BeginWrite;
+
+  FConnection.FConnection.StartTransaction;
+end;
+
+destructor TDatabaseTransactionUnidac.Destroy;
+begin
+  FConnection.FReadWriteControl.EndWrite;
+
+  inherited;
 end;
 
 procedure TDatabaseTransactionUnidac.Rollback;
 begin
-  FConnection.Rollback;
+  FConnection.FConnection.Rollback;
 end;
 
 end.
