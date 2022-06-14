@@ -145,7 +145,7 @@ type
     [TestCase('Empty class', 'EmptyClass,null')]
     [TestCase('Float', 'Float,1234.456')]
     [TestCase('Date', 'Date,''2020-01-31''')]
-    [TestCase('DateTime', 'DateTime,''2020-01-31 12:34:56''')]
+    [TestCase('DateTime', 'DateTime,''2020-01-31T12:34:56.000''')]
     [TestCase('GUID', 'GUID,''{BD2BBA84-C691-4C5E-ABD3-4F32937C53F8}''')]
     [TestCase('Integer', 'Integer,1234')]
     [TestCase('Int64', 'Int64,1234')]
@@ -1201,7 +1201,7 @@ begin
       else if FieldToCompare.PropertyInfo.PropertyType.Handle = TypeInfo(TTime) then
         ValueToCompare := '''12:34:56'''
       else if FieldToCompare.PropertyInfo.PropertyType.Handle = TypeInfo(TDateTime) then
-        ValueToCompare := '''2020-01-31 12:34:56'''
+        ValueToCompare := '''2020-01-31T12:34:56.000'''
       else
         ValueToCompare := '1234.456';
     end;
@@ -1316,7 +1316,7 @@ procedure TMapperTest.WhenLoadATableWithSingleInheritenceMustLoadTheFieldsOfAllL
 begin
   var Mapper := TMapper.Create;
 
-  Assert.AreEqual(4, Length(Mapper.LoadClass(TAnotherSingleInheritedConcrete).Fields));
+  Assert.AreEqual<NativeInt>(4, Length(Mapper.LoadClass(TAnotherSingleInheritedConcrete).Fields));
 
   Mapper.Free;
 end;
@@ -2022,7 +2022,7 @@ procedure TMapperTest.WhenTheTableIsInheritedMustLoadAllManyValueAssociationOfTh
 begin
   var Mapper := TMapper.Create;
 
-  Assert.AreEqual(1, Length(Mapper.LoadClass(TManyValueClassInherited).ManyValueAssociations));
+  Assert.AreEqual<NativeInt>(1, Length(Mapper.LoadClass(TManyValueClassInherited).ManyValueAssociations));
 
   Mapper.Free;
 end;

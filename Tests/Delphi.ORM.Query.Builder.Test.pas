@@ -300,7 +300,7 @@ type
     [TestCase('Empty class', 'EmptyClass,null')]
     [TestCase('Float', 'Float,1234.456')]
     [TestCase('Date', 'Date,''2020-01-31''')]
-    [TestCase('DateTime', 'DateTime,''2020-01-31 12:34:56''')]
+    [TestCase('DateTime', 'DateTime,''2020-01-31T12:34:56.000''')]
     [TestCase('GUID', 'GUID,''{BD2BBA84-C691-4C5E-ABD3-4F32937C53F8}''')]
     [TestCase('Integer', 'Integer,1234')]
     [TestCase('Int64', 'Int64,1234')]
@@ -1914,7 +1914,7 @@ begin
 
   Builder.Select.All.From<TMyEntityWithAllTypeOfFields>.Where(Comparison);
 
-  Assert.EndsWith(Format(' where T1.DateTime%s''2021-01-01 12:34:56''', [COMPARISON_OPERATOR[Operation]]), Builder.GetSQL);
+  Assert.EndsWith(Format(' where T1.DateTime%s''2021-01-01T12:34:56.000''', [COMPARISON_OPERATOR[Operation]]), Builder.GetSQL);
 end;
 
 procedure TQueryBuilderWhereTest.WhenTheComparisionWithATimeMustCreateTheComparisionAsExpected(Operation: TQueryBuilderComparisonOperator);

@@ -163,6 +163,7 @@ end;
 initialization
   TValue.GFFormatSettings := TFormatSettings.Invariant;
   TValue.GFFormatSettings.ShortDateFormat := 'yyyy-mm-dd';
+  TValue.GFFormatSettings.LongDateFormat := 'yyyy-mm-dd"T"hh":"mm":"ss.zzz';
   TValue.GFFormatSettings.LongTimeFormat := 'hh":"mm":"ss';
 
 end.

@@ -726,7 +726,11 @@ begin
         if FieldType.Handle = System.TypeInfo(TDate) then
           Result := QuotedStr(DateToStr(Value.AsExtended, TValue.FormatSettings))
         else if FieldType.Handle = System.TypeInfo(TDateTime) then
-          Result := QuotedStr(DateTimeToStr(Value.AsExtended, TValue.FormatSettings))
+        begin
+          DateTimeToString(Result, 'dddddd', Value.AsExtended, TValue.FormatSettings);
+
+          Result := QuotedStr(Result);
+        end
         else if FieldType.Handle = System.TypeInfo(TTime) then
           Result := QuotedStr(TimeToStr(Value.AsExtended, TValue.FormatSettings))
         else
