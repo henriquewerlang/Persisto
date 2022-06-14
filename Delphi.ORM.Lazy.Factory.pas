@@ -17,7 +17,7 @@ type
 
 implementation
 
-uses Delphi.ORM.Query.Builder, Delphi.ORM.Mapper, Delphi.ORM.Rtti.Helper;
+uses Delphi.ORM.Query.Builder, Delphi.ORM.Mapper, Delphi.ORM.Rtti.Helper, Delphi.ORM.Shared.Obj;
 
 { TLazyFactory }
 
@@ -30,20 +30,37 @@ begin
 end;
 
 function TLazyFactory.Load(const RttiType: TRttiType; const FieldName: String; const Key: TValue): TValue;
+var
+  ElementType: TRttiType;
+
+  Query: TQueryBuilder;
+
+  function OpenCursor: TQueryBuilderOpen<TObject>;
+  begin
+    Query := TQueryBuilder.Create(FConnection, FCache);
+
+    Result := Query.Select.All.From<TObject>(TMapper.Default.FindTable(ElementType.Handle)).Where(Field(FieldName) = Key).Open;
+  end;
+
 begin
-  var ElementType := RttiType;
-  var Query := TQueryBuilder.Create(FConnection, FCache);
+  ElementType := RttiType;
+  Query := nil;
 
   try
     if ElementType.IsArray then
       ElementType := ElementType.AsArray.ElementType;
 
-    var Cursor := Query.Select.All.From<TObject>(TMapper.Default.FindTable(ElementType.Handle)).Where(Field(FieldName) = Key).Open;
-
     if RttiType.IsArray then
-      Result := TValue.From(Cursor.All)
+      Result := TValue.From(OpenCursor.All)
     else
-      Result := Cursor.One;
+    begin
+      var Value: ISharedObject;
+
+      if FCache.Get(TCache.GenerateKey(RttiType, Key), Value) then
+        Result := Value.&Object
+      else
+        Result := OpenCursor.One;
+    end;
   finally
     Query.Free;
   end;

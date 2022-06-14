@@ -8,7 +8,7 @@ type
   [TestFixture]
   TLazyFactoryTest = class
   private
-    FCache: ICache;
+    FCache: IMock<ICache>;
     FCursor: IDatabaseCursor;
     FCursorClass: TCursorMock;
     FConnection: IMock<IDatabaseConnection>;
@@ -28,20 +28,30 @@ type
     procedure WhenTheLoadedPropertyIsAnArrayMustReturnAnArray;
     [Test]
     procedure WhenTheLoadedPropertyIsAnArrayCantRaiseErrorOfWrongType;
+    [Test]
+    procedure WhenTheLazyValueIsAnClassMustGetTheValueInTheCache;
+    [Test]
+    procedure WhenTheLoadedValueIsArrayCantLoadTheValueFromTheCache;
+    [Test]
+    procedure WhenGetTheValueFromCacheMustLoadTheCacheKeyOfTheClass;
+    [Test]
+    procedure WhenFindTheValueInCacheCantOpenTheCursorToLoadTheClass;
+    [Test]
+    procedure WhenTheValueIsInTheCacheMustReturnThisValue;
   end;
 
 implementation
 
-uses System.Rtti, Delphi.ORM.Lazy.Factory, Delphi.ORM.Test.Entity, Delphi.ORM.Rtti.Helper;
+uses System.Rtti, Delphi.ORM.Lazy.Factory, Delphi.ORM.Test.Entity, Delphi.ORM.Rtti.Helper, Delphi.ORM.Shared.Obj;
 
 { TLazyFactoryTest }
 
 procedure TLazyFactoryTest.Setup;
 begin
-  FCache := TCache.Create;
+  FCache := TMock.CreateInterface<ICache>(True);
   FConnection := TMock.CreateInterface<IDatabaseConnection>(True);
   FCursorClass := TCursorMock.Create;
-  FFactory := TLazyFactory.Create(FConnection.Instance, FCache);
+  FFactory := TLazyFactory.Create(FConnection.Instance, FCache.Instance);
 
   FCursor := FCursorClass;
 
@@ -61,6 +71,34 @@ begin
   FConnection := nil;
   FCursor := nil;
   FFactory := nil;
+end;
+
+procedure TLazyFactoryTest.WhenFindTheValueInCacheCantOpenTheCursorToLoadTheClass;
+begin
+  var MyClass := TLazyClass.Create;
+  var SharedObject := TSharedObject.Create(MyClass) as ISharedObject;
+
+  FCache.Setup.WillExecute(
+    function (const Params: TArray<TValue>): TValue
+    begin
+      Params[2] := TValue.From(SharedObject);
+      Result := True;
+    end).When.Get(It.IsEqualTo(TCache.GenerateKey(TLazyClass, 123)), ItReference<ISharedObject>.IsAny.Value);
+
+  FConnection.Expect.Never.When.OpenCursor(It.IsAny<String>);
+
+  FFactory.Load(GetRttiType(TLazyClass), 'Lazy', 123);
+
+  Assert.CheckExpectation(FConnection.CheckExpectations);
+end;
+
+procedure TLazyFactoryTest.WhenGetTheValueFromCacheMustLoadTheCacheKeyOfTheClass;
+begin
+  FCache.Expect.Once.When.Get(It.IsEqualTo(TCache.GenerateKey(TLazyClass, 123)), ItReference<ISharedObject>.IsAny.Value);
+
+  FFactory.Load(GetRttiType(TLazyClass), 'Lazy', 123);
+
+  Assert.CheckExpectation(FCache.CheckExpectations);
 end;
 
 procedure TLazyFactoryTest.WhenLoadTheValueMustBuildTheSelectHasExpected;
@@ -84,6 +122,15 @@ begin
   Assert.IsNotNull(Value.AsObject);
 end;
 
+procedure TLazyFactoryTest.WhenTheLazyValueIsAnClassMustGetTheValueInTheCache;
+begin
+  FCache.Expect.Never.When.Get(It.IsAny<String>, ItReference<ISharedObject>.IsAny.Value);
+
+  FFactory.Load(GetRttiType(TypeInfo(TArray<TLazyArrayClassChild>)), 'LazyArrayClass', 123);
+
+  Assert.CheckExpectation(FCache.CheckExpectations);
+end;
+
 procedure TLazyFactoryTest.WhenTheLoadedPropertyIsAnArrayCantRaiseErrorOfWrongType;
 begin
   FCursorClass.Values := [[111, 222, 333]];
@@ -103,6 +150,30 @@ begin
   var Value := FFactory.Load(GetRttiType(TypeInfo(TArray<TLazyArrayClassChild>)), 'LazyArrayClass', 123);
 
   Assert.IsTrue(Value.IsArray);
+end;
+
+procedure TLazyFactoryTest.WhenTheLoadedValueIsArrayCantLoadTheValueFromTheCache;
+begin
+  FCache.Expect.Once.When.Get(It.IsAny<String>, ItReference<ISharedObject>.IsAny.Value);
+
+  FFactory.Load(GetRttiType(TLazyClass), 'Lazy', 123);
+
+  Assert.CheckExpectation(FCache.CheckExpectations);
+end;
+
+procedure TLazyFactoryTest.WhenTheValueIsInTheCacheMustReturnThisValue;
+begin
+  var MyClass := TLazyClass.Create;
+  var SharedObject := TSharedObject.Create(MyClass) as ISharedObject;
+
+  FCache.Setup.WillExecute(
+    function (const Params: TArray<TValue>): TValue
+    begin
+      Params[2] := TValue.From(SharedObject);
+      Result := True;
+    end).When.Get(It.IsEqualTo(TCache.GenerateKey(TLazyClass, 123)), ItReference<ISharedObject>.IsAny.Value);
+
+  Assert.AreEqual(MyClass, FFactory.Load(GetRttiType(TLazyClass), 'Lazy', 123).AsType<TLazyClass>);
 end;
 
 end.
