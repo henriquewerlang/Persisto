@@ -17,7 +17,7 @@ type
 
 implementation
 
-uses Delphi.ORM.Query.Builder, Delphi.ORM.Mapper, Delphi.ORM.Rtti.Helper, Delphi.ORM.Shared.Obj;
+uses System.TypInfo, Delphi.ORM.Query.Builder, Delphi.ORM.Mapper, Delphi.ORM.Rtti.Helper, Delphi.ORM.Shared.Obj;
 
 { TLazyFactory }
 

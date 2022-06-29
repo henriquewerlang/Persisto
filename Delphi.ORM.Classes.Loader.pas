@@ -28,7 +28,7 @@ type
 
 implementation
 
-uses System.Rtti, System.Variants, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy, Delphi.ORM.Lazy.Factory;
+uses System.Rtti, System.Variants, System.TypInfo, System.SysUtils, System.SysConst, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy, Delphi.ORM.Lazy.Factory;
 
 { TClassLoader }
 
