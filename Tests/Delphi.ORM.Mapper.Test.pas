@@ -304,6 +304,36 @@ type
     procedure WhenGetPropertyValueMustReturnTheValueOfTheProperty;
     [Test]
     procedure WhenGetTheLazyAccessValueMustReturnTheLazyAccess;
+    [Test]
+    procedure TheForeignKeyDatabaseNameMustBeTheConcatenationOfTheTablesAndFieldInfo;
+    [Test]
+    procedure IfTheForeignKeyHasTheNameAttributeTheDatabaseNameMustBeTheAttributeValue;
+    [Test]
+    procedure WhenTheClassHasTheIndexAnnotationMustLoadTheIndexInfoOfTheTable;
+    [Test]
+    procedure WhenLoadTheIndexMustLoadTheNameOfTheIndexHasExpected;
+    [Test]
+    procedure WhenUseTheUniqueIndexAttributeMustMarkTheIndexAsUnique;
+    [Test]
+    procedure MustLoadTheFieldsInTheIndexHasExpected;
+    [Test]
+    procedure IfTheFieldInIndexNotExistsInTheTableMustRaiseAnError;
+    [Test]
+    procedure WhenTheFieldHasFieldInfoAttributeWithSpecialTypeFilledMustLoadThisInfoInTheField;
+    [Test]
+    procedure WhenTheFieldHasFieldInfoAttributeWithSizeFilledMustLoadThisInfoInTheField;
+    [Test]
+    procedure WhenTheFieldHasFieldInfoAttributeWithPrecisionAndScaleFilledMustLoadThisInfoInTheField;
+    [Test]
+    procedure TheFieldTablePropertyMustReturnTheFieldIfFoundIt;
+    [Test]
+    procedure WhenTheFieldHasDefaultValueWithAnInternalFunctionMustLoadTheInfoHasExpected;
+    [Test]
+    procedure WhenTheFieldIsOfDateTypeMustLoadTheSpecialTypeWithDate;
+    [Test]
+    procedure WhenTheFieldIsOfDateTimeTypeMustLoadTheSpecialTypeWithDateTime;
+    [Test]
+    procedure WhenTheFieldIsOfTimeTypeMustLoadTheSpecialTypeWithTime;
   end;
 
   [TestFixture]
@@ -380,6 +410,19 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.IfTheFieldInIndexNotExistsInTheTableMustRaiseAnError;
+begin
+  var Mapper := TMapper.Create;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Mapper.LoadClass(TMyClassWithIndexWithError);
+    end);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.IfTheFieldIsAnEnumeratorMustReturnTheOrdinalValueFromVariant;
 begin
   var Field: TField;
@@ -403,6 +446,17 @@ begin
     begin
       Mapper.FindTable(TMyEntityWithoutEntityAttribute);
     end, ETableNotFound);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.IfTheForeignKeyHasTheNameAttributeTheDatabaseNameMustBeTheAttributeValue;
+begin
+  var Mapper := TMapper.Create;
+
+  var Table := Mapper.LoadClass(TMyEntityForeignKeyWithName);
+
+  Assert.AreEqual('MyForeignKey', Table.ForeignKeys[0].DatabaseName);
 
   Mapper.Free;
 end;
@@ -446,6 +500,20 @@ begin
     end);
 
   Mapper.Free;
+end;
+
+procedure TMapperTest.MustLoadTheFieldsInTheIndexHasExpected;
+begin
+  var Mapper := TMapper.Create;
+  var MyField, MyField2: TField;
+  var Table := Mapper.LoadClass(TMyClassWithIndex);
+
+  Table.FindField('MyField', MyField);
+  Table.FindField('MyField2', MyField2);
+
+  Assert.AreEqual<NativeInt>(2, Length(Table.Indexes[2].Fields));
+  Assert.AreEqual(MyField, Table.Indexes[2].Fields[0]);
+  Assert.AreEqual(MyField2, Table.Indexes[2].Fields[1]);
 end;
 
 procedure TMapperTest.OnlyPublishedFieldMutsBeLoadedInTheTable;
@@ -607,6 +675,19 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.TheFieldTablePropertyMustReturnTheFieldIfFoundIt;
+begin
+  var Field: TField;
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyTestClass);
+
+  Table.FindField('Field', Field);
+
+  Assert.AreEqual(Field, Table.Field['Field']);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.TheFieldThatGenerateAForignKeyMustLoadThisInfoInTheField;
 begin
   var Mapper := TMapper.Create;
@@ -671,6 +752,17 @@ begin
   var Table := Mapper.LoadClass(TMyEntityInheritedFromSimpleClass);
 
   Assert.IsTrue(Table.ForeignKeys[0].IsInheritedLink);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.TheForeignKeyDatabaseNameMustBeTheConcatenationOfTheTablesAndFieldInfo;
+begin
+  var Mapper := TMapper.Create;
+
+  var Table := Mapper.LoadClass(TMyEntityForeignKeyAlias);
+
+  Assert.AreEqual('FK_MyEntityForeignKeyAlias_MyEntityInheritedFromSimpleClass_IdForeignKey', Table.ForeignKeys[0].DatabaseName);
 
   Mapper.Free;
 end;
@@ -1347,6 +1439,16 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.WhenLoadTheIndexMustLoadTheNameOfTheIndexHasExpected;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyClassWithIndex);
+
+  Assert.AreEqual('MyIndex', Table.Indexes[0].DatabaseName);
+  Assert.AreEqual('MyIndex2', Table.Indexes[1].DatabaseName);
+  Assert.AreEqual('MyUnique', Table.Indexes[2].DatabaseName);
+end;
+
 procedure TMapperTest.WhenLoadTheTableMustLoadTheNameOfTheTableWithTheNameOfTheClassWithoutTheTChar;
 begin
   var Mapper := TMapper.Create;
@@ -1561,6 +1663,14 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.WhenTheClassHasTheIndexAnnotationMustLoadTheIndexInfoOfTheTable;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyClassWithIndex);
+
+  Assert.AreEqual<NativeInt>(3, Length(Table.Indexes));
+end;
+
 procedure TMapperTest.WhenTheClassHaveThePrimaryKeyAttributeThePrimaryKeyWillBeTheFieldFilled;
 begin
   var Mapper := TMapper.Create;
@@ -1733,6 +1843,51 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.WhenTheFieldHasFieldInfoAttributeWithSpecialTypeFilledMustLoadThisInfoInTheField;
+begin
+  var Mapper := TMapper.Create;
+
+  var Table := Mapper.LoadClass(TMyTestClass);
+
+  Assert.AreEqual(stUniqueIdentifier, Table.Fields[0].SpecialType);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheFieldHasDefaultValueWithAnInternalFunctionMustLoadTheInfoHasExpected;
+begin
+  var Mapper := TMapper.Create;
+
+  var Table := Mapper.LoadClass(TMyEntityWithDefaultValue);
+
+  Assert.AreEqual(difNow, Table['DefaultInternalFunction'].DefaultInternalFunction);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheFieldHasFieldInfoAttributeWithPrecisionAndScaleFilledMustLoadThisInfoInTheField;
+begin
+  var Mapper := TMapper.Create;
+
+  var Table := Mapper.LoadClass(TMyTestClass);
+
+  Assert.AreEqual(15, Table.Fields[2].Size);
+  Assert.AreEqual(7, Table.Fields[2].Scale);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheFieldHasFieldInfoAttributeWithSizeFilledMustLoadThisInfoInTheField;
+begin
+  var Mapper := TMapper.Create;
+
+  var Table := Mapper.LoadClass(TMyTestClass);
+
+  Assert.AreEqual(150, Table.Fields[1].Size);
+
+  Mapper.Free;
+end;
+
 procedure TMapperTest.WhenTheFieldHasntADefaultValueTheValueMustBeEmpty;
 begin
   var Mapper := TMapper.Create;
@@ -1833,6 +1988,36 @@ begin
   var Table := Mapper.LoadClass(TMyEntity);
 
   Assert.AreEqual(Table, Table.Fields[0].Table);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheFieldIsOfDateTimeTypeMustLoadTheSpecialTypeWithDateTime;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntityWithAllTypeOfFields);
+
+  Assert.AreEqual(stDateTime, Table.Field['DateTime'].SpecialType);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheFieldIsOfDateTypeMustLoadTheSpecialTypeWithDate;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntityWithAllTypeOfFields);
+
+  Assert.AreEqual(stDate, Table.Field['Date'].SpecialType);
+
+  Mapper.Free;
+end;
+
+procedure TMapperTest.WhenTheFieldIsOfTimeTypeMustLoadTheSpecialTypeWithTime;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyEntityWithAllTypeOfFields);
+
+  Assert.AreEqual(stTime, Table.Field['Time'].SpecialType);
 
   Mapper.Free;
 end;
@@ -2035,6 +2220,14 @@ begin
   Assert.AreEqual(TMyEntity3, Table.ClassTypeInfo.MetaclassType);
 
   Mapper.Free;
+end;
+
+procedure TMapperTest.WhenUseTheUniqueIndexAttributeMustMarkTheIndexAsUnique;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.LoadClass(TMyClassWithIndex);
+
+  Assert.IsTrue(Table.Indexes[2].Unique);
 end;
 
 { TFieldPrimaryKeyReferenceTest }

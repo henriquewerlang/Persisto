@@ -6,7 +6,7 @@
         <MainSource>Delphi.ORM.Tests.dpr</MainSource>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
-        <Platform Condition="'$(Platform)'==''">Win32</Platform>
+        <Platform Condition="'$(Platform)'==''">Win64</Platform>
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Console</AppType>
     </PropertyGroup>
@@ -133,6 +133,12 @@
         <DCCReference Include="Delphi.ORM.Shared.Obj.Test.pas"/>
         <DCCReference Include="Delphi.ORM.Lazy.Factory.Test.pas"/>
         <DCCReference Include="..\Delphi.ORM.Lazy.Factory.pas"/>
+        <DCCReference Include="..\Delphi.ORM.Database.Metadata.pas"/>
+        <DCCReference Include="Delphi.ORM.Database.Metadata.Test.pas"/>
+        <DCCReference Include="..\Delphi.ORM.Database.Manipulator.pas"/>
+        <DCCReference Include="Delphi.ORM.Database.Manipulator.Test.pas"/>
+        <DCCReference Include="..\Delphi.ORM.Database.Manipulator.SQLServer.pas"/>
+        <DCCReference Include="Delphi.ORM.Database.Manipulator.SQLServer.Test.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -183,6 +189,12 @@
                 <DeployFile LocalName="Win64\Debug\Delphi.ORM.Tests.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win64">
                         <RemoteName>Delphi_ORM_Tests.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Win64\Debug\Delphi.ORM.Tests.rsm" Configuration="Debug" Class="DebugSymbols">
+                    <Platform Name="Win64">
+                        <RemoteName>Delphi_ORM_Tests.rsm</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

@@ -38,7 +38,13 @@ uses
   Delphi.ORM.Shared.Obj in '..\Delphi.ORM.Shared.Obj.pas',
   Delphi.ORM.Shared.Obj.Test in 'Delphi.ORM.Shared.Obj.Test.pas',
   Delphi.ORM.Lazy.Factory.Test in 'Delphi.ORM.Lazy.Factory.Test.pas',
-  Delphi.ORM.Lazy.Factory in '..\Delphi.ORM.Lazy.Factory.pas';
+  Delphi.ORM.Lazy.Factory in '..\Delphi.ORM.Lazy.Factory.pas',
+  Delphi.ORM.Database.Metadata in '..\Delphi.ORM.Database.Metadata.pas',
+  Delphi.ORM.Database.Metadata.Test in 'Delphi.ORM.Database.Metadata.Test.pas',
+  Delphi.ORM.Database.Manipulator in '..\Delphi.ORM.Database.Manipulator.pas',
+  Delphi.ORM.Database.Manipulator.Test in 'Delphi.ORM.Database.Manipulator.Test.pas',
+  Delphi.ORM.Database.Manipulator.SQLServer in '..\Delphi.ORM.Database.Manipulator.SQLServer.pas',
+  Delphi.ORM.Database.Manipulator.SQLServer.Test in 'Delphi.ORM.Database.Manipulator.SQLServer.Test.pas';
 
 // Para não remover o valor abaixo
 {$IFNDEF TESTINSIGHT}
