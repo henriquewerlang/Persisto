@@ -80,7 +80,8 @@ begin
     var ClassInfo := TRttiContext.Create.GetType(Instance.ClassType);
 
     for var AProperty in ClassInfo.GetProperties do
-      AProperty.SetValue(FOldObject, AProperty.GetValue(Instance));
+      if AProperty.IsWritable then
+        AProperty.SetValue(FOldObject, AProperty.GetValue(Instance));
   end;
 {$ENDIF}
 end;

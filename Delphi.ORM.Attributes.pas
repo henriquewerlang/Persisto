@@ -5,15 +5,10 @@ interface
 uses System.Rtti;
 
 type
-  TCascadeType = (ctInsert, ctUpdate);
-  TCascadeTypes = set of TCascadeType;
   TDatabaseInternalFunction = (difNotDefined, difNow, difNewUniqueIdentifier, difNewGuid);
   TDatabaseSpecialType = (stNotDefined, stDate, stDateTime, stTime, stText, stUniqueIdentifier);
 
   EntityAttribute = class(TCustomAttribute);
-  InsertCascadeAttribute = class(TCustomAttribute);
-  NoUpdateAttribute = class(TCustomAttribute);
-  UpdateCascadeAttribute = class(TCustomAttribute);
 
   TCustomNameAttribute = class(TCustomAttribute)
   private

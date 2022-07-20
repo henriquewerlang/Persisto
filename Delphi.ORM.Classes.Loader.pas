@@ -156,13 +156,10 @@ begin
       begin
         var FieldValue := Field.ConvertVariant(GetFieldValueFromCursor(FieldIndexStart));
 
-        if not Field.IsReference then
-        begin
-          Field.SetValue(StateObject, FieldValue);
+        Field.SetValue(StateObject, FieldValue);
 
-          if Field.IsLazy then
-            Field.GetLazyAccess(StateObject.&Object).Factory := TLazyFactory.Create(FAccess.Connection, FAccess.Cache);
-        end;
+        if Field.IsLazy then
+          Field.GetLazyAccess(StateObject.&Object).Factory := TLazyFactory.Create(FAccess.Connection, FAccess.Cache);
       end;
 
       Inc(FieldIndexStart);

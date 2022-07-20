@@ -3,7 +3,7 @@
 interface
 
 uses System.Rtti, System.Classes, System.Generics.Collections, System.SysUtils, Delphi.ORM.Database.Connection, Delphi.ORM.Mapper, Delphi.ORM.Nullable, Delphi.ORM.Cache,
-  Delphi.ORM.Attributes;
+  Delphi.ORM.Attributes, Delphi.ORM.Shared.Obj;
 
 type
   TQueryBuilder = class;
@@ -70,11 +70,13 @@ type
   private
     FCache: ICache;
     FConnection: IDatabaseConnection;
+    FDelayedUpdate: TDictionary<TObject, TDictionary<TField, TObject>>;
+    FDestroyObjects: TDictionary<TObject, Boolean>;
     FFieldList: TQueryBuilderAllFields;
     FFrom: TQueryBuilderFrom;
     FOpen: TQueryBuilderOpen;
     FOptions: TBuilderOptions;
-    FProcessedObjects: TObjectList<TObject>;
+    FProcessedObjects: TDictionary<TObject, Boolean>;
     FSelect: IQueryBuilderCommand;
     FTable: TTable;
     FWhere: IQueryBuilderCommand;
@@ -93,12 +95,15 @@ type
     function GetJoin: TQueryBuilderJoin;
     function GetLineBreak: String;
     function GetTable: TTable;
-    function InsertObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey): TObject;
+    function InsertObject(const AObject: TValue): TObject;
     function OpenCursor: IDatabaseCursor;
-    function SaveObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey): TObject;
-    function UpdateObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey): TObject;
+    function SaveObject(const AObject: TValue): TObject;
+    function UpdateObject(const AObject: TValue): TObject;
 
-    procedure SaveForeignKeys(const Table: TTable; const AObject: TValue; const ForeignKeyToIgnore: TForeignKey; const CascadeType: TCascadeType);
+    procedure AddObjectToDestroy(const ForeignObject: TValue; const SharedObject: ISharedObject);
+    procedure AddDelayedUpdate(const Instance: TObject; const Field: TField);
+    procedure ExecuteDelayedUpdate;
+    procedure SaveForeignKeys(const Table: TTable; const AObject: TValue);
     procedure SaveManyValueAssociations(const Table: TTable; const CurrentObject: TObject; const AForeignObject: TValue);
   public
     constructor Create(const Connection: IDatabaseConnection; const Cache: ICache);
@@ -358,7 +363,7 @@ function Field(const Name: String): TQueryBuilderComparisonHelper;
 
 implementation
 
-uses System.TypInfo, Delphi.ORM.Rtti.Helper, Delphi.ORM.Classes.Loader, Delphi.ORM.Shared.Obj;
+uses System.TypInfo, Delphi.ORM.Rtti.Helper, Delphi.ORM.Classes.Loader;
 
 function Field(const Name: String): TQueryBuilderComparisonHelper;
 begin
@@ -367,6 +372,28 @@ begin
 end;
 
 { TQueryBuilder }
+
+procedure TQueryBuilder.AddDelayedUpdate(const Instance: TObject; const Field: TField);
+begin
+  var Delayed: TDictionary<TField, TObject>;
+
+  if not FDelayedUpdate.TryGetValue(Instance, Delayed) then
+  begin
+    Delayed := TDictionary<TField, TObject>.Create;
+
+    FDelayedUpdate.Add(Instance, Delayed);
+  end;
+
+  Delayed.Add(Field, Field.GetValue(Instance).AsObject);
+
+  Field.SetValue(Instance, nil);
+end;
+
+procedure TQueryBuilder.AddObjectToDestroy(const ForeignObject: TValue; const SharedObject: ISharedObject);
+begin
+  if SharedObject.&Object <> ForeignObject.AsObject then
+    FDestroyObjects.AddOrSetValue(ForeignObject.AsObject, True);
+end;
 
 function TQueryBuilder.BuildPrimaryKeyFilter(const Table: TTable; const AObject: TObject): String;
 begin
@@ -389,7 +416,9 @@ begin
 
   FCache := Cache;
   FConnection := Connection;
-  FProcessedObjects := TObjectList<TObject>.Create(True);
+  FDelayedUpdate := TObjectDictionary<TObject, TDictionary<TField, TObject>>.Create([doOwnsValues]);
+  FDestroyObjects := TObjectDictionary<TObject, Boolean>.Create([doOwnsKeys]);
+  FProcessedObjects := TDictionary<TObject, Boolean>.Create;
 end;
 
 procedure TQueryBuilder.Delete<T>(const AObject: T);
@@ -405,9 +434,26 @@ end;
 
 destructor TQueryBuilder.Destroy;
 begin
+  FDelayedUpdate.Free;
+
+  FDestroyObjects.Free;
+
   FProcessedObjects.Free;
 
   inherited;
+end;
+
+procedure TQueryBuilder.ExecuteDelayedUpdate;
+begin
+  for var Instance in FDelayedUpdate do
+  begin
+    for var Field in Instance.Value do
+      Field.Key.SetValue(Instance.Key, Field.Value);
+
+    UpdateObject(Instance.Key);
+  end;
+
+  FDelayedUpdate.Clear;
 end;
 
 function TQueryBuilder.ExecuteInTrasaction(const Func: TFunc<TObject>): TObject;
@@ -417,7 +463,11 @@ begin
   try
     Result := Func;
 
+    ExecuteDelayedUpdate;
+
     Transaction.Commit;
+
+    FDestroyObjects.Clear;
 
     FProcessedObjects.Clear;
   except
@@ -458,33 +508,36 @@ begin
   end;
 end;
 
-function TQueryBuilder.InsertObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey): TObject;
+function TQueryBuilder.InsertObject(const AObject: TValue): TObject;
 begin
+  var FieldValue: TValue;
   var OutputFieldList: TArray<TField> := nil;
   var OutputFieldNameList: TArray<String> := nil;
   Result := AObject.AsObject;
+  var SQL := '(%s)values(%s)';
   var Table := TMapper.Default.FindTable(AObject.TypeInfo);
 
-  var SQL := '(%s)values(%s)';
+  FProcessedObjects.AddOrSetValue(Result, False);
 
-  SaveForeignKeys(Table, AObject, ForeignKeyToIgnore, ctInsert);
+  SaveForeignKeys(Table, AObject);
 
   for var Field in Table.Fields do
   begin
-    var FieldValue := Field.GetValue(Result);
+    var HasValue := Field.HasValue(Result, FieldValue);
 
-    if Field.AutoGenerated and (FieldValue.AsVariant = Field.DefaultValue.AsVariant) then
+    if Field.AutoGenerated and not HasValue then
     begin
       OutputFieldList := OutputFieldList + [Field];
       OutputFieldNameList := OutputFieldNameList + [Field.DatabaseName];
     end
-    else if not Field.IsManyValueAssociation and not Field.IsReadOnly then
-      SQL := Format(SQL, [Field.DatabaseName + '%2:s%0:s', Field.GetAsString(FieldValue) + '%2:s%1:s', ',']);
+    else if HasValue and not Field.IsManyValueAssociation and not Field.IsReadOnly then
+      if Field.IsForeignKey and not Field.ForeignKey.ParentTable.PrimaryKey.HasValue(FieldValue.AsObject, FieldValue) then
+        AddDelayedUpdate(Result, Field)
+      else
+        SQL := Format(SQL, [Field.DatabaseName + '%2:s%0:s', Field.GetAsString(FieldValue) + '%2:s%1:s', ',']);
   end;
 
-  SQL := 'insert into ' + Table.DatabaseName + Format(SQL, ['', '', '', '']);
-
-  var Cursor := FConnection.ExecuteInsert(SQL, OutputFieldNameList);
+  var Cursor := FConnection.ExecuteInsert(Format('insert into %s%s', [Table.DatabaseName, Format(SQL, ['', '', '', ''])]), OutputFieldNameList);
 
   if Cursor.Next then
     for var A := Low(OutputFieldList) to High(OutputFieldList) do
@@ -506,7 +559,7 @@ begin
   Result := ExecuteInTrasaction(
     function: TObject
     begin
-      Result := InsertObject(AObject, nil);
+      Result := InsertObject(AObject);
     end) as T;
 end;
 
@@ -618,26 +671,23 @@ begin
   Result := ExecuteInTrasaction(
     function: TObject
     begin
-      Result := SaveObject(AObject, nil);
+      Result := SaveObject(AObject);
     end) as T;
 end;
 
-procedure TQueryBuilder.SaveForeignKeys(const Table: TTable; const AObject: TValue; const ForeignKeyToIgnore: TForeignKey; const CascadeType: TCascadeType);
+procedure TQueryBuilder.SaveForeignKeys(const Table: TTable; const AObject: TValue);
 begin
   var CurrentObject := AObject.AsObject;
+  var FieldValue: TValue;
 
   for var ForeignKey in Table.ForeignKeys do
-    if (ForeignKey <> ForeignKeyToIgnore) and (CascadeType in ForeignKey.Cascade) and (not ForeignKey.Field.IsLazy or ForeignKey.Field.GetLazyAccess(CurrentObject).HasValue) then
+    if ForeignKey.IsInheritedLink then
+      SaveObject(TValue.From(CurrentObject).Cast(CurrentObject.ClassParent.ClassInfo, False))
+    else if ForeignKey.Field.HasValue(CurrentObject, FieldValue) and not FProcessedObjects.ContainsKey(FieldValue.AsObject) then
     begin
-      var FieldValue := ForeignKey.Field.GetValue(CurrentObject);
+      FieldValue := SaveObject(FieldValue);
 
-      if not FieldValue.IsEmpty then
-      begin
-        var SavedObject := SaveObject(FieldValue, ForeignKey);
-
-        if not ForeignKey.Field.IsReference then
-          ForeignKey.Field.SetValue(CurrentObject, SavedObject);
-      end;
+      ForeignKey.Field.SetValue(CurrentObject, FieldValue);
     end;
 end;
 
@@ -655,21 +705,22 @@ begin
 
       ManyValue.ForeignKey.Field.SetValue(ChildFieldValue.AsObject, CurrentObject);
 
-      ForeignArrayValue.SetArrayElement(A, SaveObject(ChildFieldValue, ManyValue.ForeignKey));
+      ForeignArrayValue.SetArrayElement(A, SaveObject(ChildFieldValue));
     end;
 
     ManyValue.Field.SetValue(CurrentObject, ForeignArrayValue);
   end;
 end;
 
-function TQueryBuilder.SaveObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey): TObject;
+function TQueryBuilder.SaveObject(const AObject: TValue): TObject;
 begin
   var Table := TMapper.Default.FindTable(AObject.TypeInfo);
+  var Value: TValue;
 
-  if Assigned(Table.PrimaryKey) and (Table.PrimaryKey.GetValue(AObject.AsObject).AsVariant = Table.PrimaryKey.DefaultValue.AsVariant) then
-    Result := InsertObject(AObject, ForeignKeyToIgnore)
+  if Assigned(Table.PrimaryKey) and not Table.PrimaryKey.HasValue(AObject.AsObject, Value) then
+    Result := InsertObject(AObject)
   else
-    Result := UpdateObject(AObject, ForeignKeyToIgnore);
+    Result := UpdateObject(AObject);
 end;
 
 function TQueryBuilder.Select: TQueryBuilderSelect;
@@ -684,11 +735,11 @@ begin
   Result := ExecuteInTrasaction(
     function: TObject
     begin
-      Result := UpdateObject(AObject, nil);
+      Result := UpdateObject(AObject);
     end) as T;
 end;
 
-function TQueryBuilder.UpdateObject(const AObject: TValue; const ForeignKeyToIgnore: TForeignKey): TObject;
+function TQueryBuilder.UpdateObject(const AObject: TValue): TObject;
 begin
   var ForeignObject := AObject.AsObject;
   var SharedObject: ISharedObject;
@@ -700,7 +751,11 @@ begin
     Result := SharedObject.&Object;
     var StateObject := SharedObject as IStateObject;
 
-    SaveForeignKeys(Table, AObject, ForeignKeyToIgnore, ctUpdate);
+    FProcessedObjects.AddOrSetValue(Result, True);
+
+    FProcessedObjects.AddOrSetValue(AObject.AsObject, True);
+
+    SaveForeignKeys(Table, AObject);
 
     for var Field in Table.Fields do
       if not Field.InPrimaryKey and not Field.IsManyValueAssociation and not Field.IsReadOnly then
@@ -714,8 +769,7 @@ begin
 
           SQL := SQL + Format('%s=%s', [Field.DatabaseName, FieldValueString]);
 
-          if not Field.IsReference then
-            Field.SetValue(Result, Field.GetValue(ForeignObject));
+          Field.SetValue(Result, Field.GetValue(ForeignObject));
         end;
       end;
 
@@ -724,8 +778,7 @@ begin
 
     SaveManyValueAssociations(Table, Result, AObject);
 
-    if (Result <> ForeignObject) and (ForeignObject.ClassInfo = AObject.TypeInfo) then
-      FProcessedObjects.Add(ForeignObject);
+    AddObjectToDestroy(AObject, SharedObject);
   end
   else
     raise EObjectReferenceWasNotFound.Create;

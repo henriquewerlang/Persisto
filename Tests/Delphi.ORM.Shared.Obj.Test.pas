@@ -21,6 +21,8 @@ type
     procedure WhenCreateTheStateObjectToCopyThePropertyMustCopyAllPropertyValues;
     [Test]
     procedure WhenCreateTheStateObjectToDontCopyThePropertiesCantCopyTheValues;
+    [Test]
+    procedure WhenCopyThePropertiesOfTheObjectMustCopyOnlyWritableProperties;
   end;
 
   TMyObject = class
@@ -36,9 +38,11 @@ type
   private
     FProperty1: Integer;
     FProperty2: String;
+    FReadOnlyProp: Double;
   published
     property Property1: Integer read FProperty1 write FProperty1;
     property Property2: String read FProperty2 write FProperty2;
+    property ReadOnlyProp: Double read FReadOnlyProp;
   end;
 
 implementation
@@ -74,6 +78,19 @@ begin
 end;
 
 { TStateObjectTest }
+
+procedure TStateObjectTest.WhenCopyThePropertiesOfTheObjectMustCopyOnlyWritableProperties;
+begin
+  var StateObject: IStateObject;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      StateObject := TStateObject.Create(TMyClassProperties.Create, True) as IStateObject;
+    end);
+
+  StateObject := nil;
+end;
 
 procedure TStateObjectTest.WhenCreateAStateObjectMustCreateAnCopyFromTheOriginalObject;
 begin
