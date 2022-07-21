@@ -832,30 +832,28 @@ end;
 
 function TField.HasValue(const Instance: TObject; var Value: TValue): Boolean;
 begin
+  Value := GetPropertyValue(Instance);
+
   if IsLazy then
   begin
-    var LazyAccess := GetLazyAccess(Instance);
-    Result := LazyAccess.HasValue;
+    var LazyAccess := GetLazyLoadingAccess(Value);
 
-    if Result then
+    if LazyAccess.HasValue then
       Value := LazyAccess.GetValue
     else
-      Value := LazyAccess.GetKey;
+      Value := TValue.Empty;
+
+    Result := not Value.IsEmpty;
+  end
+  else if IsNullable then
+  begin
+    var NullableAccess := GetNullableAccess(Value);
+
+    Result := not NullableAccess.IsNull;
+    Value := NullableAccess.Value;
   end
   else
-  begin
-    Value := GetPropertyValue(Instance);
-
-    if IsNullable then
-    begin
-      var NullableAccess := GetNullableAccess(Value);
-
-      Result := not NullableAccess.IsNull;
-      Value := NullableAccess.Value;
-    end
-    else
-      Result := not Value.IsEmpty and (DefaultValue.IsEmpty or (Value.AsVariant <> DefaultValue.AsVariant));
-  end;
+    Result := not Value.IsEmpty and (DefaultValue.IsEmpty or (Value.AsVariant <> DefaultValue.AsVariant));
 end;
 
 procedure TField.SetValue(const Instance: IStateObject; const Value: TValue);
