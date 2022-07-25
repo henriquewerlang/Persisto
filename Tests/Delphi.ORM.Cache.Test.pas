@@ -17,8 +17,6 @@ type
     [Test]
     procedure WhenTheKeyValueDontExistMustReturnFalseInGetValue;
     [Test]
-    procedure WhenAddASharedObjectJustMustAddToTheCacheTheObject;
-    [Test]
     procedure TheGenerateKeyFunctionMustReturnTheQualifiedClassNamePlusTheKeyValue;
     [Test]
     procedure WhenGenerateKeyFunctionIsATClassMustReturnTheQualifiedClassNamePlusTheKeyValue;
@@ -26,7 +24,7 @@ type
 
 implementation
 
-uses System.Rtti, Delphi.ORM.Test.Entity, Delphi.ORM.Shared.Obj;
+uses System.Rtti, Delphi.ORM.Test.Entity;
 
 { TCacheTest }
 
@@ -34,13 +32,13 @@ procedure TCacheTest.AfterAddTheObjectMustReturnTheValueAddedToTheCacheUsingTheS
 begin
   var Cache := CreateCache;
   var MyObject := TObject.Create;
-  var SharedObject: ISharedObject;
+  var SharedObject: TObject;
 
   Cache.Add('MyKey', MyObject);
 
   Cache.Get('MyKey', SharedObject);
 
-  Assert.AreEqual(MyObject, SharedObject.&Object);
+  Assert.AreEqual(MyObject, SharedObject);
 end;
 
 function TCacheTest.CreateCache: ICache;
@@ -60,21 +58,7 @@ begin
 
   var SharedObject := Cache.Add('MyKey', MyObject);
 
-  Assert.AreEqual(MyObject, SharedObject.&Object);
-end;
-
-procedure TCacheTest.WhenAddASharedObjectJustMustAddToTheCacheTheObject;
-begin
-  var Cache := CreateCache;
-  var MyObject := TObject.Create;
-
-  var SharedObject := Cache.Add('MyKey', MyObject);
-
-  Cache.Add('MyKey2', SharedObject);
-
-  Cache.Get('MyKey2', SharedObject);
-
-  Assert.AreEqual(MyObject, SharedObject.&Object);
+  Assert.AreEqual(MyObject, SharedObject);
 end;
 
 procedure TCacheTest.WhenGenerateKeyFunctionIsATClassMustReturnTheQualifiedClassNamePlusTheKeyValue;
@@ -85,7 +69,7 @@ end;
 procedure TCacheTest.WhenTheKeyValueDontExistMustReturnFalseInGetValue;
 begin
   var Cache := CreateCache;
-  var SharedObject: ISharedObject;
+  var SharedObject: TObject;
 
   Assert.IsFalse(Cache.Get('MyKey', SharedObject));
 end;

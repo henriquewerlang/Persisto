@@ -69,8 +69,6 @@ type
     [Test]
     procedure WhenThePrimaryKeyDontChangeCantReloadTheForeignKeysOfTheClass;
     [Test]
-    procedure WhenTheObjectAlreadyInCacheMustGetThisInstanceToLoadTheData;
-    [Test]
     procedure WhenTheLoaderCreateANewObjectMustAddItToTheCacheControl;
     [Test]
     procedure WhenTheManyValueAssociationFieldHasRepetedKeyMustLoadJustOnceThenProperty;
@@ -89,15 +87,7 @@ type
     [Test]
     procedure WhenTheManyValueAssociationHasInheritedClassMustLoadTheValuesAsExpected;
     [Test]
-    procedure AfterLoadTheObjectMustLoadTheOldValuesFromStateObject;
-    [Test]
     procedure WhenLoadAManyValueAssociationThatTheObjectInTheManyValueIsInTheMainObjectListMustBeLoaded;
-    [Test]
-    procedure WhenLoadTheForeignKeyOfAClassMustLoadTheValueOfOldObjectToo;
-    [Test]
-    procedure WhenLoadTheForeignKeyOfTheOldValueMustLoadTheOldObjectReference;
-    [Test]
-    procedure WhenAForeignKeyIsChangedInTheDatabaseTheReferenceMustBeUpdatedToo;
     [Test]
     procedure WhenLoadMoreThenOneTimeTheClassWithTheSameLoaderMustLoadTheClassPropertyHasExpected;
     [Test]
@@ -106,24 +96,9 @@ type
 
 implementation
 
-uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Test.Entity, Delphi.ORM.Shared.Obj;
+uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Test.Entity;
 
 { TClassLoaderTest }
-
-procedure TClassLoaderTest.AfterLoadTheObjectMustLoadTheOldValuesFromStateObject;
-begin
-  FCursorMockClass.Values := [['abc', 123]];
-  var SharedObject: ISharedObject;
-
-  LoadClass<TMyClass>;
-
-  FCache.Get('Delphi.ORM.Test.Entity.TMyClass.abc', SharedObject);
-
-  var OldObject := (SharedObject as IStateObject).OldObject as TMyClass;
-
-  Assert.AreEqual('abc', OldObject.Name);
-  Assert.AreEqual(123, OldObject.Value);
-end;
 
 procedure TClassLoaderTest.EvenIfTheCursorReturnsMoreThanOneRecordTheLoadClassHasToReturnOnlyOneClass;
 begin
@@ -269,24 +244,6 @@ begin
   Assert.AreEqual(Result[0].AnotherClass, Result[1].AnotherClass);
 end;
 
-procedure TClassLoaderTest.WhenAForeignKeyIsChangedInTheDatabaseTheReferenceMustBeUpdatedToo;
-begin
-  FCursorMockClass.Values := [[123, 456, 789]];
-  var SharedObject: ISharedObject;
-
-  LoadClass<TClassWithForeignKey>;
-
-  FCursorMockClass.Values := [[123, NULL, NULL]];
-
-  var MyClass := LoadClass<TClassWithForeignKey>;
-
-  FCache.Get('Delphi.ORM.Test.Entity.TClassWithForeignKey.123', SharedObject);
-
-  Assert.IsNull(MyClass.AnotherClass);
-
-  Assert.IsNull(TClassWithForeignKey((SharedObject as IStateObject).OldObject).AnotherClass);
-end;
-
 procedure TClassLoaderTest.WhenHaveMoreThenOneRecordMustLoadAllThenWhenRequested;
 begin
   FCursorMockClass.Values := [['aaa', 123], ['bbb', 123]];
@@ -338,7 +295,6 @@ end;
 procedure TClassLoaderTest.WhenLoadMoreThenOneTimeTheClassWithTheSameLoaderMustLoadTheClassPropertyHasExpected;
 begin
   FCursorMockClass.Values := [[111, 111]];
-  var SharedObject: ISharedObject;
 
   LoadClass<TClassWithPrimaryKey>;
 
@@ -349,38 +305,6 @@ begin
   Assert.IsNotNull(MyClass);
 
   Assert.AreEqual(222, MyClass.Value);
-end;
-
-procedure TClassLoaderTest.WhenLoadTheForeignKeyOfAClassMustLoadTheValueOfOldObjectToo;
-begin
-  FCursorMockClass.Values := [[123, 456, 789]];
-  var SharedObject: ISharedObject;
-
-  LoadClass<TClassWithForeignKey>;
-
-  FCache.Get('Delphi.ORM.Test.Entity.TClassWithForeignKey.123', SharedObject);
-
-  var MyOldClass := (SharedObject as IStateObject).OldObject as TClassWithForeignKey;
-
-  Assert.IsNotNull(MyOldClass.AnotherClass);
-end;
-
-procedure TClassLoaderTest.WhenLoadTheForeignKeyOfTheOldValueMustLoadTheOldObjectReference;
-begin
-  FCursorMockClass.Values := [[123, 456, 789]];
-  var SharedObject: ISharedObject;
-
-  LoadClass<TClassWithForeignKey>;
-
-  FCache.Get('Delphi.ORM.Test.Entity.TClassWithForeignKey.123', SharedObject);
-
-  var MyOldClass := (SharedObject as IStateObject).OldObject as TClassWithForeignKey;
-
-  FCache.Get('Delphi.ORM.Test.Entity.TClassWithPrimaryKey.456', SharedObject);
-
-  var MyOldAnotherClass := (SharedObject as IStateObject).OldObject as TClassWithPrimaryKey;
-
-  Assert.AreEqual(MyOldAnotherClass, MyOldClass.AnotherClass);
 end;
 
 procedure TClassLoaderTest.WhenTheAClassAsAManyValueAssociationMustLoadThePropertyArrayOfTheClass;
@@ -449,7 +373,7 @@ end;
 procedure TClassLoaderTest.WhenTheLoaderCreateANewObjectMustAddItToTheCacheControl;
 begin
   FCursorMockClass.Values := [['aaa', 333]];
-  var SharedObject: ISharedObject;
+  var SharedObject: TObject;
 
   LoadClass<TMyClass>;
 
@@ -500,21 +424,6 @@ begin
   var Obj := LoadClass<TManyValueParent>;
 
   Assert.AreEqual<Integer>(4, Length(Obj.Childs));
-end;
-
-procedure TClassLoaderTest.WhenTheObjectAlreadyInCacheMustGetThisInstanceToLoadTheData;
-begin
-  FCursorMockClass.Values := [['aaa', 333]];
-  var MyClass := TMyClass.Create;
-  MyClass.Name := 'aaa';
-  MyClass.Value := 111;
-  var Table := TMapper.Default.FindTable(TMyClass);
-
-  FCache.Add(Table.GetCacheKey(MyClass), TStateObject.Create(MyClass, False) as ISharedObject);
-
-  LoadClass<TMyClass>;
-
-  Assert.AreEqual(333, MyClass.Value);
 end;
 
 procedure TClassLoaderTest.WhenThePrimaryKeyOfAForeignKeyIsNullCantLoadTheEntireObject;

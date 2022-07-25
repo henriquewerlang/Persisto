@@ -17,7 +17,7 @@ type
 
 implementation
 
-uses System.TypInfo, Delphi.ORM.Query.Builder, Delphi.ORM.Mapper, Delphi.ORM.Rtti.Helper, Delphi.ORM.Shared.Obj;
+uses System.TypInfo, Delphi.ORM.Query.Builder, Delphi.ORM.Mapper, Delphi.ORM.Rtti.Helper;
 
 { TLazyFactory }
 
@@ -54,10 +54,10 @@ begin
       Result := TValue.From(OpenCursor.All)
     else
     begin
-      var Value: ISharedObject;
+      var Value: TObject := nil;
 
       if FCache.Get(TCache.GenerateKey(RttiType, Key), Value) then
-        Result := Value.&Object
+        Result := Value
       else
         Result := OpenCursor.One;
     end;

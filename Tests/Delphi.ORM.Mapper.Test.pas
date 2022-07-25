@@ -276,10 +276,6 @@ type
     [Test]
     procedure WhenTheFieldHasTheNoUpdateAttributeTheFieldMustBeMarkedAsReadOnly;
     [Test]
-    procedure WhenSetValueToAFieldWithASharedObjectMustUpdateThePropertyHasExpected;
-    [Test]
-    procedure WhenSetValueToAFieldWithAStateObjectMustUpdateBothObjectsHasExpected;
-    [Test]
     procedure WhenFillTheFieldValueOfALazyPropertyMustLoadPrimaryKeyFieldName;
     [Test]
     procedure WhenMappingALazyArrayClassCantRaiseAnyError;
@@ -345,7 +341,7 @@ type
 
 implementation
 
-uses System.Variants, System.SysUtils, System.DateUtils, Delphi.ORM.Test.Entity, Delphi.ORM.Lazy, Delphi.Mock, Delphi.ORM.Shared.Obj, Delphi.ORM.Rtti.Helper;
+uses System.Variants, System.SysUtils, System.DateUtils, Delphi.ORM.Test.Entity, Delphi.ORM.Lazy, Delphi.Mock, Delphi.ORM.Rtti.Helper;
 
 { TMapperTest }
 
@@ -1282,40 +1278,6 @@ begin
     Assert.AreEqual(ValueToCompare, FieldToCompare.GetValue(MyClass).AsVariant);
 
   MyClass.Free;
-end;
-
-procedure TMapperTest.WhenSetValueToAFieldWithASharedObjectMustUpdateThePropertyHasExpected;
-begin
-  var Field: TField;
-  var MyClass := TMyEntityWithAllTypeOfFields.Create;
-  var MyObject := TSharedObject.Create(MyClass) as ISharedObject;
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
-
-  Table.FindField('Integer', Field);
-
-  Field.SetValue(MyObject, 20);
-
-  Assert.AreEqual(20, MyClass.Integer);
-
-  MyObject := nil;
-end;
-
-procedure TMapperTest.WhenSetValueToAFieldWithAStateObjectMustUpdateBothObjectsHasExpected;
-begin
-  var Field: TField;
-  var MyClass := TMyEntityWithAllTypeOfFields.Create;
-  var MyObject := TStateObject.Create(MyClass, False) as IStateObject;
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
-
-  Table.FindField('Integer', Field);
-
-  Field.SetValue(MyObject, 20);
-
-  Assert.AreEqual(20, MyClass.Integer, 'The object');
-
-  Assert.AreEqual(20, TMyEntityWithAllTypeOfFields(MyObject.OldObject).Integer, 'The old object');
-
-  MyObject := nil;
 end;
 
 procedure TMapperTest.WhenSetValueToALazyPropertyCantRaiseAnyError;

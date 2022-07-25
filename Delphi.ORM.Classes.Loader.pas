@@ -2,21 +2,21 @@
 
 interface
 
-uses System.Generics.Collections, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder, Delphi.ORM.Shared.Obj, Delphi.ORM.Cache, Delphi.ORM.Database.Connection;
+uses System.Generics.Collections, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder, Delphi.ORM.Cache, Delphi.ORM.Database.Connection;
 
 type
   TClassLoader = class
   private
     FAccess: IQueryBuilderAccess;
     FCursor: IDatabaseCursor;
-    FLoadedObjects: ICache;
-    FMainLoadedObject: TDictionary<IStateObject, Boolean>;
+    FLoadedObjects: TDictionary<String, TObject>;
+    FMainLoadedObject: TDictionary<TObject, Boolean>;
 
-    function CreateObject(const Table: TTable; const FieldIndexStart: Integer; var StateObject: IStateObject): Boolean;
+    function CreateObject(const Table: TTable; const FieldIndexStart: Integer; var AObject: TObject): Boolean;
     function GetFieldValueFromCursor(const Index: Integer): Variant;
-    function LoadClass(var StateObject: IStateObject): Boolean;
+    function LoadClass(var StateObject: TObject): Boolean;
 
-    procedure LoadObject(const StateObject: IStateObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
+    procedure LoadObject(const StateObject: TObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
   public
     constructor Create(const Access: IQueryBuilderAccess);
 
@@ -37,36 +37,35 @@ begin
   inherited Create;
 
   FAccess := Access;
-  FMainLoadedObject := TDictionary<IStateObject, Boolean>.Create;
+  FMainLoadedObject := TDictionary<TObject, Boolean>.Create;
 end;
 
-function TClassLoader.CreateObject(const Table: TTable; const FieldIndexStart: Integer; var StateObject: IStateObject): Boolean;
-var
-  SharedObject: ISharedObject absolute StateObject;
-
+function TClassLoader.CreateObject(const Table: TTable; const FieldIndexStart: Integer; var AObject: TObject): Boolean;
 begin
   var PrimaryKeyValue := GetFieldValueFromCursor(FieldIndexStart);
 
   var CacheKey := Table.GetCacheKey(PrimaryKeyValue);
 
-  Result := (not Assigned(Table.PrimaryKey) or not VarIsNull(PrimaryKeyValue)) and not FLoadedObjects.Get(CacheKey, SharedObject);
+  Result := (not Assigned(Table.PrimaryKey) or not VarIsNull(PrimaryKeyValue)) and not FLoadedObjects.TryGetValue(CacheKey, AObject);
 
   if Result then
   begin
-    if not FAccess.Cache.Get(CacheKey, SharedObject) then
+    if not FAccess.Cache.Get(CacheKey, AObject) then
     begin
-      SharedObject := TStateObject.Create(Table.ClassTypeInfo.MetaclassType.Create, False);
+      AObject := Table.ClassTypeInfo.MetaclassType.Create;
 
-      FAccess.Cache.Add(CacheKey, SharedObject);
+      FAccess.Cache.Add(CacheKey, AObject);
     end;
 
-    FLoadedObjects.Add(CacheKey, SharedObject);
+    FLoadedObjects.Add(CacheKey, AObject);
   end;
 end;
 
 destructor TClassLoader.Destroy;
 begin
   FMainLoadedObject.Free;
+
+  FLoadedObjects.Free;
 
   inherited;
 end;
@@ -88,9 +87,9 @@ end;
 function TClassLoader.LoadAll<T>: TArray<T>;
 begin
   FCursor := FAccess.OpenCursor;
-  FLoadedObjects := TCache.Create;
+  FLoadedObjects := TDictionary<String, TObject>.Create;
   Result := nil;
-  var StateObject: IStateObject := nil;
+  var StateObject: TObject := nil;
 
   FMainLoadedObject.Clear;
 
@@ -99,11 +98,11 @@ begin
     StateObject := nil;
 
     if LoadClass(StateObject) then
-      Result := Result + [(StateObject as ISharedObject).&Object as T];
+      Result := Result + [StateObject as T];
   end;
 end;
 
-function TClassLoader.LoadClass(var StateObject: IStateObject): Boolean;
+function TClassLoader.LoadClass(var StateObject: TObject): Boolean;
 begin
   var FieldIndex := 0;
 
@@ -117,7 +116,7 @@ begin
   LoadObject(StateObject, FAccess.Join, FieldIndex, Result);
 end;
 
-procedure TClassLoader.LoadObject(const StateObject: IStateObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
+procedure TClassLoader.LoadObject(const StateObject: TObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
 
   procedure AddItemToParentArray(const ParentObject: TObject; ParentField: TField; const Item: TObject);
   begin
@@ -132,20 +131,12 @@ procedure TClassLoader.LoadObject(const StateObject: IStateObject; Join: TQueryB
     ParentField.SetValue(ParentObject, ArrayValue);
   end;
 
-  procedure UpdateForeignKey(const Field: TField; const AObject, AForeignKeyObject: IStateObject);
+  procedure UpdateForeignKey(const Field: TField; const AObject, AForeignKeyObject: TObject);
   begin
     if Assigned(AForeignKeyObject) then
-    begin
-      Field.SetValue(AObject.&Object, AForeignKeyObject.&Object);
-
-      Field.SetValue(AObject.OldObject, AForeignKeyObject.OldObject);
-    end
+      Field.SetValue(AObject, AForeignKeyObject)
     else
-    begin
-      Field.SetValue(AObject.&Object, nil);
-
-      Field.SetValue(AObject.OldObject, nil);
-    end;
+      Field.SetValue(AObject, nil);
   end;
 
 begin
@@ -159,7 +150,7 @@ begin
         Field.SetValue(StateObject, FieldValue);
 
         if Field.IsLazy then
-          Field.GetLazyAccess(StateObject.&Object).Factory := TLazyFactory.Create(FAccess.Connection, FAccess.Cache);
+          Field.GetLazyAccess(StateObject).Factory := TLazyFactory.Create(FAccess.Connection, FAccess.Cache);
       end;
 
       Inc(FieldIndexStart);
@@ -170,12 +161,12 @@ begin
 
       TValue.Make(nil, Field.PropertyInfo.PropertyType.Handle, ArrayValue);
 
-      Field.SetValue(StateObject.&Object, ArrayValue);
+      Field.SetValue(StateObject, ArrayValue);
     end;
 
   for var Link in Join.Links do
   begin
-    var ForeignKeyObject: IStateObject := nil;
+    var ForeignKeyObject: TObject := nil;
     var NewChildObject: Boolean;
 
     if Link.IsInheritedLink then
@@ -193,13 +184,13 @@ begin
       UpdateForeignKey(Link.Field, StateObject, ForeignKeyObject);
 
       if Assigned(ForeignKeyObject) and Assigned(Link.Field.ForeignKey.ManyValueAssociation) then
-        AddItemToParentArray(ForeignKeyObject.&Object, Link.Field.ForeignKey.ManyValueAssociation.Field, StateObject.&Object);
+        AddItemToParentArray(ForeignKeyObject, Link.Field.ForeignKey.ManyValueAssociation.Field, StateObject);
     end
     else if NewChildObject and Link.Field.IsManyValueAssociation then
     begin
-      Link.RightField.SetValue(ForeignKeyObject.&Object, StateObject.&Object);
+      Link.RightField.SetValue(ForeignKeyObject, StateObject);
 
-      AddItemToParentArray(StateObject.&Object, Link.Field, ForeignKeyObject.&Object);
+      AddItemToParentArray(StateObject, Link.Field, ForeignKeyObject);
     end;
   end;
 end;

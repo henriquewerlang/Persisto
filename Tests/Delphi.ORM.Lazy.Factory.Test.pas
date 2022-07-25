@@ -42,7 +42,7 @@ type
 
 implementation
 
-uses System.Rtti, Delphi.ORM.Lazy.Factory, Delphi.ORM.Test.Entity, Delphi.ORM.Rtti.Helper, Delphi.ORM.Shared.Obj;
+uses System.Rtti, Delphi.ORM.Lazy.Factory, Delphi.ORM.Test.Entity, Delphi.ORM.Rtti.Helper;
 
 { TLazyFactoryTest }
 
@@ -76,14 +76,14 @@ end;
 procedure TLazyFactoryTest.WhenFindTheValueInCacheCantOpenTheCursorToLoadTheClass;
 begin
   var MyClass := TLazyClass.Create;
-  var SharedObject := TSharedObject.Create(MyClass) as ISharedObject;
+  var SharedObject := MyClass as TObject;
 
   FCache.Setup.WillExecute(
     function (const Params: TArray<TValue>): TValue
     begin
       Params[2] := TValue.From(SharedObject);
       Result := True;
-    end).When.Get(It.IsEqualTo(TCache.GenerateKey(TLazyClass, 123)), ItReference<ISharedObject>.IsAny.Value);
+    end).When.Get(It.IsEqualTo(TCache.GenerateKey(TLazyClass, 123)), ItReference<TObject>.IsAny.Value);
 
   FConnection.Expect.Never.When.OpenCursor(It.IsAny<String>);
 
@@ -94,7 +94,7 @@ end;
 
 procedure TLazyFactoryTest.WhenGetTheValueFromCacheMustLoadTheCacheKeyOfTheClass;
 begin
-  FCache.Expect.Once.When.Get(It.IsEqualTo(TCache.GenerateKey(TLazyClass, 123)), ItReference<ISharedObject>.IsAny.Value);
+  FCache.Expect.Once.When.Get(It.IsEqualTo(TCache.GenerateKey(TLazyClass, 123)), ItReference<TObject>.IsAny.Value);
 
   FFactory.Load(GetRttiType(TLazyClass), 'Lazy', 123);
 
@@ -124,7 +124,7 @@ end;
 
 procedure TLazyFactoryTest.WhenTheLazyValueIsAnClassMustGetTheValueInTheCache;
 begin
-  FCache.Expect.Never.When.Get(It.IsAny<String>, ItReference<ISharedObject>.IsAny.Value);
+  FCache.Expect.Never.When.Get(It.IsAny<String>, ItReference<TObject>.IsAny.Value);
 
   FFactory.Load(GetRttiType(TypeInfo(TArray<TLazyArrayClassChild>)), 'LazyArrayClass', 123);
 
@@ -154,7 +154,7 @@ end;
 
 procedure TLazyFactoryTest.WhenTheLoadedValueIsArrayCantLoadTheValueFromTheCache;
 begin
-  FCache.Expect.Once.When.Get(It.IsAny<String>, ItReference<ISharedObject>.IsAny.Value);
+  FCache.Expect.Once.When.Get(It.IsAny<String>, ItReference<TObject>.IsAny.Value);
 
   FFactory.Load(GetRttiType(TLazyClass), 'Lazy', 123);
 
@@ -164,14 +164,14 @@ end;
 procedure TLazyFactoryTest.WhenTheValueIsInTheCacheMustReturnThisValue;
 begin
   var MyClass := TLazyClass.Create;
-  var SharedObject := TSharedObject.Create(MyClass) as ISharedObject;
+  var SharedObject := MyClass as TObject;
 
   FCache.Setup.WillExecute(
     function (const Params: TArray<TValue>): TValue
     begin
       Params[2] := TValue.From(SharedObject);
       Result := True;
-    end).When.Get(It.IsEqualTo(TCache.GenerateKey(TLazyClass, 123)), ItReference<ISharedObject>.IsAny.Value);
+    end).When.Get(It.IsEqualTo(TCache.GenerateKey(TLazyClass, 123)), ItReference<TObject>.IsAny.Value);
 
   Assert.AreEqual(MyClass, FFactory.Load(GetRttiType(TLazyClass), 'Lazy', 123).AsType<TLazyClass>);
 end;

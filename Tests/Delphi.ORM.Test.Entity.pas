@@ -742,6 +742,8 @@ type
     FInt: Integer;
     FFloat: Double;
     FDefaultInternalFunction: String;
+  public
+    constructor Create;
   published
     property Id: Integer read FId write FId;
     [DefaultValue('abcde')]
@@ -1107,6 +1109,13 @@ begin
     DestroyCallFunction();
 
   inherited;
+end;
+
+{ TMyEntityWithDefaultValue }
+
+constructor TMyEntityWithDefaultValue.Create;
+begin
+  AEnum := Enum3;
 end;
 
 end.

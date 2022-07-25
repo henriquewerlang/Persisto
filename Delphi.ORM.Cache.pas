@@ -2,17 +2,13 @@
 
 interface
 
-uses System.Rtti, System.SysUtils, System.Generics.Collections, Delphi.ORM.Shared.Obj;
+uses System.Rtti, System.SysUtils, System.Generics.Collections;
 
 type
-  TSharedObjectType = {$IFDEF PAS2JS}TSharedObject{$ELSE}ISharedObject{$ENDIF};
-
   ICache = interface
     ['{E910CEFC-7423-4307-B805-0B313BF46735}']
-    function Add(const Key: String; const Value: TObject): TSharedObjectType; overload;
-    function Get(const Key: String; var Value: TSharedObjectType): Boolean;
-
-    procedure Add(const Key: String; const Value: TSharedObjectType); overload;
+    function Add(const Key: String; const Value: TObject): TObject; overload;
+    function Get(const Key: String; var Value: TObject): Boolean;
   end;
 
   TCache = class(TInterfacedObject, ICache)
@@ -20,14 +16,12 @@ type
 {$IFDEF DCC}
     FReadWriteControl: IReadWriteSync;
 {$ENDIF}
-    FValues: TDictionary<String, TSharedObjectType>;
+    FValues: TDictionary<String, TObject>;
 
-    function Add(const Key: String; const Value: TObject): TSharedObjectType; overload;
-    function Get(const Key: String; var Value: TSharedObjectType): Boolean;
+    function Add(const Key: String; const Value: TObject): TObject; overload;
+    function Get(const Key: String; var Value: TObject): Boolean;
 
     class function GenerateKey(const KeyName: String; const KeyValue: TValue): String; overload;
-
-    procedure Add(const Key: String; const Value: TSharedObjectType); overload;
   public
     constructor Create;
 
@@ -43,15 +37,10 @@ uses Delphi.ORM.Rtti.Helper;
 
 { TCache }
 
-function TCache.Add(const Key: String; const Value: TObject): TSharedObjectType;
+function TCache.Add(const Key: String; const Value: TObject): TObject;
 begin
-  Result := TSharedObject.Create(Value);
+  Result := Value;
 
-  Add(Key, Result);
-end;
-
-procedure TCache.Add(const Key: String; const Value: TSharedObjectType);
-begin
 {$IFDEF DCC}
   FReadWriteControl.BeginWrite;
 {$ENDIF}
@@ -72,7 +61,7 @@ begin
 {$IFDEF DCC}
   FReadWriteControl := TMultiReadExclusiveWriteSynchronizer.Create;
 {$ENDIF}
-  FValues := TDictionary<String, TSharedObjectType>.Create;
+  FValues := TObjectDictionary<String, TObject>.Create([doOwnsValues]);
 end;
 
 destructor TCache.Destroy;
@@ -99,7 +88,7 @@ begin
 {$ENDIF}
 end;
 
-function TCache.Get(const Key: String; var Value: TSharedObjectType): Boolean;
+function TCache.Get(const Key: String; var Value: TObject): Boolean;
 begin
 {$IFDEF DCC}
   FReadWriteControl.BeginRead;

@@ -6,7 +6,7 @@
         <MainSource>Delphi.ORM.Tests.dpr</MainSource>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
-        <Platform Condition="'$(Platform)'==''">Win64</Platform>
+        <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Console</AppType>
     </PropertyGroup>
@@ -87,6 +87,7 @@
         <DCC_RemoteDebug>true</DCC_RemoteDebug>
         <DCC_Inlining>off</DCC_Inlining>
         <DCC_Define>DEBUG;DUNITXDEBUG;$(DCC_Define)</DCC_Define>
+        <DCC_MapFile>3</DCC_MapFile>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1_Win32)'!=''">
         <DCC_RemoteDebug>false</DCC_RemoteDebug>
@@ -96,6 +97,7 @@
     <PropertyGroup Condition="'$(Cfg_1_Win64)'!=''">
         <VerInfo_Locale>1033</VerInfo_Locale>
         <Manifest_File>(None)</Manifest_File>
+        <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
@@ -129,8 +131,6 @@
         <DCCReference Include="Delphi.ORM.Lazy.Test.pas"/>
         <DCCReference Include="..\Delphi.ORM.Cache.pas"/>
         <DCCReference Include="Delphi.ORM.Cache.Test.pas"/>
-        <DCCReference Include="..\Delphi.ORM.Shared.Obj.pas"/>
-        <DCCReference Include="Delphi.ORM.Shared.Obj.Test.pas"/>
         <DCCReference Include="Delphi.ORM.Lazy.Factory.Test.pas"/>
         <DCCReference Include="..\Delphi.ORM.Lazy.Factory.pas"/>
         <DCCReference Include="..\Delphi.ORM.Database.Metadata.pas"/>
@@ -159,6 +159,7 @@
                 <Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dcloffice2k280.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dclofficexp280.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="C:\Program Files (x86)\FastReports\LibD28\dclfrxtee28.bpl">FastReport VCL Tee Components</Excluded_Packages>
                 </Excluded_Packages>
                 <Source>
                     <Source Name="MainSource">Delphi.ORM.Tests.dpr</Source>

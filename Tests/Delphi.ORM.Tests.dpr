@@ -35,8 +35,6 @@ uses
   Delphi.ORM.Lazy.Test in 'Delphi.ORM.Lazy.Test.pas',
   Delphi.ORM.Cache in '..\Delphi.ORM.Cache.pas',
   Delphi.ORM.Cache.Test in 'Delphi.ORM.Cache.Test.pas',
-  Delphi.ORM.Shared.Obj in '..\Delphi.ORM.Shared.Obj.pas',
-  Delphi.ORM.Shared.Obj.Test in 'Delphi.ORM.Shared.Obj.Test.pas',
   Delphi.ORM.Lazy.Factory.Test in 'Delphi.ORM.Lazy.Factory.Test.pas',
   Delphi.ORM.Lazy.Factory in '..\Delphi.ORM.Lazy.Factory.pas',
   Delphi.ORM.Database.Metadata in '..\Delphi.ORM.Database.Metadata.pas',
