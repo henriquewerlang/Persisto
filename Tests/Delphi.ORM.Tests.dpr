@@ -42,7 +42,9 @@ uses
   Delphi.ORM.Database.Manipulator in '..\Delphi.ORM.Database.Manipulator.pas',
   Delphi.ORM.Database.Manipulator.Test in 'Delphi.ORM.Database.Manipulator.Test.pas',
   Delphi.ORM.Database.Manipulator.SQLServer in '..\Delphi.ORM.Database.Manipulator.SQLServer.pas',
-  Delphi.ORM.Database.Manipulator.SQLServer.Test in 'Delphi.ORM.Database.Manipulator.SQLServer.Test.pas';
+  Delphi.ORM.Database.Manipulator.SQLServer.Test in 'Delphi.ORM.Database.Manipulator.SQLServer.Test.pas',
+  Delphi.ORM.Obj.Helper in '..\Delphi.ORM.Obj.Helper.pas',
+  Delphi.ORM.Obj.Helper.Test in 'Delphi.ORM.Obj.Helper.Test.pas';
 
 // Para não remover o valor abaixo
 {$IFNDEF TESTINSIGHT}
