@@ -8,6 +8,7 @@ type
   TClassLoader = class
   private
     FAccess: IQueryBuilderAccess;
+    FCacheKey: TDictionary<TObject, String>;
     FCursor: IDatabaseCursor;
     FLoadedObjects: TDictionary<String, TObject>;
     FMainLoadedObject: TDictionary<TObject, Boolean>;
@@ -22,13 +23,15 @@ type
 
     destructor Destroy; override;
 
+    class function GenerateInternalCacheKey(const CacheKey: String): String;
+
     function Load<T: class>: T;
     function LoadAll<T: class>: TArray<T>;
   end;
 
 implementation
 
-uses System.Rtti, System.Variants, System.TypInfo, System.SysUtils, System.SysConst, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy, Delphi.ORM.Lazy.Factory;
+uses System.Rtti, System.Variants, System.TypInfo, System.SysUtils, System.SysConst, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy, Delphi.ORM.Lazy.Factory, Delphi.ORM.Obj.Helper;
 
 { TClassLoader }
 
@@ -37,6 +40,8 @@ begin
   inherited Create;
 
   FAccess := Access;
+  FCacheKey := TDictionary<TObject, String>.Create;
+  FLoadedObjects := TDictionary<String, TObject>.Create;
   FMainLoadedObject := TDictionary<TObject, Boolean>.Create;
 end;
 
@@ -58,16 +63,25 @@ begin
     end;
 
     FLoadedObjects.Add(CacheKey, AObject);
+
+    FCacheKey.Add(AObject, CacheKey);
   end;
 end;
 
 destructor TClassLoader.Destroy;
 begin
+  FCacheKey.Free;
+
   FMainLoadedObject.Free;
 
   FLoadedObjects.Free;
 
   inherited;
+end;
+
+class function TClassLoader.GenerateInternalCacheKey(const CacheKey: String): String;
+begin
+  Result := Format('Internal-%s', [CacheKey]);
 end;
 
 function TClassLoader.GetFieldValueFromCursor(const Index: Integer): Variant;
@@ -87,19 +101,36 @@ end;
 function TClassLoader.LoadAll<T>: TArray<T>;
 begin
   FCursor := FAccess.OpenCursor;
-  FLoadedObjects := TDictionary<String, TObject>.Create;
   Result := nil;
-  var StateObject: TObject := nil;
+  var TheObject: TObject;
 
   FMainLoadedObject.Clear;
 
+  FLoadedObjects.Clear;
+
+  FCacheKey.Clear;
+
   while FCursor.Next do
   begin
-    StateObject := nil;
+    TheObject := nil;
 
-    if LoadClass(StateObject) then
-      Result := Result + [StateObject as T];
+    if LoadClass(TheObject) then
+      Result := Result + [TheObject as T];
   end;
+
+  for TheObject in Result do
+    TObjectHelper.Copy(TheObject,
+      function (const Source: TObject): TObject
+      begin
+        var CacheKey := GenerateInternalCacheKey(FCacheKey[Source]);
+
+        if not FAccess.Cache.Get(CacheKey, Result) then
+        begin
+          Result := Source.ClassType.Create;
+
+          FAccess.Cache.Add(CacheKey, Result);
+        end;
+      end);
 end;
 
 function TClassLoader.LoadClass(var StateObject: TObject): Boolean;

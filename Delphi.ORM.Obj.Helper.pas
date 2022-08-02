@@ -16,6 +16,9 @@ type
   private
     class function InternalCopy(const Context: TRttiContext; const Source, Destiny: TObject; const ProcessedObjects: TDictionary<TObject, TObject>; const CreateFunction: TCreateFunction): TObject;
   public
+    class function Copy(const Source: TObject): TObject; overload;
+    class function Copy(const Source: TObject; const CreateFunction: TCreateFunction): TObject; overload;
+
     class procedure Copy(const Source, Destiny: TObject); overload;
     class procedure Copy(const Source, Destiny: TObject; const CreateFunction: TCreateFunction); overload;
   end;
@@ -24,15 +27,16 @@ implementation
 
 uses Delphi.ORM.Rtti.Helper;
 
+function ObjectCreateFunction(const Source: TObject): TObject;
+begin
+  Result := Source.ClassType.Create;
+end;
+
 { TObjectHelper }
 
 class procedure TObjectHelper.Copy(const Source, Destiny: TObject);
 begin
-  Copy(Source, Destiny,
-    function (const Source: TObject): TObject
-    begin
-      Result := Source.ClassType.Create;
-    end);
+  Copy(Source, Destiny, ObjectCreateFunction);
 end;
 
 class procedure TObjectHelper.Copy(const Source, Destiny: TObject; const CreateFunction: TCreateFunction);
@@ -52,6 +56,18 @@ begin
     raise EDiffentObjectTypes.Create(Source.ClassType, Destiny.ClassType);
 end;
 
+class function TObjectHelper.Copy(const Source: TObject): TObject;
+begin
+  Result := Copy(Source, ObjectCreateFunction);
+end;
+
+class function TObjectHelper.Copy(const Source: TObject; const CreateFunction: TCreateFunction): TObject;
+begin
+  Result := CreateFunction(Source);
+
+  Copy(Source, Result, CreateFunction);
+end;
+
 class function TObjectHelper.InternalCopy(const Context: TRttiContext; const Source, Destiny: TObject; const ProcessedObjects: TDictionary<TObject, TObject>;
   const CreateFunction: TCreateFunction): TObject;
 begin
@@ -67,24 +83,24 @@ begin
 
     for var Field in Context.GetType(Source.ClassType).GetFields do
     begin
-      var FieldValue := Field.GetValue(Source);
+      var DestinyFieldValue := Field.GetValue(Result);
+      var SourceFieldValue := Field.GetValue(Source);
 
-      if not FieldValue.IsEmpty then
+      if not SourceFieldValue.IsEmpty then
         if Field.FieldType.IsArray and Field.FieldType.AsArray.ElementType.IsInstance then
         begin
-          var DestinyArray := Field.GetValue(Result);
+          DestinyFieldValue.ArrayLength := SourceFieldValue.ArrayLength;
 
-          DestinyArray.ArrayLength := FieldValue.ArrayLength;
+          for var A := 0 to Pred(SourceFieldValue.ArrayLength) do
+            DestinyFieldValue.ArrayElement[A] := InternalCopy(Context, SourceFieldValue.ArrayElement[A].AsObject, DestinyFieldValue.ArrayElement[A].AsObject, ProcessedObjects,
+              CreateFunction);
 
-          for var A := 0 to Pred(FieldValue.ArrayLength) do
-            DestinyArray.ArrayElement[A] := InternalCopy(Context, FieldValue.ArrayElement[A].AsObject, DestinyArray.ArrayElement[A].AsObject, ProcessedObjects, CreateFunction);
-
-          FieldValue := DestinyArray;
+          SourceFieldValue := DestinyFieldValue;
         end
         else if Field.FieldType.IsInstance then
-          FieldValue := InternalCopy(Context, FieldValue.AsObject, Field.GetValue(Result).AsObject, ProcessedObjects, CreateFunction);
+          SourceFieldValue := InternalCopy(Context, SourceFieldValue.AsObject, DestinyFieldValue.AsObject, ProcessedObjects, CreateFunction);
 
-      Field.SetValue(Result, FieldValue);
+      Field.SetValue(Result, SourceFieldValue);
     end;
   end;
 end;

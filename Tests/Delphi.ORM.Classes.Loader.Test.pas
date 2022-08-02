@@ -12,6 +12,7 @@ type
     FAccess: IMock<IQueryBuilderAccess>;
     FBuilder: TQueryBuilder;
     FCache: ICache;
+    FCursorMock: IDatabaseCursor;
     FCursorMockClass: TCursorMock;
     FClassLoader: TClassLoader;
 
@@ -57,7 +58,7 @@ type
     [Test]
     procedure WhenTheClassAsMoreThenOneForeignKeyAndOneOfThenIsNullMustJumpTheFieldsOfNullForeignKey;
     [Test]
-    procedure WhenTheClassAsForeignKeyWithAnotherForignKeyAndIsNullTheValuesMustJumpTheFieldsOfAllForeignKeys;
+    procedure WhenTheClassAsForeignKeyWithAnotherForeignKeyAndIsNullTheValuesMustJumpTheFieldsOfAllForeignKeys;
     [Test]
     procedure WhenLoadAllIsCallWithTheSamePrimaryKeyValueMustReturnASingleObject;
     [Test]
@@ -92,6 +93,16 @@ type
     procedure WhenLoadMoreThenOneTimeTheClassWithTheSameLoaderMustLoadTheClassPropertyHasExpected;
     [Test]
     procedure WhenThePropertyIsLazyLoadingMustLoadTheFactoryOfTheProperty;
+    [Test]
+    procedure AfterLoadAllObjectMustAddACopyOfTheObjectInTheCacheWithInternalPrefix;
+    [Test]
+    procedure AfterLoadAllObjectsMustAddACopyOfTheForeignKeysToTheCacheWithInternalPrefix;
+    [Test]
+    procedure TheInternalObjectMustBeTheSameTypeOfTheOriginalObject;
+    [Test]
+    procedure IfExistsTheInternalObjectCantRaiseError;
+    [Test]
+    procedure TheInternalObjectMustHaveTheSamePropertyValuesFromTheLoadedObject;
   end;
 
 implementation
@@ -100,6 +111,36 @@ uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock,
 
 { TClassLoaderTest }
 
+procedure TClassLoaderTest.AfterLoadAllObjectMustAddACopyOfTheObjectInTheCacheWithInternalPrefix;
+begin
+  var MyObject: TObject := nil;
+
+  FCursorMockClass.Values := [['aaa', 111], ['bbb', 222]];
+
+  LoadClassAll<TMyClass>;
+
+  FCache.Get('Internal-' + TCache.GenerateKey(TMyClass, 'aaa'), MyObject);
+
+  Assert.IsNotNull(MyObject, 'aaa object');
+
+  FCache.Get('Internal-' + TCache.GenerateKey(TMyClass, 'bbb'), MyObject);
+
+  Assert.IsNotNull(MyObject, 'bbb object');
+end;
+
+procedure TClassLoaderTest.AfterLoadAllObjectsMustAddACopyOfTheForeignKeysToTheCacheWithInternalPrefix;
+begin
+  var MyObject: TObject := nil;
+
+  FCursorMockClass.Values := [[123, 456, 789]];
+
+  LoadClass<TClassWithForeignKey>;
+
+  FCache.Get('Internal-' + TCache.GenerateKey(TClassWithPrimaryKey, 456), MyObject);
+
+  Assert.IsNotNull(MyObject);
+end;
+
 procedure TClassLoaderTest.EvenIfTheCursorReturnsMoreThanOneRecordTheLoadClassHasToReturnOnlyOneClass;
 begin
   FCursorMockClass.Values := [['aaa', 111], ['aaa', 222], ['aaa', 222]];
@@ -107,6 +148,21 @@ begin
   LoadClass<TMyClass>;
 
   Assert.AreEqual(3, FCursorMockClass.CurrentRecord);
+end;
+
+procedure TClassLoaderTest.IfExistsTheInternalObjectCantRaiseError;
+begin
+  FCursorMockClass.Values := [['aaa', 111]];
+
+  LoadClassAll<TMyClass>;
+
+  FCursorMockClass.Values := [['aaa', 111]];
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      LoadClassAll<TMyClass>;
+    end);
 end;
 
 function TClassLoaderTest.LoadClass<T>: T;
@@ -153,6 +209,7 @@ procedure TClassLoaderTest.TearDown;
 begin
   FAccess := nil;
   FCache := nil;
+  FCursorMock := nil;
 
   FClassLoader.Free;
 
@@ -184,6 +241,34 @@ begin
   Assert.AreEqual(789, Result.AnotherClass.Value);
 end;
 
+procedure TClassLoaderTest.TheInternalObjectMustBeTheSameTypeOfTheOriginalObject;
+begin
+  var MyObject: TObject := nil;
+
+  FCursorMockClass.Values := [['aaa', 111]];
+
+  LoadClassAll<TMyClass>;
+
+  FCache.Get('Internal-' + TCache.GenerateKey(TMyClass, 'aaa'), MyObject);
+
+  Assert.AreEqual(TMyClass, MyObject.ClassType);
+end;
+
+procedure TClassLoaderTest.TheInternalObjectMustHaveTheSamePropertyValuesFromTheLoadedObject;
+begin
+  var MyObject: TMyClass := nil;
+
+  FCursorMockClass.Values := [['aaa', 111]];
+
+  var MyClass := LoadClass<TMyClass>;
+
+  FCache.Get('Internal-' + TCache.GenerateKey(TMyClass, 'aaa'), TObject(MyObject));
+
+  Assert.AreEqual(MyClass.Name, MyObject.Name);
+
+  Assert.AreEqual(MyClass.Value, MyObject.Value);
+end;
+
 procedure TClassLoaderTest.Setup;
 begin
   FAccess := TMock.CreateInterface<IQueryBuilderAccess>(True);
@@ -191,8 +276,10 @@ begin
   FCursorMockClass := TCursorMock.Create;
 
   FBuilder := TQueryBuilder.Create(nil, FCache);
+  FCursorMock := FCursorMockClass;
 
-  FAccess.Setup.WillReturn(TValue.From(FCursorMockClass as IDatabaseCursor)).When.OpenCursor;
+  FAccess.Setup.WillReturn(TValue.From(FCursorMock)).When.OpenCursor;
+
   FAccess.Setup.WillReturn(TValue.From(FCache)).When.GetCache;
 
   FAccess.Setup.WillExecute(
@@ -315,7 +402,7 @@ begin
   Assert.AreEqual<Integer>(3, Length(Result.ManyValueAssociationList));
 end;
 
-procedure TClassLoaderTest.WhenTheClassAsForeignKeyWithAnotherForignKeyAndIsNullTheValuesMustJumpTheFieldsOfAllForeignKeys;
+procedure TClassLoaderTest.WhenTheClassAsForeignKeyWithAnotherForeignKeyAndIsNullTheValuesMustJumpTheFieldsOfAllForeignKeys;
 begin
   FCursorMockClass.Values := [[123, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 111, NULL, NULL, NULL, NULL, NULL, NULL, 555, 'My Field', 222.333]];
   var MyClass := LoadClass<TClassWithSubForeignKey>;

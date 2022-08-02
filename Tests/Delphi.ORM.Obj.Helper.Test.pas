@@ -39,6 +39,16 @@ type
     procedure WhenTheObjectHasAnArrayOfObjectsTheDestinyArrayMustCreateACopyOsThisObjects;
     [Test]
     procedure WhenTheObjectHasAFieldAndThisValueIsInTheArrayMustUseTheSameInstanceInTheCopy;
+    [Test]
+    procedure WhenCopyTheObjectWithOnlyTheSourceMustCreateTheDestinyObjectToCopy;
+    [Test]
+    procedure TheCopyWithSourceOnlyMustReturnTheDestinyObject;
+    [Test]
+    procedure TheCopyWithSourceOnlyMustCopyTheSourceProperties;
+    [Test]
+    procedure TheCopyWithSourceOnlyWithoutCreationFunctionMustCopyTheSourceHasExpected;
+    [Test]
+    procedure ForAllObjectInTheCopyMustCallTheCreateFunctionPassedInParameters;
   end;
 
   TMyObject = class
@@ -62,12 +72,88 @@ implementation
 
 uses Delphi.ORM.Obj.Helper;
 
+procedure TObjectHelperTest.ForAllObjectInTheCopyMustCallTheCreateFunctionPassedInParameters;
+begin
+  var PassCountInTheFunction := 0;
+  var Source := TMyObject.Create;
+  Source.Field3 := TMyObject.Create;
+
+  var Destiny := TObjectHelper.Copy(Source,
+    function (const Source: TObject): TObject
+    begin
+      Result := Source.ClassType.Create;
+
+      Inc(PassCountInTheFunction);
+    end) as TMyObject;
+
+  Assert.AreEqual(2, PassCountInTheFunction);
+
+  Destiny.Field3.Free;
+
+  Destiny.Free;
+
+  Source.Field3.Free;
+
+  Source.Free;
+end;
+
 procedure TObjectHelperTest.SetupFixture;
 begin
   var Destiny := TMyObject.Create;
   var Source := TMyObject.Create;
 
   TObjectHelper.Copy(Source, Destiny);
+
+  Destiny.Free;
+
+  Source.Free;
+end;
+
+procedure TObjectHelperTest.TheCopyWithSourceOnlyMustCopyTheSourceProperties;
+begin
+  var Source := TMyObject.Create;
+  Source.Field1 := 123;
+
+  var Destiny := TObjectHelper.Copy(Source,
+    function (const Source: TObject): TObject
+    begin
+      Result := Source.ClassType.Create;
+    end) as TMyObject;
+
+  Assert.AreEqual(123, Destiny.Field1);
+
+  Destiny.Free;
+
+  Source.Free;
+end;
+
+procedure TObjectHelperTest.TheCopyWithSourceOnlyMustReturnTheDestinyObject;
+begin
+  var Source := TMyObject.Create;
+
+  var Destiny := TObjectHelper.Copy(Source,
+    function (const Source: TObject): TObject
+    begin
+      Result := Source.ClassType.Create;
+    end);
+
+  Assert.IsNotNull(Destiny);
+
+  Destiny.Free;
+
+  Source.Free;
+end;
+
+procedure TObjectHelperTest.TheCopyWithSourceOnlyWithoutCreationFunctionMustCopyTheSourceHasExpected;
+begin
+  var Source := TMyObject.Create;
+  Source.Field1 := 123;
+
+  var Destiny := TObjectHelper.Copy(Source) as TMyObject;
+
+  Assert.IsNotNull(Destiny);
+
+  Assert.AreEqual(123, Destiny.Field1);
 
   Destiny.Free;
 
@@ -124,6 +210,25 @@ begin
   Assert.AreEqual(Source.Field1, Destiny.Field1);
 
   Assert.AreEqual(Source.Field2, Destiny.Field2);
+
+  Destiny.Free;
+
+  Source.Free;
+end;
+
+procedure TObjectHelperTest.WhenCopyTheObjectWithOnlyTheSourceMustCreateTheDestinyObjectToCopy;
+begin
+  var FunctionCalled := False;
+  var Source := TMyObject.Create;
+
+  var Destiny := TObjectHelper.Copy(Source,
+    function (const Source: TObject): TObject
+    begin
+      FunctionCalled := True;
+      Result := Source.ClassType.Create;
+    end);
+
+  Assert.IsTrue(FunctionCalled);
 
   Destiny.Free;
 

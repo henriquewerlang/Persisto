@@ -19,9 +19,8 @@ type
     FDatabaseClass: TDatabaseTest;
     FDatabaseMock: IMock<IDatabaseConnection>;
 
+    function AddObjectToCache(const Obj: TObject; const KeyValue: TValue): TObject;
     function GetBuilder: TQueryBuilder;
-
-    procedure AddObjectToCache(const Obj: TObject; const KeyValue: TValue);
     function GetDatabaseClass: TDatabaseTest;
     function GetDatabaseMock: IMock<IDatabaseConnection>;
     function GetDatabase: IDatabaseConnection;
@@ -444,11 +443,7 @@ type
     [Test]
     procedure WhenInsertingAInheritedClassCantRaiseErrorFromDuplicateCacheValue;
     [Test]
-    procedure WhenInsertAnObjectMustReturnTheObjectFromTheCache;
-    [Test]
     procedure WhenUpdateAnObjectMustReturnTheObjectFromTheCache;
-    [Test]
-    procedure WhenSaveAnObjectMustReturnTheObjectFromTheCache;
     [Test]
     procedure WhenUpdatingTheCachedObjectCantDestroyTheObject;
     [Test]
@@ -496,8 +491,6 @@ type
     [Test]
     procedure WhenTheClassHasANullableFieldAndTheValueNotLoadedMustOmitTheFieldFromInsert;
     [Test]
-    procedure TheInsertedObjectMustBeDestroyedAfterTheInsertion;
-    [Test]
     procedure WhenInsertingAClassMustCopyTheFieldValuesToTheNewObject;
     [Test]
     procedure WhenUpdatingAClassWithDefaultValueAndTheValueIsntChangedCantUpdateTheField;
@@ -505,6 +498,14 @@ type
     procedure WhenInsertingAManyValueClassMustUpdateTheArrayLengthOfTheDestinyClass;
     [Test]
     procedure WhenClearAForeignKeyMustUpdateTheColumnToNull;
+    [Test]
+    procedure AfterInsertAnObjectMustAddTheCopyOfTheObjectInTheInternalCache;
+    [Test]
+    procedure WhenChangeTheValueOfAnObjectAlreadyInTheCacheMustUpdateTheFieldChanged;
+    [Test]
+    procedure TheForeignObjectMustUpdateTheValuesOfTheCachedObjectAfterTheUpdate;
+    [Test]
+    procedure AfterUpdateTheInternalObjectMustBeUpdatedToo;
   end;
 
   [TestFixture]
@@ -553,7 +554,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Nullable, Delphi.Mock, Delphi.ORM.Rtti.Helper;
+uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Nullable, Delphi.Mock, Delphi.ORM.Rtti.Helper, Delphi.ORM.Obj.Helper;
 
 const
   COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '', '');
@@ -1987,6 +1988,21 @@ end;
 
 { TQueryBuilderDataManipulationTest }
 
+procedure TQueryBuilderDataManipulationTest.AfterInsertAnObjectMustAddTheCopyOfTheObjectInTheInternalCache;
+begin
+  var CachedObject: TObject := nil;
+  var MyClass := TMyEntityWithPrimaryKeyInLastField.Create;
+  MyClass.Id := 123;
+
+  MyClass := Builder.Insert(MyClass);
+
+  FCache.Get('Internal-Delphi.ORM.Test.Entity.TMyEntityWithPrimaryKeyInLastField.123', CachedObject);
+
+  Assert.IsNotNull(CachedObject);
+
+  Assert.AreNotEqual<Pointer>(MyClass, CachedObject);
+end;
+
 procedure TQueryBuilderDataManipulationTest.AfterUpdateAnObjectTheForeignObjectMustBeDestroyed;
 begin
   var DestroyCalled := False;
@@ -2006,6 +2022,23 @@ begin
   Builder.Update(MyClass);
 
   Assert.IsTrue(DestroyCalled);
+end;
+
+procedure TQueryBuilderDataManipulationTest.AfterUpdateTheInternalObjectMustBeUpdatedToo;
+begin
+  var Cache := TClassWithPrimaryKey.Create;
+  Cache.Id := 123;
+  Cache.Value := 456;
+
+  var InternalObject := AddObjectToCache(Cache, Cache.Id) as TClassWithPrimaryKey;
+
+  var MyClass := TClassWithPrimaryKey.Create;
+  MyClass.Id := 123;
+  MyClass.Value := 789;
+
+  Builder.Update(MyClass);
+
+  Assert.AreEqual(789, InternalObject.Value);
 end;
 
 procedure TQueryBuilderDataManipulationTest.AfterUpdateTheManyValueAssociationMustUpdateTheReferenceOfTheObjectInTheChildList;
@@ -2202,20 +2235,21 @@ begin
   Assert.IsTrue(Destroyed);
 end;
 
-procedure TQueryBuilderDataManipulationTest.TheInsertedObjectMustBeDestroyedAfterTheInsertion;
+procedure TQueryBuilderDataManipulationTest.TheForeignObjectMustUpdateTheValuesOfTheCachedObjectAfterTheUpdate;
 begin
-  var DestroyCalled := False;
-  var MyClass := TClassWithFunction.Create;
+  var Cache := TClassWithPrimaryKey.Create;
+  Cache.Id := 123;
+  Cache.Value := 456;
 
-  MyClass.DestroyCallFunction :=
-    procedure
-    begin
-      DestroyCalled := True;
-    end;
+  AddObjectToCache(Cache, Cache.Id);
 
-  Builder.Insert(MyClass);
+  var MyClass := TClassWithPrimaryKey.Create;
+  MyClass.Id := 123;
+  MyClass.Value := 789;
 
-  Assert.IsTrue(DestroyCalled);
+  Builder.Update(MyClass);
+
+  Assert.AreEqual(789, Cache.Value);
 end;
 
 procedure TQueryBuilderDataManipulationTest.TheInsertionErrorMustBeRaiseAfterTheRollbackTheTransaction;
@@ -2461,6 +2495,21 @@ begin
   Assert.CheckExpectation(DatabaseMock.CheckExpectations);
 end;
 
+procedure TQueryBuilderDataManipulationTest.WhenChangeTheValueOfAnObjectAlreadyInTheCacheMustUpdateTheFieldChanged;
+begin
+  var MyClass := TClassWithPrimaryKey.Create;
+  MyClass.Id := 123;
+  MyClass.Value := 456;
+
+  AddObjectToCache(MyClass, MyClass.Id);
+
+  MyClass.Value := 789;
+
+  Builder.Update(MyClass);
+
+  Assert.AreEqual('update ClassWithPrimaryKey set Value=789 where Id=123', DatabaseClass.SQL);
+end;
+
 procedure TQueryBuilderDataManipulationTest.WhenClearAForeignKeyMustUpdateTheColumnToNull;
 begin
   var Cache := TClassWithForeignKey.Create;
@@ -2556,13 +2605,6 @@ begin
   FCache.Get('Delphi.ORM.Test.Entity.TMyEntityWithPrimaryKeyInLastField.123', CachedObject);
 
   Assert.AreEqual<Pointer>(MyClass, CachedObject);
-end;
-
-procedure TQueryBuilderDataManipulationTest.WhenInsertAnObjectMustReturnTheObjectFromTheCache;
-begin
-  var MyClass := TMyEntityWithPrimaryKey.Create;
-
-  Assert.AreNotEqual<Pointer>(MyClass, Builder.Insert(MyClass));
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertAnObjectWithForeignKeysThatIsAlreadyInTheCacheMustUpdateTheReferenceOfTheObjectBeenInserted;
@@ -2760,13 +2802,6 @@ begin
   MyClass := Builder.Insert(MyClass);
 
   Assert.IsNotNull(MyClass.Values[0].ManyValueParentError);
-end;
-
-procedure TQueryBuilderDataManipulationTest.WhenSaveAnObjectMustReturnTheObjectFromTheCache;
-begin
-  var MyClass := TMyEntityWithPrimaryKey.Create;
-
-  Assert.AreNotEqual<Pointer>(MyClass, Builder.Save(MyClass));
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenSavingAnEntityInheritedFromAnotherTableCantRaiseAnyError;
@@ -3324,9 +3359,13 @@ end;
 
 { TQueryBuilderBaseTest }
 
-procedure TQueryBuilderBaseTest.AddObjectToCache(const Obj: TObject; const KeyValue: TValue);
+function TQueryBuilderBaseTest.AddObjectToCache(const Obj: TObject; const KeyValue: TValue): TObject;
 begin
+  Result := TObjectHelper.Copy(Obj);
+
   FCache.Add(Format('Delphi.ORM.Test.Entity.%s.%s', [Obj.ClassName, KeyValue.GetAsString]), Obj);
+
+  FCache.Add(Format('Internal-Delphi.ORM.Test.Entity.%s.%s', [Obj.ClassName, KeyValue.GetAsString]), Result);
 end;
 
 function TQueryBuilderBaseTest.GetBuilder: TQueryBuilder;
