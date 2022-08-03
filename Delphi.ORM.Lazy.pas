@@ -102,7 +102,7 @@ type
     class operator Implicit(const Value: T): Lazy<T>;
 {$ENDIF}
 
-    property Access: TLazyAccessType read GetAccess write FAccess;
+    property Access: TLazyAccessType read GetAccess;
     property HasValue: Boolean read GetHasValue;
     property Key: TValue read GetKey;
     property Value: T read GetValue write SetValue;
@@ -180,7 +180,7 @@ end;
 {$IFDEF DCC}
 class operator Lazy<T>.Initialize(out Dest: Lazy<T>);
 begin
-  Dest.Access;
+  Dest.FAccess := nil;
 end;
 
 class operator Lazy<T>.Implicit(const Value: T): Lazy<T>;

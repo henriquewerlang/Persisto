@@ -512,7 +512,7 @@ begin
     for var A := Low(OutputFieldList) to High(OutputFieldList) do
       OutputFieldList[A].SetValue(Result, Cursor.GetFieldValue(A));
 
-  if not Table.IsSingleTableInheritance then
+  if Table.ClassTypeInfo.MetaclassType = Result.ClassType then
   begin
     var CacheKey := Table.GetCacheKey(Result);
 

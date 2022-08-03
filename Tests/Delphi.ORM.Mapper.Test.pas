@@ -230,8 +230,6 @@ type
     [Test]
     procedure WhenTheClassInheritsFromObjectCantRaiseAnyError;
     [Test]
-    procedure IfTheBaseClassHasTheSingleTableAttributeMustLoadTheTablePropertyWithThisInfo;
-    [Test]
     procedure IfTheBaseClassHasTheSingleTableAttributeCantLoadBaseTableProperty;
     [Test]
     procedure TheFindFieldFunctionMustReturnTrueIfTheFieldExistsInTheTable;
@@ -357,13 +355,6 @@ begin
   var Table := FMapper.LoadClass(TMyEntityInheritedFromSingle);
 
   Assert.IsNull(Table.BaseTable);
-end;
-
-procedure TMapperTest.IfTheBaseClassHasTheSingleTableAttributeMustLoadTheTablePropertyWithThisInfo;
-begin
-  var Table := FMapper.LoadClass(TMyEntityInheritedFromSingle);
-
-  Assert.IsTrue(Table.IsSingleTableInheritance);
 end;
 
 procedure TMapperTest.IfTheChildTableOfAManyValueAssociationHasntPrimaryKeyMustRaiseAnError;
@@ -547,6 +538,7 @@ end;
 procedure TMapperTest.Setup;
 begin
   FMapper := TMapper.Create;
+  FMapper.SingleTableInheritanceClasses := [TMyEntityWithSingleTableInheritanceAttribute, TAnotherSingleInherited];
 end;
 
 procedure TMapperTest.SetupFixture;
