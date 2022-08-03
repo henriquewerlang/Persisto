@@ -180,7 +180,7 @@ end;
 {$IFDEF DCC}
 class operator Lazy<T>.Initialize(out Dest: Lazy<T>);
 begin
-  Dest.FAccess := nil;
+  Dest.GetAccess;
 end;
 
 class operator Lazy<T>.Implicit(const Value: T): Lazy<T>;
