@@ -113,6 +113,9 @@ begin
   CoInitialize(nil);
 
   FConnection := TUniConnection.Create(nil);
+  FConnection.Options.DisconnectedMode := True;
+  FConnection.Pooling := True;
+  FConnection.PoolingOptions.MaxPoolSize := 500;
   FReadWriteControl := TMultiReadExclusiveWriteSynchronizer.Create;
 end;
 
