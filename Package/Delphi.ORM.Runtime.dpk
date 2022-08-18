@@ -44,6 +44,7 @@ contains
   Delphi.ORM.Nullable in '..\Delphi.ORM.Nullable.pas',
   Delphi.ORM.Lazy in '..\Delphi.ORM.Lazy.pas',
   Delphi.ORM.Cache in '..\Delphi.ORM.Cache.pas',
-  Delphi.ORM.Shared.Obj in '..\Delphi.ORM.Shared.Obj.pas';
+  Delphi.ORM.Lazy.Factory in '..\Delphi.ORM.Lazy.Factory.pas',
+  Delphi.ORM.Obj.Helper in '..\Delphi.ORM.Obj.Helper.pas';
 
 end.

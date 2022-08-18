@@ -94,7 +94,8 @@
         <DCCReference Include="..\Delphi.ORM.Nullable.pas"/>
         <DCCReference Include="..\Delphi.ORM.Lazy.pas"/>
         <DCCReference Include="..\Delphi.ORM.Cache.pas"/>
-        <DCCReference Include="..\Delphi.ORM.Shared.Obj.pas"/>
+        <DCCReference Include="..\Delphi.ORM.Lazy.Factory.pas"/>
+        <DCCReference Include="..\Delphi.ORM.Obj.Helper.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
