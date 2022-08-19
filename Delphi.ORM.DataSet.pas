@@ -247,7 +247,8 @@ type
 
 implementation
 
-uses Delphi.ORM.Nullable, System.Math, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy, {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF};
+uses Delphi.ORM.Nullable, System.Math, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy, {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF}, Delphi.ORM.Lazy.Manipulator,
+  Delphi.ORM.Nullable.Manipulator;
 
 const
   SELF_FIELD_NAME = 'Self';
@@ -637,10 +638,10 @@ end;
 
 function TORMDataSet.GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
 begin
-  if IsNullableType(&Property.PropertyType) then
-    Result := GetFieldInfoFromTypeInfo(GetNullableRttiType(&Property.PropertyType).Handle, Size)
-  else if IsLazyLoading(&Property.PropertyType) then
-    Result := GetFieldInfoFromTypeInfo(GetLazyLoadingRttiType(&Property.PropertyType).Handle, Size)
+  if TNullableManipulator.IsNullable(&Property) then
+    Result := GetFieldInfoFromTypeInfo(TNullableManipulator.GetNullableType(&Property).Handle, Size)
+  else if TLazyManipulator.IsLazyLoading(&Property) then
+    Result := GetFieldInfoFromTypeInfo(TLazyManipulator.GetLazyLoadingType(&Property).Handle, Size)
   else
     Result := GetFieldInfoFromTypeInfo(&Property.PropertyType.Handle, Size);
 end;
@@ -814,12 +815,12 @@ end;
 
 procedure TORMDataSet.GetPropertyValue(const &Property: TRttiProperty; var Instance: TValue);
 begin
-  Instance := &Property.GetValue(Instance.AsObject);
-
-  if IsNullableType(&Property.PropertyType) then
-    Instance := GetNullableAccess(Instance).GetValue
-  else if IsLazyLoading(&Property.PropertyType) then
-    Instance := GetLazyLoadingAccess(Instance).Value;
+  if TLazyManipulator.IsLazyLoading(&Property) then
+    Instance := TLazyManipulator.GetManipulator(Instance.AsObject, &Property).Value
+  else if TNullableManipulator.IsNullable(&Property) then
+    Instance := TNullableManipulator.GetManipulator(Instance.AsObject, &Property).Value
+  else
+    Instance := &Property.GetValue(Instance.AsObject);
 end;
 
 function TORMDataSet.GetRecNo: Integer;
@@ -1186,8 +1187,8 @@ begin
 
         if &Property.PropertyType.IsInstance then
           CurrentObjectType := &Property.PropertyType as TRttiInstanceType
-        else if IsLazyLoading(&Property.PropertyType) then
-          CurrentObjectType := GetLazyLoadingRttiType(&Property.PropertyType) as TRttiInstanceType;
+        else if TLazyManipulator.IsLazyLoading(&Property) then
+          CurrentObjectType := TLazyManipulator.GetLazyLoadingType(&Property).AsInstance;
       end;
 
 {$IFDEF DCC}
@@ -1368,10 +1369,10 @@ begin
     if &Property.PropertyType is TRttiEnumerationType then
       Value := TValue.FromOrdinal(&Property.PropertyType.Handle, Value.AsOrdinal);
 
-    if IsNullableType(&Property.PropertyType) then
-      GetNullableAccess(&Property.GetValue(Instance.AsObject)).SetValue(Value)
-    else if IsLazyLoading(&Property.PropertyType) then
-      GetLazyLoadingAccess(&Property.GetValue(Instance.AsObject)).Value := Value
+    if TNullableManipulator.IsNullable(&Property) then
+      TNullableManipulator.GetManipulator(Instance.AsObject, &Property).Value := Value
+    else if TLazyManipulator.IsLazyLoading(&Property) then
+      TLazyManipulator.GetManipulator(Instance.AsObject, &Property).Value := Value
     else
       &Property.SetValue(Instance.AsObject, Value);
   end
@@ -1607,68 +1608,68 @@ type
   end;
 
 procedure TORMDataSet.GetLazyDisplayText(Sender: TField; var Text: String; DisplayText: Boolean);
-var
-  &Property: TRttiProperty;
-
-  Value: TValue;
-
-  LazyAccess: TLazyAccessType;
-
-  CurrentRecord: Integer;
-
+//var
+//  &Property: TRttiProperty;
+//
+//  Value: TValue;
+//
+//  LazyAccess: TLazyAccessType;
+//
+//  CurrentRecord: Integer;
+//
 begin
-  if DisplayText then
-  begin
-    Value := TValue.From(GetInternalCurrentObject);
-
-    for &Property in FPropertyMappingList[Sender.Index] do
-      if Value.IsEmpty then
-        Break
-      else
-      begin
-        Value := &Property.GetValue(Value.AsObject);
-
-        if IsLazyLoading(&Property.PropertyType) then
-        begin
-          LazyAccess := GetLazyLoadingAccess(Value);
-
-          if LazyAccess.HasValue then
-            Value := LazyAccess.Value
-          else
-          begin
-            CurrentRecord := ActiveRecord;
-            Text := 'Loading....';
-
-            LazyAccess.GetValueAsync.&then(
-              procedure
-              begin
-                DataEvent(deRecordChange, CurrentRecord);
-              end);
-
-            Exit;
-          end;
-        end;
-      end;
-  end;
-
+//  if DisplayText then
+//  begin
+//    Value := TValue.From(GetInternalCurrentObject);
+//
+//    for &Property in FPropertyMappingList[Sender.Index] do
+//      if Value.IsEmpty then
+//        Break
+//      else
+//      begin
+//        Value := &Property.GetValue(Value.AsObject);
+//
+//        if IsLazyLoading(&Property) then
+//        begin
+//          LazyAccess := GetLazyLoadingAccess(Value);
+//
+//          if LazyAccess.HasValue then
+//            Value := LazyAccess.Value
+//          else
+//          begin
+//            CurrentRecord := ActiveRecord;
+//            Text := 'Loading....';
+//
+//            LazyAccess.GetValueAsync.&then(
+//              procedure
+//              begin
+//                DataEvent(deRecordChange, CurrentRecord);
+//              end);
+//
+//            Exit;
+//          end;
+//        end;
+//      end;
+//  end;
+//
   TFieldHack(Sender).GetText(Text, DisplayText);
 end;
 
 procedure TORMDataSet.LoadLazyGetTextFields;
-var
-  Field: TField;
-
-  &Property: TRttiProperty;
-
+//var
+//  Field: TField;
+//
+//  &Property: TRttiProperty;
+//
 begin
-  for Field in Fields do
-    for &Property in FPropertyMappingList[Field.Index] do
-      if IsLazyLoading(&Property.PropertyType) then
-      begin
-        Field.OnGetText := GetLazyDisplayText;
-
-        Break;
-      end;
+//  for Field in Fields do
+//    for &Property in FPropertyMappingList[Field.Index] do
+//      if IsLazyLoading(&Property) then
+//      begin
+//        Field.OnGetText := GetLazyDisplayText;
+//
+//        Break;
+//      end;
 end;
 {$ENDIF}
 

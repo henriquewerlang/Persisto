@@ -360,7 +360,7 @@ function Field(const Name: String): TQueryBuilderComparisonHelper;
 
 implementation
 
-uses System.TypInfo, Delphi.ORM.Rtti.Helper, Delphi.ORM.Classes.Loader, Delphi.ORM.Obj.Helper;
+uses System.TypInfo, System.SysConst, Delphi.ORM.Rtti.Helper, Delphi.ORM.Classes.Loader, Delphi.ORM.Obj.Helper;
 
 function Field(const Name: String): TQueryBuilderComparisonHelper;
 begin
@@ -663,28 +663,29 @@ end;
 
 procedure TQueryBuilder.SaveManyValueAssociations(const Table: TTable; const CurrentObject, ForeignObject: TObject);
 begin
+  var CurrentArray, ForeignArrayValue: TValue;
+
   for var ManyValue in Table.ManyValueAssociations do
-  begin
-    var CurrentArray := ManyValue.Field.GetValue(CurrentObject);
-    var ForeignArrayValue := ManyValue.Field.GetValue(ForeignObject);
-
-    CurrentArray.ArrayLength := ForeignArrayValue.ArrayLength;
-
-    for var A := 0 to Pred(ForeignArrayValue.ArrayLength) do
+    if ManyValue.Field.HasValue(ForeignObject, ForeignArrayValue) then
     begin
-      var ForeignArrayItem := ForeignArrayValue.ArrayElement[A];
+      CurrentArray := ManyValue.Field.GetValue(CurrentObject);
+      CurrentArray.ArrayLength := ForeignArrayValue.ArrayLength;
 
-      ManyValue.ForeignKey.Field.SetValue(ForeignArrayItem.AsObject, ForeignObject);
+      for var A := 0 to Pred(ForeignArrayValue.ArrayLength) do
+      begin
+        var ForeignArrayItem := ForeignArrayValue.ArrayElement[A];
 
-      var SavedObject := SaveObject(ForeignArrayItem);
+        ManyValue.ForeignKey.Field.SetValue(ForeignArrayItem.AsObject, ForeignObject);
 
-      ManyValue.ForeignKey.Field.SetValue(SavedObject, CurrentObject);
+        var SavedObject := SaveObject(ForeignArrayItem);
 
-      CurrentArray.SetArrayElement(A, SavedObject);
+        ManyValue.ForeignKey.Field.SetValue(SavedObject, CurrentObject);
+
+        CurrentArray.SetArrayElement(A, SavedObject);
+      end;
+
+      ManyValue.Field.SetValue(CurrentObject, CurrentArray);
     end;
-
-    ManyValue.Field.SetValue(CurrentObject, CurrentArray);
-  end;
 end;
 
 function TQueryBuilder.SaveObject(const AObject: TValue): TObject;
@@ -748,11 +749,11 @@ begin
             SQL := SQL + ',';
 
           SQL := SQL + Format('%s=%s', [Field.DatabaseName, ForeignFieldStringValue]);
+
+          Field.SetValue(Result, ForeignFieldValue);
+
+          Field.SetValue(InternalObject, ForeignFieldValue);
         end;
-
-        Field.SetValue(Result, ForeignFieldValue);
-
-        Field.SetValue(InternalObject, ForeignFieldValue);
       end;
 
     if not SQL.IsEmpty then
@@ -874,7 +875,7 @@ begin
     end;
 
   for var ManyValueAssociation in Join.Table.ManyValueAssociations do
-    if not Assigned(ManyValueAssociationToIgnore) or (ManyValueAssociation <> ManyValueAssociationToIgnore) then
+    if not ManyValueAssociation.Field.IsLazy and (not Assigned(ManyValueAssociationToIgnore) or (ManyValueAssociation <> ManyValueAssociationToIgnore)) then
       MakeJoin(CreateJoinManyValueAssociation(Join, ManyValueAssociation, True), RecursionControl, ManyValueAssociation);
 end;
 
@@ -1093,7 +1094,7 @@ begin
   Result := nil;
 
   for var Field in Join.Table.Fields do
-    if not Field.IsJoinLink or Field.IsLazy then
+    if not Field.IsManyValueAssociation and (not Field.IsForeignKey or Field.IsLazy) then
       Result := Result + [TFieldAlias.Create(Join.Alias, Field)];
 
   for var Link in Join.Links do

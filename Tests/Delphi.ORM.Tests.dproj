@@ -141,6 +141,10 @@
         <DCCReference Include="Delphi.ORM.Database.Manipulator.SQLServer.Test.pas"/>
         <DCCReference Include="..\Delphi.ORM.Obj.Helper.pas"/>
         <DCCReference Include="Delphi.ORM.Obj.Helper.Test.pas"/>
+        <DCCReference Include="..\Delphi.ORM.Lazy.Manipulator.pas"/>
+        <DCCReference Include="Delphi.ORM.Lazy.Manipulator.Test.pas"/>
+        <DCCReference Include="..\Delphi.ORM.Nullable.Manipulator.pas"/>
+        <DCCReference Include="Delphi.ORM.Nullable.Manipulator.Test.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -192,6 +196,12 @@
                 <DeployFile LocalName="Win64\Debug\Delphi.ORM.Tests.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win64">
                         <RemoteName>Delphi_ORM_Tests.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Win64\Debug\Delphi.ORM.Tests.rsm" Configuration="Debug" Class="DebugSymbols">
+                    <Platform Name="Win64">
+                        <RemoteName>Delphi_ORM_Tests.rsm</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

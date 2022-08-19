@@ -1,180 +1,100 @@
-unit Delphi.ORM.Nullable.Test;
+﻿unit Delphi.ORM.Nullable.Test;
 
 interface
 
-uses DUnitX.TestFramework;
+uses DUnitX.TestFramework, Delphi.ORM.Test.Entity;
 
 type
   [TestFixture]
   TNullableTest = class
+  private
+    FNullableInstance: TClassWithNullableProperty;
   public
-    [SetupFixture]
-    procedure SetupFixture;
+    [Setup]
+    procedure Setup;
+    [TearDown]
+    procedure TearDown;
     [Test]
-    procedure WhenCheckIfTheTypeIfNullableMustReturnTrueIfIsAnNullableType;
+    procedure TheValueMustReturnTrueInIsNullFunctionIfTheValueHasBeenModified;
     [Test]
-    procedure TheImplictOperatorMustLoadTheValueOfTheNullableValue;
+    procedure WhenFillTheValueTheIsNullFunctionMsutReturnFalse;
     [Test]
-    procedure WhenAssignTheNullValueToNullableValueMustReturnTrueInIsNullFunction;
+    procedure WhenCallClearMustReturnTrueInTheIsNullFunction;
     [Test]
-    procedure WhenAssignAValueToTheNullableTheIsNullFunctionMustReturnFalse;
+    procedure WhenSetTheNullValueToThePropertyMustReturnTrueInTheIsNullFunction;
     [Test]
-    procedure WhenFillTheValuePropertyOfNullableMustSetTheNullToFalse;
+    procedure WhenFillTheValueUsingTheImplicitOperatorMustReturnFalseInTheIsNullFunction;
     [Test]
-    procedure WhenCallTheGetValueFunctionMustReturnAEmptyTValueIfTheValueIsNull;
+    procedure WhenFillTheValueMustReturnTheValueFilled;
     [Test]
-    procedure WhenCallTheGetValueFunctionMustReturnTheValue;
-    [Test]
-    procedure WhenCallTheSetValueFunctionMustReturnTrueToIsNullIfTheValueIsEmpty;
-    [Test]
-    procedure WhenCallTheSetValueFunctionMustReturnFalseToIsNullIfTheValueIsNotEmpty;
-    [Test]
-    procedure WhenCallTheSetValueFunctionMustLoadTheValueOfTheRecordWithTheValueInTheParam;
-    [Test]
-    procedure GetNullableRttiTypeMustReturnTheRttiTypeOfTheNullable;
-    [Test]
-    procedure TheImplicitConversionMustReturnTheValueOfTheNullableType;
-    [Test]
-    procedure WhenFillWithNullTheValueMustReturnTheDefaultValueInTheValueProperty;
+    procedure WhenFillTheValueUsingTheImplicitOperatorMustReturnTheValueHasExpected;
   end;
 
 implementation
 
-uses System.Rtti, System.TypInfo, Delphi.ORM.Nullable;
+uses Delphi.ORM.Nullable;
 
 { TNullableTest }
 
-procedure TNullableTest.GetNullableRttiTypeMustReturnTheRttiTypeOfTheNullable;
+procedure TNullableTest.Setup;
 begin
-  var Context := TRttiContext.Create;
-  var RttiType := Context.GetType(TypeInfo(String));
-
-  Assert.AreEqual(RttiType, GetNullableRttiType(Context.GetType(TypeInfo(Nullable<String>))));
+  FNullableInstance := TClassWithNullableProperty.Create;
 end;
 
-procedure TNullableTest.SetupFixture;
+procedure TNullableTest.TearDown;
 begin
-  var RttiType := TRttiContext.Create.GetType(TypeInfo(Nullable<String>));
-
-  TRttiContext.Create.GetType(TypeInfo(Nullable<Integer>)).QualifiedName;
-
-  RttiType.GetFields;
-
-  RttiType.GetMethods;
+  FNullableInstance.Free;
 end;
 
-procedure TNullableTest.TheImplicitConversionMustReturnTheValueOfTheNullableType;
+procedure TNullableTest.TheValueMustReturnTrueInIsNullFunctionIfTheValueHasBeenModified;
 begin
-  var NullValue: Nullable<String>;
-  NullValue := 'abc';
-  var Value: String := NullValue;
-
-  Assert.AreEqual('abc', Value);
+  Assert.IsTrue(FNullableInstance.Nullable.IsNull);
 end;
 
-procedure TNullableTest.TheImplictOperatorMustLoadTheValueOfTheNullableValue;
+procedure TNullableTest.WhenCallClearMustReturnTrueInTheIsNullFunction;
 begin
-  var Value: Nullable<String>;
+  FNullableInstance.Nullable.Value := 123;
 
-  Value := 'abc';
+  FNullableInstance.Nullable.Clear;
 
-  Assert.AreEqual('abc', Value.Value);
+  Assert.IsTrue(FNullableInstance.Nullable.IsNull);
 end;
 
-procedure TNullableTest.WhenAssignAValueToTheNullableTheIsNullFunctionMustReturnFalse;
+procedure TNullableTest.WhenFillTheValueMustReturnTheValueFilled;
 begin
-  var Value: Nullable<String>;
+  FNullableInstance.Nullable.Value := 123;
 
-  Value := NULL;
-
-  Value := 'abc';
-
-  Assert.IsFalse(Value.IsNull);
+  Assert.AreEqual(123, FNullableInstance.Nullable.Value);
 end;
 
-procedure TNullableTest.WhenAssignTheNullValueToNullableValueMustReturnTrueInIsNullFunction;
+procedure TNullableTest.WhenFillTheValueTheIsNullFunctionMsutReturnFalse;
 begin
-  var Value: Nullable<String>;
+  FNullableInstance.Nullable.Value := 123;
 
-  Value := NULL;
-
-  Assert.IsTrue(Value.IsNull);
+  Assert.IsFalse(FNullableInstance.Nullable.IsNull);
 end;
 
-procedure TNullableTest.WhenCallTheGetValueFunctionMustReturnAEmptyTValueIfTheValueIsNull;
+procedure TNullableTest.WhenFillTheValueUsingTheImplicitOperatorMustReturnFalseInTheIsNullFunction;
 begin
-  var Value: Nullable<String>;
+  FNullableInstance.Nullable := 123;
 
-  Value := NULL;
-
-  Assert.IsTrue(GetNullableAccess(TValue.From(Value)).GetValue.IsEmpty);
+  Assert.IsFalse(FNullableInstance.Nullable.IsNull);
 end;
 
-procedure TNullableTest.WhenCallTheGetValueFunctionMustReturnTheValue;
+procedure TNullableTest.WhenFillTheValueUsingTheImplicitOperatorMustReturnTheValueHasExpected;
 begin
-  var Value: Nullable<String>;
+  FNullableInstance.Nullable := 123;
 
-  Value := 'abcde';
-
-  Assert.AreEqual('abcde', GetNullableAccess(TValue.From(Value)).GetValue.AsString);
+  Assert.AreEqual<Integer>(123, FNullableInstance.Nullable);
 end;
 
-procedure TNullableTest.WhenCallTheSetValueFunctionMustLoadTheValueOfTheRecordWithTheValueInTheParam;
+procedure TNullableTest.WhenSetTheNullValueToThePropertyMustReturnTrueInTheIsNullFunction;
 begin
-  var Value: Nullable<String>;
-  Value := NULL;
+  FNullableInstance.Nullable.Value := 123;
 
-  GetNullableAccess(TValue.From(Value)).SetValue('abcde');
+  FNullableInstance.Nullable := NULL;
 
-  Assert.AreEqual('abcde', GetNullableAccess(TValue.From(Value)).GetValue.AsString);
-end;
-
-procedure TNullableTest.WhenCallTheSetValueFunctionMustReturnFalseToIsNullIfTheValueIsNotEmpty;
-begin
-  var Value: Nullable<String>;
-  Value := NULL;
-
-  GetNullableAccess(TValue.From(Value)).SetValue('abcde');
-
-  Assert.IsFalse(Value.IsNull);
-end;
-
-procedure TNullableTest.WhenCallTheSetValueFunctionMustReturnTrueToIsNullIfTheValueIsEmpty;
-begin
-  var Value: Nullable<String>;
-  Value := 'abcde';
-
-  GetNullableAccess(TValue.From(Value)).SetValue(TValue.Empty);
-
-  Assert.IsTrue(Value.IsNull);
-end;
-
-procedure TNullableTest.WhenCheckIfTheTypeIfNullableMustReturnTrueIfIsAnNullableType;
-begin
-  var RttiType := TRttiContext.Create.GetType(TypeInfo(Nullable<Integer>));
-
-  Assert.IsTrue(IsNullableType(RttiType));
-end;
-
-procedure TNullableTest.WhenFillTheValuePropertyOfNullableMustSetTheNullToFalse;
-begin
-  var Value: Nullable<String>;
-
-  Value := NULL;
-
-  Value.Value := 'abc';
-
-  Assert.IsFalse(Value.IsNull);
-end;
-
-procedure TNullableTest.WhenFillWithNullTheValueMustReturnTheDefaultValueInTheValueProperty;
-begin
-  var NullValue: Nullable<Integer>;
-  NullValue := 1234;
-
-  NullValue := NULL;
-
-  Assert.AreEqual(0, NullValue.Value);
+  Assert.IsTrue(FNullableInstance.Nullable.IsNull);
 end;
 
 end.

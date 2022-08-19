@@ -92,8 +92,6 @@ type
     [Test]
     procedure WhenLoadMoreThenOneTimeTheClassWithTheSameLoaderMustLoadTheClassPropertyHasExpected;
     [Test]
-    procedure WhenThePropertyIsLazyLoadingMustLoadTheFactoryOfTheProperty;
-    [Test]
     procedure AfterLoadAllObjectMustAddACopyOfTheObjectInTheCacheWithInternalPrefix;
     [Test]
     procedure AfterLoadAllObjectsMustAddACopyOfTheForeignKeysToTheCacheWithInternalPrefix;
@@ -103,11 +101,17 @@ type
     procedure IfExistsTheInternalObjectCantRaiseError;
     [Test]
     procedure TheInternalObjectMustHaveTheSamePropertyValuesFromTheLoadedObject;
+    [Test]
+    procedure WhenTheClassHasAnLazyFieldMustLoadTheLoaderOfThatField;
+    [Test]
+    procedure ThenTheClassHasALazyArrayFieldMustLoadTheKeyOfTheLazyLoaderWithThePrimaryKeyFromParentClass;
+    [Test]
+    procedure WhenLoadAClassWithALazyArrayClassMustLoadAllValuesAsExpected;
   end;
 
 implementation
 
-uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Test.Entity;
+uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Test.Entity, Delphi.ORM.Lazy.Manipulator;
 
 { TClassLoaderTest }
 
@@ -269,6 +273,16 @@ begin
   Assert.AreEqual(MyClass.Value, MyObject.Value);
 end;
 
+procedure TClassLoaderTest.ThenTheClassHasALazyArrayFieldMustLoadTheKeyOfTheLazyLoaderWithThePrimaryKeyFromParentClass;
+begin
+  FCursorMockClass.Values := [[111, 222]];
+  var MyObject := LoadClass<TLazyArrayClass>;
+
+  Assert.AreEqual(111, TLazyManipulator.GetManipulator(MyObject.LazyArray).Loader.GetKey.AsInteger);
+
+  MyObject.Free;
+end;
+
 procedure TClassLoaderTest.Setup;
 begin
   FAccess := TMock.CreateInterface<IQueryBuilderAccess>(True);
@@ -337,6 +351,16 @@ begin
   var Result := LoadClassAll<TMyClass>;
 
   Assert.AreEqual<Integer>(2, Length(Result));
+end;
+
+procedure TClassLoaderTest.WhenLoadAClassWithALazyArrayClassMustLoadAllValuesAsExpected;
+begin
+  FCursorMockClass.Values := [[111, 222, 333, 444, 555]];
+  var MyObject := LoadClass<TClassWithLazyArrayClass>;
+
+  Assert.AreEqual(333, TLazyManipulator.GetManipulator(MyObject.Value1.Lazy).Loader.GetKey.AsInteger);
+
+  Assert.AreEqual(555, TLazyManipulator.GetManipulator(MyObject.Value2.Lazy).Loader.GetKey.AsInteger);
 end;
 
 procedure TClassLoaderTest.WhenLoadAllIsCallWithTheSamePrimaryKeyValueMustReturnASingleObject;
@@ -457,6 +481,14 @@ begin
   Assert.IsNotNull(MyClass);
 end;
 
+procedure TClassLoaderTest.WhenTheClassHasAnLazyFieldMustLoadTheLoaderOfThatField;
+begin
+  FCursorMockClass.Values := [[111, 222]];
+  var MyObject := LoadClass<TLazyClass>;
+
+  Assert.IsNotEmpty(TLazyManipulator.GetManipulator(MyObject.Lazy).Loader);
+end;
+
 procedure TClassLoaderTest.WhenTheLoaderCreateANewObjectMustAddItToTheCacheControl;
 begin
   FCursorMockClass.Values := [['aaa', 333]];
@@ -527,14 +559,6 @@ begin
   var Result := LoadClass<TMyEntityWithManyValueAssociation>;
 
   Assert.AreEqual<Integer>(0, Length(Result.ManyValueAssociationList));
-end;
-
-procedure TClassLoaderTest.WhenThePropertyIsLazyLoadingMustLoadTheFactoryOfTheProperty;
-begin
-  FCursorMockClass.Values := [[111, 222]];
-  var TheClass := LoadClass<TLazyClass>;
-
-  Assert.IsNotNull(TheClass.Lazy.Access.Factory);
 end;
 
 procedure TClassLoaderTest.WhenTheParentClassAsAForeignKeyToTheChildWithManyValueAssociationAndTheValueOfTheForeignKeyIsInTheManyValueAssociationTheValueMustBeAddedToTheList;

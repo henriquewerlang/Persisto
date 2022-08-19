@@ -103,6 +103,7 @@ type
     FIsManyValueAssociation: Boolean;
     FIsNullable: Boolean;
     FIsReadOnly: Boolean;
+    FManyValueAssociation: TManyValueAssociation;
     FName: String;
     FPropertyInfo: TRttiInstanceProperty;
     FScale: Word;
@@ -113,7 +114,6 @@ type
     function ConvertVariant(const Value: Variant): TValue;
     function GetAsString(const Instance: TObject): String; overload;
     function GetAsString(const Value: TValue): String; overload;
-    function GetLazyAccess(const Instance: TObject): ILazyAccess;
     function GetPropertyValue(const Instance: TObject): TValue;
     function GetValue(const Instance: TObject): TValue; virtual;
     function HasValue(const Instance: TObject; var Value: TValue): Boolean;
@@ -134,6 +134,7 @@ type
     property IsManyValueAssociation: Boolean read FIsManyValueAssociation;
     property IsNullable: Boolean read FIsNullable write FIsNullable;
     property IsReadOnly: Boolean read FIsReadOnly;
+    property ManyValueAssociation: TManyValueAssociation read FManyValueAssociation;
     property Name: String read FName write FName;
     property PropertyInfo: TRttiInstanceProperty read FPropertyInfo;
     property Scale: Word read FScale write FScale;
@@ -249,7 +250,7 @@ type
 
 implementation
 
-uses System.Variants, Delphi.ORM.Rtti.Helper, Delphi.ORM.Nullable, Delphi.ORM.Cache;
+uses System.Variants, Delphi.ORM.Rtti.Helper, Delphi.ORM.Nullable, Delphi.ORM.Cache, Delphi.ORM.Lazy.Manipulator, Delphi.ORM.Nullable.Manipulator;
 
 function SortFieldFunction(const Left, Right: TField): Integer;
 
@@ -509,13 +510,13 @@ begin
   Field.FTable := Table;
   Table.FFields := Table.FFields + [Field];
 
-  Field.FIsLazy := IsLazyLoading(Field.FieldType);
-  Field.FIsNullable := IsNullableType(Field.FieldType);
+  Field.FIsLazy := TLazyManipulator.IsLazyLoading(Field.PropertyInfo);
+  Field.FIsNullable := TNullableManipulator.IsNullable(Field.PropertyInfo);
 
   if Field.IsNullable then
-    Field.FFieldType := GetNullableRttiType(Field.FieldType)
+    Field.FFieldType := TNullableManipulator.GetNullableType(Field.PropertyInfo)
   else if Field.IsLazy then
-    Field.FFieldType := GetLazyLoadingRttiType(Field.FieldType);
+    Field.FFieldType := TLazyManipulator.GetLazyLoadingType(Field.PropertyInfo);
 
   Field.FIsForeignKey := Field.FieldType.IsInstance;
   Field.FIsManyValueAssociation := Field.FieldType.IsArray;
@@ -657,17 +658,16 @@ begin
     begin
       var ChildTable := LoadTable(Field.FieldType.AsArray.ElementType.AsInstance);
       var LinkName := GetManyValuAssociationLinkName(Field);
-      var ManyValueAssociation: TManyValueAssociation := nil;
 
       for var ForeignKey in ChildTable.ForeignKeys do
         if (ForeignKey.ParentTable = Table) and (ForeignKey.Field.Name = LinkName) then
           if Assigned(ChildTable.PrimaryKey) then
-            ManyValueAssociation := TManyValueAssociation.Create(Field, ChildTable, ForeignKey)
+            Field.FManyValueAssociation := TManyValueAssociation.Create(Field, ChildTable, ForeignKey)
           else
             raise EChildTableMustHasToHaveAPrimaryKey.Create(ChildTable);
 
-      if Assigned(ManyValueAssociation) then
-        Table.FManyValueAssociations := Table.FManyValueAssociations + [ManyValueAssociation]
+      if Assigned(Field.ManyValueAssociation) then
+        Table.FManyValueAssociations := Table.FManyValueAssociations + [Field.ManyValueAssociation]
       else
         raise EManyValueAssociationLinkError.Create(Table, ChildTable);
     end;
@@ -829,11 +829,6 @@ begin
   Result := GetAsString(GetValue(Instance));
 end;
 
-function TField.GetLazyAccess(const Instance: TObject): ILazyAccess;
-begin
-  Result := GetLazyLoadingAccess(GetPropertyValue(Instance));
-end;
-
 function TField.GetPropertyValue(const Instance: TObject): TValue;
 begin
   Result := PropertyInfo.GetValue(Instance);
@@ -850,21 +845,15 @@ begin
 
   if IsLazy then
   begin
-    var LazyAccess := GetLazyLoadingAccess(Value);
-
-    if LazyAccess.HasValue then
-      Value := LazyAccess.GetValue
-    else
-      Value := TValue.Empty;
+    Value := TLazyManipulator.GetManipulator(Instance, PropertyInfo).Value;
 
     Result := not Value.IsEmpty;
   end
   else if IsNullable then
   begin
-    var NullableAccess := GetNullableAccess(Value);
+    Value := TNullableManipulator.GetManipulator(Instance, PropertyInfo).Value;
 
-    Result := not NullableAccess.IsNull;
-    Value := NullableAccess.Value;
+    Result := not Value.IsEmpty;
   end
   else
     Result := not Value.IsEmpty and (DefaultValue.IsEmpty or (Value.AsVariant <> DefaultValue.AsVariant));
@@ -873,17 +862,9 @@ end;
 procedure TField.SetValue(const Instance: TObject; const Value: TValue);
 begin
   if IsNullable then
-    GetNullableAccess(GetPropertyValue(Instance)).Value := Value
+    TNullableManipulator.GetManipulator(Instance, PropertyInfo).Value := Value
   else if IsLazy then
-  begin
-    var Access := GetLazyAccess(Instance);
-    Access.FieldName := Table.PrimaryKey.Name;
-
-    if Value.IsObject then
-      Access.Value := Value
-    else
-      Access.Key := Value
-  end
+    TLazyManipulator.GetManipulator(Instance, PropertyInfo).Value := Value
   else
     PropertyInfo.SetValue(Instance, Value);
 end;

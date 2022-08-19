@@ -1,4 +1,4 @@
-unit Delphi.ORM.Rtti.Helper;
+﻿unit Delphi.ORM.Rtti.Helper;
 
 interface
 
@@ -14,6 +14,11 @@ type
     function AsArray: TRttiDynamicArrayType;
     function GetAttribute<T: TCustomAttribute>: T;
     function IsArray: Boolean;
+  end;
+
+  TRttiPropertyHelper = class helper for TRttiInstanceProperty
+  public
+    function GetRawValue(Instance: Pointer): Pointer;
   end;
 
   TValueHelper = record helper for TValue
@@ -34,14 +39,26 @@ type
     class property FormatSettings: TFormatSettings read GFFormatSettings;
   end;
 
-function GetRttiType(AType: PTypeInfo): TRttiType; overload;
-function GetRttiType(AClass: TClass): TRttiType; overload;
+function GetGenericRttiType(const Name: String; const RttiType: TRttiType): TRttiType;
+function GetRttiType(const AClass: TClass): TRttiType; overload;
+function GetRttiType(const AQualifiedName: String): TRttiType; overload;
+function GetRttiType(const AType: PTypeInfo): TRttiType; overload;
 
 implementation
 
 uses {$IFDEF PAS2JS}RTLConsts, JS{$ELSE}System.Variants, System.SysConst{$ENDIF};
 
-function GetRttiType(AType: PTypeInfo): TRttiType;
+function GetGenericRttiType(const Name: String; const RttiType: TRttiType): TRttiType;
+var
+  TypeName: String;
+
+begin
+  TypeName := RttiType.Name;
+
+  Result := GetRttiType(TypeName.Substring(Succ(Name.Length), Pred(TypeName.Length) - Succ(Name.Length)));
+end;
+
+function GetRttiType(const AType: PTypeInfo): TRttiType;
 var
   Context: TRttiContext;
 
@@ -53,14 +70,19 @@ begin
   Context.Free;
 end;
 
-function GetRttiType(AClass: TClass): TRttiType;
+function GetRttiType(const AClass: TClass): TRttiType;
+begin
+  Exit(GetRttiType(AClass.ClassInfo));
+end;
+
+function GetRttiType(const AQualifiedName: String): TRttiType; overload;
 var
   Context: TRttiContext;
 
 begin
   Context := TRttiContext.Create;
 
-  Result := Context.GetType(AClass);
+  Result := Context.FindType(AQualifiedName);
 
   Context.Free;
 end;
@@ -157,6 +179,57 @@ begin
   var NativeSize: NativeInt := Size;
 
   DynArraySetLength(PPointer(GetReferenceToRawData)^, TypeInfo, 1, @NativeSize);
+{$ENDIF}
+end;
+
+{ TRttiPropertyHelper }
+
+function TRttiPropertyHelper.GetRawValue(Instance: Pointer): Pointer;
+{$IFDEF DCC}
+type
+  PIntPtr = ^IntPtr;
+
+var
+  getter: Pointer;
+  code: Pointer;
+  args: TArray<TValue>;
+{$ENDIF}
+begin
+{$IFDEF DCC}
+  getter := PropInfo^.GetProc;
+  if (IntPtr(getter) and PROPSLOT_MASK) = PROPSLOT_FIELD then
+    // Field
+    Exit(PByte(Instance) + (IntPtr(getter) and (not PROPSLOT_MASK)));
+
+  if (IntPtr(getter) and PROPSLOT_MASK) = PROPSLOT_VIRTUAL then
+  begin
+    // Virtual dispatch, but with offset, not slot
+    code := PPointer(PIntPtr(Instance)^ + SmallInt(IntPtr(getter)))^;
+  end
+  else
+  begin
+    // Static dispatch
+    code := getter;
+  end;
+
+//  CheckCodeAddress(code);
+
+  if Index = Integer($80000000) then
+  begin
+    // no index
+    SetLength(args, 1);
+    args[0] := TObject(Instance);
+    Result := Invoke(code, args, ccReg, PropertyType.Handle, False).AsType<Pointer>; // not static
+  end
+  else
+  begin
+    SetLength(args, 2);
+    args[0] := TObject(Instance);
+    args[1] := Index;
+    Result := Invoke(code, args, ccReg, PropertyType.Handle, False).AsType<Pointer>; // not static
+  end;
+{$ELSE}
+  Result := Pointer(TJSObject(Instance)[PropertyTypeInfo.Getter]);
 {$ENDIF}
 end;
 

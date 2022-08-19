@@ -1792,7 +1792,7 @@ begin
   var MyClass := TLazyClass.Create;
   var TheValue := TMyEntity.Create;
 
-  MyClass.Lazy := TheValue;
+  MyClass.Lazy.Value := TheValue;
 
   DataSet.OpenObject(MyClass);
 
@@ -3031,7 +3031,7 @@ procedure TORMDataSetTest.WhenTryToGetAComposeFieldNameFromALazyPropertyMustLoad
 begin
   var DataSet := TORMDataSet.Create(nil);
   var MyObject := TLazyClass.Create;
-  MyObject.Lazy := TMyEntity.Create;
+  MyObject.Lazy.Value := TMyEntity.Create;
   MyObject.Lazy.Value.Name := 'Test';
 
   DataSet.FieldDefs.Add('Lazy.Name', ftString, 50);

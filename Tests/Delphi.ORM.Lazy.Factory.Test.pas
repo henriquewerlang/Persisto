@@ -2,17 +2,30 @@
 
 interface
 
-uses DUnitX.TestFramework, Delphi.Mock, Delphi.Mock.Intf, Delphi.ORM.Cache, Delphi.ORM.Database.Connection, Delphi.ORM.Lazy, Delphi.ORM.Cursor.Mock;
+uses DUnitX.TestFramework, Delphi.Mock, Delphi.Mock.Intf, Delphi.ORM.Cache, Delphi.ORM.Database.Connection, Delphi.ORM.Lazy, Delphi.ORM.Cursor.Mock, Delphi.ORM.Mapper,
+  Delphi.ORM.Test.Entity;
 
 type
   [TestFixture]
   TLazyFactoryTest = class
+  public
+    [Test]
+    procedure WhenCreateTheFactoryForASingleClassMustCreateTheSingleFactory;
+    [Test]
+    procedure WhenCreateTheFactoryForAManyValueClassMustCreateTheManyValueFactory;
+  end;
+
+  [TestFixture]
+  TLazySingleClassFactoryTest = class
   private
     FCache: IMock<ICache>;
+    FCacheClass: TMyEntity;
     FCursor: IDatabaseCursor;
     FCursorClass: TCursorMock;
     FConnection: IMock<IDatabaseConnection>;
-    FFactory: ILazyFactory;
+    FLazyField: TField;
+    FTable: TTable;
+    FLoader: ILazyLoader;
   public
     [Setup]
     procedure Setup;
@@ -25,155 +38,240 @@ type
     [Test]
     procedure WhenLoadTheValueMustReturnTheLoadedObject;
     [Test]
-    procedure WhenTheLoadedPropertyIsAnArrayMustReturnAnArray;
-    [Test]
-    procedure WhenTheLoadedPropertyIsAnArrayCantRaiseErrorOfWrongType;
-    [Test]
     procedure WhenTheLazyValueIsAnClassMustGetTheValueInTheCache;
-    [Test]
-    procedure WhenTheLoadedValueIsArrayCantLoadTheValueFromTheCache;
-    [Test]
-    procedure WhenGetTheValueFromCacheMustLoadTheCacheKeyOfTheClass;
     [Test]
     procedure WhenFindTheValueInCacheCantOpenTheCursorToLoadTheClass;
     [Test]
     procedure WhenTheValueIsInTheCacheMustReturnThisValue;
+    [Test]
+    procedure WhenGetTheKeyOfTheLoaderMustReturnTheValueExpected;
+  end;
+
+  [TestFixture]
+  TLazyManyValueClassFactoryTest = class
+  private
+    FCursor: IDatabaseCursor;
+    FCursorClass: TCursorMock;
+    FConnection: IMock<IDatabaseConnection>;
+    FLazyField: TField;
+    FLoader: ILazyLoader;
+  public
+    [Setup]
+    procedure Setup;
+    [SetupFixture]
+    procedure SetupFixture;
+    [TearDown]
+    procedure TearDown;
+    [Test]
+    procedure WhenLoadTheValueMustBuildTheSelectHasExpected;
+    [Test]
+    procedure WhenLoadTheValueMustReturnArrayOfObjectsHasExpected;
+    [Test]
+    procedure WhenGetTheKeyOfTheLoaderMustReturnTheValueExpected;
+    [Test]
+    procedure TheArrayTypeMustBeEqualOfTheLazyFieldType;
   end;
 
 implementation
 
-uses System.Rtti, Delphi.ORM.Lazy.Factory, Delphi.ORM.Test.Entity, Delphi.ORM.Rtti.Helper;
+uses System.Rtti, Delphi.ORM.Lazy.Factory, Delphi.ORM.Rtti.Helper;
 
-{ TLazyFactoryTest }
+{ TLazySingleClassFactoryTest }
 
-procedure TLazyFactoryTest.Setup;
+procedure TLazySingleClassFactoryTest.Setup;
 begin
   FCache := TMock.CreateInterface<ICache>(True);
+  FCacheClass := TMyEntity.Create;
   FConnection := TMock.CreateInterface<IDatabaseConnection>(True);
   FCursorClass := TCursorMock.Create;
-  FFactory := TLazyFactory.Create(FConnection.Instance, FCache.Instance);
+  FLazyField := TMapper.Default.FindTable(TLazyArrayClass).Field['Lazy'];
+  FTable := TMapper.Default.FindTable(TMyEntity);
 
   FCursor := FCursorClass;
+  FLoader := TLazySingleClassFactory.Create(FConnection.Instance, FCache.Instance, FLazyField, 1234);
+
+  FCache.Setup.WillExecute(
+    function (const Params: TArray<TValue>): TValue
+    begin
+      Result := False;
+    end).When.Get(It.IsAny<String>, ItReference<TObject>.IsAny.Value);
+
+  FCache.Setup.WillExecute(
+    function (const Params: TArray<TValue>): TValue
+    begin
+      Result := True;
+      Params[2] := FCacheClass;
+    end).When.Get(It.IsEqualTo(FTable.GetCacheKey(12345)), ItReference<TObject>.IsAny.Value);
 
   FConnection.Setup.WillReturn(TValue.From(FCursor)).When.OpenCursor(It.IsAny<String>);
 end;
 
-procedure TLazyFactoryTest.SetupFixture;
+procedure TLazySingleClassFactoryTest.SetupFixture;
 begin
   Setup;
 
   TearDown;
 end;
 
-procedure TLazyFactoryTest.TearDown;
+procedure TLazySingleClassFactoryTest.TearDown;
 begin
   FCache := nil;
   FConnection := nil;
   FCursor := nil;
-  FFactory := nil;
+  FLoader := nil;
+
+  FCacheClass.Free;
 end;
 
-procedure TLazyFactoryTest.WhenFindTheValueInCacheCantOpenTheCursorToLoadTheClass;
+procedure TLazySingleClassFactoryTest.WhenFindTheValueInCacheCantOpenTheCursorToLoadTheClass;
 begin
-  var MyClass := TLazyClass.Create;
-  var SharedObject := MyClass as TObject;
-
-  FCache.Setup.WillExecute(
-    function (const Params: TArray<TValue>): TValue
-    begin
-      Params[2] := TValue.From(SharedObject);
-      Result := True;
-    end).When.Get(It.IsEqualTo(TCache.GenerateKey(TLazyClass, 123)), ItReference<TObject>.IsAny.Value);
+  FLoader := TLazySingleClassFactory.Create(FConnection.Instance, FCache.Instance, FLazyField, 12345);
 
   FConnection.Expect.Never.When.OpenCursor(It.IsAny<String>);
 
-  FFactory.Load(GetRttiType(TLazyClass), 'Lazy', 123);
+  var Value := FLoader.LoadValue;
 
   Assert.CheckExpectation(FConnection.CheckExpectations);
 end;
 
-procedure TLazyFactoryTest.WhenGetTheValueFromCacheMustLoadTheCacheKeyOfTheClass;
+procedure TLazySingleClassFactoryTest.WhenGetTheKeyOfTheLoaderMustReturnTheValueExpected;
 begin
-  FCache.Expect.Once.When.Get(It.IsEqualTo(TCache.GenerateKey(TLazyClass, 123)), ItReference<TObject>.IsAny.Value);
-
-  FFactory.Load(GetRttiType(TLazyClass), 'Lazy', 123);
-
-  Assert.CheckExpectation(FCache.CheckExpectations);
+  Assert.AreEqual<Integer>(1234, FLoader.GetKey.AsInteger);
 end;
 
-procedure TLazyFactoryTest.WhenLoadTheValueMustBuildTheSelectHasExpected;
-begin
+procedure TLazySingleClassFactoryTest.WhenLoadTheValueMustBuildTheSelectHasExpected;
+ begin
   FConnection.Expect.Once.When.OpenCursor(It.IsEqualTo(
     'select T1.Id F1,' +
-           'T1.IdLazy F2 ' +
-      'from LazyClass T1 ' +
-     'where T1.IdLazy=123'));
+           'T1.Name F2,' +
+           'T1.Value F3 ' +
+      'from MyEntity T1 ' +
+     'where T1.Id=1234'));
 
-  FFactory.Load(GetRttiType(TLazyClass), 'Lazy', 123);
+  var Value := FLoader.LoadValue;
+
+  Assert.CheckExpectation(FConnection.CheckExpectations);
+
+  Value.AsObject.Free;
+end;
+
+procedure TLazySingleClassFactoryTest.WhenLoadTheValueMustReturnTheLoadedObject;
+begin
+  FCursorClass.Values := [[111, 'abc', 333]];
+  var Value := FLoader.LoadValue;
+
+  Assert.IsNotNull(Value.AsObject);
+
+  Value.AsObject.Free;
+end;
+
+procedure TLazySingleClassFactoryTest.WhenTheLazyValueIsAnClassMustGetTheValueInTheCache;
+begin
+  FCache.Expect.Once.When.Get(It.IsEqualTo(FTable.GetCacheKey(1234)), ItReference<TObject>.IsAny.Value);
+
+  var Value := FLoader.LoadValue;
+
+  Assert.CheckExpectation(FCache.CheckExpectations);
+
+  Value.AsObject.Free;
+end;
+
+procedure TLazySingleClassFactoryTest.WhenTheValueIsInTheCacheMustReturnThisValue;
+begin
+  FLoader := TLazySingleClassFactory.Create(FConnection.Instance, FCache.Instance, FLazyField, 12345);
+
+  var Value := FLoader.LoadValue;
+
+  Assert.AreEqual<TObject>(FCacheClass, Value.AsObject);
+end;
+
+{ TLazyManyValueClassFactoryTest }
+
+procedure TLazyManyValueClassFactoryTest.Setup;
+begin
+  FConnection := TMock.CreateInterface<IDatabaseConnection>(True);
+  FCursorClass := TCursorMock.Create;
+  FLazyField := TMapper.Default.FindTable(TLazyArrayClass).Field['LazyArray'];
+
+  FCursor := FCursorClass;
+  FLoader := TLazyManyValueClassFactory.Create(FConnection.Instance, TCache.Create, FLazyField, 1234);
+
+  FConnection.Setup.WillReturn(TValue.From(FCursor)).When.OpenCursor(It.IsAny<String>);
+end;
+
+procedure TLazyManyValueClassFactoryTest.SetupFixture;
+begin
+  Setup;
+
+  TearDown;
+end;
+
+procedure TLazyManyValueClassFactoryTest.TearDown;
+begin
+  FConnection := nil;
+  FCursor := nil;
+  FLoader := nil;
+end;
+
+procedure TLazyManyValueClassFactoryTest.TheArrayTypeMustBeEqualOfTheLazyFieldType;
+begin
+  FCursorClass.Values := [[111, 111, 333], [222, 111, 333], [333, 111, 333]];
+
+  var Value := FLoader.LoadValue;
+
+  Assert.AreEqual(FLazyField.FieldType.Handle, Value.TypeInfo);
+end;
+
+procedure TLazyManyValueClassFactoryTest.WhenGetTheKeyOfTheLoaderMustReturnTheValueExpected;
+begin
+  Assert.AreEqual<Integer>(1234, FLoader.GetKey.AsInteger);
+end;
+
+procedure TLazyManyValueClassFactoryTest.WhenLoadTheValueMustBuildTheSelectHasExpected;
+begin
+  FConnection.Expect.Once.When.OpenCursor(It.IsEqualTo(
+       'select T1.Id F1,' +
+              'T2.Id F2,' +
+              'T2.IdLazy F3 ' +
+         'from LazyArrayClassChild T1 ' +
+    'left join LazyArrayClass T2 ' +
+           'on T1.IdLazyArrayClass=T2.Id ' +
+        'where T1.IdLazyArrayClass=1234'));
+
+  FLoader.LoadValue;
 
   Assert.CheckExpectation(FConnection.CheckExpectations);
 end;
 
-procedure TLazyFactoryTest.WhenLoadTheValueMustReturnTheLoadedObject;
+procedure TLazyManyValueClassFactoryTest.WhenLoadTheValueMustReturnArrayOfObjectsHasExpected;
 begin
-  FCursorClass.Values := [[111, 222]];
-  var Value := FFactory.Load(GetRttiType(TLazyClass), 'Lazy', 123);
+  FCursorClass.Values := [[111, 111, 333], [222, 111, 333], [333, 111, 333]];
 
-  Assert.IsNotNull(Value.AsObject);
+  var Value := FLoader.LoadValue;
+
+  Assert.IsFalse(Value.IsEmpty);
+
+  Assert.AreEqual(3, Value.ArrayLength);
 end;
 
-procedure TLazyFactoryTest.WhenTheLazyValueIsAnClassMustGetTheValueInTheCache;
+{ TLazyFactoryTest }
+
+procedure TLazyFactoryTest.WhenCreateTheFactoryForAManyValueClassMustCreateTheManyValueFactory;
 begin
-  FCache.Expect.Never.When.Get(It.IsAny<String>, ItReference<TObject>.IsAny.Value);
+  var Instance := CreateLoader(nil, nil, TMapper.Default.FindTable(TLazyArrayClass).Field['LazyArray'], 0);
 
-  FFactory.Load(GetRttiType(TypeInfo(TArray<TLazyArrayClassChild>)), 'LazyArrayClass', 123);
+  Assert.IsNotNull(Instance);
 
-  Assert.CheckExpectation(FCache.CheckExpectations);
+  Assert.AreEqual(TLazyManyValueClassFactory.ClassName, TObject(Instance).ClassName);
 end;
 
-procedure TLazyFactoryTest.WhenTheLoadedPropertyIsAnArrayCantRaiseErrorOfWrongType;
+procedure TLazyFactoryTest.WhenCreateTheFactoryForASingleClassMustCreateTheSingleFactory;
 begin
-  FCursorClass.Values := [[111, 222, 333]];
+  var Instance := CreateLoader(nil, nil, TMapper.Default.FindTable(TLazyArrayClass).Field['Lazy'], 0);
 
-  Assert.WillNotRaise(
-    procedure
-    begin
-      var Value := FFactory.Load(GetRttiType(TypeInfo(TArray<TLazyArrayClassChild>)), 'LazyArrayClass', 123);
+  Assert.IsNotNull(Instance);
 
-      Value.AsType<TArray<TLazyClass>>[0].Free;
-    end);
-end;
-
-procedure TLazyFactoryTest.WhenTheLoadedPropertyIsAnArrayMustReturnAnArray;
-begin
-  FCursorClass.Values := [[111, 222, 333]];
-  var Value := FFactory.Load(GetRttiType(TypeInfo(TArray<TLazyArrayClassChild>)), 'LazyArrayClass', 123);
-
-  Assert.IsTrue(Value.IsArray);
-end;
-
-procedure TLazyFactoryTest.WhenTheLoadedValueIsArrayCantLoadTheValueFromTheCache;
-begin
-  FCache.Expect.Once.When.Get(It.IsAny<String>, ItReference<TObject>.IsAny.Value);
-
-  FFactory.Load(GetRttiType(TLazyClass), 'Lazy', 123);
-
-  Assert.CheckExpectation(FCache.CheckExpectations);
-end;
-
-procedure TLazyFactoryTest.WhenTheValueIsInTheCacheMustReturnThisValue;
-begin
-  var MyClass := TLazyClass.Create;
-  var SharedObject := MyClass as TObject;
-
-  FCache.Setup.WillExecute(
-    function (const Params: TArray<TValue>): TValue
-    begin
-      Params[2] := TValue.From(SharedObject);
-      Result := True;
-    end).When.Get(It.IsEqualTo(TCache.GenerateKey(TLazyClass, 123)), ItReference<TObject>.IsAny.Value);
-
-  Assert.AreEqual(MyClass, FFactory.Load(GetRttiType(TLazyClass), 'Lazy', 123).AsType<TLazyClass>);
+  Assert.AreEqual(TLazySingleClassFactory.ClassName, TObject(Instance).ClassName);
 end;
 
 end.

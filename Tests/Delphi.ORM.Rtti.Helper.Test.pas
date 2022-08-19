@@ -1,8 +1,8 @@
-unit Delphi.ORM.Rtti.Helper.Test;
+﻿unit Delphi.ORM.Rtti.Helper.Test;
 
 interface
 
-uses DUnitX.TestFramework;
+uses System.Rtti, DUnitX.TestFramework;
 
 type
   [TestFixture]
@@ -49,11 +49,19 @@ type
 
   [TestFixture]
   TRttiHelperFunctionTest = class
+  private
+    FContext: TRttiContext;
   public
+    [Setup]
+    procedure Setup;
+    [TearDown]
+    procedure TearDown;
     [Test]
     procedure WhenCallTheGetRttiTypeMustReturnTheTypeAsExpected;
     [Test]
     procedure WhencallTheGetRttiTypeOfAnClassMustReturnTheTypeAsExpected;
+    [Test]
+    procedure WhenCallTheGetGenericRttiTypeMustReturnTheInternalTypeOfTheDeclaredGeneric;
   end;
 
   TMyAttribute = class(TCustomAttribute);
@@ -65,7 +73,7 @@ type
 
 implementation
 
-uses System.Rtti, System.SysUtils, System.DateUtils, System.Variants, Delphi.ORM.Rtti.Helper, Delphi.ORM.Test.Entity;
+uses System.SysUtils, System.DateUtils, System.Variants, System.TypInfo, System.SysConst, System.Generics.Collections, Delphi.ORM.Rtti.Helper, Delphi.ORM.Test.Entity;
 
 const
   MyConstArray: array[0..2] of Integer = (1, 2, 3);
@@ -196,22 +204,30 @@ end;
 
 { TRttiHelperFunctionTest }
 
+procedure TRttiHelperFunctionTest.Setup;
+begin
+  FContext := TRttiContext.Create;
+end;
+
+procedure TRttiHelperFunctionTest.TearDown;
+begin
+  FContext.Free;
+end;
+
+procedure TRttiHelperFunctionTest.WhenCallTheGetGenericRttiTypeMustReturnTheInternalTypeOfTheDeclaredGeneric;
+begin
+  Assert.AreEqual(FContext.GetType(TypeInfo(Integer)), GetGenericRttiType('TList', FContext.GetType(TypeInfo(TList<Integer>))));
+end;
+
 procedure TRttiHelperFunctionTest.WhenCallTheGetRttiTypeMustReturnTheTypeAsExpected;
 begin
-  var Context := TRttiContext.Create;
-
-  Assert.AreEqual(Context.GetType(TRttiHelperFunctionTest), GetRttiType(TypeInfo(TRttiHelperFunctionTest)));
-
-  Context.Free;
+  Assert.AreEqual(FContext.GetType(TRttiHelperFunctionTest), GetRttiType(TypeInfo(TRttiHelperFunctionTest)));
 end;
 
 procedure TRttiHelperFunctionTest.WhencallTheGetRttiTypeOfAnClassMustReturnTheTypeAsExpected;
 begin
-  var Context := TRttiContext.Create;
-
-  Assert.AreEqual(Context.GetType(TRttiHelperFunctionTest), GetRttiType(TRttiHelperFunctionTest));
-
-  Context.Free;
+  Assert.AreEqual(FContext.GetType(TRttiHelperFunctionTest), GetRttiType(TRttiHelperFunctionTest));
 end;
 
 end.
+

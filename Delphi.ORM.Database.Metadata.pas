@@ -129,7 +129,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.Rtti;
+uses System.SysUtils, System.TypInfo, System.Rtti;
 
 { TDatabaseNamedObject }
 

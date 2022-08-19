@@ -25,7 +25,7 @@ type
 
 implementation
 
-uses Delphi.ORM.Rtti.Helper;
+uses System.TypInfo, System.SysConst, Delphi.ORM.Rtti.Helper;
 
 function ObjectCreateFunction(const Source: TObject): TObject;
 begin

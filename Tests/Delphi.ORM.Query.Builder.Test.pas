@@ -179,6 +179,8 @@ type
     procedure WhenFilterringALazyFieldMustBuildTheJoinsToTheFilterWork;
     [Test]
     procedure WhenUseALazyFieldInTheFilterMoreThenOnceMustLoadASingleJoin;
+    [Test]
+    procedure WhenTheClassHasAnLazyArrayCantCreateTheJoinBetweenTheClasses;
   end;
 
   [TestFixture]
@@ -254,6 +256,8 @@ type
     procedure WhenAFieldIsLazyLoadingThisMustLoadInFieldList;
     [Test]
     procedure WhenFilterALazyFieldCantLoadTheFieldInTheSelect;
+    [Test]
+    procedure WhenTheClassHasALazyArrayMustReturnTheCountOfFieldAsExpected;
   end;
 
   [TestFixture]
@@ -453,19 +457,13 @@ type
     [Test]
     procedure WhenUpdateAnEntityWithAnForeignKeyInTheCacheCantRaiseAnyError;
     [Test]
-    procedure WhenUpdateAnEntityAndForeignKeyIsInTheCaheMustUpdateTheReferenceWithThisObject;
-    [Test]
     procedure WhenThePropertyIsReadOnlyTheFieldCantBeInTheInsertSQL;
     [Test]
     procedure WhenThePropertyIsReadOnlyTheFieldCantBeInTheUpdateSQL;
     [Test]
-    procedure WhenSaveANotLoadedLazyForeignKeyCantRaiseAnyError;
-    [Test]
     procedure WhenSaveALoadedLazyForeignKeyMustExecuteTheUpdate;
     [Test]
     procedure WhenInsertAnObjectWithForeignKeysThatIsAlreadyInTheCacheMustUpdateTheReferenceOfTheObjectBeenInserted;
-    [Test]
-    procedure WhenUpdateAnObjectWithForeignKeysThatIsAlreadyInTheCacheMustUpdateTheReferenceOfTheObjectBeenUpdated;
     [Test]
     procedure TheForeignKeyObjectThatInTheCacheMustBeDestroyedAfterTheInsertion;
     [Test]
@@ -506,6 +504,10 @@ type
     procedure TheForeignObjectMustUpdateTheValuesOfTheCachedObjectAfterTheUpdate;
     [Test]
     procedure AfterUpdateTheInternalObjectMustBeUpdatedToo;
+    [Test]
+    procedure WhenTheLazyHasntLoadedCantBeUpdatedThenValuesOfThisFields;
+    [Test]
+    procedure WhenUpdateAnUnloadedLazyManyValueAssociationCantRaiseAnyError;
   end;
 
   [TestFixture]
@@ -554,7 +556,8 @@ type
 
 implementation
 
-uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Nullable, Delphi.Mock, Delphi.ORM.Rtti.Helper, Delphi.ORM.Obj.Helper;
+uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Nullable, Delphi.Mock, Delphi.ORM.Rtti.Helper, Delphi.ORM.Obj.Helper, Delphi.ORM.Lazy,
+  Delphi.ORM.Lazy.Manipulator;
 
 const
   COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '', '');
@@ -1288,6 +1291,13 @@ begin
   Assert.AreEqual<Integer>(2, Length(FBuilderAccess.Fields));
 end;
 
+procedure TQueryBuilderAllFieldsTest.WhenTheClassHasALazyArrayMustReturnTheCountOfFieldAsExpected;
+begin
+  Builder.Select.All.From<TLazyArrayClass>;
+
+  Assert.AreEqual<Integer>(2, Length(FBuilderAccess.Fields));
+end;
+
 procedure TQueryBuilderAllFieldsTest.WhenTheClassHaveForeignKeyMustLoadAllFieldsOfAllClassesInvolved;
 begin
   Builder.Select.All.From<TClassWithTwoForeignKey>;
@@ -1317,9 +1327,9 @@ end;
 
 procedure TQueryBuilderSelectTest.WhenFillTheFirstRecordsMustBuildTheSQLAsExpectedForSQLServer;
 begin
-  Builder.Select.First(10).All.From<TClassWithForeignKey>.Open.All;
+  Builder.Select.First(10).All.From<TClassWithForeignKey>;
 
-  Assert.AreEqual('select top 10 T1.Id F1,T2.Id F2,T2.Value F3 from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', DatabaseClass.SQL);
+  Assert.AreEqual('select top 10 T1.Id F1,T2.Id F2,T2.Value F3 from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderSelectTest.WhenFillTheFirstRecordsMustLoadThePropertyWithThePassedValue;
@@ -1351,9 +1361,9 @@ end;
 
 procedure TQueryBuilderSelectTest.WhenTheClassHaveForeignKeyMustBuildTheSQLWithTheAliasOfTheJoinMapped;
 begin
-  Builder.Select.All.From<TClassWithForeignKey>.Open.All;
+  Builder.Select.All.From<TClassWithForeignKey>;
 
-  Assert.AreEqual('select T1.Id F1,T2.Id F2,T2.Value F3 from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', DatabaseClass.SQL);
+  Assert.AreEqual('select T1.Id F1,T2.Id F2,T2.Value F3 from ClassWithForeignKey T1 left join ClassWithPrimaryKey T2 on T1.IdAnotherClass=T2.Id', Builder.GetSQL);
 end;
 
 { TQueryBuilderComparisonTest }
@@ -2761,7 +2771,7 @@ begin
   LazyCache.Id := 1234;
   var MyClass := TLazyClass.Create;
   MyClass.Id := 1234;
-  MyClass.Lazy := TMyEntity.Create;
+  MyClass.Lazy.Value := TMyEntity.Create;
 
   AddObjectToCache(LazyCache, 1234);
 
@@ -2861,6 +2871,22 @@ begin
   Builder.Insert(MyClass);
 
   Assert.CheckExpectation(Transaction.CheckExpectations);
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenTheLazyHasntLoadedCantBeUpdatedThenValuesOfThisFields;
+begin
+  var LazyCache := TLazyClass.Create;
+  LazyCache.Id := 1234;
+  var Manipulator := TLazyManipulator.GetManipulator(LazyCache, TMapper.Default.FindTable(TLazyClass).Field['Lazy'].PropertyInfo);
+  Manipulator.Loader := TMock.CreateInterface<ILazyLoader>.Instance;
+  var MyClass := TLazyClass.Create;
+  MyClass.Id := 1234;
+
+  AddObjectToCache(LazyCache, 1234);
+
+  Builder.Save(MyClass);
+
+  Assert.IsNotNull(Manipulator.Loader);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenThenObjectOfAForeignKeyIsNilCantRaiseAnyError;
@@ -2981,24 +3007,6 @@ begin
   Assert.AreEqual<Integer>(1, Length(MyClassCache.Childs));
 end;
 
-procedure TQueryBuilderDataManipulationTest.WhenUpdateAnEntityAndForeignKeyIsInTheCaheMustUpdateTheReferenceWithThisObject;
-begin
-  var ForeignKey := TClassWithCascadeForeignClass.Create;
-  ForeignKey.Id := 1;
-  var MyClass := TClassWithCascadeAttribute.Create;
-  MyClass.Id := 1;
-  MyClass.UpdateCascade := TClassWithCascadeForeignClass.Create;
-  MyClass.UpdateCascade.Id := 1;
-
-  AddObjectToCache(ForeignKey, 1);
-
-  AddObjectToCache(MyClass, 1);
-
-  Builder.Update(MyClass);
-
-  Assert.AreEqual<Pointer>(ForeignKey, MyClass.UpdateCascade);
-end;
-
 procedure TQueryBuilderDataManipulationTest.WhenUpdateAnEntityMustSaveTheForeignKeysFirstAfterThisMustUpdateTheEntity;
 begin
   FCursorClass.Values := [[123]];
@@ -3108,24 +3116,6 @@ begin
   Assert.AreEqual<Pointer>(MyCacheClass, Builder.Update(MyClass));
 end;
 
-procedure TQueryBuilderDataManipulationTest.WhenUpdateAnObjectWithForeignKeysThatIsAlreadyInTheCacheMustUpdateTheReferenceOfTheObjectBeenUpdated;
-begin
-  var AnotherClass := TClassWithPrimaryKey.Create;
-  AnotherClass.Id := 123;
-  var MyClass := TClassWithTwoForeignKey.Create;
-  MyClass.Id := 123;
-  MyClass.AnotherClass := TClassWithPrimaryKey.Create;
-  MyClass.AnotherClass.Id := 123;
-
-  AddObjectToCache(AnotherClass, 123);
-
-  AddObjectToCache(MyClass, 123);
-
-  Builder.Update(MyClass);
-
-  Assert.AreEqual(AnotherClass, MyClass.AnotherClass);
-end;
-
 procedure TQueryBuilderDataManipulationTest.WhenUpdateAnObjectWithManyValueAssociationTheParentForeignKeyOfTheChildObjectMustBeTheReferenceToTheCacheObject;
 begin
   var MyClass := TManyValueParent.Create;
@@ -3141,18 +3131,14 @@ begin
   Assert.AreEqual<Pointer>(MyClassCache, MyClassCache.Childs[0].Parent);
 end;
 
-procedure TQueryBuilderDataManipulationTest.WhenSaveANotLoadedLazyForeignKeyCantRaiseAnyError;
+procedure TQueryBuilderDataManipulationTest.WhenUpdateAnUnloadedLazyManyValueAssociationCantRaiseAnyError;
 begin
-  var MyClass := TLazyClass.Create;
-  MyClass.Id := 1234;
-  MyClass.Lazy.Access.Key := 1234;
-
-  AddObjectToCache(TLazyClass.Create, 1234);
+  var MyClass := TLazyArrayClass.Create;
 
   Assert.WillNotRaise(
     procedure
     begin
-      Builder.Save(MyClass);
+      Builder.Insert(MyClass);
     end);
 end;
 
@@ -3343,6 +3329,13 @@ begin
     'left join MyEntity T2 ' +
            'on T1.IdLazy=T2.Id ' +
         'where T2.Name=''abc''', Builder.GetSQL);
+end;
+
+procedure TQueryBuilderFromTest.WhenTheClassHasAnLazyArrayCantCreateTheJoinBetweenTheClasses;
+begin
+  Builder.Select.All.From<TLazyArrayClass>;
+
+  Assert.EndsWith(' from LazyArrayClass T1', Builder.GetSQL);
 end;
 
 procedure TQueryBuilderFromTest.WhenUseALazyFieldInTheFilterMoreThenOnceMustLoadASingleJoin;

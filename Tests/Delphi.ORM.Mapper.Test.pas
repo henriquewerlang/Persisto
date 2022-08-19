@@ -186,10 +186,6 @@ type
     [Test]
     procedure WhenGetTheStringValueOfLazyPropertyMustReturnThePrimaryKeyValueOfLoadedValue;
     [Test]
-    procedure WhenSetValueToALazyPropertyCantRaiseAnyError;
-    [Test]
-    procedure WhenSetValueToALazyPropertyMustLoadTheValueInTheProperty;
-    [Test]
     procedure WhenTheFieldHasTheDefaultAttributeMustLoadTheDefaultProperyWithTheValue;
     [Test]
     procedure WhenTheFieldHasntADefaultValueTheValueMustBeEmpty;
@@ -258,10 +254,6 @@ type
     [Test]
     procedure TheGetCacheFunctionWithAnInstanceMustBuildTheKeyWithTheClassOfTheInstanceNotFromTable;
     [Test]
-    procedure WhenFillTheFieldValueOfALazyFieldAndTheValueIsNotAnInstanceOfAnObjectMustLoadTheKeyValueFromLazy;
-    [Test]
-    procedure WhenFillAnEmptyValueToALazyFieldTheLazyValueCantBeMarkedAsLoaded;
-    [Test]
     procedure IfTheChildTableOfAManyValueAssociationHasntPrimaryKeyMustRaiseAnError;
     [Test]
     procedure ThenMakeAForeignKeyToASingleTableInheritanceMustRaiseAnError;
@@ -274,15 +266,11 @@ type
     [Test]
     procedure WhenTheFieldHasTheNoUpdateAttributeTheFieldMustBeMarkedAsReadOnly;
     [Test]
-    procedure WhenFillTheFieldValueOfALazyPropertyMustLoadPrimaryKeyFieldName;
-    [Test]
     procedure WhenMappingALazyArrayClassCantRaiseAnyError;
     [Test]
     procedure WhenMappingALazyArrayClassMustLoadTheFieldWithTheExpectedPropertyValueFilled;
     [Test]
     procedure WhenGetPropertyValueMustReturnTheValueOfTheProperty;
-    [Test]
-    procedure WhenGetTheLazyAccessValueMustReturnTheLazyAccess;
     [Test]
     procedure TheForeignKeyDatabaseNameMustBeTheConcatenationOfTheTablesAndFieldInfo;
     [Test]
@@ -335,11 +323,15 @@ type
     procedure WhenTheFieldIsLazyLoadingAndTheValueIsntLoadedMustReturnEmptyValueInParam;
     [Test]
     procedure IfTheFieldIsLazyLoadingAndHasntValueMustReturnFalseInHasValueFunction;
+    [Test]
+    procedure WhenFillTheLazyFieldValueMustLoadTheValueHasExpected;
+    [Test]
+    procedure WhenTheFieldIsManyValueAssociationMustLoadTheManyValuePropertyOfTheField;
   end;
 
 implementation
 
-uses System.Variants, System.SysUtils, System.DateUtils, Delphi.ORM.Test.Entity, Delphi.ORM.Lazy, Delphi.Mock, Delphi.ORM.Rtti.Helper;
+uses System.Variants, System.SysUtils, System.DateUtils, System.TypInfo, Delphi.ORM.Test.Entity, Delphi.ORM.Lazy, Delphi.Mock, Delphi.ORM.Rtti.Helper;
 
 { TMapperTest }
 
@@ -433,7 +425,7 @@ end;
 procedure TMapperTest.IfTheFieldIsLazyAndHasAnValueLoadedMustReturnTrueInTheHasValueFunction;
 begin
   var MyClass := TLazyClass.Create;
-  MyClass.Lazy := TMyEntity.Create;
+  MyClass.Lazy.Value := TMyEntity.Create;
   var Table := FMapper.LoadClass(MyClass.ClassType);
   var Value: TValue;
 
@@ -877,7 +869,7 @@ procedure TMapperTest.WhenAFieldIsAManyValueAssociationThePropertyIsManyValueAss
 begin
   var Table := FMapper.LoadClass(TMyEntityWithManyValueAssociation);
 
-  var Field := Table.Fields[1];
+  var Field := Table.Field['ManyValueAssociationList'];
 
   Assert.IsTrue(Field.IsManyValueAssociation);
 end;
@@ -949,46 +941,18 @@ begin
   Assert.IsTrue(Length(FMapper.Tables) > 0, 'No entities loaded!');
 end;
 
-procedure TMapperTest.WhenFillAnEmptyValueToALazyFieldTheLazyValueCantBeMarkedAsLoaded;
+procedure TMapperTest.WhenFillTheLazyFieldValueMustLoadTheValueHasExpected;
 begin
+  var LazyValue := TMyEntity.Create;
   var MyClass := TLazyClass.Create;
-  var Table := FMapper.LoadClass(TLazyClass);
 
-  var Field := Table.Fields[1];
+  var Table := FMapper.LoadClass(MyClass.ClassType);
 
-  Field.SetValue(MyClass, 1234);
+  Table.Field['Lazy'].SetValue(MyClass, LazyValue);
 
-  Field.SetValue(MyClass, TValue.Empty);
+  Assert.AreEqual(LazyValue, MyClass.Lazy.Value);
 
-  Assert.IsFalse(MyClass.Lazy.Access.HasValue);
-
-  MyClass.Free;
-end;
-
-procedure TMapperTest.WhenFillTheFieldValueOfALazyFieldAndTheValueIsNotAnInstanceOfAnObjectMustLoadTheKeyValueFromLazy;
-begin
-  var MyClass := TLazyClass.Create;
-  var Table := FMapper.LoadClass(TLazyClass);
-
-  var Field := Table.Fields[1];
-
-  Field.SetValue(MyClass, 1234);
-
-  Assert.AreEqual(1234, MyClass.Lazy.Access.Key.AsInteger);
-
-  MyClass.Free;
-end;
-
-procedure TMapperTest.WhenFillTheFieldValueOfALazyPropertyMustLoadPrimaryKeyFieldName;
-begin
-  var MyClass := TLazyClass.Create;
-  var Table := FMapper.LoadClass(TLazyClass);
-
-  var Field := Table.Fields[1];
-
-  Field.SetValue(MyClass, 1234);
-
-  Assert.AreEqual('Id', MyClass.Lazy.Access.FieldName);
+  LazyValue.Free;
 
   MyClass.Free;
 end;
@@ -1000,18 +964,6 @@ begin
   var Table := FMapper.LoadClass(TLazyClass);
 
   Assert.AreEqual(123, Table.Fields[0].GetPropertyValue(MyClass).AsInteger);
-
-  MyClass.Free;
-end;
-
-procedure TMapperTest.WhenGetTheLazyAccessValueMustReturnTheLazyAccess;
-begin
-  var MyClass := TLazyClass.Create;
-  var Table := FMapper.LoadClass(TLazyClass);
-
-  var LazyAccess := Table.Fields[1].GetLazyAccess(MyClass);
-
-  Assert.IsNotNull(LazyAccess);
 
   MyClass.Free;
 end;
@@ -1042,7 +994,7 @@ begin
   var Table := FMapper.LoadClass(TLazyClass);
   var TheEntity := TMyEntity.Create;
   var TheValue := TLazyClass.Create;
-  TheValue.Lazy := TheEntity;
+  TheValue.Lazy.Value := TheEntity;
   TheValue.Lazy.Value.Id := 123456;
 
   Assert.AreEqual('123456', Table.Fields[1].GetAsString(TheValue));
@@ -1113,7 +1065,7 @@ begin
   var MyClass := TClassWithNullableProperty.Create;
   var Table := FMapper.LoadClass(MyClass.ClassType);
 
-  var Field := Table.Fields[1];
+  var Field := Table.Field['Nullable'];
 
   Assert.IsTrue(Field.GetValue(MyClass).IsEmpty);
 
@@ -1233,9 +1185,15 @@ procedure TMapperTest.WhenMappingALazyArrayClassMustLoadTheFieldWithTheExpectedP
 begin
   var Table := FMapper.LoadClass(TLazyArrayClass);
 
-  Assert.IsTrue(Table.Fields[1].IsForeignKey);
-  Assert.IsTrue(Table.Fields[1].IsJoinLink);
-  Assert.IsTrue(Table.Fields[2].IsManyValueAssociation);
+  var Field := Table['LazyArray'];
+
+  Assert.IsFalse(Field.IsForeignKey, 'Not a foreign key');
+
+  Assert.IsTrue(Field.IsManyValueAssociation, 'Is many value association');
+
+  Assert.IsTrue(Field.IsJoinLink, 'Is join link');
+
+  Assert.IsTrue(Field.IsLazy, 'Is lazy');
 end;
 
 procedure TMapperTest.WhenSetValueFieldMustLoadThePropertyOfTheClassAsWithTheValueExpected(FieldName: String);
@@ -1270,42 +1228,6 @@ begin
     Assert.AreEqual(ValueToCompare, FieldToCompare.GetValue(MyClass).AsVariant);
 
   MyClass.Free;
-end;
-
-procedure TMapperTest.WhenSetValueToALazyPropertyCantRaiseAnyError;
-begin
-  var LazyValue := TMyEntity.Create;
-  var MyClass := TLazyClass.Create;
-  var Table := FMapper.LoadClass(TLazyClass);
-
-  var Field := Table.Fields[1];
-
-  Assert.WillNotRaise(
-    procedure
-    begin
-      Field.SetValue(MyClass, LazyValue);
-    end);
-
-  MyClass.Free;
-
-  LazyValue.Free;
-end;
-
-procedure TMapperTest.WhenSetValueToALazyPropertyMustLoadTheValueInTheProperty;
-begin
-  var LazyValue := TMyEntity.Create;
-  var MyClass := TLazyClass.Create;
-  var Table := FMapper.LoadClass(TLazyClass);
-
-  var Field := Table.Fields[1];
-
-  Field.SetValue(MyClass, LazyValue);
-
-  Assert.AreEqual<TObject>(LazyValue, Field.GetValue(MyClass).AsObject);
-
-  MyClass.Free;
-
-  LazyValue.Free;
 end;
 
 procedure TMapperTest.WhenTheChildClassIsDeclaredBeforeTheParentClassTheLinkBetweenOfTablesMustBeCreated;
@@ -1558,6 +1480,15 @@ begin
   MyClass.Free;
 end;
 
+procedure TMapperTest.WhenTheFieldIsManyValueAssociationMustLoadTheManyValuePropertyOfTheField;
+begin
+  var Table := FMapper.LoadClass(TMyEntityWithManyValueAssociation);
+
+  var Field := Table.Field['ManyValueAssociationList'];
+
+  Assert.IsNotNull(Field.ManyValueAssociation);
+end;
+
 procedure TMapperTest.WhenTheFieldIsMappedMustLoadTheReferenceToTheTableOfTheField;
 begin
   var Table := FMapper.LoadClass(TMyEntity);
@@ -1628,7 +1559,7 @@ begin
   var MyClass := TLazyClass.Create;
   var TheClass := TMyEntity.Create;
 
-  MyClass.Lazy := TheClass;
+  MyClass.Lazy.Value := TheClass;
 
   var Table := FMapper.LoadClass(TLazyClass);
   var Field := Table.Fields[1];

@@ -701,6 +701,18 @@ type
   end;
 
   [Entity]
+  TClassWithLazyArrayClass = class
+  private
+    FId: Integer;
+    FValue1: TLazyArrayClass;
+    FValue2: TLazyArrayClass;
+  published
+    property Id: Integer read FId write FId;
+    property Value1: TLazyArrayClass read FValue1 write FValue1;
+    property Value2: TLazyArrayClass read FValue2 write FValue2;
+  end;
+
+  [Entity]
   TUnorderedClass = class
   private
     FAField: String;
