@@ -105,7 +105,11 @@ end;
 
 function TLazyManipulator.GetLoaded: Boolean;
 begin
+{$IFDEF DCC}
   Result := LazyLoadedField.GetValue(FLazyInstance).AsBoolean;
+{$ELSE}
+  Result := Boolean(TJSObject(FLazyInstance)['FLoaded']);
+{$ENDIF}
 end;
 
 function TLazyManipulator.GetLoader: ILazyLoader;
