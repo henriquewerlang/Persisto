@@ -841,22 +841,24 @@ end;
 
 function TField.HasValue(const Instance: TObject; var Value: TValue): Boolean;
 begin
-  Value := GetPropertyValue(Instance);
-
   if IsLazy then
   begin
-    Value := TLazyManipulator.GetManipulator(Instance, PropertyInfo).Value;
+    var Manipulator := TLazyManipulator.GetManipulator(Instance, PropertyInfo);
 
-    Result := not Value.IsEmpty;
+    if Manipulator.HasValue then
+      if Manipulator.Loaded then
+        Value := Manipulator.Value
+      else
+        Value := Manipulator.GetKey
+    else
+      Value := TValue.Empty;
   end
   else if IsNullable then
-  begin
-    Value := TNullableManipulator.GetManipulator(Instance, PropertyInfo).Value;
-
-    Result := not Value.IsEmpty;
-  end
+    Value := TNullableManipulator.GetManipulator(Instance, PropertyInfo).Value
   else
-    Result := not Value.IsEmpty and (DefaultValue.IsEmpty or (Value.AsVariant <> DefaultValue.AsVariant));
+    Value := GetPropertyValue(Instance);
+
+  Result := not Value.IsEmpty and (DefaultValue.IsEmpty or (Value.AsVariant <> DefaultValue.AsVariant));
 end;
 
 procedure TField.SetValue(const Instance: TObject; const Value: TValue);

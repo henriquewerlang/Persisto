@@ -657,7 +657,7 @@ begin
   for var ForeignKey in Table.ForeignKeys do
     if ForeignKey.IsInheritedLink then
       SaveObject(TValue.From(ForeignObject).Cast(ForeignObject.ClassParent.ClassInfo, False))
-    else if ForeignKey.Field.HasValue(ForeignObject, FieldValue) and not FProcessedObjects.ContainsKey(FieldValue.AsObject) then
+    else if ForeignKey.Field.HasValue(ForeignObject, FieldValue) and FieldValue.IsObject and not FProcessedObjects.ContainsKey(FieldValue.AsObject) then
       SaveObject(FieldValue);
 end;
 
@@ -666,7 +666,7 @@ begin
   var CurrentArray, ForeignArrayValue: TValue;
 
   for var ManyValue in Table.ManyValueAssociations do
-    if ManyValue.Field.HasValue(ForeignObject, ForeignArrayValue) then
+    if ManyValue.Field.HasValue(ForeignObject, ForeignArrayValue) and ForeignArrayValue.IsArray then
     begin
       CurrentArray := ManyValue.Field.GetValue(CurrentObject);
       CurrentArray.ArrayLength := ForeignArrayValue.ArrayLength;
@@ -737,7 +737,7 @@ begin
       begin
         CurrentObjectFieldValue := Field.GetValue(InternalObject);
 
-        if Field.HasValue(ForeignObject, ForeignFieldValue) and Field.IsForeignKey then
+        if Field.HasValue(ForeignObject, ForeignFieldValue) and ForeignFieldValue.IsObject and Field.IsForeignKey then
           ForeignFieldValue := FProcessedObjects[ForeignFieldValue.AsObject];
 
         CurrentObjectFieldStringValue := Field.GetAsString(CurrentObjectFieldValue);

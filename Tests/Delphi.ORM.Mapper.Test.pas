@@ -2,13 +2,14 @@
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Mapper, Delphi.ORM.Attributes;
+uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Mapper, Delphi.ORM.Attributes, Delphi.Mock.Intf, Delphi.ORM.Lazy;
 
 type
   [TestFixture]
   TMapperTest = class
   private
     FContext: TRttiContext;
+    FLazyLoader: IMock<ILazyLoader>;
     FMapper: TMapper;
   public
     [SetupFixture]
@@ -327,11 +328,13 @@ type
     procedure WhenFillTheLazyFieldValueMustLoadTheValueHasExpected;
     [Test]
     procedure WhenTheFieldIsManyValueAssociationMustLoadTheManyValuePropertyOfTheField;
+    [Test]
+    procedure WhenTheLazyFieldIsntLoadedAndHaveAKeyFilledMustReturnTheKeyValueInGetValueFunction;
   end;
 
 implementation
 
-uses System.Variants, System.SysUtils, System.DateUtils, System.TypInfo, Delphi.ORM.Test.Entity, Delphi.ORM.Lazy, Delphi.Mock, Delphi.ORM.Rtti.Helper;
+uses System.Variants, System.SysUtils, System.DateUtils, System.TypInfo, Delphi.ORM.Test.Entity, Delphi.Mock, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy.Manipulator;
 
 { TMapperTest }
 
@@ -529,8 +532,11 @@ end;
 
 procedure TMapperTest.Setup;
 begin
+  FLazyLoader := TMock.CreateInterface<ILazyLoader>;
   FMapper := TMapper.Create;
   FMapper.SingleTableInheritanceClasses := [TMyEntityWithSingleTableInheritanceAttribute, TAnotherSingleInherited];
+
+  FLazyLoader.Setup.WillReturn(1234).When.GetKey;
 end;
 
 procedure TMapperTest.SetupFixture;
@@ -540,6 +546,8 @@ end;
 
 procedure TMapperTest.TearDown;
 begin
+  FLazyLoader := nil;
+
   FMapper.Free;
 end;
 
@@ -1552,6 +1560,17 @@ begin
   var Table := FMapper.LoadClass(TMyEntityWithFieldNameAttribute);
 
   Assert.IsNotNull(Table.ForeignKeys[0].ParentTable);
+end;
+
+procedure TMapperTest.WhenTheLazyFieldIsntLoadedAndHaveAKeyFilledMustReturnTheKeyValueInGetValueFunction;
+begin
+  var MyClass := TLazyClass.Create;
+  TLazyManipulator.GetManipulator(MyClass.Lazy).Loader := FLazyLoader.Instance;
+  var Table := FMapper.LoadClass(MyClass.ClassType);
+
+  Assert.AreEqual(1234, Table.Field['Lazy'].GetValue(MyClass).AsInteger);
+
+  MyClass.Free;
 end;
 
 procedure TMapperTest.WhenTheLazyPropertyIsLoadedMustReturnTheInternalValue;
