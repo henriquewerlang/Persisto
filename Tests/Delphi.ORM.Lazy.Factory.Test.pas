@@ -13,6 +13,8 @@ type
     procedure WhenCreateTheFactoryForASingleClassMustCreateTheSingleFactory;
     [Test]
     procedure WhenCreateTheFactoryForAManyValueClassMustCreateTheManyValueFactory;
+    [Test]
+    procedure WhenTheKeyIsEmptyTheCreatorMustReturnANilValue;
   end;
 
   [TestFixture]
@@ -272,6 +274,13 @@ begin
   Assert.IsNotNull(Instance);
 
   Assert.AreEqual(TLazySingleClassFactory.ClassName, TObject(Instance).ClassName);
+end;
+
+procedure TLazyFactoryTest.WhenTheKeyIsEmptyTheCreatorMustReturnANilValue;
+begin
+  var Instance := CreateLoader(nil, nil, TMapper.Default.FindTable(TLazyArrayClass).Field['Lazy'], TValue.Empty);
+
+  Assert.IsNull(Instance);
 end;
 
 end.

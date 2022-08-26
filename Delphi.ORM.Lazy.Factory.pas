@@ -35,7 +35,9 @@ uses System.TypInfo, Delphi.ORM.Query.Builder, Delphi.ORM.Rtti.Helper;
 
 function CreateLoader(const Connection: IDatabaseConnection; const Cache: ICache; const LazyField: TField; const KeyValue: TValue): ILazyLoader;
 begin
-  if LazyField.IsManyValueAssociation then
+  if KeyValue.IsEmpty then
+    Result := nil
+  else if LazyField.IsManyValueAssociation then
     Result := TLazyManyValueClassFactory.Create(Connection, Cache, LazyField, KeyValue)
   else
     Result := TLazySingleClassFactory.Create(Connection, Cache, LazyField, KeyValue);
