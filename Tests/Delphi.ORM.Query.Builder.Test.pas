@@ -520,6 +520,8 @@ type
     procedure WhenTheLazyHasValueButNotLoadedCantRaiseAnyError;
     [Test]
     procedure WhenTheLazyArrayHasValueButNotLoadedCantRaiseAnyError;
+    [Test]
+    procedure WhenTheLazyArrayInTheCacheIsntLoadedAndTheForeignValueHasTheArrayLoadedCantRaiseAnyErrorWhenUpdate;
   end;
 
   [TestFixture]
@@ -2924,6 +2926,23 @@ begin
 
   TLazyManipulator.GetManipulator(CacheClass.LazyArray).Loader := FLazyLoader.Instance;
   TLazyManipulator.GetManipulator(MyClass.LazyArray).Loader := FLazyLoader.Instance;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Builder.Update(MyClass);
+    end);
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenTheLazyArrayInTheCacheIsntLoadedAndTheForeignValueHasTheArrayLoadedCantRaiseAnyErrorWhenUpdate;
+begin
+  var CacheClass := AddObjectToCache(TLazyArrayClass.Create, 123);
+  CacheClass.Id := 123;
+  var MyClass := TLazyArrayClass.Create;
+  MyClass.Id := 123;
+  MyClass.LazyArray := [TLazyArrayClassChild.Create];
+
+  TLazyManipulator.GetManipulator(CacheClass.LazyArray).Loader := FLazyLoader.Instance;
 
   Assert.WillNotRaise(
     procedure

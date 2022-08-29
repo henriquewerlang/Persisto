@@ -668,8 +668,7 @@ begin
   for var ManyValue in Table.ManyValueAssociations do
     if ManyValue.Field.HasValue(ForeignObject, ForeignArrayValue) and ForeignArrayValue.IsArray then
     begin
-      CurrentArray := ManyValue.Field.GetValue(CurrentObject);
-      CurrentArray.ArrayLength := ForeignArrayValue.ArrayLength;
+      CurrentArray := ForeignArrayValue;
 
       for var A := 0 to Pred(ForeignArrayValue.ArrayLength) do
       begin
