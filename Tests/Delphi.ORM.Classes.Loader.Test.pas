@@ -2,8 +2,8 @@
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Classes.Loader, Delphi.ORM.Database.Connection, Delphi.ORM.Attributes, Delphi.ORM.Mapper, Delphi.ORM.Cache,
-  Delphi.ORM.Query.Builder, Delphi.Mock.Intf, Delphi.ORM.Cursor.Mock;
+uses DUnitX.TestFramework, Delphi.ORM.Classes.Loader, Delphi.ORM.Database.Connection, Delphi.ORM.Cache, Delphi.ORM.Query.Builder, Delphi.Mock.Intf, Delphi.ORM.Cursor.Mock,
+  Delphi.ORM.Change.Manager;
 
 type
   [TestFixture]
@@ -12,9 +12,10 @@ type
     FAccess: IMock<IQueryBuilderAccess>;
     FBuilder: TQueryBuilder;
     FCache: ICache;
+    FChangeManager: IMock<IChangeManager>;
+    FClassLoader: TClassLoader;
     FCursorMock: IDatabaseCursor;
     FCursorMockClass: TCursorMock;
-    FClassLoader: TClassLoader;
 
     function LoadClass<T: class>: T;
     function LoadClassAll<T: class>: TArray<T>;
@@ -92,57 +93,34 @@ type
     [Test]
     procedure WhenLoadMoreThenOneTimeTheClassWithTheSameLoaderMustLoadTheClassPropertyHasExpected;
     [Test]
-    procedure AfterLoadAllObjectMustAddACopyOfTheObjectInTheCacheWithInternalPrefix;
-    [Test]
-    procedure AfterLoadAllObjectsMustAddACopyOfTheForeignKeysToTheCacheWithInternalPrefix;
-    [Test]
-    procedure TheInternalObjectMustBeTheSameTypeOfTheOriginalObject;
-    [Test]
-    procedure IfExistsTheInternalObjectCantRaiseError;
-    [Test]
-    procedure TheInternalObjectMustHaveTheSamePropertyValuesFromTheLoadedObject;
-    [Test]
     procedure WhenTheClassHasAnLazyFieldMustLoadTheLoaderOfThatField;
     [Test]
     procedure ThenTheClassHasALazyArrayFieldMustLoadTheKeyOfTheLazyLoaderWithThePrimaryKeyFromParentClass;
     [Test]
     procedure WhenLoadAClassWithALazyArrayClassMustLoadAllValuesAsExpected;
+    [Test]
+    procedure AfterLoadAnObjectMustCallTheAddInInstanceOfChangeManager;
+    [Test]
+    procedure WhenCallTheAddInstanceTheParamsMustBeTheValuesExpected;
+    [Test]
+    procedure TheAddInstanceMustBeCalledJustOncePerInstance;
   end;
 
 implementation
 
-uses System.Generics.Collections, System.SysUtils, System.Variants, Delphi.Mock, Delphi.ORM.Test.Entity, Delphi.ORM.Lazy.Manipulator;
+uses System.SysUtils, System.Variants, System.Rtti, Delphi.Mock, Delphi.ORM.Test.Entity, Delphi.ORM.Mapper, Delphi.ORM.Lazy.Manipulator;
 
 { TClassLoaderTest }
 
-procedure TClassLoaderTest.AfterLoadAllObjectMustAddACopyOfTheObjectInTheCacheWithInternalPrefix;
+procedure TClassLoaderTest.AfterLoadAnObjectMustCallTheAddInInstanceOfChangeManager;
 begin
-  var MyObject: TObject := nil;
+  FChangeManager.Expect.Once.When.AddInstance(It.IsAny<TTable>, It.IsAny<TObject>);
 
-  FCursorMockClass.Values := [['aaa', 111], ['bbb', 222]];
+  FCursorMockClass.Values := [['aaa', 111]];
 
-  LoadClassAll<TMyClass>;
+  LoadClass<TMyClass>;
 
-  FCache.Get('Internal-' + TCache.GenerateKey(TMyClass, 'aaa'), MyObject);
-
-  Assert.IsNotNull(MyObject, 'aaa object');
-
-  FCache.Get('Internal-' + TCache.GenerateKey(TMyClass, 'bbb'), MyObject);
-
-  Assert.IsNotNull(MyObject, 'bbb object');
-end;
-
-procedure TClassLoaderTest.AfterLoadAllObjectsMustAddACopyOfTheForeignKeysToTheCacheWithInternalPrefix;
-begin
-  var MyObject: TObject := nil;
-
-  FCursorMockClass.Values := [[123, 456, 789]];
-
-  LoadClass<TClassWithForeignKey>;
-
-  FCache.Get('Internal-' + TCache.GenerateKey(TClassWithPrimaryKey, 456), MyObject);
-
-  Assert.IsNotNull(MyObject);
+  Assert.CheckExpectation(FChangeManager.CheckExpectations);
 end;
 
 procedure TClassLoaderTest.EvenIfTheCursorReturnsMoreThanOneRecordTheLoadClassHasToReturnOnlyOneClass;
@@ -152,21 +130,6 @@ begin
   LoadClass<TMyClass>;
 
   Assert.AreEqual(3, FCursorMockClass.CurrentRecord);
-end;
-
-procedure TClassLoaderTest.IfExistsTheInternalObjectCantRaiseError;
-begin
-  FCursorMockClass.Values := [['aaa', 111]];
-
-  LoadClassAll<TMyClass>;
-
-  FCursorMockClass.Values := [['aaa', 111]];
-
-  Assert.WillNotRaise(
-    procedure
-    begin
-      LoadClassAll<TMyClass>;
-    end);
 end;
 
 function TClassLoaderTest.LoadClass<T>: T;
@@ -213,11 +176,23 @@ procedure TClassLoaderTest.TearDown;
 begin
   FAccess := nil;
   FCache := nil;
+  FChangeManager := nil;
   FCursorMock := nil;
 
   FClassLoader.Free;
 
   FBuilder.Free;
+end;
+
+procedure TClassLoaderTest.TheAddInstanceMustBeCalledJustOncePerInstance;
+begin
+  FChangeManager.Expect.Once.When.AddInstance(It.IsAny<TTable>, It.IsAny<TObject>);
+
+  FCursorMockClass.Values := [['aaa', 111], ['aaa', 111], ['aaa', 111]];
+
+  LoadClass<TMyClass>;
+
+  Assert.CheckExpectation(FChangeManager.CheckExpectations);
 end;
 
 procedure TClassLoaderTest.TheChildFieldInManyValueAssociationMustBeLoadedWithTheReferenceOfTheParentClass;
@@ -245,51 +220,22 @@ begin
   Assert.AreEqual(789, Result.AnotherClass.Value);
 end;
 
-procedure TClassLoaderTest.TheInternalObjectMustBeTheSameTypeOfTheOriginalObject;
-begin
-  var MyObject: TObject := nil;
-
-  FCursorMockClass.Values := [['aaa', 111]];
-
-  LoadClassAll<TMyClass>;
-
-  FCache.Get('Internal-' + TCache.GenerateKey(TMyClass, 'aaa'), MyObject);
-
-  Assert.AreEqual(TMyClass, MyObject.ClassType);
-end;
-
-procedure TClassLoaderTest.TheInternalObjectMustHaveTheSamePropertyValuesFromTheLoadedObject;
-begin
-  var MyObject: TMyClass := nil;
-
-  FCursorMockClass.Values := [['aaa', 111]];
-
-  var MyClass := LoadClass<TMyClass>;
-
-  FCache.Get('Internal-' + TCache.GenerateKey(TMyClass, 'aaa'), TObject(MyObject));
-
-  Assert.AreEqual(MyClass.Name, MyObject.Name);
-
-  Assert.AreEqual(MyClass.Value, MyObject.Value);
-end;
-
 procedure TClassLoaderTest.ThenTheClassHasALazyArrayFieldMustLoadTheKeyOfTheLazyLoaderWithThePrimaryKeyFromParentClass;
 begin
   FCursorMockClass.Values := [[111, 222]];
   var MyObject := LoadClass<TLazyArrayClass>;
 
   Assert.AreEqual(111, TLazyManipulator.GetManipulator(MyObject.LazyArray).Loader.GetKey.AsInteger);
-
-  MyObject.Free;
 end;
 
 procedure TClassLoaderTest.Setup;
 begin
   FAccess := TMock.CreateInterface<IQueryBuilderAccess>(True);
-  FCache := TCache.Create;
+  FChangeManager := TMock.CreateInterface<IChangeManager>(True);
   FCursorMockClass := TCursorMock.Create;
 
   FBuilder := TQueryBuilder.Create(nil, FCache);
+  FCache := TCache.Create(FChangeManager.Instance);
   FCursorMock := FCursorMockClass;
 
   FAccess.Setup.WillReturn(TValue.From(FCursorMock)).When.OpenCursor;
@@ -343,6 +289,19 @@ begin
   var Result := LoadClassAll<TClassWithForeignKey>;
 
   Assert.AreEqual(Result[0].AnotherClass, Result[1].AnotherClass);
+end;
+
+procedure TClassLoaderTest.WhenCallTheAddInstanceTheParamsMustBeTheValuesExpected;
+begin
+  var Table := TMapper.Default.FindTable(TMyClass);
+
+  FChangeManager.Expect.Once.When.AddInstance(It.IsEqualTo(Table), It.IsNotEqualTo<TObject>(nil));
+
+  FCursorMockClass.Values := [['aaa', 111]];
+
+  LoadClass<TMyClass>;
+
+  Assert.CheckExpectation(FChangeManager.CheckExpectations);
 end;
 
 procedure TClassLoaderTest.WhenHaveMoreThenOneRecordMustLoadAllThenWhenRequested;

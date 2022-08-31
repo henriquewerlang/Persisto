@@ -2,13 +2,12 @@
 
 interface
 
-uses System.Generics.Collections, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder, Delphi.ORM.Cache, Delphi.ORM.Database.Connection, Delphi.ORM.Lazy.Manipulator;
+uses System.Generics.Collections, Delphi.ORM.Mapper, Delphi.ORM.Query.Builder, Delphi.ORM.Database.Connection;
 
 type
   TClassLoader = class
   private
     FAccess: IQueryBuilderAccess;
-    FCacheKey: TDictionary<TObject, String>;
     FCursor: IDatabaseCursor;
     FLoadedObjects: TDictionary<String, TObject>;
     FMainLoadedObject: TDictionary<TObject, Boolean>;
@@ -23,15 +22,13 @@ type
 
     destructor Destroy; override;
 
-    class function GenerateInternalCacheKey(const CacheKey: String): String;
-
     function Load<T: class>: T;
     function LoadAll<T: class>: TArray<T>;
   end;
 
 implementation
 
-uses System.Rtti, System.Variants, System.TypInfo, System.SysUtils, System.SysConst, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy, Delphi.ORM.Lazy.Factory, Delphi.ORM.Obj.Helper;
+uses System.Rtti, System.Variants, System.TypInfo, System.SysUtils, System.SysConst, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy.Factory, Delphi.ORM.Lazy.Manipulator;
 
 { TClassLoader }
 
@@ -40,7 +37,6 @@ begin
   inherited Create;
 
   FAccess := Access;
-  FCacheKey := TDictionary<TObject, String>.Create;
   FLoadedObjects := TDictionary<String, TObject>.Create;
   FMainLoadedObject := TDictionary<TObject, Boolean>.Create;
 end;
@@ -63,25 +59,16 @@ begin
     end;
 
     FLoadedObjects.Add(CacheKey, AObject);
-
-    FCacheKey.Add(AObject, CacheKey);
   end;
 end;
 
 destructor TClassLoader.Destroy;
 begin
-  FCacheKey.Free;
-
   FMainLoadedObject.Free;
 
   FLoadedObjects.Free;
 
   inherited;
-end;
-
-class function TClassLoader.GenerateInternalCacheKey(const CacheKey: String): String;
-begin
-  Result := Format('Internal-%s', [CacheKey]);
 end;
 
 function TClassLoader.GetFieldValueFromCursor(const Index: Integer): Variant;
@@ -102,35 +89,15 @@ function TClassLoader.LoadAll<T>: TArray<T>;
 begin
   FCursor := FAccess.OpenCursor;
   Result := nil;
-  var TheObject: TObject;
+  var TheObject: TObject := nil;
 
   FMainLoadedObject.Clear;
 
   FLoadedObjects.Clear;
 
-  FCacheKey.Clear;
-
   while FCursor.Next do
-  begin
-    TheObject := nil;
-
     if LoadClass(TheObject) then
       Result := Result + [TheObject as T];
-  end;
-
-  for TheObject in Result do
-    TObjectHelper.Copy(TheObject,
-      function (const Source: TObject): TObject
-      begin
-        var CacheKey := GenerateInternalCacheKey(FCacheKey[Source]);
-
-        if not FAccess.Cache.Get(CacheKey, Result) then
-        begin
-          Result := Source.ClassType.Create;
-
-          FAccess.Cache.Add(CacheKey, Result);
-        end;
-      end);
 end;
 
 function TClassLoader.LoadClass(var CurrentObject: TObject): Boolean;
@@ -167,14 +134,6 @@ var
     ArrayValue.ArrayElement[ArrayLength] := Item;
 
     ParentField.SetValue(ParentObject, ArrayValue);
-  end;
-
-  procedure UpdateForeignKey(const Field: TField; const AObject, AForeignKeyObject: TObject);
-  begin
-    if Assigned(AForeignKeyObject) then
-      Field.SetValue(AObject, AForeignKeyObject)
-    else
-      Field.SetValue(AObject, nil);
   end;
 
 begin
@@ -215,7 +174,7 @@ begin
 
     if NewObject and Link.Field.IsForeignKey then
     begin
-      UpdateForeignKey(Link.Field, CurrentObject, ForeignKeyObject);
+      Link.Field.SetValue(CurrentObject, ForeignKeyObject);
 
       if Assigned(ForeignKeyObject) and Assigned(Link.Field.ForeignKey.ManyValueAssociation) then
         AddItemToParentArray(ForeignKeyObject, Link.Field.ForeignKey.ManyValueAssociation.Field, CurrentObject);
@@ -227,6 +186,9 @@ begin
       AddItemToParentArray(CurrentObject, Link.Field, ForeignKeyObject);
     end;
   end;
+
+  if NewObject then
+    FAccess.Cache.ChangeManager.AddInstance(Join.Table, CurrentObject);
 end;
 
 end.

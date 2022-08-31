@@ -43,12 +43,12 @@ uses
   Delphi.ORM.Database.Manipulator.Test in 'Delphi.ORM.Database.Manipulator.Test.pas',
   Delphi.ORM.Database.Manipulator.SQLServer in '..\Delphi.ORM.Database.Manipulator.SQLServer.pas',
   Delphi.ORM.Database.Manipulator.SQLServer.Test in 'Delphi.ORM.Database.Manipulator.SQLServer.Test.pas',
-  Delphi.ORM.Obj.Helper in '..\Delphi.ORM.Obj.Helper.pas',
-  Delphi.ORM.Obj.Helper.Test in 'Delphi.ORM.Obj.Helper.Test.pas',
   Delphi.ORM.Lazy.Manipulator in '..\Delphi.ORM.Lazy.Manipulator.pas',
   Delphi.ORM.Lazy.Manipulator.Test in 'Delphi.ORM.Lazy.Manipulator.Test.pas',
   Delphi.ORM.Nullable.Manipulator in '..\Delphi.ORM.Nullable.Manipulator.pas',
-  Delphi.ORM.Nullable.Manipulator.Test in 'Delphi.ORM.Nullable.Manipulator.Test.pas';
+  Delphi.ORM.Nullable.Manipulator.Test in 'Delphi.ORM.Nullable.Manipulator.Test.pas',
+  Delphi.ORM.Change.Manager in '..\Delphi.ORM.Change.Manager.pas',
+  Delphi.ORM.Change.Manager.Test in 'Delphi.ORM.Change.Manager.Test.pas';
 
 // Para não remover o valor abaixo
 {$IFNDEF TESTINSIGHT}

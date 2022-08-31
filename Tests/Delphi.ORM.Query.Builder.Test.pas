@@ -19,7 +19,8 @@ type
     FDatabaseClass: TDatabaseTest;
     FDatabaseMock: IMock<IDatabaseConnection>;
 
-    function AddObjectToCache<T: class>(const Obj: T; const KeyValue: TValue): T;
+    function AddObjectToCache<T: class>(const Obj: T): T; overload;
+    function AddObjectToCache<T: class>(const Obj: T; const PrimaryKeyValue: TValue): T; overload;
     function GetBuilder: TQueryBuilder;
     function GetDatabaseClass: TDatabaseTest;
     function GetDatabaseMock: IMock<IDatabaseConnection>;
@@ -503,8 +504,6 @@ type
     [Test]
     procedure WhenClearAForeignKeyMustUpdateTheColumnToNull;
     [Test]
-    procedure AfterInsertAnObjectMustAddTheCopyOfTheObjectInTheInternalCache;
-    [Test]
     procedure WhenChangeTheValueOfAnObjectAlreadyInTheCacheMustUpdateTheFieldChanged;
     [Test]
     procedure TheForeignObjectMustUpdateTheValuesOfTheCachedObjectAfterTheUpdate;
@@ -522,6 +521,8 @@ type
     procedure WhenTheLazyArrayHasValueButNotLoadedCantRaiseAnyError;
     [Test]
     procedure WhenTheLazyArrayInTheCacheIsntLoadedAndTheForeignValueHasTheArrayLoadedCantRaiseAnyErrorWhenUpdate;
+    [Test]
+    procedure AfterInsertAnObjectInTheDatabaseMustLoadAllFieldsValuesInTheChangeManager;
   end;
 
   [TestFixture]
@@ -570,7 +571,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Nullable, Delphi.Mock, Delphi.ORM.Rtti.Helper, Delphi.ORM.Obj.Helper, Delphi.ORM.Lazy.Manipulator;
+uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Nullable, Delphi.Mock, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy.Manipulator;
 
 const
   COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '', '');
@@ -665,7 +666,7 @@ begin
   MyClass.Name := 'My name';
   MyClass.Value := 222;
 
-  AddObjectToCache(TClassOnlyPublic.Create, '');
+  AddObjectToCache(TClassOnlyPublic.Create);
 
   Builder.Update(MyClass);
 
@@ -815,7 +816,7 @@ begin
   MyClass.Name := 'My name';
   MyClass.Value := 222.333;
 
-  AddObjectToCache(TMyTestClass.Create, '');
+  AddObjectToCache(TMyTestClass.Create);
 
   Builder.Update(MyClass);
 
@@ -1039,7 +1040,7 @@ begin
   MyClassCache.Id := 123;
   MyClassCache.Nullable := 123;
 
-  AddObjectToCache(MyClassCache, 123);
+  AddObjectToCache(MyClassCache);
 
   Builder.Update(MyClass);
 
@@ -1185,7 +1186,7 @@ begin
   ObjCache.Value := 12345;
   ObjCache.Id := 123;
 
-  AddObjectToCache(ObjCache, 12345);
+  AddObjectToCache(ObjCache);
 
   Builder.Save(Obj);
 
@@ -1200,7 +1201,7 @@ begin
   ObjCache.Name := 'Name';
   ObjCache.Value := 2;
 
-  AddObjectToCache(ObjCache, '');
+  AddObjectToCache(ObjCache);
 
   Builder.Save(Obj);
 
@@ -2011,19 +2012,19 @@ end;
 
 { TQueryBuilderDataManipulationTest }
 
-procedure TQueryBuilderDataManipulationTest.AfterInsertAnObjectMustAddTheCopyOfTheObjectInTheInternalCache;
+procedure TQueryBuilderDataManipulationTest.AfterInsertAnObjectInTheDatabaseMustLoadAllFieldsValuesInTheChangeManager;
 begin
-  var CachedObject: TObject := nil;
-  var MyClass := TMyEntityWithPrimaryKeyInLastField.Create;
-  MyClass.Id := 123;
+  FCursorClass.Values := [[123456]];
+  var MyClass := TMyEntity.Create;
+  MyClass.Name := 'MyName';
+  MyClass.Value := 123456;
+  var Table := TMapper.Default.FindTable(MyClass.ClassType);
 
-  MyClass := Builder.Insert(MyClass);
+  Builder.Insert(MyClass);
 
-  FCache.Get('Internal-Delphi.ORM.Test.Entity.TMyEntityWithPrimaryKeyInLastField.123', CachedObject);
-
-  Assert.IsNotNull(CachedObject);
-
-  Assert.AreNotEqual<Pointer>(MyClass, CachedObject);
+  Assert.AreEqual('123456', FCache.ChangeManager.Changes[MyClass][Table.Field['Id']]);
+  Assert.AreEqual('''MyName''', FCache.ChangeManager.Changes[MyClass][Table.Field['Name']]);
+  Assert.AreEqual('123456', FCache.ChangeManager.Changes[MyClass][Table.Field['Value']]);
 end;
 
 procedure TQueryBuilderDataManipulationTest.AfterUpdateAnObjectTheForeignObjectMustBeDestroyed;
@@ -2040,7 +2041,7 @@ begin
       DestroyCalled := True;
     end;
 
-  AddObjectToCache(MyClassCache, 123);
+  AddObjectToCache(MyClassCache);
 
   Builder.Update(MyClass);
 
@@ -2053,7 +2054,7 @@ begin
   Cache.Id := 123;
   Cache.Value := 456;
 
-  var InternalObject := AddObjectToCache(Cache, Cache.Id) as TClassWithPrimaryKey;
+  var InternalObject := AddObjectToCache(Cache);
 
   var MyClass := TClassWithPrimaryKey.Create;
   MyClass.Id := 123;
@@ -2097,7 +2098,7 @@ begin
       Destroyed := True;
     end;
 
-  AddObjectToCache(AnotherClass, 123);
+  AddObjectToCache(AnotherClass);
 
   Builder.Insert(MyClass);
 
@@ -2119,9 +2120,9 @@ begin
       Destroyed := True;
     end;
 
-  AddObjectToCache(AnotherClass, 123);
+  AddObjectToCache(AnotherClass);
 
-  AddObjectToCache(MyClass, 123);
+  AddObjectToCache(MyClass);
 
   Builder.Update(MyClass);
 
@@ -2243,7 +2244,7 @@ begin
       Destroyed := True;
     end;
 
-  AddObjectToCache(AnotherClass, 123);
+  AddObjectToCache(AnotherClass);
 
   Builder.Insert(MyClass);
 
@@ -2265,9 +2266,9 @@ begin
       Destroyed := True;
     end;
 
-  AddObjectToCache(AnotherClass, 123);
+  AddObjectToCache(AnotherClass);
 
-  AddObjectToCache(MyClass, 123);
+  AddObjectToCache(MyClass);
 
   Builder.Update(MyClass);
 
@@ -2280,7 +2281,7 @@ begin
   Cache.Id := 123;
   Cache.Value := 456;
 
-  AddObjectToCache(Cache, Cache.Id);
+  AddObjectToCache(Cache);
 
   var MyClass := TClassWithPrimaryKey.Create;
   MyClass.Id := 123;
@@ -2367,7 +2368,7 @@ begin
   MyClassCache.Id := 123;
   MyClassCache.Field3 := '888';
 
-  AddObjectToCache(MyClassCache, 123);
+  AddObjectToCache(MyClassCache);
 
   Builder.Update(MyClass);
 
@@ -2523,7 +2524,7 @@ procedure TQueryBuilderDataManipulationTest.WhenCallUpdateMustStartATransactionI
 begin
   var MyClass := TAutoGeneratedClass.Create;
 
-  AddObjectToCache(TAutoGeneratedClass.Create, '0');
+  AddObjectToCache(TAutoGeneratedClass.Create);
 
   DatabaseMock.Expect.Once.When.StartTransaction;
 
@@ -2536,13 +2537,15 @@ end;
 
 procedure TQueryBuilderDataManipulationTest.WhenChangeALazyValueAndTheReferenceObjectHasntTheLazyLoadedMustUpdateTheClassAsExpected;
 begin
-  var CacheClass := AddObjectToCache(TLazyArrayClass.Create, 123);
+  var CacheClass := TLazyArrayClass.Create;
   CacheClass.Id := 123;
   var Manipulator := TLazyManipulator.GetManipulator(CacheClass.Lazy);
   Manipulator.Loader := FLazyLoader.Instance;
   var MyClass := TLazyArrayClass.Create;
   MyClass.Id := 123;
   MyClass.Lazy := nil;
+
+  AddObjectToCache(CacheClass);
 
   Builder.Update(MyClass);
 
@@ -2555,7 +2558,7 @@ begin
   MyClass.Id := 123;
   MyClass.Value := 456;
 
-  AddObjectToCache(MyClass, MyClass.Id);
+  AddObjectToCache(MyClass);
 
   MyClass.Value := 789;
 
@@ -2573,9 +2576,9 @@ begin
   var MyClass := TClassWithForeignKey.Create;
   MyClass.Id := 123;
 
-  AddObjectToCache(Cache, Cache.Id);
+  AddObjectToCache(Cache);
 
-  AddObjectToCache(Cache.AnotherClass, Cache.AnotherClass.Id);
+  AddObjectToCache(Cache.AnotherClass);
 
   Builder.Update(MyClass);
 
@@ -2669,7 +2672,7 @@ begin
   MyClass.AnotherClass := TClassWithPrimaryKey.Create;
   MyClass.AnotherClass.Id := 123;
 
-  AddObjectToCache(AnotherClass, 123);
+  AddObjectToCache(AnotherClass);
 
   MyClass := Builder.Insert(MyClass);
 
@@ -2801,7 +2804,7 @@ begin
   var MyClassCache := TMyEntityWithPrimaryKeyInLastField.Create;
   MyClassCache.Id := 123;
 
-  AddObjectToCache(MyClassCache, 123);
+  AddObjectToCache(MyClassCache);
 
   Builder.Update(MyClass);
 
@@ -2817,7 +2820,7 @@ begin
   MyClass.Id := 1234;
   MyClass.Lazy.Value := TMyEntity.Create;
 
-  AddObjectToCache(LazyCache, 1234);
+  AddObjectToCache(LazyCache);
 
   Builder.Save(MyClass);
 
@@ -2919,13 +2922,15 @@ end;
 
 procedure TQueryBuilderDataManipulationTest.WhenTheLazyArrayHasValueButNotLoadedCantRaiseAnyError;
 begin
-  var CacheClass := AddObjectToCache(TLazyArrayClass.Create, 123);
+  var CacheClass := TLazyArrayClass.Create;
   CacheClass.Id := 123;
   var MyClass := TLazyArrayClass.Create;
   MyClass.Id := 123;
 
   TLazyManipulator.GetManipulator(CacheClass.LazyArray).Loader := FLazyLoader.Instance;
   TLazyManipulator.GetManipulator(MyClass.LazyArray).Loader := FLazyLoader.Instance;
+
+  AddObjectToCache(CacheClass);
 
   Assert.WillNotRaise(
     procedure
@@ -2936,13 +2941,15 @@ end;
 
 procedure TQueryBuilderDataManipulationTest.WhenTheLazyArrayInTheCacheIsntLoadedAndTheForeignValueHasTheArrayLoadedCantRaiseAnyErrorWhenUpdate;
 begin
-  var CacheClass := AddObjectToCache(TLazyArrayClass.Create, 123);
+  var CacheClass := TLazyArrayClass.Create;
   CacheClass.Id := 123;
   var MyClass := TLazyArrayClass.Create;
   MyClass.Id := 123;
   MyClass.LazyArray := [TLazyArrayClassChild.Create];
 
   TLazyManipulator.GetManipulator(CacheClass.LazyArray).Loader := FLazyLoader.Instance;
+
+  AddObjectToCache(CacheClass);
 
   Assert.WillNotRaise(
     procedure
@@ -2962,7 +2969,7 @@ begin
 
   TLazyManipulator.GetManipulator(MyClass.Lazy).Loader := FLazyLoader.Instance;
 
-  AddObjectToCache(LazyCache, 1234);
+  AddObjectToCache(LazyCache);
 
   Builder.Save(MyClass);
 
@@ -2971,13 +2978,15 @@ end;
 
 procedure TQueryBuilderDataManipulationTest.WhenTheLazyHasValueButNotLoadedCantRaiseAnyError;
 begin
-  var CacheClass := AddObjectToCache(TLazyArrayClass.Create, 123);
+  var CacheClass := TLazyArrayClass.Create;
   CacheClass.Id := 123;
   var MyClass := TLazyArrayClass.Create;
   MyClass.Id := 123;
 
   TLazyManipulator.GetManipulator(CacheClass.Lazy).Loader := FLazyLoader.Instance;
   TLazyManipulator.GetManipulator(MyClass.Lazy).Loader := FLazyLoader.Instance;
+
+  AddObjectToCache(CacheClass);
 
   Assert.WillNotRaise(
     procedure
@@ -2990,7 +2999,7 @@ procedure TQueryBuilderDataManipulationTest.WhenThenObjectOfAForeignKeyIsNilCant
 begin
   var MyClass := TClassWithForeignKey.Create;
 
-  AddObjectToCache(TClassWithForeignKey.Create, 0);
+  AddObjectToCache(TClassWithForeignKey.Create);
 
   DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
 
@@ -3049,7 +3058,7 @@ begin
   var MyClass := TAutoGeneratedClass.Create;
   var Transaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
-  AddObjectToCache(TAutoGeneratedClass.Create, '0');
+  AddObjectToCache(TAutoGeneratedClass.Create);
 
   Transaction.Expect.Once.When.Commit;
 
@@ -3084,7 +3093,7 @@ begin
   MyClassCache.Id := 123;
   MyClassCache.Field3 := '888';
 
-  AddObjectToCache(MyClassCache, 123);
+  AddObjectToCache(MyClassCache);
 
   Builder.Update(MyClass);
 
@@ -3097,7 +3106,7 @@ begin
   MyClass.Childs := [TManyValueChild.Create];
   var MyClassCache := TManyValueParent.Create;
 
-  AddObjectToCache(MyClassCache, 0);
+  AddObjectToCache(MyClassCache);
 
   Builder.Update(MyClass);
 
@@ -3111,7 +3120,7 @@ begin
   var MyClass := TClassWithForeignKey.Create;
   MyClass.AnotherClass := TClassWithPrimaryKey.Create;
 
-  AddObjectToCache(TClassWithForeignKey.Create, 0);
+  AddObjectToCache(TClassWithForeignKey.Create);
 
   DatabaseMock.Setup.WillExecute(
     function (const Args: TArray<TValue>): TValue
@@ -3145,9 +3154,9 @@ begin
   Cache.Child := TManyValueChild.Create;
   Cache.Child.Id := 123;
 
-  AddObjectToCache(Cache, 123);
+  AddObjectToCache(Cache);
 
-  AddObjectToCache(Cache.Child, 123);
+  AddObjectToCache(Cache.Child);
 
   DatabaseMock.Setup.WillExecute(
     function (const Args: TArray<TValue>): TValue
@@ -3178,9 +3187,9 @@ begin
   MyClass.UpdateCascade := TClassWithCascadeForeignClass.Create;
   MyClass.UpdateCascade.Id := 1;
 
-  AddObjectToCache(ForeignKey, 1);
+  AddObjectToCache(ForeignKey);
 
-  AddObjectToCache(MyClass, 1);
+  AddObjectToCache(MyClass);
 
   Assert.WillNotRaise(
     procedure
@@ -3208,7 +3217,7 @@ begin
   var MyClass := TMyEntityWithPrimaryKey.Create;
   var MyCacheClass := TMyEntityWithPrimaryKey.Create;
 
-  AddObjectToCache(MyCacheClass, '0');
+  AddObjectToCache(MyCacheClass);
 
   Assert.AreEqual<Pointer>(MyCacheClass, Builder.Update(MyClass));
 end;
@@ -3221,7 +3230,7 @@ begin
   var MyClassCache := TManyValueParent.Create;
   MyClassCache.Id := 123;
 
-  AddObjectToCache(MyClassCache, 123);
+  AddObjectToCache(MyClassCache);
 
   Builder.Update(MyClass);
 
@@ -3247,7 +3256,7 @@ begin
   MyClass.UpdateCascade := TClassWithCascadeForeignClass.Create;
   MyClass.UpdateInsertCascade := TClassWithCascadeForeignClass.Create;
 
-  AddObjectToCache(TClassWithCascadeAttribute.Create, 0);
+  AddObjectToCache(TClassWithCascadeAttribute.Create);
 
   Builder.Update(MyClass);
 
@@ -3307,7 +3316,7 @@ begin
       DestroyCalled := True;
     end;
 
-  AddObjectToCache(MyClass, '123');
+  AddObjectToCache(MyClass);
 
   Builder.Update(MyClass);
 
@@ -3449,13 +3458,23 @@ end;
 
 { TQueryBuilderBaseTest }
 
-function TQueryBuilderBaseTest.AddObjectToCache<T>(const Obj: T; const KeyValue: TValue): T;
+function TQueryBuilderBaseTest.AddObjectToCache<T>(const Obj: T): T;
 begin
-  Result := TObjectHelper.Copy(Obj) as T;
+  Result := Obj;
+  var Table := TMapper.Default.FindTable(TypeInfo(T));
 
-  FCache.Add(Format('Delphi.ORM.Test.Entity.%s.%s', [Obj.ClassName, KeyValue.GetAsString]), Obj);
+  FCache.ChangeManager.AddInstance(Table, Obj);
 
-  FCache.Add(Format('Internal-Delphi.ORM.Test.Entity.%s.%s', [Obj.ClassName, KeyValue.GetAsString]), Result);
+  FCache.Add(Table.GetCacheKey(Obj), Obj);
+end;
+
+function TQueryBuilderBaseTest.AddObjectToCache<T>(const Obj: T; const PrimaryKeyValue: TValue): T;
+begin
+  var Table := TMapper.Default.FindTable(TypeInfo(T));
+
+  Table.PrimaryKey.SetValue(Obj, PrimaryKeyValue);
+
+  Result := AddObjectToCache(Obj);
 end;
 
 function TQueryBuilderBaseTest.GetBuilder: TQueryBuilder;

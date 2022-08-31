@@ -139,12 +139,12 @@
         <DCCReference Include="Delphi.ORM.Database.Manipulator.Test.pas"/>
         <DCCReference Include="..\Delphi.ORM.Database.Manipulator.SQLServer.pas"/>
         <DCCReference Include="Delphi.ORM.Database.Manipulator.SQLServer.Test.pas"/>
-        <DCCReference Include="..\Delphi.ORM.Obj.Helper.pas"/>
-        <DCCReference Include="Delphi.ORM.Obj.Helper.Test.pas"/>
         <DCCReference Include="..\Delphi.ORM.Lazy.Manipulator.pas"/>
         <DCCReference Include="Delphi.ORM.Lazy.Manipulator.Test.pas"/>
         <DCCReference Include="..\Delphi.ORM.Nullable.Manipulator.pas"/>
         <DCCReference Include="Delphi.ORM.Nullable.Manipulator.Test.pas"/>
+        <DCCReference Include="..\Delphi.ORM.Change.Manager.pas"/>
+        <DCCReference Include="Delphi.ORM.Change.Manager.Test.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

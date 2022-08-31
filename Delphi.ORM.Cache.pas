@@ -2,28 +2,40 @@
 
 interface
 
-uses System.Rtti, System.SysUtils, System.Generics.Collections;
+uses System.Rtti, System.SysUtils, System.Generics.Collections{$IFDEF DCC}, Delphi.ORM.Change.Manager{$ENDIF};
 
 type
   ICache = interface
     ['{E910CEFC-7423-4307-B805-0B313BF46735}']
     function Add(const Key: String; const Value: TObject): TObject; overload;
     function Get(const Key: String; var Value: TObject): Boolean;
+    {$IFDEF DCC}
+    function GetChangeManager: IChangeManager;
+
+    property ChangeManager: IChangeManager read GetChangeManager;
+    {$ENDIF}
   end;
 
   TCache = class(TInterfacedObject, ICache)
   private
 {$IFDEF DCC}
+    FChangeManger: IChangeManager;
     FReadWriteControl: IReadWriteSync;
 {$ENDIF}
     FValues: TDictionary<String, TObject>;
 
     function Add(const Key: String; const Value: TObject): TObject; overload;
     function Get(const Key: String; var Value: TObject): Boolean;
+    {$IFDEF DCC}
+    function GetChangeManager: IChangeManager;
+    {$ENDIF}
 
     class function GenerateKey(const KeyName: String; const KeyValue: TValue): String; overload;
   public
-    constructor Create;
+    constructor Create; overload;
+{$IFDEF DCC}
+    constructor Create(const ChangeManager: IChangeManager); overload;
+{$ENDIF}
 
     destructor Destroy; override;
 
@@ -64,6 +76,15 @@ begin
   FValues := TObjectDictionary<String, TObject>.Create([doOwnsValues]);
 end;
 
+{$IFDEF DCC}
+constructor TCache.Create(const ChangeManager: IChangeManager);
+begin
+  Create;
+
+  FChangeManger := ChangeManager;
+end;
+{$ENDIF}
+
 destructor TCache.Destroy;
 begin
   FValues.Free;
@@ -102,6 +123,16 @@ begin
 {$ENDIF}
   end;
 end;
+
+{$IFDEF DCC}
+function TCache.GetChangeManager: IChangeManager;
+begin
+  if not Assigned(FChangeManger) then
+    FChangeManger := TChangeManager.Create;
+
+  Result := FChangeManger;
+end;
+{$ENDIF}
 
 end.
 

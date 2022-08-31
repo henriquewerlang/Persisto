@@ -76,7 +76,7 @@ type
 
 implementation
 
-uses System.Rtti, Delphi.ORM.Lazy.Factory, Delphi.ORM.Rtti.Helper;
+uses System.Rtti, Delphi.ORM.Lazy.Factory, Delphi.ORM.Rtti.Helper, Delphi.ORM.Change.Manager;
 
 { TLazySingleClassFactoryTest }
 
@@ -104,6 +104,8 @@ begin
       Result := True;
       Params[2] := FCacheClass;
     end).When.Get(It.IsEqualTo(FTable.GetCacheKey(12345)), ItReference<TObject>.IsAny.Value);
+
+  FCache.Setup.WillReturn(TValue.From(TChangeManager.Create as IChangeManager)).When.ChangeManager;
 
   FConnection.Setup.WillReturn(TValue.From(FCursor)).When.OpenCursor(It.IsAny<String>);
 end;
