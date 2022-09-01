@@ -152,6 +152,8 @@ type
     procedure WhenIsMadeASelectAndAfterADeleteMustCleanUpTheSelectAndBuildTheFilterAsExpected;
     [Test]
     procedure WhenIsMadeASelectAndAfterAnUpdateMustCleanUpTheSelectAndBuildTheFilterAsExpected;
+    [Test]
+    procedure WhenDisableTheOptionToRemoveTheForeignKeyCantDestroyTheForiegnKeyObject;
   end;
 
   [TestFixture]
@@ -855,6 +857,31 @@ begin
         'left join ClassRecursiveFirst T10 ' +
                'on T9.IdRecursive=T10.Id',
     Builder.GetSQL);
+end;
+
+procedure TQueryBuilderTest.WhenDisableTheOptionToRemoveTheForeignKeyCantDestroyTheForiegnKeyObject;
+begin
+  var DestroyCalled := False;
+  var MyClass := TClassWithFunction.Create;
+  MyClass.Id := 123;
+  var MyClassCache := TClassWithFunction.Create;
+  MyClassCache.Id := 123;
+
+  MyClass.DestroyCallFunction :=
+    procedure
+    begin
+      DestroyCalled := True;
+    end;
+
+  AddObjectToCache(MyClassCache);
+
+  Builder.Options := [];
+
+  Builder.Update(MyClass);
+
+  Assert.IsFalse(DestroyCalled);
+
+  MyClass.Free;
 end;
 
 procedure TQueryBuilderTest.WhenDontHaveAResultingCursorCantLoadTheProperties;
@@ -3482,7 +3509,7 @@ begin
   if not Assigned(FBuilder) then
   begin
     FBuilder := TQueryBuilder.Create(Database, FCache);
-    FBuilder.Options := [];
+    FBuilder.Options := [boDestroyForeignObjects];
     FBuilderAccess := FBuilder;
   end;
 

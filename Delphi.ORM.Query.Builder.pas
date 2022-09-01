@@ -37,7 +37,7 @@ type
     constructor Create;
   end;
 
-  TBuilderOptions = set of (boBeautifyQuery, boJoinMapping);
+  TBuilderOptions = set of (boBeautifyQuery, boJoinMapping, boDestroyForeignObjects);
 
   IQueryBuilderCommand = interface
     function GetSQL: String;
@@ -372,7 +372,7 @@ end;
 
 procedure TQueryBuilder.AddObjectToDestruction(const CurrentObject, ForeignObject: TObject);
 begin
-  if CurrentObject <> ForeignObject then
+  if (boDestroyForeignObjects in Options) and (CurrentObject <> ForeignObject) then
     FDestroyObjects.AddOrSetValue(ForeignObject, False);
 end;
 
