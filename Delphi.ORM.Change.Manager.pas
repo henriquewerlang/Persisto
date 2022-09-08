@@ -20,9 +20,9 @@ type
     FChange: TDictionary<TField, String>;
 
     function GetChange(const Field: TField): String;
+    function GetChangeCount: Integer;
 
     procedure SetChange(const Field: TField; const Value: String);
-    function GetChangeCount: Integer;
   public
     constructor Create;
 

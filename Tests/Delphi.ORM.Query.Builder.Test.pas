@@ -525,6 +525,8 @@ type
     procedure WhenTheLazyArrayInTheCacheIsntLoadedAndTheForeignValueHasTheArrayLoadedCantRaiseAnyErrorWhenUpdate;
     [Test]
     procedure AfterInsertAnObjectInTheDatabaseMustLoadAllFieldsValuesInTheChangeManager;
+    [Test]
+    procedure WhenInsertAnObjectWithEmptyForeignKeyMustLoadTheChangesWithNullValue;
   end;
 
   [TestFixture]
@@ -2689,6 +2691,17 @@ begin
   FCache.Get('Delphi.ORM.Test.Entity.TMyEntityWithPrimaryKeyInLastField.123', CachedObject);
 
   Assert.AreEqual<Pointer>(MyClass, CachedObject);
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenInsertAnObjectWithEmptyForeignKeyMustLoadTheChangesWithNullValue;
+begin
+  FCursorClass.Values := [[123456]];
+  var MyClass := TClassWithForeignKey.Create;
+  var Table := TMapper.Default.FindTable(MyClass.ClassType);
+
+  Builder.Insert(MyClass);
+
+  Assert.AreEqual('null', FCache.ChangeManager.Changes[MyClass][Table.Field['AnotherClass']]);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertAnObjectWithForeignKeysThatIsAlreadyInTheCacheMustUpdateTheReferenceOfTheObjectBeenInserted;
