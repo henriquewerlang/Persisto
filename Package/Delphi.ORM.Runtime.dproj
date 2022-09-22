@@ -96,6 +96,8 @@
         <DCCReference Include="..\Delphi.ORM.Cache.pas"/>
         <DCCReference Include="..\Delphi.ORM.Lazy.Factory.pas"/>
         <DCCReference Include="..\Delphi.ORM.Change.Manager.pas"/>
+        <DCCReference Include="..\Delphi.ORM.Lazy.Manipulator.pas"/>
+        <DCCReference Include="..\Delphi.ORM.Nullable.Manipulator.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -144,6 +146,12 @@
                     </Platform>
                 </DeployFile>
                 <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\22.0\Bpl\Delphi.ORM.Runtime.bpl" Configuration="Debug" Class="ProjectOutput"/>
+                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\22.0\Bpl\Delphi.ORM.Runtime.bpl" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>Delphi_ORM_Runtime.bpl</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployClass Name="AdditionalDebugSymbols">
                     <Platform Name="OSX32">
                         <Operation>1</Operation>
