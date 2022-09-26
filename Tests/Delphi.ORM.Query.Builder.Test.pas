@@ -527,6 +527,10 @@ type
     procedure AfterInsertAnObjectInTheDatabaseMustLoadAllFieldsValuesInTheChangeManager;
     [Test]
     procedure WhenInsertAnObjectWithEmptyForeignKeyMustLoadTheChangesWithNullValue;
+    [Test]
+    procedure WhenInsertingAnObjectWithAnUnloadedLazyFieldCantRaisAnyError;
+    [Test]
+    procedure WhenInsertingAnObjectWithAnUnloadedLazyMustInsertTheLazyKeyInTheField;
   end;
 
   [TestFixture]
@@ -2798,6 +2802,32 @@ begin
   Builder.Insert(First);
 
   Assert.StartsWith('insert into ClassRecursiveSecond()values()', DatabaseClass.SQL);
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenInsertingAnObjectWithAnUnloadedLazyFieldCantRaisAnyError;
+begin
+  var MyClass := TLazyArrayClass.Create;
+
+  var Manipulator := TLazyManipulator.GetManipulator(MyClass.Lazy);
+  Manipulator.Loader := FLazyLoader.Instance;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Builder.Insert(MyClass);
+    end);
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenInsertingAnObjectWithAnUnloadedLazyMustInsertTheLazyKeyInTheField;
+begin
+  var MyClass := TLazyArrayClass.Create;
+
+  var Manipulator := TLazyManipulator.GetManipulator(MyClass.Lazy);
+  Manipulator.Loader := FLazyLoader.Instance;
+
+  Builder.Insert(MyClass);
+
+  Assert.StartsWith('insert into LazyArrayClass(Id,IdLazy)values(0,1234)', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertingAnObjectWithCircularReferenceCantRaiseAnyError;

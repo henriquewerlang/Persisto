@@ -501,14 +501,14 @@ begin
       Changes[Field] := 'null'
     else if not Field.IsManyValueAssociation and not Field.IsReadOnly then
     begin
-      if Field.IsForeignKey then
+      if Field.IsForeignKey and FieldValue.IsObject then
       begin
         FieldValue := FProcessedObjects[FieldValue.AsObject];
 
         Field.SetValue(Result, FieldValue);
       end;
 
-      if not Field.IsForeignKey or Field.ForeignKey.ParentTable.PrimaryKey.HasValue(FieldValue.AsObject, FieldValue) then
+      if not Field.IsForeignKey or not FieldValue.IsObject or Field.ForeignKey.ParentTable.PrimaryKey.HasValue(FieldValue.AsObject, FieldValue) then
       begin
         FieldStringValue := Field.GetAsString(FieldValue);
 
