@@ -170,8 +170,6 @@ begin
     else
       NewChildObject := CreateObject(Link.Table, FieldIndexStart, ForeignKeyObject);
 
-    LoadObject(ForeignKeyObject, Link, FieldIndexStart, NewChildObject);
-
     if NewObject and Link.Field.IsForeignKey then
     begin
       Link.Field.SetValue(CurrentObject, ForeignKeyObject);
@@ -185,6 +183,8 @@ begin
 
       AddItemToParentArray(CurrentObject, Link.Field, ForeignKeyObject);
     end;
+
+    LoadObject(ForeignKeyObject, Link, FieldIndexStart, NewChildObject);
   end;
 
   if NewObject then
