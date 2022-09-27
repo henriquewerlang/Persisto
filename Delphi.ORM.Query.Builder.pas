@@ -752,6 +752,8 @@ begin
 
         if ForeignFieldStringValue <> Changes[Field] then
         begin
+          Changes[Field] := ForeignFieldStringValue;
+
           if not SQL.IsEmpty then
             SQL := SQL + ',';
 

@@ -531,6 +531,8 @@ type
     procedure WhenInsertingAnObjectWithAnUnloadedLazyFieldCantRaisAnyError;
     [Test]
     procedure WhenInsertingAnObjectWithAnUnloadedLazyMustInsertTheLazyKeyInTheField;
+    [Test]
+    procedure WhenUpdateAnObjectMustUpdateTheChangeInformationOfTheObject;
   end;
 
   [TestFixture]
@@ -3290,6 +3292,23 @@ begin
   AddObjectToCache(MyCacheClass);
 
   Assert.AreEqual<Pointer>(MyCacheClass, Builder.Update(MyClass));
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenUpdateAnObjectMustUpdateTheChangeInformationOfTheObject;
+begin
+  var MyClass := TMyEntity.Create;
+  MyClass.Id := 123;
+  MyClass.Name := 'MyName';
+  MyClass.Value := 123456;
+  var Table := TMapper.Default.FindTable(MyClass.ClassType);
+
+  AddObjectToCache(TMyEntity.Create, 123);
+
+  var MyClassUpdated := Builder.Update(MyClass);
+
+  Assert.AreEqual('123', FCache.ChangeManager.Changes[MyClassUpdated][Table.Field['Id']]);
+  Assert.AreEqual('''MyName''', FCache.ChangeManager.Changes[MyClassUpdated][Table.Field['Name']]);
+  Assert.AreEqual('123456', FCache.ChangeManager.Changes[MyClassUpdated][Table.Field['Value']]);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdateAnObjectWithManyValueAssociationTheParentForeignKeyOfTheChildObjectMustBeTheReferenceToTheCacheObject;
