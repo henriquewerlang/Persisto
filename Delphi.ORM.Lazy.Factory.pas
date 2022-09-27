@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Rtti, Delphi.ORM.Lazy, Delphi.ORM.Mapper, Delphi.ORM.Cache, Delphi.ORM.Database.Connection;
+uses System.Rtti, Delphi.ORM.Lazy, Delphi.ORM.Mapper, Delphi.ORM.Cache, Delphi.ORM.Database.Connection, Delphi.ORM.Query.Builder;
 
 type
   TLazyFactory = class(TInterfacedObject)
@@ -12,6 +12,7 @@ type
     FKeyValue: TValue;
     FLazyField: TField;
 
+    function CreateQueryBuilder: TQueryBuilder;
     function GetKey: TValue;
   public
     constructor Create(const Connection: IDatabaseConnection; const Cache: ICache; const LazyField: TField; const KeyValue: TValue);
@@ -31,7 +32,7 @@ function CreateLoader(const Connection: IDatabaseConnection; const Cache: ICache
 
 implementation
 
-uses System.TypInfo, Delphi.ORM.Query.Builder, Delphi.ORM.Rtti.Helper;
+uses System.TypInfo, Delphi.ORM.Rtti.Helper;
 
 function CreateLoader(const Connection: IDatabaseConnection; const Cache: ICache; const LazyField: TField; const KeyValue: TValue): ILazyLoader;
 begin
@@ -54,7 +55,7 @@ begin
     Result := AnObject
   else
   begin
-    var Query := TQueryBuilder.Create(FConnection, FCache);
+    var Query := CreateQueryBuilder;
 
     try
       Result := Query.Select.All.From<TObject>(Table).Where(Field(Table.PrimaryKey.Name) = FKeyValue).Open.One;
@@ -69,7 +70,7 @@ end;
 function TLazyManyValueClassFactory.LoadValue: TValue;
 begin
   var ManyValue := FLazyField.ManyValueAssociation;
-  var Query := TQueryBuilder.Create(FConnection, FCache);
+  var Query := CreateQueryBuilder;
 
   try
     var Value := Query.Select.All.From<TObject>(ManyValue.ChildTable).Where(Field(ManyValue.ForeignKey.Field.Name) = FKeyValue).Open.All;
@@ -90,6 +91,15 @@ begin
   FConnection := Connection;
   FKeyValue := KeyValue;
   FLazyField := LazyField;
+end;
+
+function TLazyFactory.CreateQueryBuilder: TQueryBuilder;
+begin
+  Result := TQueryBuilder.Create(FConnection, FCache);
+
+{$IFDEF DEBUG}
+  Result.Options := [boBeautifyQuery, boJoinMapping];
+{$ENDIF}
 end;
 
 function TLazyFactory.GetKey: TValue;
