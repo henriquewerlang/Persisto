@@ -39,6 +39,7 @@ type
 {$ENDIF}
 
     property HasValue: Boolean read GetHasValue;
+    property Loaded: Boolean read FLoaded;
     property Value: T read GetValue write SetValue;
   end;
 
@@ -48,7 +49,7 @@ implementation
 
 function Lazy<T>.GetHasValue: Boolean;
 begin
-  Result := FLoaded or Assigned(FLoader);
+  Result := not FValue.IsEmpty or Assigned(FLoader);
 end;
 
 function Lazy<T>.GetValue: T;
