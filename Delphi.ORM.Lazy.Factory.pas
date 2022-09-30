@@ -97,9 +97,9 @@ function TLazyFactory.CreateQueryBuilder: TQueryBuilder;
 begin
   Result := TQueryBuilder.Create(FConnection, FCache);
 
-{$IFDEF DEBUG}
+{$IF DEFINED(DEBUG) and not DEFINED(TESTINSIGHT)}
   Result.Options := [boBeautifyQuery, boJoinMapping];
-{$ENDIF}
+{$IFEND}
 end;
 
 function TLazyFactory.GetKey: TValue;
