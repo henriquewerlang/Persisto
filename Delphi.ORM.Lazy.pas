@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Rtti, System.TypInfo{$IFDEF PAS2JS}, JS, Web{$ENDIF};
+uses System.Rtti, System.TypInfo, System.SysUtils{$IFDEF PAS2JS}, JS, Web{$ENDIF};
 
 type
   ILazyLoader = {$IFDEF DCC}interface{$ELSE}class
@@ -10,6 +10,9 @@ type
 {$ENDIF}
     function GetKey: TValue;{$IFDEF PAS2JS} virtual; abstract;{$ENDIF}
     function LoadValue: TValue;{$IFDEF PAS2JS} virtual; abstract;{$ENDIF}
+{$IFDEF PAS2JS}
+    function LoadValueAsync: TValue; virtual; abstract; async;
+{$ENDIF}
   end;
 
   Lazy<T> = record
@@ -18,12 +21,14 @@ type
     FLoader: ILazyLoader;
     FValue: TValue;
 
+    function NeedLoadValue: Boolean;
+
     procedure SetTValue(const Value: TValue);
   public
     function GetHasValue: Boolean;
     function GetValue: T;
 {$IFDEF PAS2JS}
-    function GetValueAsync: TJSPromise;
+    function GetValueAsync: T; async;
 {$ENDIF}
 
     procedure SetValue(const Value: T);
@@ -43,27 +48,24 @@ implementation
 
 function Lazy<T>.GetHasValue: Boolean;
 begin
-  Result := not FValue.IsEmpty or Assigned(FLoader);
+  Result := FLoaded or Assigned(FLoader);
 end;
 
 function Lazy<T>.GetValue: T;
 begin
-  if not FLoaded then
-    if Assigned(FLoader) then
-      SetTValue(FLoader.LoadValue)
-    else
-      SetTValue(TValue.Empty);
+  if NeedLoadValue then
+    SetTValue(FLoader.LoadValue);
 
   Result := FValue.AsType<T>;
 end;
 
 {$IFDEF PAS2JS}
-function Lazy<T>.GetValueAsync: TJSPromise;
+function Lazy<T>.GetValueAsync: T;
 begin
-  Result := TJSPromise.New(procedure (Resolve, Reject: TJSPromiseResolver)
-    begin
-      Resolve(GetValue);
-    end);
+  if NeedLoadValue then
+    SetTValue(await(FLoader.LoadValueAsync));
+
+  Result := FValue.AsType<T>;
 end;
 {$ENDIF}
 
@@ -78,6 +80,14 @@ begin
   Result := Value.Value;
 end;
 {$ENDIF}
+
+function Lazy<T>.NeedLoadValue: Boolean;
+begin
+  Result := not FLoaded and Assigned(FLoader);
+
+  if not FLoaded and not Assigned(FLoader) then
+    SetTValue(TValue.Empty);
+end;
 
 procedure Lazy<T>.SetTValue(const Value: TValue);
 begin
