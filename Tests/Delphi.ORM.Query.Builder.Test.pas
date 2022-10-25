@@ -533,6 +533,8 @@ type
     procedure WhenInsertingAnObjectWithAnUnloadedLazyMustInsertTheLazyKeyInTheField;
     [Test]
     procedure WhenUpdateAnObjectMustUpdateTheChangeInformationOfTheObject;
+    [Test]
+    procedure WhenTheLazyCacheValueIsDiferentFromTheForeignKeyObjectButTheLazyIsntLoadedCantUpdateTheValue;
   end;
 
   [TestFixture]
@@ -3028,6 +3030,30 @@ begin
     begin
       Builder.Update(MyClass);
     end);
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenTheLazyCacheValueIsDiferentFromTheForeignKeyObjectButTheLazyIsntLoadedCantUpdateTheValue;
+begin
+  var CacheClass := TLazyArrayClass.Create;
+  CacheClass.Id := 123;
+  var LazyValue := TMyEntity.Create;
+  LazyValue.Id := 123;
+  var MyClass := TLazyArrayClass.Create;
+  MyClass.Id := 123;
+  var MyClassManipulator := TLazyManipulator.GetManipulator(MyClass.Lazy);
+  MyClassManipulator.Loader := FLazyLoader.Instance;
+
+  CacheClass.Lazy := LazyValue;
+
+  FLazyLoader.Setup.WillReturn(456).When.GetKey;
+
+  AddObjectToCache(CacheClass);
+
+  AddObjectToCache(LazyValue);
+
+  Builder.Update(MyClass);
+
+  Assert.AreEqual(EmptyStr, DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenTheLazyHasntLoadedCantBeUpdatedThenValuesOfThisFields;

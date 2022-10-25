@@ -745,8 +745,11 @@ begin
     for var Field in Table.Fields do
       if not Field.InPrimaryKey and not Field.IsManyValueAssociation and not Field.IsReadOnly then
       begin
-        if Field.HasValue(ForeignObject, ForeignFieldValue) and ForeignFieldValue.IsObject and Field.IsForeignKey then
-          ForeignFieldValue := FProcessedObjects[ForeignFieldValue.AsObject];
+        if Field.HasValue(ForeignObject, ForeignFieldValue) and Field.IsForeignKey then
+          if ForeignFieldValue.IsObject then
+            ForeignFieldValue := FProcessedObjects[ForeignFieldValue.AsObject]
+          else
+            Continue;
 
         ForeignFieldStringValue := Field.GetAsString(ForeignFieldValue);
 
