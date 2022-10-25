@@ -114,7 +114,7 @@ uses System.SysUtils, System.Variants, System.Rtti, Delphi.Mock, Delphi.ORM.Test
 
 procedure TClassLoaderTest.AfterLoadAnObjectMustCallTheAddInInstanceOfChangeManager;
 begin
-  FChangeManager.Expect.Once.When.AddInstance(It.IsAny<TTable>, It.IsAny<TObject>);
+  FChangeManager.Expect.Once.When.AddInstance(It(0).IsAny<TTable>, It(1).IsAny<TObject>);
 
   FCursorMockClass.Values := [['aaa', 111]];
 
@@ -186,7 +186,7 @@ end;
 
 procedure TClassLoaderTest.TheAddInstanceMustBeCalledJustOncePerInstance;
 begin
-  FChangeManager.Expect.Once.When.AddInstance(It.IsAny<TTable>, It.IsAny<TObject>);
+  FChangeManager.Expect.Once.When.AddInstance(It(0).IsAny<TTable>, It(1).IsAny<TObject>);
 
   FCursorMockClass.Values := [['aaa', 111], ['aaa', 111], ['aaa', 111]];
 
@@ -295,7 +295,7 @@ procedure TClassLoaderTest.WhenCallTheAddInstanceTheParamsMustBeTheValuesExpecte
 begin
   var Table := TMapper.Default.FindTable(TMyClass);
 
-  FChangeManager.Expect.Once.When.AddInstance(It.IsEqualTo(Table), It.IsNotEqualTo<TObject>(nil));
+  FChangeManager.Expect.Once.When.AddInstance(It(0).IsEqualTo(Table), It(1).IsNotEqualTo<TObject>(nil));
 
   FCursorMockClass.Values := [['aaa', 111]];
 

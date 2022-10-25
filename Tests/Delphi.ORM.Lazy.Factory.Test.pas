@@ -96,14 +96,14 @@ begin
     function (const Params: TArray<TValue>): TValue
     begin
       Result := False;
-    end).When.Get(It.IsAny<String>, ItReference<TObject>.IsAny.Value);
+    end).When.Get(It(0).IsAny<String>, ItReference<TObject>(1).IsAny.Value);
 
   FCache.Setup.WillExecute(
     function (const Params: TArray<TValue>): TValue
     begin
       Result := True;
       Params[2] := FCacheClass;
-    end).When.Get(It.IsEqualTo(FTable.GetCacheKey(12345)), ItReference<TObject>.IsAny.Value);
+    end).When.Get(It(0).IsEqualTo(FTable.GetCacheKey(12345)), ItReference<TObject>(1).IsAny.Value);
 
   FCache.Setup.WillReturn(TValue.From(TChangeManager.Create as IChangeManager)).When.ChangeManager;
 
