@@ -849,7 +849,7 @@ begin
       if Manipulator.Loaded then
         Value := Manipulator.Value
       else
-        Value := Manipulator.GetKey
+        Value := Manipulator.Key
     else
       Value := TValue.Empty;
   end

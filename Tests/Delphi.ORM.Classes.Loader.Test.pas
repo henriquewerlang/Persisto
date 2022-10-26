@@ -104,6 +104,8 @@ type
     procedure WhenCallTheAddInstanceTheParamsMustBeTheValuesExpected;
     [Test]
     procedure TheAddInstanceMustBeCalledJustOncePerInstance;
+    [Test]
+    procedure WhenTheLazyFieldAlreadyLoadedAndTheInternalKeyValueHasChangedMustReloadTheLazyControl;
   end;
 
 implementation
@@ -446,6 +448,22 @@ begin
   var MyObject := LoadClass<TLazyClass>;
 
   Assert.IsNotEmpty(TLazyManipulator.GetManipulator(MyObject.Lazy).Loader);
+end;
+
+procedure TClassLoaderTest.WhenTheLazyFieldAlreadyLoadedAndTheInternalKeyValueHasChangedMustReloadTheLazyControl;
+begin
+  FCursorMockClass.Values := [[111, 222]];
+
+  var MyObject := LoadClass<TLazyClass>;
+
+  MyObject.Lazy := nil;
+
+  FCursorMockClass.Values := [[111, 333]];
+  MyObject := LoadClass<TLazyClass>;
+
+  Assert.AreEqual(333, TLazyManipulator.GetManipulator(MyObject.Lazy).Loader.GetKey.AsInteger);
+
+  Assert.IsFalse(TLazyManipulator.GetManipulator(MyObject.Lazy).Loaded);
 end;
 
 procedure TClassLoaderTest.WhenTheLoaderCreateANewObjectMustAddItToTheCacheControl;

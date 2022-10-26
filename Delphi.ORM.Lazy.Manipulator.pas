@@ -13,11 +13,13 @@ type
     function GetRttiType: TRttiType;
     function GetValue: TValue;
 
+    procedure SetLoaded(const Value: Boolean);
     procedure SetLoader(const Value: ILazyLoader);
     procedure SetValue(const Value: TValue);
 
     property HasValue: Boolean read GetHasValue;
-    property Loaded: Boolean read GetLoaded;
+    property Key: TValue read GetKey;
+    property Loaded: Boolean read GetLoaded write SetLoaded;
     property Loader: ILazyLoader read GetLoader write SetLoader;
     property RttiType: TRttiType read GetRttiType;
     property Value: TValue read GetValue write SetValue;
@@ -38,6 +40,7 @@ type
     function GetRttiType: TRttiType;
     function GetValue: TValue;
 
+    procedure SetLoaded(const Value: Boolean);
     procedure SetLoader(const Value: ILazyLoader);
     procedure SetValue(const Value: TValue);
 
@@ -171,6 +174,11 @@ end;
 class function TLazyManipulator.IsLazyLoading(const LazyProperty: TRttiProperty): Boolean;
 begin
   Result := IsLazyLoading(LazyProperty.PropertyType);
+end;
+
+procedure TLazyManipulator.SetLoaded(const Value: Boolean);
+begin
+  LazyLoadedField.SetValue(FLazyInstance, TValue.From(Value));
 end;
 
 procedure TLazyManipulator.SetLoader(const Value: ILazyLoader);

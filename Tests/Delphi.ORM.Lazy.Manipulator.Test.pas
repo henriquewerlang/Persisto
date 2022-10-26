@@ -53,6 +53,8 @@ type
     procedure WhenGetKeyInTheManipulatorMustReturnTheInternalKeyOfTheLazy;
     [Test]
     procedure IfTheLazyLoaderIsntLoadedMustReturnEmptyInTheGetKeyFunction;
+    [Test]
+    procedure WhenSetTheLoadedValueTheLazyFieldMustLoadTheInternalValueAgain;
   end;
 
 implementation
@@ -66,7 +68,7 @@ begin
   var Manipulator := TLazyManipulator.GetManipulator(FLazyClass, FLazyProperty);
   Manipulator.Loader := nil;
 
-  Assert.IsTrue(Manipulator.GetKey.IsEmpty);
+  Assert.IsTrue(Manipulator.Key.IsEmpty);
 end;
 
 procedure TLazyManipulatorTest.Setup;
@@ -130,7 +132,7 @@ begin
 
   FLazyLoaderMock.Setup.WillReturn(1234).When.GetKey;
 
-  Assert.AreEqual(1234, Manipulator.GetKey.AsInteger);
+  Assert.AreEqual(1234, Manipulator.Key.AsInteger);
 end;
 
 procedure TLazyManipulatorTest.WhenGetManipulatorMustReturnTheInstanceWhenPassTheInstanceAndPropertyValue;
@@ -173,6 +175,20 @@ begin
   Manipulator.Loader := FLazyLoaderMock.Instance;
 
   Assert.AreEqual(FLazyLoaderMock.Instance, Manipulator.Loader);
+end;
+
+procedure TLazyManipulatorTest.WhenSetTheLoadedValueTheLazyFieldMustLoadTheInternalValueAgain;
+begin
+  var Manipulator := TLazyManipulator.GetManipulator(FLazyClass, FLazyProperty);
+  var MyEntity := TMyEntity.Create;
+
+  Manipulator.Value := MyEntity;
+
+  Manipulator.Loaded := False;
+
+  Assert.IsFalse(Manipulator.Loaded);
+
+  MyEntity.Free;
 end;
 
 procedure TLazyManipulatorTest.WhenSetTheValueInTheManipulatorMustClearTheLoaderValue;

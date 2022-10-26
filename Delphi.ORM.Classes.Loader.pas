@@ -148,7 +148,11 @@ begin
           FieldValue := Field.Table.PrimaryKey.GetValue(CurrentObject);
 
         if Field.IsLazy then
-          TLazyManipulator.GetManipulator(CurrentObject, Field.PropertyInfo).Loader := CreateLoader(FAccess.Connection, FAccess.Cache, Field, FieldValue)
+        begin
+          var Manipulator := TLazyManipulator.GetManipulator(CurrentObject, Field.PropertyInfo);
+          Manipulator.Loaded := False;
+          Manipulator.Loader := CreateLoader(FAccess.Connection, FAccess.Cache, Field, FieldValue)
+        end
         else
           Field.SetValue(CurrentObject, FieldValue);
       end;
