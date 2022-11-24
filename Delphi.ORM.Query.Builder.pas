@@ -278,9 +278,10 @@ type
     Comparison: TQueryBuilderComparison;
 
     function Between<T>(const ValueStart, ValueEnd: T): TQueryBuilderComparisonHelper;
+    function IsLoaded: Boolean;
     function Like(const Value: String): TQueryBuilderComparisonHelper;
 
-    class procedure InitComparison(var Result: TQueryBuilderComparisonHelper); static;
+    class function Create: TQueryBuilderComparisonHelper; static;
 
     class operator BitwiseAnd(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
     class operator BitwiseOr(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
@@ -1198,8 +1199,7 @@ end;
 
 function TQueryBuilderComparisonHelper.Between<T>(const ValueStart, ValueEnd: T): TQueryBuilderComparisonHelper;
 begin
-  InitComparison(Result);
-
+  Result := Create;
   Result.Comparison.Left := Self.Comparison;
   Result.Comparison.Comparison := qbcoBetween;
   Result.Comparison.Right.Value := TValue.From<TArray<T>>([ValueStart, ValueEnd]);
@@ -1207,8 +1207,7 @@ end;
 
 class operator TQueryBuilderComparisonHelper.BitwiseAnd(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
 begin
-  InitComparison(Result);
-
+  Result := Create;
   Result.Comparison.Left := Left.Comparison;
   Result.Comparison.Logical := qloAnd;
   Result.Comparison.Right := Right.Comparison;
@@ -1216,11 +1215,17 @@ end;
 
 class operator TQueryBuilderComparisonHelper.BitwiseOr(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
 begin
-  InitComparison(Result);
-
+  Result := Create;
   Result.Comparison.Left := Left.Comparison;
   Result.Comparison.Logical := qloOr;
   Result.Comparison.Right := Right.Comparison;
+end;
+
+class function TQueryBuilderComparisonHelper.Create: TQueryBuilderComparisonHelper;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+
+  Result.Comparison := TQueryBuilderComparison.Create;
 end;
 
 class operator TQueryBuilderComparisonHelper.Equal(const Left: TQueryBuilderComparisonHelper; const Value: Variant): TQueryBuilderComparisonHelper;
@@ -1273,11 +1278,9 @@ begin
   MakeComparison(qbcoGreaterThanOrEqual, Left, TValue.FromVariant(Value), Result);
 end;
 
-class procedure TQueryBuilderComparisonHelper.InitComparison(var Result: TQueryBuilderComparisonHelper);
+function TQueryBuilderComparisonHelper.IsLoaded: Boolean;
 begin
-  FillChar(Result, SizeOf(Result), 0);
-
-  Result.Comparison := TQueryBuilderComparison.Create;
+  Result := (Comparison.Logical <> qloNone) or (Comparison.Comparison <> qbcoNone);
 end;
 
 class operator TQueryBuilderComparisonHelper.LessThan(const Left: TQueryBuilderComparisonHelper; const Value: TValue): TQueryBuilderComparisonHelper;
@@ -1297,8 +1300,7 @@ end;
 
 function TQueryBuilderComparisonHelper.Like(const Value: String): TQueryBuilderComparisonHelper;
 begin
-  InitComparison(Result);
-
+  Result := Create;
   Result.Comparison.Left := Self.Comparison;
   Result.Comparison.Comparison := qbcoLike;
   Result.Comparison.Right.Value := Value;
@@ -1307,8 +1309,7 @@ end;
 class procedure TQueryBuilderComparisonHelper.MakeComparison(const Comparison: TQueryBuilderComparisonOperator; const Left: TQueryBuilderComparisonHelper; const Right: TValue;
   var Result: TQueryBuilderComparisonHelper);
 begin
-  InitComparison(Result);
-
+  Result := Create;
   Result.Comparison.Left := Left.Comparison;
   Result.Comparison.Comparison := Comparison;
   Result.Comparison.Right.Value := Right;
@@ -1317,8 +1318,7 @@ end;
 class procedure TQueryBuilderComparisonHelper.MakeComparison(const Comparison: TQueryBuilderComparisonOperator; const Left, Right: TQueryBuilderComparisonHelper;
   var Result: TQueryBuilderComparisonHelper);
 begin
-  InitComparison(Result);
-
+  Result := Create;
   Result.Comparison.Left := Left.Comparison;
   Result.Comparison.Comparison := Comparison;
   Result.Comparison.Right := Right.Comparison;

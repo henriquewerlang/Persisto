@@ -236,6 +236,12 @@ type
     procedure WhenBothOperatorAreLogicalMustCreateANewLogicalOperationWithBothValuesInAndOperator;
     [Test]
     procedure WhenBothOperatorAreLogicalMustCreateANewLogicalOperationWithBothValuesInOrOperator;
+    [Test]
+    procedure WhenComparisonHelperIsNotLoadedTheFunctionIsLoadedMustReturnFalse;
+    [Test]
+    procedure WhenCompareAFieldWithAValueTheIsLoadedMustReturnTrue;
+    [Test]
+    procedure WhenCompareWithALogicalOperatorTheIsLoadedMustReturnTrue;
   end;
 
   [TestFixture]
@@ -1428,6 +1434,15 @@ begin
   Comparison.Comparison.Free;
 end;
 
+procedure TQueryBuilderComparisonTest.WhenCompareAFieldWithAValueTheIsLoadedMustReturnTrue;
+begin
+  var Comparison := Field('MyField') = True;
+
+  Assert.IsTrue(Comparison.IsLoaded);
+
+  Comparison.Comparison.Free;
+end;
+
 procedure TQueryBuilderComparisonTest.WhenCompareTheFieldWithAnIntegerValueMustLoadTheComparisonAsExpected(Operation: TQueryBuilderComparisonOperator);
 begin
   var Comparison: TQueryBuilderComparisonHelper;
@@ -1498,6 +1513,24 @@ begin
 
     Comparison.Comparison.Free;
   end;
+end;
+
+procedure TQueryBuilderComparisonTest.WhenCompareWithALogicalOperatorTheIsLoadedMustReturnTrue;
+begin
+  var Comparison := (Field('MyField') = True) and (Field('MyField') = True);
+
+  Assert.IsTrue(Comparison.IsLoaded);
+
+  Comparison.Comparison.Free;
+end;
+
+procedure TQueryBuilderComparisonTest.WhenComparisonHelperIsNotLoadedTheFunctionIsLoadedMustReturnFalse;
+begin
+  var Comparison := TQueryBuilderComparisonHelper.Create;
+
+  Assert.IsFalse(Comparison.IsLoaded);
+
+  Comparison.Comparison.Free;
 end;
 
 procedure TQueryBuilderComparisonTest.WhenToUseTheOperatorAndHaveToGenerateALogicalOperationWithFilledComparisons;
