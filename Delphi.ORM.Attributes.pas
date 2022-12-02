@@ -68,6 +68,9 @@ type
     property SpecialType: TDatabaseSpecialType read FSpecialType;
   end;
 
+  RequiredAttribute = class(TCustomAttribute)
+  end;
+
 implementation
 
 { TCustomNameAttribute }

@@ -106,6 +106,7 @@ type
     FManyValueAssociation: TManyValueAssociation;
     FName: String;
     FPropertyInfo: TRttiInstanceProperty;
+    FRequired: Boolean;
     FScale: Word;
     FSize: Word;
     FSpecialType: TDatabaseSpecialType;
@@ -137,6 +138,7 @@ type
     property ManyValueAssociation: TManyValueAssociation read FManyValueAssociation;
     property Name: String read FName write FName;
     property PropertyInfo: TRttiInstanceProperty read FPropertyInfo;
+    property Required: Boolean read FRequired;
     property Scale: Word read FScale write FScale;
     property Size: Word read FSize write FSize;
     property SpecialType: TDatabaseSpecialType read FSpecialType write FSpecialType;
@@ -507,6 +509,7 @@ begin
   Field.FIsReadOnly := not PropertyInfo.IsWritable;
   Field.FName := PropertyInfo.Name;
   Field.FPropertyInfo := PropertyInfo;
+  Field.FRequired := PropertyInfo.HasAttribute<RequiredAttribute>;
   Field.FTable := Table;
   Table.FFields := Table.FFields + [Field];
 

@@ -1098,11 +1098,22 @@ type
 //
 //  end;
 
+  [Entity]
+  TRequiredClass = class
+  private
+    FId: Integer;
+    FRequiredField: String;
+  published
+    property Id: Integer read FId write FId;
+    [Required]
+    property RequiredField: String read FRequiredField write FRequiredField;
+  end;
+
 implementation
 
-{ TManyValueParentChildError }
-
 uses Delphi.ORM.Mapper;
+
+{ TManyValueParentChildError }
 
 function TManyValueParentChildError.GetParent: TManyValueParentError;
 begin

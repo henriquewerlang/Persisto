@@ -330,6 +330,8 @@ type
     procedure WhenTheFieldIsManyValueAssociationMustLoadTheManyValuePropertyOfTheField;
     [Test]
     procedure WhenTheLazyFieldIsntLoadedAndHaveAKeyFilledMustReturnTheKeyValueInGetValueFunction;
+    [Test]
+    procedure WhenTheFieldIsRequiredMustLoadThisInfoInTheField;
   end;
 
 implementation
@@ -1523,6 +1525,15 @@ begin
   var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
 
   Assert.AreEqual(stTime, Table.Field['Time'].SpecialType);
+end;
+
+procedure TMapperTest.WhenTheFieldIsRequiredMustLoadThisInfoInTheField;
+begin
+  var Table := FMapper.LoadClass(TRequiredClass);
+
+  var Field := Table.Field['RequiredField'];
+
+  Assert.IsTrue(Field.Required);
 end;
 
 procedure TMapperTest.WhenTheFieldsAreLoadedMustFillTheNameWithTheNameOfPropertyOfTheClass;
