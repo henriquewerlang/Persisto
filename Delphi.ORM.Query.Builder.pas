@@ -78,6 +78,7 @@ type
     FProcessedObjects: TDictionary<TObject, TObject>;
     FSelect: IQueryBuilderCommand;
     FTable: TTable;
+    FUpdateObject: TList<TObject>;
     FWhere: IQueryBuilderCommand;
 
     function BuildPrimaryKeyFilter(const Table: TTable; const AObject: TObject): String;
@@ -400,6 +401,7 @@ begin
   FConnection := Connection;
   FDestroyObjects := TObjectDictionary<TObject, Boolean>.Create([doOwnsKeys]);
   FProcessedObjects := TDictionary<TObject, TObject>.Create;
+  FUpdateObject := TList<TObject>.Create;
 end;
 
 procedure TQueryBuilder.Delete<T>(const AObject: T);
@@ -419,6 +421,8 @@ begin
 
   FProcessedObjects.Free;
 
+  FUpdateObject.Free;
+
   inherited;
 end;
 
@@ -428,6 +432,9 @@ begin
 
   try
     Result := Func;
+
+    while FUpdateObject.Count > 0 do
+      SaveObject(FUpdateObject.ExtractAt(0));
 
     Transaction.Commit;
 
@@ -485,7 +492,7 @@ begin
 
   var Changes := FCache.ChangeManager.Changes[Result];
 
-  FProcessedObjects.AddOrSetValue(Result, Result);
+  FProcessedObjects.TryAdd(Result, nil);
 
   SaveForeignKeys(Table, Result);
 
@@ -504,9 +511,22 @@ begin
     begin
       if Field.IsForeignKey and FieldValue.IsObject then
       begin
-        FieldValue := FProcessedObjects[FieldValue.AsObject];
+        var ForeignKeyObject := FProcessedObjects[FieldValue.AsObject];
 
-        Field.SetValue(Result, FieldValue);
+        if not Assigned(ForeignKeyObject) then
+        begin
+          Changes[Field] := 'null';
+
+          FUpdateObject.Add(Result);
+
+          Continue;
+        end
+        else
+        begin
+          FieldValue := ForeignKeyObject;
+
+          Field.SetValue(Result, FieldValue);
+        end;
       end;
 
       if not Field.IsForeignKey or not FieldValue.IsObject or Field.ForeignKey.ParentTable.PrimaryKey.HasValue(FieldValue.AsObject, FieldValue) then
@@ -531,6 +551,8 @@ begin
 
   if Table.ClassTypeInfo.MetaclassType = Result.ClassType then
     FCache.Add(Table.GetCacheKey(Result), Result);
+
+  FProcessedObjects[Result] := Result;
 
   SaveManyValueAssociations(Table, Result, Result);
 end;

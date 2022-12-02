@@ -541,6 +541,8 @@ type
     procedure WhenUpdateAnObjectMustUpdateTheChangeInformationOfTheObject;
     [Test]
     procedure WhenTheLazyCacheValueIsDiferentFromTheForeignKeyObjectButTheLazyIsntLoadedCantUpdateTheValue;
+    [Test]
+    procedure WhenInsertAnObjectWithCircularReferenceMustUpdateTheForeignKeyAfterAllObjectsAreInserted;
   end;
 
   [TestFixture]
@@ -2734,6 +2736,21 @@ begin
   Assert.AreEqual<Pointer>(MyClass, CachedObject);
 end;
 
+procedure TQueryBuilderDataManipulationTest.WhenInsertAnObjectWithCircularReferenceMustUpdateTheForeignKeyAfterAllObjectsAreInserted;
+begin
+  FCursorClass.Values := [[111], [222]];
+  var MyClass := TClassWithCircularReference.Create;
+  MyClass.CircularReferente1 := TClassWithCircularReferenceForeignKey.Create;
+  MyClass.CircularReferente1.CircularReference2 := MyClass;
+
+  Builder.Insert(MyClass);
+
+  Assert.AreEqual(
+    'insert into ClassWithCircularReferenceForeignKey()values()'#13#10 +
+    'insert into ClassWithCircularReference(IdCircularReferente1)values(111)'#13#10 +
+    'update ClassWithCircularReferenceForeignKey set IdCircularReference2=222 where Id=111', FDatabaseClass.SQL);
+end;
+
 procedure TQueryBuilderDataManipulationTest.WhenInsertAnObjectWithEmptyForeignKeyMustLoadTheChangesWithNullValue;
 begin
   FCursorClass.Values := [[123456]];
@@ -2828,6 +2845,7 @@ end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertingAnObjectNotProcessedMustRemoveTheColumnFromTheInsert;
 begin
+  FCursorClass.Values := [[1], [1], [1]];
   var First := TClassRecursiveFirst.Create;
   var Second := TClassRecursiveSecond.Create;
   Second.Recursive := First;
@@ -2869,6 +2887,7 @@ end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertingAnObjectWithCircularReferenceCantRaiseAnyError;
 begin
+  FCursorClass.Values := [[1], [1], [1]];
   var First := TClassRecursiveFirst.Create;
   var Second := TClassRecursiveSecond.Create;
   Second.Recursive := First;
