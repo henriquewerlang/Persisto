@@ -6,4 +6,4 @@
 	url = https://github.com/VSoftTechnologies/DUnitX.git
 [submodule "Externals/FastMM5"]
 	path = Externals/FastMM5
-	url = ../../pleriche/FastMM5.git
+	url = https://github.com/pleriche/FastMM5.git
