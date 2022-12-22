@@ -559,6 +559,7 @@ type
   private
     FAnsiChar: AnsiChar;
     FAnsiString: AnsiString;
+    FBoolean: Boolean;
     FChar: Char;
     FClass: TMyEntityWithPrimaryKey;
     FDate: TDate;
@@ -574,6 +575,7 @@ type
   published
     property AnsiChar: AnsiChar read FAnsiChar write FAnsiChar;
     property AnsiString: AnsiString read FAnsiString write FAnsiString;
+    property Boolean: Boolean read FBoolean write FBoolean;
     property Char: Char read FChar write FChar;
     property &Class: TMyEntityWithPrimaryKey read FClass write FClass;
     property Date: TDate read FDate write FDate;
@@ -1123,10 +1125,13 @@ type
   private
     FId: Integer;
     FRequiredField: String;
+    FRequiredObject: TMyClass;
   published
     property Id: Integer read FId write FId;
     [Required]
     property RequiredField: String read FRequiredField write FRequiredField;
+    [Required]
+    property RequiredObject: TMyClass read FRequiredObject write FRequiredObject;
   end;
 
 implementation

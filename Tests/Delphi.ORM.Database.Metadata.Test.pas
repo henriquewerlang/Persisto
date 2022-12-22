@@ -2,20 +2,23 @@
 
 interface
 
-uses System.Generics.Collections, DUnitX.TestFramework, Delphi.Mock.Intf, Delphi.ORM.Database.Metadata, Delphi.ORM.Mapper, Delphi.ORM.Attributes, Delphi.ORM.Nullable;
+uses System.SysUtils, System.Generics.Collections, DUnitX.TestFramework, Delphi.Mock.Intf, Delphi.ORM.Database.Metadata, Delphi.ORM.Mapper, Delphi.ORM.Attributes,
+  Delphi.ORM.Nullable;
 
 type
   [TestFixture]
   TDatabaseMetadataUpdateTest = class
   private
     FDatabaseMetadataUpdate: TDatabaseMetadataUpdate;
-    FDatabaseTables: TDictionary<String, TDatabaseTable>;
+    FDatabaseSchema: TDatabaseSchema;
     FMapper: TMapper;
     FMetadataManipulator: IMock<IMetadataManipulator>;
+    FOnSchemaLoad: TProc;
 
     function LoadDatabaseTable(const Table: TTable): TDatabaseTable;
 
     procedure CleanUpDatabaseTables;
+    procedure LoadDatabaseSchema(const Schema: TDatabaseSchema);
     procedure RemoveField(const TableDatabaseName, FieldName: String);
     procedure RemoveForeignKey(const TableDatabaseName, ForeignKeyName: String);
     procedure RemoveIndex(const TableDatabaseName, IndexName: String);
@@ -119,6 +122,42 @@ type
     [TestCase('UniqueIdentifier', 'UniqueIdentifier')]
     [TestCase('VarChar', 'VarChar')]
     procedure WhenCreateTheTemporaryFieldMustLoadThePropertiesExactlySameHasTheField(const FieldName: String);
+    [Test]
+    procedure WhenCreateADatabaseTableMustAddItToTheSchema;
+    [Test]
+    procedure WhenTryToGetATableAndIsntInTheListMustReturnNil;
+    [Test]
+    procedure WhenTheTableIsInTheListMustReturnTheTable;
+    [Test]
+    procedure WhenFindAnObjectInTheListMustReturnTheObjectWhenFindByName;
+    [Test]
+    procedure TheComparisionOfNamesMustBeCaseInsensitive;
+    [Test]
+    procedure WhenFindAForeignKeyInATableMustReturnTheForeignKey;
+    [Test]
+    procedure WhenGetAFieldInDatabaseTableMustReturnTheFieldInTheList;
+    [Test]
+    procedure WhenGetAnIndexInDatabaseTableMustReturnTheIndexInTheList;
+    [Test]
+    procedure WhenTheFieldDoesntHaveADefaultValueAnIsRequiredMustLoadADefaultValueForTheField;
+    [Test]
+    procedure WhenTheFieldDoesntHaveADefaultValueAfterTheUpdateMustCleanupTheDefaultValue;
+    [Test]
+    procedure WhenCreatingARequiredFieldWithoutADefaultValueMustLoadADefaultValueForTheField;
+    [Test]
+    procedure AfterCreateTheRequiredFieldWithouDefaultValueMustCleanupTheDefaultValueUsed;
+    [Test]
+    procedure WhenTheFieldHasDefualtValueFilledMustCopyThisValueToTempFieldWhenRecreatingTheField;
+    [Test]
+    procedure WhenCreateADefaultConstraintMustLoadTheFieldPropertyWithThisValue;
+    [Test]
+    procedure WhenDropAnFieldMustRemoveTheDefaultConstraint;
+    [Test]
+    procedure WhenDropAFieldWithoutDefaultConstraintCantCallTheDropConstraintForThisField;
+    [Test]
+    procedure WhenCheckTheSchemaCantRaiseAnyError;
+    [Test]
+    procedure WhenCreateATempFieldWithDefaultConstraintMustAddThisConstraintToTheTemFieldInfo;
   end;
 
   TMyForeignKeyClass = class;
@@ -201,19 +240,34 @@ type
 
 implementation
 
-uses System.Rtti, System.SysUtils, Delphi.Mock;
+uses System.Rtti, Delphi.Mock;
 
 const
   INTERNAL_FUNCTION: array[TDatabaseInternalFunction] of String = ('', 'Now()', 'NewUnique()', 'NewId()');
 
 { TDatabaseMetadataUpdateTest }
 
+procedure TDatabaseMetadataUpdateTest.AfterCreateTheRequiredFieldWithouDefaultValueMustCleanupTheDefaultValueUsed;
+begin
+  var Field: TField;
+  FOnSchemaLoad :=
+    procedure
+    begin
+      RemoveField('MyClassWithAllFieldsType', 'Integer');
+    end;
+  var Table := FMapper.FindTable(TMyClassWithAllFieldsType);
+
+  Table.FindField('Integer', Field);
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+
+  Assert.IsTrue(Field.DefaultValue.IsEmpty);
+end;
+
 procedure TDatabaseMetadataUpdateTest.CleanUpDatabaseTables;
 begin
-  for var Table in FDatabaseTables.Values do
-    Table.Free;
-
-  FDatabaseTables.Clear;
+  for var Table in FMapper.Tables do
+    RemoveTable(Table.DatabaseName);
 end;
 
 procedure TDatabaseMetadataUpdateTest.IfTheFieldHasntAnyChangeCantRecreateTheField;
@@ -229,10 +283,13 @@ end;
 
 procedure TDatabaseMetadataUpdateTest.IfTheForeignKeyExistsInDatabaseButNotExistsInTheMapperTheForeignKeyMustBeRemoved;
 begin
-  var DatabaseTable := FDatabaseTables['MyClass'];
-  var ForeignKey := TDatabaseForeignKey.Create(DatabaseTable, 'MyForeignKey', nil);
+  FOnSchemaLoad :=
+    procedure
+    begin
+      var ForeignKey := TDatabaseForeignKey.Create(FDatabaseSchema.Table['MyClass'], 'MyForeignKey', nil);
 
-  FMetadataManipulator.Expect.Once.When.DropForeignKey(It.IsEqualTo(ForeignKey));
+      FMetadataManipulator.Expect.Once.When.DropForeignKey(It.IsEqualTo(ForeignKey));
+    end;
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 
@@ -241,12 +298,17 @@ end;
 
 procedure TDatabaseMetadataUpdateTest.IfTheForeignKeyExistsInDatabaseButTheFieldHasADifferentNameMustRecreateTheForeignKey;
 begin
+  var ForeignKey: TDatabaseForeignKey;
   var Table := FMapper.FindTable(TMyClass);
-  var DatabaseTable := FDatabaseTables['MyClass'];
-  var ForeignKey := DatabaseTable.ForeignKeys.Values.ToArray[1];
-  ForeignKey.Fields[0].Name := 'AnotherField';
 
-  FMetadataManipulator.Expect.Once.When.DropForeignKey(It.IsEqualTo(ForeignKey));
+  FOnSchemaLoad :=
+    procedure
+    begin
+      ForeignKey := FDatabaseSchema.Table['MyClass'].ForeignKeys[0];
+      ForeignKey.Fields[0].Name := 'AnotherField';
+
+      FMetadataManipulator.Expect.Once.When.DropForeignKey(It.IsEqualTo(ForeignKey));
+    end;
 
   FMetadataManipulator.Expect.Once.When.CreateForeignKey(It.IsEqualTo(Table.ForeignKeys[0]));
 
@@ -257,13 +319,16 @@ end;
 
 procedure TDatabaseMetadataUpdateTest.IfTheForeignKeyNotExistsInTheDatabaseMustBeCreated;
 begin
+  FOnSchemaLoad :=
+    procedure
+    begin
+      RemoveForeignKey('MyClass', 'FK_MyClass_MyForeignKeyClass_IdForeignKey');
+    end;
   var Table := FMapper.FindTable(TMyClass);
 
   FMetadataManipulator.Expect.Never.When.CreateForeignKey(It.IsEqualTo(Table.ForeignKeys[0]));
 
   FMetadataManipulator.Expect.Once.When.CreateForeignKey(It.IsEqualTo(Table.ForeignKeys[1]));
-
-  RemoveForeignKey('MyClass', 'FK_MyClass_MyForeignKeyClass_IdForeignKey');
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 
@@ -272,10 +337,14 @@ end;
 
 procedure TDatabaseMetadataUpdateTest.IfTheIndexDontExistsInTheMappingClassesMustBeDropped;
 begin
-  var DatabaseTable := FDatabaseTables['MyClass'];
-  var Index := TDatabaseIndex.Create(DatabaseTable, 'MyAnotherIndex');
+  FOnSchemaLoad :=
+    procedure
+    begin
+      var DatabaseTable := FDatabaseSchema.Table['MyClass'];
+      var Index := TDatabaseIndex.Create(DatabaseTable, 'MyAnotherIndex');
 
-  FMetadataManipulator.Expect.Once.When.DropIndex(It.IsEqualTo(Index));
+      FMetadataManipulator.Expect.Once.When.DropIndex(It.IsEqualTo(Index));
+    end;
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 
@@ -286,16 +355,14 @@ procedure TDatabaseMetadataUpdateTest.IfTheMapperIsntLoadedMustGetTheDefaultMapp
 begin
   FDatabaseMetadataUpdate.Mapper := nil;
 
-  CleanUpDatabaseTables;
-
   Assert.AreEqual(TMapper.Default, FDatabaseMetadataUpdate.Mapper);
 end;
 
 procedure TDatabaseMetadataUpdateTest.IfTheTableDontExistsInTheDatabaseMustCreateTheTable;
 begin
-  FMetadataManipulator.Expect.ExecutionCount(FDatabaseTables.Count).When.CreateTable(It.IsAny<TTable>);
+  FMetadataManipulator.Expect.ExecutionCount(Length(FMapper.Tables)).When.CreateTable(It.IsAny<TTable>);
 
-  CleanUpDatabaseTables;
+  FOnSchemaLoad := CleanUpDatabaseTables;
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 
@@ -304,12 +371,14 @@ end;
 
 procedure TDatabaseMetadataUpdateTest.IfTheTableDontExistsInTheMappingCantDropTheForeignKeyOfIt;
 begin
-  var DatabaseTable := TDatabaseTable.Create('MyAnotherTable');
-  var ForeignKey := TDatabaseForeignKey.Create(DatabaseTable, 'MyForeignKey', nil);
+  FOnSchemaLoad :=
+    procedure
+    begin
+      var DatabaseTable := TDatabaseTable.Create(FDatabaseSchema, 'MyAnotherTable');
+      var ForeignKey := TDatabaseForeignKey.Create(DatabaseTable, 'MyForeignKey', nil);
 
-  FDatabaseTables.Add(DatabaseTable.Name, DatabaseTable);
-
-  FMetadataManipulator.Expect.Never.When.DropForeignKey(It.IsEqualTo(ForeignKey));
+      FMetadataManipulator.Expect.Never.When.DropForeignKey(It.IsEqualTo(ForeignKey));
+    end;
 
   Assert.WillNotRaise(FDatabaseMetadataUpdate.UpdateDatabase);
 
@@ -319,13 +388,16 @@ end;
 procedure TDatabaseMetadataUpdateTest.IfTheTableExistsInTheDatabaseMustCreateTheFieldThatDontExists;
 begin
   var Field: TField;
+  FOnSchemaLoad :=
+    procedure
+    begin
+      RemoveField('MyClass', 'IdForeignKey');
+
+      RemoveForeignKey('MyClass', 'FK_MyClass_MyForeignKeyClass_IdForeignKey');
+    end;
   var Table := FMapper.FindTable(TMyClass);
 
   Table.FindField('ForeignKey', Field);
-
-  RemoveField('MyClass', 'IdForeignKey');
-
-  RemoveForeignKey('MyClass', 'FK_MyClass_MyForeignKeyClass_IdForeignKey');
 
   FMetadataManipulator.Expect.Once.When.CreateField(It.IsEqualTo(Field));
 
@@ -334,16 +406,26 @@ begin
   Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
 end;
 
+procedure TDatabaseMetadataUpdateTest.LoadDatabaseSchema(const Schema: TDatabaseSchema);
+begin
+  FDatabaseSchema := Schema;
+
+  for var Table in FMapper.Tables do
+    LoadDatabaseTable(Table);
+
+  FOnSchemaLoad();
+end;
+
 function TDatabaseMetadataUpdateTest.LoadDatabaseTable(const Table: TTable): TDatabaseTable;
 begin
-  Result := TDatabaseTable.Create(Table.DatabaseName);
+  Result := TDatabaseTable.Create(FDatabaseSchema, Table.DatabaseName);
 
   for var Field in Table.Fields do
   begin
     var DatabaseField := TDatabaseField.Create(Result, Field.DatabaseName);
 
     DatabaseField.FieldType := Field.FieldType.TypeKind;
-    DatabaseField.Nullable := Field.IsNullable;
+    DatabaseField.Required := Field.Required;
     DatabaseField.Size := Field.Size;
     DatabaseField.Scale := Field.Scale;
     DatabaseField.SpecialType := Field.SpecialType;
@@ -353,16 +435,16 @@ begin
       tkUString: DatabaseField.Collation := FMapper.DefaultCollation;
     end;
 
-    if Field.DefaultInternalFunction = difNotDefined then
-      DatabaseField.DefaultValue := Field.DefaultValue.AsString
-    else
-      DatabaseField.DefaultValue := INTERNAL_FUNCTION[Field.DefaultInternalFunction];
+    if Field.DefaultInternalFunction <> difNotDefined then
+      TDatabaseDefaultConstraint.Create(DatabaseField, 'Default', INTERNAL_FUNCTION[Field.DefaultInternalFunction])
+    else if not Field.DefaultValue.IsEmpty then
+      TDatabaseDefaultConstraint.Create(DatabaseField, 'Default', Field.DefaultValue.AsString);
   end;
 
   for var ForeignKey in Table.ForeignKeys do
   begin
     var DatabaseForeignKey := TDatabaseForeignKey.Create(Result, ForeignKey.DatabaseName, nil);
-    DatabaseForeignKey.Fields := [Result.Fields[ForeignKey.Field.DatabaseName]];
+    DatabaseForeignKey.Fields := [Result.Field[ForeignKey.Field.DatabaseName]];
   end;
 
   for var Index in Table.Indexes do
@@ -370,7 +452,7 @@ begin
     var DatabaseIndex := TDatabaseIndex.Create(Result, Index.DatabaseName);
 
     for var Field in Index.Fields do
-      DatabaseIndex.Fields := DatabaseIndex.Fields + [Result.Fields[Field.DatabaseName]];
+      DatabaseIndex.Fields := DatabaseIndex.Fields + [Result.Field[Field.DatabaseName]];
   end;
 end;
 
@@ -380,7 +462,11 @@ begin
 
   FMetadataManipulator.Expect.Once.When.CreateTable(It.IsEqualTo(FMapper.FindTable(TMyForeignKeyClass)));
 
-  RemoveTable('MyForeignKeyClass');
+  FOnSchemaLoad :=
+    procedure
+    begin
+      RemoveTable('MyForeignKeyClass');
+    end;
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 
@@ -389,35 +475,33 @@ end;
 
 procedure TDatabaseMetadataUpdateTest.RemoveField(const TableDatabaseName, FieldName: String);
 begin
-  var Table := FDatabaseTables[TableDatabaseName];
+  var Table := FDatabaseSchema.Table[TableDatabaseName];
 
-  Table.Fields.Remove(FieldName);
+  Table.Fields.Remove(Table.Field[FieldName]);
 end;
 
 procedure TDatabaseMetadataUpdateTest.RemoveForeignKey(const TableDatabaseName, ForeignKeyName: String);
 begin
-  var Table := FDatabaseTables[TableDatabaseName];
+  var Table := FDatabaseSchema.Table[TableDatabaseName];
 
-  Table.ForeignKeys.Remove(ForeignKeyName);
+  Table.ForeignKeys.Remove(Table.ForeignKey[ForeignKeyName]);
 end;
 
 procedure TDatabaseMetadataUpdateTest.RemoveIndex(const TableDatabaseName, IndexName: String);
 begin
-  var Table := FDatabaseTables[TableDatabaseName];
+  var Table := FDatabaseSchema.Table[TableDatabaseName];
 
-  Table.Indexes.Remove(IndexName);
+  Table.Indexes.Remove(Table.Index[IndexName]);
 end;
 
 procedure TDatabaseMetadataUpdateTest.RemoveTable(const TableDatabaseName: String);
 begin
-  FDatabaseTables[TableDatabaseName].Free;
-
-  FDatabaseTables.Remove(TableDatabaseName);
+  FDatabaseSchema.Tables.Remove(FDatabaseSchema.Table[TableDatabaseName]);
 end;
 
 procedure TDatabaseMetadataUpdateTest.Setup;
 begin
-  FDatabaseTables := TDictionary<String, TDatabaseTable>.Create;
+  FDatabaseSchema := nil;
   FMapper := TMapper.Create;
   FMapper.DefaultCollation := 'MyCollation';
   FMetadataManipulator := TMock.CreateInterface<IMetadataManipulator>(True);
@@ -428,11 +512,8 @@ begin
   FMetadataManipulator.Setup.WillExecute(
     procedure (const Params: TArray<TValue>)
     begin
-      var Tables := Params[1].AsType<TDictionary<String, TDatabaseTable>>;
-
-      for var Table in FDatabaseTables.Values do
-        Tables.Add(Table.Name, Table);
-    end).When.LoadTables(It.IsAny<TDictionary<String, TDatabaseTable>>);
+      LoadDatabaseSchema(Params[1].AsType<TDatabaseSchema>);
+    end).When.LoadSchema(It.IsAny<TDatabaseSchema>);
 
   FMetadataManipulator.Setup.WillExecute(
     function (const Params: TArray<TValue>): TValue
@@ -440,13 +521,17 @@ begin
       Result := INTERNAL_FUNCTION[Params[1].AsType<TField>.DefaultInternalFunction];
     end).When.GetInternalFunction(It.IsAny<TField>);
 
+  FMetadataManipulator.Setup.WillReturn('Default').When.GetDefaultConstraintName(It.IsAny<TField>);
+
   FMapper.LoadClass(TMyClass);
 
   FMapper.LoadClass(TMyClassWithAllFieldsType);
 
-  for var Table in FMapper.Tables do
-    FDatabaseTables.Add(Table.DatabaseName, LoadDatabaseTable(Table));
-end;
+  FOnSchemaLoad :=
+    procedure
+    begin
+    end;
+ end;
 
 procedure TDatabaseMetadataUpdateTest.SetupFixture;
 begin
@@ -461,9 +546,25 @@ begin
 
   FDatabaseMetadataUpdate.Free;
 
-  FDatabaseTables.Free;
-
   FMapper.Free;
+end;
+
+procedure TDatabaseMetadataUpdateTest.TheComparisionOfNamesMustBeCaseInsensitive;
+begin
+  var MyList := TObjectList<TDatabaseNamedObject>.Create;
+
+  MyList.Add(TDatabaseNamedObject.Create('A'));
+  MyList.Add(TDatabaseNamedObject.Create('B'));
+  MyList.Add(TDatabaseNamedObject.Create('C'));
+  MyList.Add(TDatabaseNamedObject.Create('D'));
+
+  var MyObject := TDatabaseNamedObject.FindObject<TDatabaseNamedObject>(MyList, 'c');
+
+  Assert.IsNotNull(MyObject);
+
+  Assert.AreEqual('C', MyObject.Name);
+
+  MyList.Free;
 end;
 
 procedure TDatabaseMetadataUpdateTest.TheIndexCanBeCreatedOnlyIfNotExistsInDatabase;
@@ -477,28 +578,33 @@ end;
 
 procedure TDatabaseMetadataUpdateTest.TheTemporaryFieldCreatedMustBeAddedToTheDatabaseTableAndDropedFromTheTable;
 begin
-  var DatabaseTable := FDatabaseTables['MyClassWithAllFieldsType'];
-  var DatabaseField := DatabaseTable.Fields['VarChar'];
-  DatabaseField.Size := 450;
   var TempFieldDroped := False;
-  var TempFieldName := EmptyStr;
 
-  FMetadataManipulator.Setup.WillExecute(
-    procedure (const Params: TArray<TValue>)
+  FOnSchemaLoad :=
+    procedure
     begin
-      var Field := Params[1].AsType<TField>;
+      var DatabaseTable := FDatabaseSchema.Table['MyClassWithAllFieldsType'];
+      var DatabaseField := DatabaseTable.Field['VarChar'];
+      DatabaseField.Size := 450;
+      var TempFieldName := EmptyStr;
 
-      if Field.DatabaseName.StartsWith('TempField') then
-        TempFieldName := Field.DatabaseName;
-    end).When.CreateField(It.IsAny<TField>);
+      FMetadataManipulator.Setup.WillExecute(
+        procedure (const Params: TArray<TValue>)
+        begin
+          var Field := Params[1].AsType<TField>;
 
-  FMetadataManipulator.Setup.WillExecute(
-    procedure (const Params: TArray<TValue>)
-    begin
-      var DatabaseField := Params[1].AsType<TDatabaseField>;
+          if Field.DatabaseName.StartsWith('TempField') then
+            TempFieldName := Field.DatabaseName;
+        end).When.CreateField(It.IsAny<TField>);
 
-      TempFieldDroped := TempFieldDroped or (DatabaseField.Name = TempFieldName);
-    end).When.DropField(It.IsAny<TDatabaseField>);
+      FMetadataManipulator.Setup.WillExecute(
+        procedure (const Params: TArray<TValue>)
+        begin
+          var DatabaseField := Params[1].AsType<TDatabaseField>;
+
+          TempFieldDroped := TempFieldDroped or (DatabaseField.Name = TempFieldName);
+        end).When.DropField(It.IsAny<TDatabaseField>);
+    end;
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 
@@ -507,44 +613,49 @@ end;
 
 procedure TDatabaseMetadataUpdateTest.WhenChangeAFieldMustExecuteTheChangeInTheCorrectOrder;
 begin
-  var DatabaseTable := FDatabaseTables['MyClassWithAllFieldsType'];
-  var DatabaseField := DatabaseTable.Fields['VarChar'];
-  DatabaseField.Size := 450;
   var Sequence := EmptyStr;
 
-  FMetadataManipulator.Setup.WillExecute(
-    procedure (const Params: TArray<TValue>)
+  FOnSchemaLoad :=
+    procedure
     begin
-      var Field := Params[1].AsType<TField>;
+      var DatabaseTable := FDatabaseSchema.Table['MyClassWithAllFieldsType'];
+      var DatabaseField := DatabaseTable.Field['VarChar'];
+      DatabaseField.Size := 450;
 
-      if Field.DatabaseName.StartsWith('TempField') then
-        Sequence := Sequence + ';CreateTempField';
+      FMetadataManipulator.Setup.WillExecute(
+        procedure (const Params: TArray<TValue>)
+        begin
+          var Field := Params[1].AsType<TField>;
 
-      if Field.DatabaseName = 'VarChar' then
-        Sequence := Sequence + ';CreateField';
-    end).When.CreateField(It.IsAny<TField>);
+          if Field.DatabaseName.StartsWith('TempField') then
+            Sequence := Sequence + ';CreateTempField';
 
-  FMetadataManipulator.Setup.WillExecute(
-    procedure (const Params: TArray<TValue>)
-    begin
-      var DatabaseField := Params[1].AsType<TDatabaseField>;
+          if Field.DatabaseName = 'VarChar' then
+            Sequence := Sequence + ';CreateField';
+        end).When.CreateField(It.IsAny<TField>);
 
-      if DatabaseField.Name = 'VarChar' then
-        Sequence := Sequence + ';DropField';
-    end).When.DropField(It.IsAny<TDatabaseField>);
+      FMetadataManipulator.Setup.WillExecute(
+        procedure (const Params: TArray<TValue>)
+        begin
+          var DatabaseField := Params[1].AsType<TDatabaseField>;
 
-  FMetadataManipulator.Setup.WillExecute(
-    procedure (const Params: TArray<TValue>)
-    begin
-      var SourceField := Params[1].AsType<TField>;
-      var DestinyField := Params[2].AsType<TField>;
+          if DatabaseField.Name = 'VarChar' then
+            Sequence := Sequence + ';DropField';
+        end).When.DropField(It.IsAny<TDatabaseField>);
 
-      if (SourceField.DatabaseName.StartsWith('TempField')) and (DestinyField.Name = 'VarChar') then
-        Sequence := Sequence + ';TransferTempData';
+      FMetadataManipulator.Setup.WillExecute(
+        procedure (const Params: TArray<TValue>)
+        begin
+          var SourceField := Params[1].AsType<TField>;
+          var DestinyField := Params[2].AsType<TField>;
 
-      if (SourceField.Name = 'VarChar') and (DestinyField.DatabaseName.StartsWith('TempField')) then
-        Sequence := Sequence + ';TransferFieldData';
-    end).When.UpdateField(It.IsAny<TField>, It.IsAny<TField>);
+          if (SourceField.DatabaseName.StartsWith('TempField')) and (DestinyField.Name = 'VarChar') then
+            Sequence := Sequence + ';TransferTempData';
+
+          if (SourceField.Name = 'VarChar') and (DestinyField.DatabaseName.StartsWith('TempField')) then
+            Sequence := Sequence + ';TransferFieldData';
+        end).When.UpdateField(It.IsAny<TField>, It.IsAny<TField>);
+    end;
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 
@@ -553,23 +664,28 @@ end;
 
 procedure TDatabaseMetadataUpdateTest.WhenChangeTheDefaultInternalFunctionValueMustRecreateTheField;
 begin
-  var DatabaseTable := FDatabaseTables['MyClassWithAllFieldsType'];
-  var DatabaseNotDefaultField := DatabaseTable.Fields['Bigint'];
-  var DatabaseDefaultField := DatabaseTable.Fields['DefaultInternalFunction'];
-  var Table := FMapper.FindTable(TMyClassWithAllFieldsType);
-  var NotDefaultField := Table['Bigint'];
-  var DefaultField := Table['DefaultInternalFunction'];
+  FOnSchemaLoad :=
+    procedure
+    begin
+      var DatabaseTable := FDatabaseSchema.Table['MyClassWithAllFieldsType'];
+      var DatabaseNotDefaultField := DatabaseTable.Field['Bigint'];
+      var DatabaseDefaultField := DatabaseTable.Field['DefaultInternalFunction'];
+      var Table := FMapper.FindTable(TMyClassWithAllFieldsType);
+      var NotDefaultField := Table['Bigint'];
+      var DefaultField := Table['DefaultInternalFunction'];
 
-  DatabaseNotDefaultField.DefaultValue := 'abc';
-  DatabaseDefaultField.DefaultValue := EmptyStr;
+      TDatabaseDefaultConstraint.Create(DatabaseNotDefaultField, 'My Default', 'abc');
 
-  FMetadataManipulator.Expect.Once.When.CreateField(It.IsEqualTo(NotDefaultField));
+      DatabaseDefaultField.Default.Value := EmptyStr;
 
-  FMetadataManipulator.Expect.Once.When.CreateField(It.IsEqualTo(DefaultField));
+      FMetadataManipulator.Expect.Once.When.CreateField(It.IsEqualTo(NotDefaultField));
 
-  FMetadataManipulator.Expect.Once.When.DropField(It.IsEqualTo(DatabaseDefaultField));
+      FMetadataManipulator.Expect.Once.When.CreateField(It.IsEqualTo(DefaultField));
 
-  FMetadataManipulator.Expect.Once.When.DropField(It.IsEqualTo(DatabaseNotDefaultField));
+      FMetadataManipulator.Expect.Once.When.DropField(It.IsEqualTo(DatabaseDefaultField));
+
+      FMetadataManipulator.Expect.Once.When.DropField(It.IsEqualTo(DatabaseNotDefaultField));
+    end;
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 
@@ -578,23 +694,28 @@ end;
 
 procedure TDatabaseMetadataUpdateTest.WhenChangeTheDefaultValueMustRecreateTheField;
 begin
-  var DatabaseTable := FDatabaseTables['MyClassWithAllFieldsType'];
-  var DatabaseNotDefaultField := DatabaseTable.Fields['Bigint'];
-  var DatabaseDefaultField := DatabaseTable.Fields['DefaultField'];
-  var Table := FMapper.FindTable(TMyClassWithAllFieldsType);
-  var NotDefaultField := Table['Bigint'];
-  var DefaultField := Table['DefaultField'];
+  FOnSchemaLoad :=
+    procedure
+    begin
+      var DatabaseTable := FDatabaseSchema.Table['MyClassWithAllFieldsType'];
+      var DatabaseNotDefaultField := DatabaseTable.Field['Bigint'];
+      var DatabaseDefaultField := DatabaseTable.Field['DefaultField'];
+      var Table := FMapper.FindTable(TMyClassWithAllFieldsType);
+      var NotDefaultField := Table['Bigint'];
+      var DefaultField := Table['DefaultField'];
 
-  DatabaseNotDefaultField.DefaultValue := 'abc';
-  DatabaseDefaultField.DefaultValue := EmptyStr;
+      DatabaseDefaultField.Default.Value := EmptyStr;
 
-  FMetadataManipulator.Expect.Once.When.CreateField(It.IsEqualTo(NotDefaultField));
+      TDatabaseDefaultConstraint.Create(DatabaseNotDefaultField, 'My Default', 'abc');
 
-  FMetadataManipulator.Expect.Once.When.CreateField(It.IsEqualTo(DefaultField));
+      FMetadataManipulator.Expect.Once.When.CreateField(It.IsEqualTo(NotDefaultField));
 
-  FMetadataManipulator.Expect.Once.When.DropField(It.IsEqualTo(DatabaseDefaultField));
+      FMetadataManipulator.Expect.Once.When.CreateField(It.IsEqualTo(DefaultField));
 
-  FMetadataManipulator.Expect.Once.When.DropField(It.IsEqualTo(DatabaseNotDefaultField));
+      FMetadataManipulator.Expect.Once.When.DropField(It.IsEqualTo(DatabaseDefaultField));
+
+      FMetadataManipulator.Expect.Once.When.DropField(It.IsEqualTo(DatabaseNotDefaultField));
+    end;
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 
@@ -603,67 +724,188 @@ end;
 
 procedure TDatabaseMetadataUpdateTest.WhenChangeTheNullablePropertyMustRecreateTheField;
 begin
-  var DatabaseTable := FDatabaseTables['MyClassWithAllFieldsType'];
-  var DatabaseNotNullField := DatabaseTable.Fields['Bigint'];
-  var DatabaseNullField := DatabaseTable.Fields['NullField'];
-  var Table := FMapper.FindTable(TMyClassWithAllFieldsType);
-  var NotNullField := Table['Bigint'];
-  var NullField := Table['NullField'];
+  FOnSchemaLoad :=
+    procedure
+    begin
+      var DatabaseTable := FDatabaseSchema.Table['MyClassWithAllFieldsType'];
+      var DatabaseNotNullField := DatabaseTable.Field['Bigint'];
+      var DatabaseNullField := DatabaseTable.Field['NullField'];
+      var Table := FMapper.FindTable(TMyClassWithAllFieldsType);
+      var NotNullField := Table['Bigint'];
+      var NullField := Table['NullField'];
 
-  DatabaseNotNullField.Nullable := True;
-  DatabaseNullField.Nullable := False;
+      DatabaseNotNullField.Required := False;
+      DatabaseNullField.Required := True;
 
-  FMetadataManipulator.Expect.Once.When.CreateField(It.IsEqualTo(NotNullField));
+      FMetadataManipulator.Expect.Once.When.CreateField(It.IsEqualTo(NotNullField));
 
-  FMetadataManipulator.Expect.Once.When.CreateField(It.IsEqualTo(NullField));
+      FMetadataManipulator.Expect.Once.When.CreateField(It.IsEqualTo(NullField));
 
-  FMetadataManipulator.Expect.Once.When.DropField(It.IsEqualTo(DatabaseNullField));
+      FMetadataManipulator.Expect.Once.When.DropField(It.IsEqualTo(DatabaseNullField));
 
-  FMetadataManipulator.Expect.Once.When.DropField(It.IsEqualTo(DatabaseNotNullField));
+      FMetadataManipulator.Expect.Once.When.DropField(It.IsEqualTo(DatabaseNotNullField));
+    end;
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 
   Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
 end;
 
+procedure TDatabaseMetadataUpdateTest.WhenCheckTheSchemaCantRaiseAnyError;
+begin
+  Assert.WillNotRaise(FDatabaseMetadataUpdate.UpdateDatabase);
+end;
+
+procedure TDatabaseMetadataUpdateTest.WhenCreateADatabaseTableMustAddItToTheSchema;
+begin
+  var Schema := TDatabaseSchema.Create;
+  var Table := TDatabaseTable.Create(Schema, 'MyTable');
+
+  Assert.AreEqual(Table, Schema.Tables.First);
+
+  Schema.Free;
+end;
+
+procedure TDatabaseMetadataUpdateTest.WhenCreateADefaultConstraintMustLoadTheFieldPropertyWithThisValue;
+begin
+  FOnSchemaLoad :=
+    procedure
+    begin
+      var Field := FDatabaseSchema.Table['MyClassWithAllFieldsType'].Field['Integer'];
+
+      TDatabaseDefaultConstraint.Create(Field, 'Name', 'Value');
+
+      Assert.IsNotNull(Field.Default);
+    end;
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+end;
+
+procedure TDatabaseMetadataUpdateTest.WhenCreateATempFieldWithDefaultConstraintMustAddThisConstraintToTheTemFieldInfo;
+begin
+  FOnSchemaLoad :=
+    procedure
+    begin
+      var DatabaseTable := FDatabaseSchema.Table['MyClassWithAllFieldsType'];
+      var DatabaseField := DatabaseTable.Field['VarChar'];
+      DatabaseField.Size := 450;
+
+      FMetadataManipulator.Setup.WillExecute(
+        procedure (const Params: TArray<TValue>)
+        begin
+          var Field := Params[2].AsType<TField>;
+
+          if Field.DatabaseName.StartsWith('TempField') then
+          begin
+            Assert.IsNotNull(DatabaseTable.Field[Field.DatabaseName].Default);
+
+            Assert.IsNotEmpty(DatabaseTable.Field[Field.DatabaseName].Default.Name);
+          end;
+        end).When.UpdateField(It.IsAny<TField>, It.IsAny<TField>);
+    end;
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+end;
+
 procedure TDatabaseMetadataUpdateTest.WhenCreateTheTemporaryFieldMustLoadThePropertiesExactlySameHasTheField(const FieldName: String);
 begin
-  var DatabaseTable := FDatabaseTables['MyClassWithAllFieldsType'];
-  var DatabaseField := DatabaseTable.Fields[FieldName];
-  DatabaseField.FieldType := tkUnknown;
-  var Table := FMapper.FindTable(TMyClassWithAllFieldsType);
+  FOnSchemaLoad :=
+    procedure
+    begin
+      var DatabaseTable := FDatabaseSchema.Table['MyClassWithAllFieldsType'];
+      var DatabaseField := DatabaseTable.Field[FieldName];
+      DatabaseField.FieldType := tkUnknown;
+      var Table := FMapper.FindTable(TMyClassWithAllFieldsType);
+
+      FMetadataManipulator.Setup.WillExecute(
+        procedure (const Params: TArray<TValue>)
+        begin
+          var ParamField := Params[1].AsType<TField>;
+
+          if ParamField.DatabaseName.StartsWith('TempField') then
+          begin
+            var Message := ParamField.Name;
+            var TableField := Table[ParamField.Name];
+
+            Assert.AreEqual(TableField.DefaultInternalFunction, ParamField.DefaultInternalFunction, Message);
+            Assert.AreEqual(TableField.FieldType, ParamField.FieldType, Message);
+            Assert.AreEqual(TableField.Name, ParamField.Name, Message);
+            Assert.AreEqual(TableField.Required, ParamField.Required, Message);
+            Assert.AreEqual(TableField.Scale, ParamField.Scale, Message);
+            Assert.AreEqual(TableField.Size, ParamField.Size, Message);
+            Assert.AreEqual(TableField.SpecialType, ParamField.SpecialType, Message);
+            Assert.AreEqual(TableField.Table, ParamField.Table, Message);
+          end
+          else
+            Assert.IsTrue(True);
+        end).When.CreateField(It.IsAny<TField>);
+    end;
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+end;
+
+procedure TDatabaseMetadataUpdateTest.WhenCreatingARequiredFieldWithoutADefaultValueMustLoadADefaultValueForTheField;
+begin
+  FOnSchemaLoad :=
+    procedure
+    begin
+      RemoveField('MyClassWithAllFieldsType', 'Integer');
+    end;
 
   FMetadataManipulator.Setup.WillExecute(
     procedure (const Params: TArray<TValue>)
     begin
-      var ParamField := Params[1].AsType<TField>;
-
-      if ParamField.DatabaseName.StartsWith('TempField') then
-      begin
-        var Message := ParamField.Name;
-        var TableField := Table[ParamField.Name];
-
-        Assert.AreEqual(TableField.DefaultInternalFunction, ParamField.DefaultInternalFunction, Message);
-        Assert.AreEqual(TableField.DefaultValue.AsVariant, ParamField.DefaultValue.AsVariant, Message);
-        Assert.AreEqual(TableField.FieldType, ParamField.FieldType, Message);
-        Assert.AreEqual(TableField.IsNullable, ParamField.IsNullable, Message);
-        Assert.AreEqual(TableField.Name, ParamField.Name, Message);
-        Assert.AreEqual(TableField.Scale, ParamField.Scale, Message);
-        Assert.AreEqual(TableField.Size, ParamField.Size, Message);
-        Assert.AreEqual(TableField.SpecialType, ParamField.SpecialType, Message);
-      end
-      else
-        Assert.IsTrue(True);
+      Assert.IsFalse(Params[1].AsType<TField>.DefaultValue.IsEmpty)
     end).When.CreateField(It.IsAny<TField>);
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 end;
 
+procedure TDatabaseMetadataUpdateTest.WhenDropAFieldWithoutDefaultConstraintCantCallTheDropConstraintForThisField;
+begin
+  FOnSchemaLoad :=
+    procedure
+    begin
+      var DatabaseTable := FDatabaseSchema.Table['MyClassWithAllFieldsType'];
+
+      TDatabaseField.Create(DatabaseTable, 'AnotherField');
+
+      FMetadataManipulator.Expect.Never.When.DropDefaultConstraint(It.IsAny<TDatabaseField>);
+    end;
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+
+  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+end;
+
+procedure TDatabaseMetadataUpdateTest.WhenDropAnFieldMustRemoveTheDefaultConstraint;
+begin
+  FOnSchemaLoad :=
+    procedure
+    begin
+      var DatabaseTable := FDatabaseSchema.Table['MyClassWithAllFieldsType'];
+
+      var DatabaseField := TDatabaseField.Create(DatabaseTable, 'AnotherField');
+
+      TDatabaseDefaultConstraint.Create(DatabaseField, 'MyConstraint', 'My Value');
+
+      FMetadataManipulator.Expect.Once.When.DropDefaultConstraint(It.IsEqualTo(DatabaseField));
+    end;
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+
+  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+end;
+
 procedure TDatabaseMetadataUpdateTest.WhenExistsMoreThenOneIndexMustCreateAll;
 begin
-  RemoveIndex('MyClass', 'MyIndex');
-  RemoveIndex('MyClass', 'MyIndex2');
-  RemoveIndex('MyClass', 'MyIndex3');
+  FOnSchemaLoad :=
+    procedure
+    begin
+      RemoveIndex('MyClass', 'MyIndex');
+      RemoveIndex('MyClass', 'MyIndex2');
+      RemoveIndex('MyClass', 'MyIndex3');
+    end;
 
   FMetadataManipulator.Expect.ExecutionCount(3).When.CreateIndex(It.IsAny<TIndex>);
 
@@ -672,36 +914,141 @@ begin
   Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
 end;
 
+procedure TDatabaseMetadataUpdateTest.WhenFindAForeignKeyInATableMustReturnTheForeignKey;
+begin
+  var MySchema := TDatabaseSchema.Create;
+  var MyTable := TDatabaseTable.Create(MySchema, 'MyTable');
+
+  var MyForeignKey := TDatabaseForeignKey.Create(MyTable, 'MyForeignKey', nil);
+
+  Assert.IsNotNull(MyForeignKey);
+
+  Assert.AreEqual(MyForeignKey, MyTable.ForeignKey[MyForeignKey.Name]);
+
+  MySchema.Free;
+end;
+
+procedure TDatabaseMetadataUpdateTest.WhenFindAnObjectInTheListMustReturnTheObjectWhenFindByName;
+begin
+  var MyList := TObjectList<TDatabaseNamedObject>.Create;
+
+  MyList.Add(TDatabaseNamedObject.Create('A'));
+  MyList.Add(TDatabaseNamedObject.Create('B'));
+  MyList.Add(TDatabaseNamedObject.Create('C'));
+  MyList.Add(TDatabaseNamedObject.Create('D'));
+
+  var MyObject := TDatabaseNamedObject.FindObject<TDatabaseNamedObject>(MyList, 'C');
+
+  Assert.IsNotNull(MyObject);
+
+  Assert.AreEqual('C', MyObject.Name);
+
+  MyList.Free;
+end;
+
+procedure TDatabaseMetadataUpdateTest.WhenGetAFieldInDatabaseTableMustReturnTheFieldInTheList;
+begin
+  var MySchema := TDatabaseSchema.Create;
+  var MyTable := TDatabaseTable.Create(MySchema, 'MyTable');
+
+  var MyField := TDatabaseField.Create(MyTable, 'MyField');
+
+  Assert.IsNotNull(MyField);
+
+  Assert.AreEqual(MyField, MyTable.Field[MyField.Name]);
+
+  MySchema.Free;
+end;
+
+procedure TDatabaseMetadataUpdateTest.WhenGetAnIndexInDatabaseTableMustReturnTheIndexInTheList;
+begin
+  var MySchema := TDatabaseSchema.Create;
+  var MyTable := TDatabaseTable.Create(MySchema, 'MyTable');
+
+  var MyIndex := TDatabaseIndex.Create(MyTable, 'MyIndex');
+
+  Assert.IsNotNull(MyIndex);
+
+  Assert.AreEqual(MyIndex, MyTable.Index[MyIndex.Name]);
+
+  MySchema.Free;
+end;
+
 procedure TDatabaseMetadataUpdateTest.WhenTheFieldChangeIsNotValidForTheTypeCantRecreateTheField(const FieldName: String; const ChangeSize, ChangeScale,
   ChangeSpecialType: Boolean);
 begin
-  var DatabaseTable := FDatabaseTables['MyClassWithAllFieldsType'];
-  var DatabaseField := DatabaseTable.Fields[FieldName];
+  FOnSchemaLoad :=
+  procedure
+  begin
+    var DatabaseTable := FDatabaseSchema.Table['MyClassWithAllFieldsType'];
+    var DatabaseField := DatabaseTable.Field[FieldName];
 
-  if ChangeSize then
-    DatabaseField.Size := 450;
+    if ChangeSize then
+      DatabaseField.Size := 450;
 
-  if ChangeScale then
-    DatabaseField.Scale := 18;
+    if ChangeScale then
+      DatabaseField.Scale := 18;
 
-  if ChangeSpecialType then
-    DatabaseField.SpecialType := stNotDefined;
+    if ChangeSpecialType then
+      DatabaseField.SpecialType := stNotDefined;
 
-  FMetadataManipulator.Expect.Never.When.CreateField(It.IsAny<TField>);
+    FMetadataManipulator.Expect.Never.When.CreateField(It.IsAny<TField>);
 
-  FMetadataManipulator.Expect.Never.When.DropField(It.IsEqualTo(DatabaseField));
+    FMetadataManipulator.Expect.Never.When.DropField(It.IsEqualTo(DatabaseField));
+  end;
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 
   Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
 end;
 
+procedure TDatabaseMetadataUpdateTest.WhenTheFieldDoesntHaveADefaultValueAfterTheUpdateMustCleanupTheDefaultValue;
+begin
+  FOnSchemaLoad :=
+    procedure
+    begin
+      FDatabaseSchema.Table['MyClassWithAllFieldsType'].Field['Bigint'].FieldType := tkUnknown;
+    end;
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+
+  Assert.IsTrue(FMapper.FindTable(TMyClassWithAllFieldsType).Field['Bigint'].DefaultValue.IsEmpty);
+end;
+
+procedure TDatabaseMetadataUpdateTest.WhenTheFieldDoesntHaveADefaultValueAnIsRequiredMustLoadADefaultValueForTheField;
+begin
+  FOnSchemaLoad :=
+    procedure
+    begin
+      for var Field in FDatabaseSchema.Table['MyClassWithAllFieldsType'].Fields do
+        Field.FieldType := tkUnknown;
+
+      FMetadataManipulator.Setup.WillExecute(
+        procedure (const Params: TArray<TValue>)
+        begin
+          var Field := Params[1].AsType<TField>;
+
+          if Field.DatabaseName.StartsWith('TempField') then
+            if Field.Required then
+              Assert.IsFalse(Field.DefaultValue.IsEmpty, Field.DatabaseName)
+            else
+              Assert.IsTrue(Field.DefaultValue.IsEmpty, Field.DatabaseName);
+        end).When.CreateField(It.IsAny<TField>);
+    end;
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+end;
+
 procedure TDatabaseMetadataUpdateTest.WhenTheFieldDontExistsInTheMappingMustBeDropedFromTheTable;
 begin
-  var DatabaseTable := FDatabaseTables['MyClassWithAllFieldsType'];
-  var DatabaseField := TDatabaseField.Create(DatabaseTable, 'MyAnotherField');
+  FOnSchemaLoad :=
+    procedure
+    begin
+      var DatabaseTable := FDatabaseSchema.Table['MyClassWithAllFieldsType'];
+      var DatabaseField := TDatabaseField.Create(DatabaseTable, 'MyAnotherField');
 
-  FMetadataManipulator.Expect.Once.When.DropField(It.IsEqualTo(DatabaseField));
+      FMetadataManipulator.Expect.Once.When.DropField(It.IsEqualTo(DatabaseField));
+    end;
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 
@@ -710,38 +1057,66 @@ end;
 
 procedure TDatabaseMetadataUpdateTest.WhenTheFieldHasChangedMustRecreateTheField(const FieldName: String; const ChangeType, ChangeSize, ChangeScale, ChangeSpecialType: Boolean);
 begin
-  var DatabaseTable := FDatabaseTables['MyClassWithAllFieldsType'];
-  var Table := FMapper.FindTable(TMyClassWithAllFieldsType);
+  FOnSchemaLoad :=
+  procedure
+  begin
+    var DatabaseTable := FDatabaseSchema.Table['MyClassWithAllFieldsType'];
+    var Table := FMapper.FindTable(TMyClassWithAllFieldsType);
 
-  var DatabaseField := DatabaseTable.Fields[FieldName];
-  var Field := Table[FieldName];
+    var DatabaseField := DatabaseTable.Field[FieldName];
+    var Field := Table[FieldName];
 
-  if ChangeType then
-    DatabaseField.FieldType := tkUnknown;
+    if ChangeType then
+      DatabaseField.FieldType := tkUnknown;
 
-  if ChangeSize then
-    DatabaseField.Size := 450;
+    if ChangeSize then
+      DatabaseField.Size := 450;
 
-  if ChangeScale then
-    DatabaseField.Scale := 18;
+    if ChangeScale then
+      DatabaseField.Scale := 18;
 
-  if ChangeSpecialType then
-    DatabaseField.SpecialType := stNotDefined;
+    if ChangeSpecialType then
+      DatabaseField.SpecialType := stNotDefined;
 
-  FMetadataManipulator.Expect.Once.When.CreateField(It.IsEqualTo(Field));
+    FMetadataManipulator.Expect.Once.When.CreateField(It.IsEqualTo(Field));
 
-  FMetadataManipulator.Expect.Once.When.DropField(It.IsEqualTo(DatabaseField));
+    FMetadataManipulator.Expect.Once.When.DropField(It.IsEqualTo(DatabaseField));
+  end;
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 
   Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
 end;
 
+procedure TDatabaseMetadataUpdateTest.WhenTheFieldHasDefualtValueFilledMustCopyThisValueToTempFieldWhenRecreatingTheField;
+begin
+  FOnSchemaLoad :=
+    procedure
+    begin
+      FDatabaseSchema.Table['MyClassWithAllFieldsType'].Field['DefaultField'].FieldType := tkUnknown;
+      var Table := FMapper.FindTable(TMyClassWithAllFieldsType);
+
+      FMetadataManipulator.Setup.WillExecute(
+        procedure (const Params: TArray<TValue>)
+        begin
+          var TempField := Params[1].AsType<TField>;
+
+          if TempField.DatabaseName.StartsWith('TempField') then
+            Assert.AreEqual(Table.Field['DefaultField'].DefaultValue.AsString, TempField.DefaultValue.AsString);
+        end).When.CreateField(It.IsAny<TField>);
+    end;
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+end;
+
 procedure TDatabaseMetadataUpdateTest.WhenTheIndexDontExistInDatabaseMustCreateIt;
 begin
+  FOnSchemaLoad :=
+    procedure
+    begin
+      RemoveIndex('MyClass', 'MyIndex');
+    end;
   var Table := FMapper.FindTable(TMyClass);
-
-  RemoveIndex('MyClass', 'MyIndex');
 
   FMetadataManipulator.Expect.Once.When.CreateIndex(It.IsEqualTo(Table.Indexes[0]));
 
@@ -752,12 +1127,16 @@ end;
 
 procedure TDatabaseMetadataUpdateTest.WhenTheIndexExistsInDatabaseButTheFieldsAreDiffentMustRecreateTheIndex;
 begin
-  var DatabaseTable := FDatabaseTables['MyClass'];
-  var Index := DatabaseTable.Indexes.Values.ToArray[0];
-  Index.Fields[0].Name := 'AnotherField';
-  var Table := FMapper.FindTable(TMyClass);
+  FOnSchemaLoad :=
+    procedure
+    begin
+      var DatabaseTable := FDatabaseSchema.Table['MyClass'];
+      var Index := DatabaseTable.Indexes[0];
+      Index.Fields[0].Name := 'AnotherField';
 
-  FMetadataManipulator.Expect.Once.When.DropIndex(It.IsEqualTo(Index));
+      FMetadataManipulator.Expect.Once.When.DropIndex(It.IsEqualTo(Index));
+    end;
+  var Table := FMapper.FindTable(TMyClass);
 
   FMetadataManipulator.Expect.Once.When.CreateIndex(It.IsEqualTo(Table.Indexes[0]));
 
@@ -766,22 +1145,45 @@ begin
   Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
 end;
 
+procedure TDatabaseMetadataUpdateTest.WhenTheTableIsInTheListMustReturnTheTable;
+begin
+  var MySchema := TDatabaseSchema.Create;
+  var MyTable := TDatabaseTable.Create(MySchema, 'MyTable');
+
+  Assert.AreEqual('MyTable', MyTable.Name);
+
+  MySchema.Free;
+end;
+
 procedure TDatabaseMetadataUpdateTest.WhenTheTableIsntMappedMustDropTheTable;
 begin
-  var DatabaseTable := TDatabaseTable.Create('NotExistsTable');
+  FOnSchemaLoad :=
+    procedure
+    begin
+      var DatabaseTable := TDatabaseTable.Create(FDatabaseSchema, 'NotExistsTable');
 
-  FDatabaseTables.Add(DatabaseTable.Name, DatabaseTable);
-
-  FMetadataManipulator.Expect.Once.When.DropTable(It.IsEqualTo(DatabaseTable));
+      FMetadataManipulator.Expect.Once.When.DropTable(It.IsEqualTo(DatabaseTable));
+    end;
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 
   Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
 end;
 
+procedure TDatabaseMetadataUpdateTest.WhenTryToGetATableAndIsntInTheListMustReturnNil;
+begin
+  var MySchema := TDatabaseSchema.Create;
+
+  TDatabaseTable.Create(MySchema, 'MyTable');
+
+  Assert.IsNull(MySchema.Table['Any Table Name']);
+
+  MySchema.Free;
+end;
+
 procedure TDatabaseMetadataUpdateTest.WhenUpdataDeDatabaseMustLoadAllTablesFromTheDataBase;
 begin
-  FMetadataManipulator.Expect.Once.When.LoadTables(It.IsAny<TDictionary<String, TDatabaseTable>>);
+  FMetadataManipulator.Expect.Once.When.LoadSchema(It.IsAny<TDatabaseSchema>);
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 

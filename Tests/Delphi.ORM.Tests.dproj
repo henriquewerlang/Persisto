@@ -135,8 +135,8 @@
         <DCCReference Include="..\Delphi.ORM.Lazy.Factory.pas"/>
         <DCCReference Include="..\Delphi.ORM.Database.Metadata.pas"/>
         <DCCReference Include="Delphi.ORM.Database.Metadata.Test.pas"/>
-        <DCCReference Include="..\Delphi.ORM.Database.Manipulator.pas"/>
-        <DCCReference Include="Delphi.ORM.Database.Manipulator.Test.pas"/>
+        <DCCReference Include="..\Delphi.ORM.Database.Metadata.Manipulator.pas"/>
+        <DCCReference Include="Delphi.ORM.Database.Metadata.Manipulator.Test.pas"/>
         <DCCReference Include="..\Delphi.ORM.Database.Manipulator.SQLServer.pas"/>
         <DCCReference Include="Delphi.ORM.Database.Manipulator.SQLServer.Test.pas"/>
         <DCCReference Include="..\Delphi.ORM.Lazy.Manipulator.pas"/>

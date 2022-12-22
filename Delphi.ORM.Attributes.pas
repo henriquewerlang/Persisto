@@ -6,7 +6,7 @@ uses System.Rtti;
 
 type
   TDatabaseInternalFunction = (difNotDefined, difNow, difNewUniqueIdentifier, difNewGuid);
-  TDatabaseSpecialType = (stNotDefined, stDate, stDateTime, stTime, stText, stUniqueIdentifier);
+  TDatabaseSpecialType = (stNotDefined, stDate, stDateTime, stTime, stText, stUniqueIdentifier, stBoolean);
 
   EntityAttribute = class(TCustomAttribute);
 
@@ -66,6 +66,26 @@ type
     property Scale: Word read FScale;
     property Size: Word read FSize;
     property SpecialType: TDatabaseSpecialType read FSpecialType;
+  end;
+
+  UniqueIdentifierAttribute = class(FieldInfoAttribute)
+  public
+    constructor Create;
+  end;
+
+  TextAttribute = class(FieldInfoAttribute)
+  public
+    constructor Create;
+  end;
+
+  SizeAttribute = class(FieldInfoAttribute)
+  public
+    constructor Create(const Size: Word);
+  end;
+
+  PrecisionAttribute = class(FieldInfoAttribute)
+  public
+    constructor Create(const Precision, Scale: Word);
   end;
 
   RequiredAttribute = class(TCustomAttribute)
@@ -131,6 +151,34 @@ begin
   FScale := Scale;
   FSize := Size;
   FSpecialType := SpecialType;
+end;
+
+{ UniqueIdentifierAttribute }
+
+constructor UniqueIdentifierAttribute.Create;
+begin
+  inherited Create(stUniqueIdentifier, 0, 0);
+end;
+
+{ SizeAttribute }
+
+constructor SizeAttribute.Create(const Size: Word);
+begin
+  inherited Create(Size);
+end;
+
+{ PrecisionAttribute }
+
+constructor PrecisionAttribute.Create(const Precision, Scale: Word);
+begin
+  inherited Create(Precision, Scale);
+end;
+
+{ TextAttribute }
+
+constructor TextAttribute.Create;
+begin
+  inherited Create(stText, 0, 0);
 end;
 
 end.

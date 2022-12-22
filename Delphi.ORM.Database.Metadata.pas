@@ -5,24 +5,44 @@ interface
 uses System.Generics.Collections, Delphi.ORM.Database.Connection, Delphi.ORM.Mapper, Delphi.ORM.Attributes;
 
 type
+  TDatabaseCheckConstraint = class;
+  TDatabaseDefaultConstraint = class;
   TDatabaseField = class;
   TDatabaseForeignKey = class;
   TDatabaseIndex = class;
+  TDatabaseSchema = class;
   TDatabaseTable = class;
 
   IMetadataManipulator = interface
+    ['{7ED4F3DE-1C13-4CF3-AE3C-B51386EA271F}']
     function GetInternalFunction(const Field: TField): String;
+    function GetDefaultConstraintName(const Field: TField): String;
 
     procedure CreateField(const Field: TField);
     procedure CreateForeignKey(const ForeignKey: TForeignKey);
     procedure CreateIndex(const Index: TIndex);
     procedure CreateTable(const Table: TTable);
+    procedure DropDefaultConstraint(const Field: TDatabaseField);
     procedure DropField(const Field: TDatabaseField);
-    procedure DropIndex(const Index: TDatabaseIndex);
     procedure DropForeignKey(const ForeignKey: TDatabaseForeignKey);
+    procedure DropIndex(const Index: TDatabaseIndex);
     procedure DropTable(const Table: TDatabaseTable);
-    procedure LoadTables(const Tables: TDictionary<String, TDatabaseTable>);
+    procedure LoadSchema(const Schema: TDatabaseSchema);
     procedure UpdateField(const SourceField, DestinyField: TField);
+  end;
+
+  TDatabaseSchema = class
+  private
+    FTables: TList<TDatabaseTable>;
+
+    function GetTable(const Name: String): TDatabaseTable;
+  public
+    constructor Create;
+
+    destructor Destroy; override;
+
+    property Table[const Name: String]: TDatabaseTable read GetTable;
+    property Tables: TList<TDatabaseTable> read FTables;
   end;
 
   TDatabaseNamedObject = class
@@ -30,6 +50,8 @@ type
     FName: String;
   public
     constructor Create(const Name: String);
+
+    class function FindObject<T: TDatabaseNamedObject>(const List: TList<T>; const Name: String): T;
 
     property Name: String read FName write FName;
   end;
@@ -45,37 +67,46 @@ type
 
   TDatabaseTable = class(TDatabaseNamedObject)
   private
-    FFields: TDictionary<String, TDatabaseField>;
-    FForeignKeys: TDictionary<String, TDatabaseForeignKey>;
-    FIndexes: TDictionary<String, TDatabaseIndex>;
+    FFields: TList<TDatabaseField>;
+    FForeignKeys: TList<TDatabaseForeignKey>;
+    FIndexes: TList<TDatabaseIndex>;
+
+    function GetField(const Name: String): TDatabaseField;
+    function GetForeignKey(const Name: String): TDatabaseForeignKey;
+    function GetIndex(const Name: String): TDatabaseIndex;
   public
-    constructor Create(const Name: String);
+    constructor Create(const Schema: TDatabaseSchema; const Name: String);
 
     destructor Destroy; override;
 
-    property Fields: TDictionary<String, TDatabaseField> read FFields;
-    property ForeignKeys: TDictionary<String, TDatabaseForeignKey> read FForeignKeys;
-    property Indexes: TDictionary<String, TDatabaseIndex> read FIndexes;
+    property Field[const Name: String]: TDatabaseField read GetField;
+    property Fields: TList<TDatabaseField> read FFields;
+    property ForeignKey[const Name: String]: TDatabaseForeignKey read GetForeignKey;
+    property ForeignKeys: TList<TDatabaseForeignKey> read FForeignKeys;
+    property Index[const Name: String]: TDatabaseIndex read GetIndex;
+    property Indexes: TList<TDatabaseIndex> read FIndexes;
   end;
 
   TDatabaseField = class(TDatabaseTableObject)
   private
+    FCheck: TDatabaseCheckConstraint;
     FCollation: String;
-    FDefaultName: String;
-    FDefaultValue: String;
+    FDefault: TDatabaseDefaultConstraint;
     FFieldType: TTypeKind;
-    FNullable: Boolean;
+    FRequired: Boolean;
     FSize: Word;
     FScale: Word;
     FSpecialType: TDatabaseSpecialType;
   public
     constructor Create(const Table: TDatabaseTable; const Name: String);
 
+    destructor Destroy; override;
+
+    property Check: TDatabaseCheckConstraint read FCheck write FCheck;
     property Collation: String read FCollation write FCollation;
-    property DefaultName: String read FDefaultName write FDefaultName;
-    property DefaultValue: String read FDefaultValue write FDefaultValue;
+    property Default: TDatabaseDefaultConstraint read FDefault write FDefault;
     property FieldType: TTypeKind read FFieldType write FFieldType;
-    property Nullable: Boolean read FNullable write FNullable;
+    property Required: Boolean read FRequired write FRequired;
     property Scale: Word read FScale write FScale;
     property Size: Word read FSize write FSize;
     property SpecialType: TDatabaseSpecialType read FSpecialType write FSpecialType;
@@ -107,15 +138,35 @@ type
     property ReferenceTable: TDatabaseTable read FReferenceTable write FReferenceTable;
   end;
 
+  TDatabaseDefaultConstraint = class(TDatabaseNamedObject)
+  private
+    FValue: String;
+  public
+    constructor Create(const Field: TDatabaseField; const Name, Value: String);
+
+    property Value: String read FValue write FValue;
+  end;
+
+  TDatabaseCheckConstraint = class(TDatabaseNamedObject)
+  private
+    FCheck: String;
+  public
+    constructor Create(const Field: TDatabaseField; const Name, Check: String);
+
+    property Check: String read FCheck write FCheck;
+  end;
+
   TDatabaseMetadataUpdate = class
   private
-    FTempField: TField;
     FMapper: TMapper;
     FMetadataManipulator: IMetadataManipulator;
+    FTempField: TField;
 
     function CheckSameFields(const Fields: TArray<TField>; const DatabaseFields: TArray<TDatabaseField>): Boolean;
     function GetMapper: TMapper; inline;
 
+    procedure CreateField(const Field: TField);
+    procedure DropField(const DatabaseField: TDatabaseField);
     procedure RecreateField(const Field: TField; const DatabaseField: TDatabaseField);
   public
     constructor Create(const MetadataManipulator: IMetadataManipulator);
@@ -129,7 +180,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.TypInfo, System.Rtti;
+uses System.SysUtils, System.TypInfo, System.Rtti, System.Generics.Defaults;
 
 { TDatabaseNamedObject }
 
@@ -138,6 +189,15 @@ begin
   inherited Create;
 
   FName := Name;
+end;
+
+class function TDatabaseNamedObject.FindObject<T>(const List: TList<T>; const Name: String): T;
+begin
+  Result := nil;
+
+  for var AObject in List do
+    if AnsiCompareText(AObject.Name, Name) = 0 then
+      Exit(AObject);
 end;
 
 { TDatabaseTableObject }
@@ -156,7 +216,8 @@ begin
   inherited Create(ParentTable, Name);
 
   FReferenceTable := ReferenceTable;
-  FTable.ForeignKeys.Add(Name, Self);
+
+  FTable.FForeignKeys.Add(Self);
 end;
 
 { TDatabaseField }
@@ -165,7 +226,16 @@ constructor TDatabaseField.Create(const Table: TDatabaseTable; const Name: Strin
 begin
   inherited;
 
-  FTable.Fields.Add(Name, Self);
+  FTable.FFields.Add(Self);
+end;
+
+destructor TDatabaseField.Destroy;
+begin
+  FDefault.Free;
+
+  FCheck.Free;
+
+  inherited;
 end;
 
 { TDatabaseIndex }
@@ -174,18 +244,20 @@ constructor TDatabaseIndex.Create(const Table: TDatabaseTable; const Name: Strin
 begin
   inherited;
 
-  FTable.Indexes.Add(Name, Self);
+  FTable.FIndexes.Add(Self);
 end;
 
 { TDatabaseTable }
 
-constructor TDatabaseTable.Create(const Name: String);
+constructor TDatabaseTable.Create(const Schema: TDatabaseSchema; const Name: String);
 begin
-  inherited;
+  inherited Create(Name);
 
-  FFields := TObjectDictionary<String, TDatabaseField>.Create([doOwnsValues]);
-  FForeignKeys := TObjectDictionary<String, TDatabaseForeignKey>.Create([doOwnsValues]);
-  FIndexes := TObjectDictionary<String, TDatabaseIndex>.Create([doOwnsValues]);
+  FFields := TObjectList<TDatabaseField>.Create;
+  FForeignKeys := TObjectList<TDatabaseForeignKey>.Create;
+  FIndexes := TObjectList<TDatabaseIndex>.Create;
+
+  Schema.Tables.Add(Self);
 end;
 
 destructor TDatabaseTable.Destroy;
@@ -197,6 +269,21 @@ begin
   FIndexes.Free;
 
   inherited;
+end;
+
+function TDatabaseTable.GetField(const Name: String): TDatabaseField;
+begin
+  Result := TDatabaseNamedObject.FindObject<TDatabaseField>(Fields, Name);
+end;
+
+function TDatabaseTable.GetForeignKey(const Name: String): TDatabaseForeignKey;
+begin
+  Result := TDatabaseNamedObject.FindObject<TDatabaseForeignKey>(ForeignKeys, Name);
+end;
+
+function TDatabaseTable.GetIndex(const Name: String): TDatabaseIndex;
+begin
+  Result := TDatabaseNamedObject.FindObject<TDatabaseIndex>(Indexes, Name);
 end;
 
 { TDatabaseMetadataUpdate }
@@ -221,11 +308,46 @@ begin
   Randomize;
 end;
 
+procedure TDatabaseMetadataUpdate.CreateField(const Field: TField);
+
+  function CheckDefaultValue: Boolean;
+  begin
+    Result := Field.DefaultValue.IsEmpty and Field.Required;
+
+    if Result then
+    begin
+      var Value: TValue;
+
+      TValue.Make(nil, Field.FieldType.Handle, Value);
+
+      Field.DefaultValue := Value;
+    end;
+  end;
+
+begin
+  var DefaultChanged := CheckDefaultValue;
+
+  try
+    FMetadataManipulator.CreateField(Field);
+  finally
+    if DefaultChanged then
+      Field.DefaultValue := TValue.Empty;
+  end;
+end;
+
 destructor TDatabaseMetadataUpdate.Destroy;
 begin
   FTempField.Free;
 
   inherited;
+end;
+
+procedure TDatabaseMetadataUpdate.DropField(const DatabaseField: TDatabaseField);
+begin
+  if Assigned(DatabaseField.Default) then
+    FMetadataManipulator.DropDefaultConstraint(DatabaseField);
+
+  FMetadataManipulator.DropField(DatabaseField);
 end;
 
 function TDatabaseMetadataUpdate.GetMapper: TMapper;
@@ -239,26 +361,30 @@ end;
 procedure TDatabaseMetadataUpdate.RecreateField(const Field: TField; const DatabaseField: TDatabaseField);
 begin
   FTempField.DatabaseName := 'TempField' + Trunc(Random * 1000000).ToString;
-  FTempField.DefaultValue := Field.DefaultValue;
   FTempField.DefaultInternalFunction := Field.DefaultInternalFunction;
+  FTempField.DefaultValue := Field.DefaultValue;
   FTempField.FieldType := Field.FieldType;
-  FTempField.IsNullable := Field.IsNullable;
   FTempField.Name := Field.Name;
+  FTempField.Required := Field.Required;
   FTempField.Scale := Field.Scale;
   FTempField.Size := Field.Size;
   FTempField.SpecialType := Field.SpecialType;
+  FTempField.Table := Field.Table;
 
-  FMetadataManipulator.CreateField(FTempField);
+  CreateField(FTempField);
+
+  var TempDatabaseField := TDatabaseField.Create(DatabaseField.Table, FTempField.DatabaseName);
+
+  if not FTempField.DefaultValue.IsEmpty or FTempField.Required then
+    TDatabaseDefaultConstraint.Create(TempDatabaseField, FMetadataManipulator.GetDefaultConstraintName(FTempField), '');
 
   FMetadataManipulator.UpdateField(Field, FTempField);
 
-  FMetadataManipulator.DropField(DatabaseField);
+  DropField(DatabaseField);
 
-  FMetadataManipulator.CreateField(Field);
+  CreateField(Field);
 
   FMetadataManipulator.UpdateField(FTempField, Field);
-
-  TDatabaseField.Create(DatabaseField.Table, FTempField.DatabaseName);
 end;
 
 procedure TDatabaseMetadataUpdate.UpdateDatabase;
@@ -270,8 +396,6 @@ var
   DatabaseIndex: TDatabaseIndex;
 
   DatabaseTable: TDatabaseTable;
-
-  DatabaseTables: TObjectDictionary<String, TDatabaseTable>;
 
   ForeignKey: TForeignKey;
 
@@ -312,13 +436,12 @@ var
 
   function CheckScale: Boolean;
   begin
-    Result := (Field.FieldType.TypeKind in [tkFloat]) and (Field.FieldType.Handle <> TypeInfo(TDate)) and (Field.FieldType.Handle <> TypeInfo(TDateTime))
-      and (Field.FieldType.Handle <> TypeInfo(TTime));
+    Result := (Field.FieldType.TypeKind = tkFloat) and (Field.SpecialType = stNotDefined);
   end;
 
   function FieldSizeChanged: Boolean;
   begin
-    Result := (Field.Size <> DatabaseField.Size) and ((Field.FieldType.TypeKind in [tkUString]) and (Field.SpecialType = stNotDefined) or CheckScale);
+    Result := (Field.Size <> DatabaseField.Size) and ((Field.FieldType.TypeKind = tkUString) and (Field.SpecialType = stNotDefined) or CheckScale);
   end;
 
   function FieldScaleChanged: Boolean;
@@ -338,7 +461,7 @@ var
 
   function FieldNullableChange: Boolean;
   begin
-    Result := Field.IsNullable <> DatabaseField.Nullable;
+    Result := Field.Required <> DatabaseField.Required;
   end;
 
   function FieldDefaultValueChanged: Boolean;
@@ -350,7 +473,7 @@ var
     else
       DefaultFieldValue := FMetadataManipulator.GetInternalFunction(Field);
 
-    Result := DefaultFieldValue <> DatabaseField.DefaultValue;
+    Result := Assigned(DatabaseField.Default) and (DefaultFieldValue <> DatabaseField.Default.Value);
   end;
 
   function FieldChanged: Boolean;
@@ -359,32 +482,42 @@ var
   end;
 
 begin
-  DatabaseTables := TObjectDictionary<String, TDatabaseTable>.Create([doOwnsValues]);
+  var Schema := TDatabaseSchema.Create;
   Tables := TDictionary<String, TTable>.Create;
 
-  FMetadataManipulator.LoadTables(DatabaseTables);
+  FMetadataManipulator.LoadSchema(Schema);
 
   for Table in Mapper.Tables do
   begin
+    DatabaseTable := Schema.Table[Table.DatabaseName];
+
     Tables.Add(Table.DatabaseName, Table);
 
-    if DatabaseTables.TryGetValue(Table.DatabaseName, DatabaseTable) then
-    begin
+    if Assigned(DatabaseTable) then
       for Field in Table.Fields do
-        if not DatabaseTable.Fields.TryGetValue(Field.DatabaseName, DatabaseField) then
-          FMetadataManipulator.CreateField(Field)
+      begin
+        DatabaseField := DatabaseTable.Field[Field.DatabaseName];
+
+        if not Assigned(DatabaseField) then
+          CreateField(Field)
         else if FieldChanged then
           RecreateField(Field, DatabaseField);
-    end
+      end
     else
       FMetadataManipulator.CreateTable(Table);
   end;
 
   for Table in Mapper.Tables do
-    if DatabaseTables.TryGetValue(Table.DatabaseName, DatabaseTable) then
+  begin
+    DatabaseTable := Schema.Table[Table.DatabaseName];
+
+    if Assigned(DatabaseTable) then
     begin
       for Index in Table.Indexes do
-        if not DatabaseTable.Indexes.TryGetValue(Index.DatabaseName, DatabaseIndex) then
+      begin
+        DatabaseIndex := DatabaseTable.Index[Index.DatabaseName];
+
+        if not Assigned(DatabaseIndex) then
           FMetadataManipulator.CreateIndex(Index)
         else if not CheckSameFields(Index.Fields, DatabaseIndex.Fields) then
         begin
@@ -392,9 +525,13 @@ begin
 
           FMetadataManipulator.CreateIndex(Index);
         end;
+      end;
 
       for ForeignKey in Table.ForeignKeys do
-        if not DatabaseTable.ForeignKeys.TryGetValue(ForeignKey.DatabaseName, DatabaseForeignKey) then
+      begin
+        DatabaseForeignKey := DatabaseTable.ForeignKey[ForeignKey.DatabaseName];
+
+        if not Assigned(DatabaseForeignKey) then
           FMetadataManipulator.CreateForeignKey(ForeignKey)
         else if not CheckSameFields([ForeignKey.Field], DatabaseForeignKey.Fields) then
         begin
@@ -402,29 +539,71 @@ begin
 
           FMetadataManipulator.CreateForeignKey(ForeignKey)
         end;
+      end;
     end;
+  end;
 
-  for DatabaseTable in DatabaseTables.Values do
+  for DatabaseTable in Schema.Tables do
     if Tables.ContainsKey(DatabaseTable.Name) then
     begin
-      for DatabaseForeignKey in DatabaseTable.ForeignKeys.Values do
+      for DatabaseForeignKey in DatabaseTable.ForeignKeys do
         if not ExistsForeigKey(DatabaseForeignKey) then
           FMetadataManipulator.DropForeignKey(DatabaseForeignKey);
 
-      for DatabaseIndex in DatabaseTable.Indexes.Values do
+      for DatabaseIndex in DatabaseTable.Indexes do
         if not ExistsIndex(DatabaseIndex) then
           FMetadataManipulator.DropIndex(DatabaseIndex);
 
-      for DatabaseField in DatabaseTable.Fields.Values do
+      for DatabaseField in DatabaseTable.Fields do
         if not ExistsField(DatabaseField) then
-          FMetadataManipulator.DropField(DatabaseField);
+          DropField(DatabaseField);
     end
     else
       FMetadataManipulator.DropTable(DatabaseTable);
 
-  Tables.Free;
+  Schema.Free;
 
-  DatabaseTables.Free;
+  Tables.Free;
+end;
+
+{ TDatabaseSchema }
+
+constructor TDatabaseSchema.Create;
+begin
+  inherited;
+
+  FTables := TObjectList<TDatabaseTable>.Create;
+end;
+
+destructor TDatabaseSchema.Destroy;
+begin
+  FTables.Free;
+
+  inherited;
+end;
+
+function TDatabaseSchema.GetTable(const Name: String): TDatabaseTable;
+begin
+  Result := TDatabaseNamedObject.FindObject<TDatabaseTable>(Tables, Name);
+end;
+
+{ TDatabaseDefaultConstraint }
+
+constructor TDatabaseDefaultConstraint.Create(const Field: TDatabaseField; const Name, Value: String);
+begin
+  inherited Create(Name);
+
+  Field.Default := Self;
+  FValue := Value;
+end;
+
+{ TDatabaseCheckConstraint }
+
+constructor TDatabaseCheckConstraint.Create(const Field: TDatabaseField; const Name, Check: String);
+begin
+  inherited Create(Name);
+
+  FCheck := Check;
 end;
 
 end.
