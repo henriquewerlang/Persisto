@@ -398,8 +398,9 @@ function TQueryBuilder.CheckValueIsEmpty(const Value: TValue): Boolean;
 begin
   case Value.Kind of
     tkInteger,
-    tkEnumeration,
     tkInt64: Result := Value.AsInt64 = 0;
+
+    tkEnumeration: Result := Value.AsOrdinal = 0;
 
     tkFloat: Result := Value.AsExtended = 0;
 

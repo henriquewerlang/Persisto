@@ -283,7 +283,6 @@ type
   end;
 
   TMyEnumerator = (Enum1, Enum2, Enum3, Enum4);
-  TAnotherEnumerator = (aeEnum1, aeEnum2, aeEnum3, aeEnum4, aeEnum5);
 
   [Entity]
   TMyClassWithSpecialTypes = class
@@ -1134,6 +1133,16 @@ type
     property DateTimeForeignKey: TPrimaryDateTime read FDateTimeForeignKey write FDateTimeForeignKey;
     property FloatForeignKey: TPrimaryFloat read FFloatForeignKey write FFloatForeignKey;
     property SpecialTypeForeignKey: TPrimarySpecialType read FSpecialTypeForeignKey write FSpecialTypeForeignKey;
+  end;
+
+  [Entity]
+  TClassEnumPrimaryKey = class
+  private
+    FId: TMyEnumerator;
+    FValue: String;
+  published
+    property Id: TMyEnumerator read FId write FId;
+    property Value: String read FValue write FValue;
   end;
 
 implementation

@@ -539,6 +539,8 @@ type
     procedure WhenTheLazyCacheValueIsDiferentFromTheForeignKeyObjectButTheLazyIsntLoadedCantUpdateTheValue;
     [Test]
     procedure WhenInsertAnObjectWithCircularReferenceMustUpdateTheForeignKeyAfterAllObjectsAreInserted;
+    [Test]
+    procedure WhenSafeAClassWithPrimaryKeyIsAnEnumeratorCantRaiseAnyError;
   end;
 
   [TestFixture]
@@ -2920,6 +2922,20 @@ begin
   Builder.Update(MyClass);
 
   Assert.IsEmpty(DatabaseClass.SQL);
+end;
+
+procedure TQueryBuilderDataManipulationTest.WhenSafeAClassWithPrimaryKeyIsAnEnumeratorCantRaiseAnyError;
+begin
+  var MyClass := TClassEnumPrimaryKey.Create;
+  MyClass.Id := Enum3;
+
+  AddObjectToCache(MyClass);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Builder.Save(MyClass);
+    end);
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenSaveALoadedLazyForeignKeyMustExecuteTheUpdate;
