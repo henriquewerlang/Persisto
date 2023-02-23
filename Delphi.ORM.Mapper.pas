@@ -264,7 +264,8 @@ type
     function LoadClass(const ClassInfo: TClass): TTable;
     function TryFindTable(const ClassInfo: PTypeInfo; var Table: TTable): Boolean;
 
-    procedure LoadAll;
+    procedure LoadAll; overload;
+    procedure LoadAll(const Schema: TArray<TClass>); overload;
 
     property DefaultCollation: String read FDefaultCollation write FDefaultCollation;
     property SingleTableInheritanceClasses: TArray<TClass> read GetSingleTableInheritanceClasses write SetSingleTableInheritanceClasses;
@@ -464,10 +465,20 @@ end;
 
 procedure TMapper.LoadAll;
 begin
+  LoadAll(nil);
+end;
+
+procedure TMapper.LoadAll(const Schema: TArray<TClass>);
+begin
+  var SchemaList := EmptyStr;
+
   FTables.Clear;
 
+  for var AClass in Schema do
+    SchemaList := Format('%s;%s;', [SchemaList, AClass.UnitName]);
+
   for var TypeInfo in FContext.GetTypes do
-    if CheckAttribute<EntityAttribute>(TypeInfo) then
+    if CheckAttribute<EntityAttribute>(TypeInfo) and (SchemaList.IsEmpty or (SchemaList.IndexOf(Format(';%s;', [TypeInfo.AsInstance.DeclaringUnitName])) > -1)) then
       LoadTable(TypeInfo.AsInstance);
 
   LoadDelayedTables;

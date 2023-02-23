@@ -350,6 +350,20 @@ type
     procedure ThePrimaryKeyIndexMustLoadThePrimaryKeyFieldInTheIndexFieldList;
     [Test]
     procedure ThePrimaryKeyIndexMustBeMarkedAsUniqueAndInPrimaryKey;
+    [Test]
+    procedure WhenLoadTheSchemaWithAClassInParamsTheMapperMustLoadOnlyTheClassesInTheUnitOfThatClass;
+    [Test]
+    procedure WhenLoadTheSchemaMustLoadAllClassesFromTheUnitsPassedInTheParams;
+  end;
+
+  [Entity]
+  TMyClass = class
+  private
+    FId: Integer;
+    FValue: String;
+  published
+    property Id: Integer read FId write FId;
+    property Value: String read FValue write FValue;
   end;
 
 implementation
@@ -1222,6 +1236,28 @@ begin
   Assert.AreEqual('MyIndex', Table.Indexes[1].DatabaseName);
   Assert.AreEqual('MyIndex2', Table.Indexes[2].DatabaseName);
   Assert.AreEqual('MyUnique', Table.Indexes[3].DatabaseName);
+end;
+
+procedure TMapperTest.WhenLoadTheSchemaMustLoadAllClassesFromTheUnitsPassedInTheParams;
+begin
+  var Table: TTable;
+
+  FMapper.LoadAll([TMyClass, TMyTestClass]);
+
+  Assert.IsTrue(FMapper.TryFindTable(TypeInfo(TMyClass), Table));
+
+  Assert.IsTrue(FMapper.TryFindTable(TypeInfo(TMyTestClass), Table));
+
+  Assert.IsTrue(FMapper.TryFindTable(TypeInfo(TClassOnlyPublic), Table));
+end;
+
+procedure TMapperTest.WhenLoadTheSchemaWithAClassInParamsTheMapperMustLoadOnlyTheClassesInTheUnitOfThatClass;
+begin
+  var Table: TTable;
+
+  FMapper.LoadAll([TMyClass]);
+
+  Assert.IsFalse(FMapper.TryFindTable(TypeInfo(TMyTestClass), Table));
 end;
 
 procedure TMapperTest.WhenLoadTheTableMustLoadTheNameOfTheTableWithTheNameOfTheClassWithoutTheTChar;
