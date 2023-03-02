@@ -78,11 +78,16 @@ end;
 
 function TChangeManager.GetChanges(const Instance: TObject): TChange;
 begin
-  if not FChanges.TryGetValue(Instance, Result) then
-  begin
-    Result := TChange.Create;
+  MonitorEnter(FChanges);
+  try
+    if not FChanges.TryGetValue(Instance, Result) then
+    begin
+      Result := TChange.Create;
 
-    FChanges.Add(Instance, Result);
+      FChanges.Add(Instance, Result);
+    end;
+  finally
+    MonitorExit(FChanges);
   end;
 end;
 
@@ -112,7 +117,13 @@ end;
 
 procedure TChange.SetChange(const Field: TField; const Value: String);
 begin
-  FChange.AddOrSetValue(Field, Value);
+  MonitorEnter(FChange);
+
+  try
+    FChange.AddOrSetValue(Field, Value);
+  finally
+    MonitorExit(FChange);
+  end;
 end;
 
 end.
