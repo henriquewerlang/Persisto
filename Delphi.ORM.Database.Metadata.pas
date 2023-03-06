@@ -608,8 +608,6 @@ begin
         end;
   end;
 
-  LoadDatabaseSchema;
-
   for Table in Mapper.Tables do
   begin
     DatabaseTable := Schema.Table[Table.DatabaseName];
@@ -632,7 +630,6 @@ begin
     DatabaseTable := Schema.Table[Table.DatabaseName];
 
     if Assigned(DatabaseTable) then
-    begin
       for ForeignKey in Table.ForeignKeys do
       begin
         DatabaseForeignKey := DatabaseTable.ForeignKey[ForeignKey.DatabaseName];
@@ -646,7 +643,6 @@ begin
           FMetadataManipulator.CreateForeignKey(ForeignKey)
         end;
       end;
-    end;
   end;
 
   for DatabaseTable in Schema.Tables do

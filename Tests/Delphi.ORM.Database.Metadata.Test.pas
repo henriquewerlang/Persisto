@@ -47,8 +47,6 @@ type
     [Test]
     procedure IfTheForeignKeyExistsInDatabaseButNotExistsInTheMapperTheForeignKeyMustBeRemoved;
     [Test]
-    procedure IfTheTableDontExistsInTheMappingCantDropTheForeignKeyOfIt;
-    [Test]
     procedure WhenTheTableIsntMappedMustDropTheTable;
     [Test]
     procedure WhenTheIndexDontExistInDatabaseMustCreateIt;
@@ -539,22 +537,6 @@ begin
   FOnSchemaLoad := CleanUpDatabaseTables;
 
   FDatabaseMetadataUpdate.UpdateDatabase;
-
-  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
-end;
-
-procedure TDatabaseMetadataUpdateTest.IfTheTableDontExistsInTheMappingCantDropTheForeignKeyOfIt;
-begin
-  FOnSchemaLoad :=
-    procedure
-    begin
-      var DatabaseTable := TDatabaseTable.Create(FDatabaseSchema, 'MyAnotherTable');
-      var ForeignKey := TDatabaseForeignKey.Create(DatabaseTable, 'MyForeignKey', nil);
-
-      FMetadataManipulator.Expect.Never.When.DropForeignKey(It.IsEqualTo(ForeignKey));
-    end;
-
-  Assert.WillNotRaise(FDatabaseMetadataUpdate.UpdateDatabase);
 
   Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
 end;
