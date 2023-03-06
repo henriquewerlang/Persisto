@@ -271,7 +271,7 @@ type
     property SingleTableInheritanceClasses: TArray<TClass> read GetSingleTableInheritanceClasses write SetSingleTableInheritanceClasses;
     property Tables: TArray<TTable> read GetTables;
 
-    class property default: TMapper read FDefault;
+    class property Default: TMapper read FDefault;
   end;
 
 implementation
