@@ -12,6 +12,7 @@ type
   TMetadataManipulatorTest = class
   private
     FConnection: IMock<IDatabaseConnection>;
+    FCursor: IMock<IDatabaseCursor>;
     FDatabaseField: TDatabaseField;
     FDatabaseIndex: TDatabaseIndex;
     FDatabaseSchema: TDatabaseSchema;
@@ -20,6 +21,7 @@ type
     FMetadataManipulator: IMetadataManipulator;
     FMetadataManipulatorClass: TMetadataManipulatorMock;
     FSQLExecuted: String;
+    FTransaction: IMock<IDatabaseTransaction>;
   public
     [Setup]
     procedure Setup;
@@ -77,6 +79,12 @@ type
     procedure IfTheForeignKeyFieldIsASpecialTypeMustUseThisTypeInTheFieldCreation;
     [Test]
     procedure WhenCreateAPrimaryKeyIndexMustExecuteTheSQLAsExpected;
+    [Test]
+    procedure WhenGetAllRecordsMustSelectAllRecordsFromTheDataDatabase;
+    [Test]
+    procedure WhenInsertARecordMustExecuteTheSQLAsExpected;
+    [Test]
+    procedure WhenUpdateARecordMustExecuteTheSQLAsExpected;
   end;
 
   TMetadataManipulatorMock = class(TMetadataManipulator, IMetadataManipulator)
@@ -181,11 +189,13 @@ end;
 procedure TMetadataManipulatorTest.Setup;
 begin
   FConnection := TMock.CreateInterface<IDatabaseConnection>(True);
+  FCursor := TMock.CreateInterface<IDatabaseCursor>(True);
   FDatabaseSchema := TDatabaseSchema.Create;
   FDatabaseTable := TDatabaseTable.Create(FDatabaseSchema, 'MyTableDB');
   FMapper := TMapper.Create;
   FMetadataManipulatorClass := TMetadataManipulatorMock.Create(FConnection.Instance);
   FSQLExecuted := EmptyStr;
+  FTransaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
   FDatabaseField := TDatabaseField.Create(FDatabaseTable, 'MyFieldDB');
   FDatabaseIndex := TDatabaseIndex.Create(FDatabaseTable, 'MyIndex');
@@ -202,6 +212,26 @@ begin
     begin
       FSQLExecuted := Params[1].AsString;
     end).When.ExecuteDirect(It.IsAny<String>);
+
+  FConnection.Setup.WillExecute(
+    function (const Params: TArray<TValue>): TValue
+    begin
+      FSQLExecuted := Params[1].AsString;
+      Result := TValue.From(FCursor.Instance);
+    end).When.OpenCursor(It.IsAny<String>);
+
+  FConnection.Setup.WillExecute(
+    function (const Params: TArray<TValue>): TValue
+    begin
+      FSQLExecuted := Params[1].AsString;
+      Result := TValue.From(FCursor.Instance);
+    end).When.ExecuteInsert(It.IsAny<String>, It.IsAny<TArray<String>>);
+
+  FConnection.Setup.WillExecute(
+    function (const Params: TArray<TValue>): TValue
+    begin
+      Result := TValue.From(FTransaction.Instance);
+    end).When.StartTransaction;
 end;
 
 procedure TMetadataManipulatorTest.SetupFixture;
@@ -214,8 +244,10 @@ end;
 procedure TMetadataManipulatorTest.TearDown;
 begin
   FConnection := nil;
+  FCursor := nil;
   FMetadataManipulator := nil;
   FSQLExecuted := EmptyStr;
+  FTransaction := nil;
 
   FDatabaseSchema.Free;
 
@@ -348,6 +380,15 @@ begin
   Assert.AreEqual(SQL, FSQLExecuted);
 end;
 
+procedure TMetadataManipulatorTest.WhenGetAllRecordsMustSelectAllRecordsFromTheDataDatabase;
+begin
+  var SQL := 'select T1.Id F1,T1.Value F2 from ClassWithPrimaryKey T1';
+
+  FMetadataManipulatorClass.GetAllRecords(FMapper.LoadClass(TClassWithPrimaryKey));
+
+  Assert.AreEqual(SQL, FSQLExecuted);
+end;
+
 procedure TMetadataManipulatorTest.WhenGetTheFieldDefinitionOfAForeignKeyFieldMustLoadTheInfoFromThePrimaryKeyOfTheForeignKeyTable;
 begin
   var Field := FMapper.FindTable(TMyTable).Field['ForeignKeyField'];
@@ -361,6 +402,17 @@ begin
   Field.DatabaseName := 'MyFieldDB';
 
   Assert.AreEqual('DF_MyTableDB_MyFieldDB', FMetadataManipulator.GetDefaultConstraintName(Field));
+end;
+
+procedure TMetadataManipulatorTest.WhenInsertARecordMustExecuteTheSQLAsExpected;
+begin
+  var MyClass := TClassWithPrimaryKey.Create;
+  MyClass.Value := 123;
+  var SQL := 'insert into ClassWithPrimaryKey(Value)values(123)';
+
+  FMetadataManipulatorClass.InsertRecord(MyClass);
+
+  Assert.AreEqual(SQL, FSQLExecuted);
 end;
 
 procedure TMetadataManipulatorTest.WhenTheFieldHasDefaultValueMustLoadTheDefaultValueHasExpected;
@@ -397,6 +449,22 @@ begin
   var Table := FMapper.FindTable(TMyTable);
 
   FMetadataManipulatorClass.UpdateField(Table.Field['StringField'], Table.Field['RequiredField']);
+
+  Assert.AreEqual(SQL, FSQLExecuted);
+end;
+
+procedure TMetadataManipulatorTest.WhenUpdateARecordMustExecuteTheSQLAsExpected;
+begin
+  var MyClass := TClassWithPrimaryKey.Create;
+  MyClass.Id := 123;
+  MyClass.Value := 123;
+  var SQL := 'update ClassWithPrimaryKey set Value=444 where Id=123';
+
+  FMetadataManipulatorClass.InsertRecord(MyClass);
+
+  MyClass.Value := 444;
+
+  FMetadataManipulatorClass.UpdateRecord(MyClass);
 
   Assert.AreEqual(SQL, FSQLExecuted);
 end;

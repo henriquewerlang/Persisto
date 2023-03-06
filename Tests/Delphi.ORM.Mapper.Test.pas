@@ -354,6 +354,8 @@ type
     procedure WhenLoadTheSchemaWithAClassInParamsTheMapperMustLoadOnlyTheClassesInTheUnitOfThatClass;
     [Test]
     procedure WhenLoadTheSchemaMustLoadAllClassesFromTheUnitsPassedInTheParams;
+    [Test]
+    procedure WhenAddADefaultRecordMustAddThisValueToTheTableOfTheObject;
   end;
 
   [Entity]
@@ -912,6 +914,18 @@ begin
   var Table := FMapper.LoadClass(TManyValueAssociationParent);
 
   Assert.AreEqual('IdManyValueAssociationParent', Table.ManyValueAssociations[0].ForeignKey.Field.DatabaseName);
+end;
+
+procedure TMapperTest.WhenAddADefaultRecordMustAddThisValueToTheTableOfTheObject;
+begin
+  var MyClass := TMyClass.Create;
+  var Table := FMapper.LoadClass(MyClass.ClassType);
+
+  FMapper.AddDefaultRecord(MyClass);
+
+  Assert.AreEqual(1, Table.DefaultRecords.Count);
+
+  MyClass.Free;
 end;
 
 procedure TMapperTest.WhenAFieldIsAForeignKeyThePropertyIsForeignKeyMustReturnTrue;

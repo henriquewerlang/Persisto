@@ -156,6 +156,12 @@ type
     procedure WhenDontFindThePrimaryKeyIndexMustCreateTheIndex;
     [Test]
     procedure BeforeDropATableMustDropAllForeignKeysThatReferencesThisTable;
+    [Test]
+    procedure WhenTheTableHasDefaultRecordsMustLoadTheRecordsOfTheTableFromDatabase;
+    [Test]
+    procedure WhenTheDefaultRecordsArentInTheTableMustBeAllInserted;
+    [Test]
+    procedure WhenTheRecordAlreadyInTheDatabaseMustUpdateTheRecord;
   end;
 
   TMyForeignKeyClass = class
@@ -183,6 +189,9 @@ type
     FForeignKey: TMyForeignKeyClass;
     FForeignKey2: TMyForeignKeyClass;
     FId: String;
+  public
+    constructor Create; overload;
+    constructor Create(const Id: String); overload;
   published
     property AnotherForeignKey: TMyAnotherForeignKeyClass read FAnotherForeignKey write FAnotherForeignKey;
     property Id: String read FId write FId;
@@ -1161,6 +1170,33 @@ begin
   Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
 end;
 
+procedure TDatabaseMetadataUpdateTest.WhenTheDefaultRecordsArentInTheTableMustBeAllInserted;
+begin
+  var MyClass1 := TMyClass.Create('1');
+  var MyClass2 := TMyClass.Create('2');
+  var MyClass3 := TMyClass.Create('3');
+
+  FMapper.AddDefaultRecord(MyClass1);
+
+  FMapper.AddDefaultRecord(MyClass2);
+
+  FMapper.AddDefaultRecord(MyClass3);
+
+  FMetadataManipulator.Expect.Never.When.UpdateRecord(It.IsAny<TObject>);
+
+  FMetadataManipulator.Expect.ExecutionCount(3).When.InsertRecord(It.IsAny<TObject>);
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+
+  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+
+  MyClass1.Free;
+
+  MyClass2.Free;
+
+  MyClass3.Free;
+end;
+
 procedure TDatabaseMetadataUpdateTest.WhenTheDefaultValueHasChangedMustRecreateTheConstraint;
 begin
   FOnSchemaLoad :=
@@ -1355,6 +1391,35 @@ begin
   Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
 end;
 
+procedure TDatabaseMetadataUpdateTest.WhenTheRecordAlreadyInTheDatabaseMustUpdateTheRecord;
+begin
+  var MyClass1 := TMyClass.Create('1');
+  var MyClass2 := TMyClass.Create('2');
+  var MyClass3 := TMyClass.Create('3');
+
+  FMapper.AddDefaultRecord(MyClass1);
+
+  FMapper.AddDefaultRecord(MyClass2);
+
+  FMapper.AddDefaultRecord(MyClass3);
+
+  FMetadataManipulator.Setup.WillReturn(TValue.From<TArray<TObject>>([MyClass1, MyClass2, MyClass3])).When.GetAllRecords(It.IsAny<TTable>);
+
+  FMetadataManipulator.Expect.Never.When.InsertRecord(It.IsAny<TObject>);
+
+  FMetadataManipulator.Expect.ExecutionCount(3).When.UpdateRecord(It.IsAny<TObject>);
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+
+  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+
+  MyClass1.Free;
+
+  MyClass2.Free;
+
+  MyClass3.Free;
+end;
+
 procedure TDatabaseMetadataUpdateTest.WhenTheRequiredValueHasChangedMustRecreateTheField;
 begin
   FOnSchemaLoad :=
@@ -1400,6 +1465,21 @@ begin
   Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
 end;
 
+procedure TDatabaseMetadataUpdateTest.WhenTheTableHasDefaultRecordsMustLoadTheRecordsOfTheTableFromDatabase;
+begin
+  var MyClass := TMyClass.Create;
+
+  FMapper.AddDefaultRecord(MyClass);
+
+  FMetadataManipulator.Expect.Once.When.GetAllRecords(It.IsAny<TTable>);
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+
+  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+
+  MyClass.Free;
+end;
+
 procedure TDatabaseMetadataUpdateTest.WhenTheTableIsInTheListMustReturnTheTable;
 begin
   var MySchema := TDatabaseSchema.Create;
@@ -1443,6 +1523,20 @@ begin
   FDatabaseMetadataUpdate.UpdateDatabase;
 
   Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+end;
+
+{ TMyClass }
+
+constructor TMyClass.Create(const Id: String);
+begin
+  inherited Create;
+
+  FId := Id;
+end;
+
+constructor TMyClass.Create;
+begin
+  Create(EmptyStr);
 end;
 
 end.

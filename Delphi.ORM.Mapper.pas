@@ -66,6 +66,7 @@ type
     FBaseTable: TTable;
     FClassTypeInfo: TRttiInstanceType;
     FDatabaseName: String;
+    FDefaultRecords: TList<TObject>;
     FFields: TArray<TField>;
     FForeignKeys: TArray<TForeignKey>;
     FIndexes: TArray<TIndex>;
@@ -74,6 +75,7 @@ type
     FName: String;
     FPrimaryKey: TField;
 
+    function GetDefaultRecords: TList<TObject>;
     function GetField(const FieldName: String): TField;
   public
     constructor Create(TypeInfo: TRttiInstanceType);
@@ -87,6 +89,7 @@ type
     property BaseTable: TTable read FBaseTable;
     property ClassTypeInfo: TRttiInstanceType read FClassTypeInfo;
     property DatabaseName: String read FDatabaseName write FDatabaseName;
+    property DefaultRecords: TList<TObject> read GetDefaultRecords;
     property Field[const FieldName: String]: TField read GetField; default;
     property Fields: TArray<TField> read FFields write FFields;
     property ForeignKeys: TArray<TForeignKey> read FForeignKeys;
@@ -226,6 +229,7 @@ type
   private
     FContext: TRttiContext;
     FDefaultCollation: String;
+    FDefaultRecords: TDictionary<String, TObject>;
     FDelayLoadTable: TList<TTable>;
     FSingleTableInheritanceClasses: TDictionary<TClass, Boolean>;
     FTables: TDictionary<TRttiInstanceType, TTable>;
@@ -264,10 +268,12 @@ type
     function LoadClass(const ClassInfo: TClass): TTable;
     function TryFindTable(const ClassInfo: PTypeInfo; var Table: TTable): Boolean;
 
+    procedure AddDefaultRecord(const Value: TObject);
     procedure LoadAll; overload;
     procedure LoadAll(const Schema: TArray<TClass>); overload;
 
     property DefaultCollation: String read FDefaultCollation write FDefaultCollation;
+    property DefaultRecords: TDictionary<String, TObject> read FDefaultRecords;
     property SingleTableInheritanceClasses: TArray<TClass> read GetSingleTableInheritanceClasses write SetSingleTableInheritanceClasses;
     property Tables: TArray<TTable> read GetTables;
 
@@ -307,6 +313,11 @@ begin
 end;
 
 { TMapper }
+
+procedure TMapper.AddDefaultRecord(const Value: TObject);
+begin
+  FindTable(Value.ClassType).DefaultRecords.Add(Value);
+end;
 
 procedure TMapper.AddTableForeignKey(const Table: TTable; const Field: TField; const ClassInfoType: TRttiInstanceType);
 begin
@@ -364,6 +375,7 @@ begin
   inherited;
 
   FContext := TRttiContext.Create;
+  FDefaultRecords := TDictionary<String, TObject>.Create;
   FDelayLoadTable := TList<TTable>.Create;
   FSingleTableInheritanceClasses := TDictionary<TClass, Boolean>.Create;
   FTables := TObjectDictionary<TRttiInstanceType, TTable>.Create([doOwnsValues]);
@@ -380,6 +392,8 @@ end;
 destructor TMapper.Destroy;
 begin
   FContext.Free;
+
+  FDefaultRecords.Free;
 
   FDelayLoadTable.Free;
 
@@ -741,6 +755,8 @@ begin
   for var Index in Indexes do
     Index.Free;
 
+  FDefaultRecords.Free;
+
   inherited;
 end;
 
@@ -768,6 +784,14 @@ begin
     KeyValue := EmptyStr;
 
   Result := TCache.GenerateKey(ClassTypeInfo, KeyValue);
+end;
+
+function TTable.GetDefaultRecords: TList<TObject>;
+begin
+  if not Assigned(FDefaultRecords) then
+    FDefaultRecords := TList<TObject>.Create;
+
+  Result := FDefaultRecords;
 end;
 
 function TTable.GetField(const FieldName: String): TField;
