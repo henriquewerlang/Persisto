@@ -12,6 +12,9 @@ type
     FQueryBuilder: TQueryBuilder;
 
     function GetCache: ICache;
+    function GetFieldList(const Fields: TArray<TField>): String;
+    function GetPrimaryKey(const Table: TTable; const Separator: String): String;
+    function GetPrimaryKeyIndex(const Table: TTable): TIndex;
     function GetQueryBuilder: TQueryBuilder;
 
     property Cache: ICache read GetCache write FCache;
@@ -81,25 +84,11 @@ begin
 end;
 
 procedure TMetadataManipulator.CreateIndex(const Index: TIndex);
-
-  function GetFieldList: String;
-  begin
-    Result := EmptyStr;
-
-    for var Field in Index.Fields do
-    begin
-      if not Result.IsEmpty then
-        Result := Result + ', ';
-
-      Result := Result + Field.DatabaseName;
-    end;
-  end;
-
 begin
   if Index.PrimaryKey then
-    Connection.ExecuteDirect(Format('alter table %s add constraint %s primary key (%s)', [Index.Table.DatabaseName, Index.DatabaseName, GetFieldList]))
+    Connection.ExecuteDirect(Format('alter table %s add %s', [Index.Table.DatabaseName, GetPrimaryKey(Index.Table, EmptyStr)]))
   else
-    Connection.ExecuteDirect(Format('create index %s on %s (%s)', [Index.DatabaseName, Index.Table.DatabaseName, GetFieldList]));
+    Connection.ExecuteDirect(Format('create index %s on %s (%s)', [Index.DatabaseName, Index.Table.DatabaseName, GetFieldList(Index.Fields)]));
 end;
 
 procedure TMetadataManipulator.CreateTable(const Table: TTable);
@@ -115,7 +104,7 @@ begin
       Fields := Fields + GetFieldDefinition(Field);
     end;
 
-  Connection.ExecuteDirect(Format('create table %s (%s)', [Table.DatabaseName, Fields]));
+  Connection.ExecuteDirect(Format('create table %s (%s%s)', [Table.DatabaseName, Fields, GetPrimaryKey(Table, ',')]));
 end;
 
 procedure TMetadataManipulator.CreateTempField(const Field: TField);
@@ -198,6 +187,19 @@ begin
     GetFieldDefaultConstratint(Field)]);
 end;
 
+function TMetadataManipulator.GetFieldList(const Fields: TArray<TField>): String;
+begin
+  Result := EmptyStr;
+
+  for var Field in Fields do
+  begin
+    if not Result.IsEmpty then
+      Result := Result + ',';
+
+    Result := Result + Field.DatabaseName;
+  end;
+end;
+
 function TMetadataManipulator.GetFieldTypeDefinition(Field: TField): String;
 begin
   if Field.SpecialType = stNotDefined then
@@ -216,6 +218,25 @@ begin
   end
   else
     Result := GetSpecialFieldType(Field);
+end;
+
+function TMetadataManipulator.GetPrimaryKey(const Table: TTable; const Separator: String): String;
+begin
+  if Assigned(Table.PrimaryKey) then
+  begin
+    var Index := GetPrimaryKeyIndex(Table);
+
+    Result := Format('%sconstraint %s primary key (%s)', [Separator, Index.DatabaseName, GetFieldList(Index.Fields)]);
+  end;
+end;
+
+function TMetadataManipulator.GetPrimaryKeyIndex(const Table: TTable): TIndex;
+begin
+  Result := nil;
+
+  for var Index in Table.Indexes do
+    if Index.PrimaryKey then
+      Exit(Index);
 end;
 
 function TMetadataManipulator.GetQueryBuilder: TQueryBuilder;

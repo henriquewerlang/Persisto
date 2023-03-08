@@ -85,6 +85,12 @@ type
     procedure WhenInsertARecordMustExecuteTheSQLAsExpected;
     [Test]
     procedure WhenUpdateARecordMustExecuteTheSQLAsExpected;
+    [Test]
+    procedure WhenCreateATableMustCreateThePrimaryKeyToo;
+    [Test]
+    procedure WhenCreateATableWithoutPrimaryKeyCantRaiseAnyError;
+    [Test]
+    procedure WhenCreateATableWithoutPrimaryKeyMustExecuteTheSQLAsExpected;
   end;
 
   TMetadataManipulatorMock = class(TMetadataManipulator, IMetadataManipulator)
@@ -291,7 +297,7 @@ end;
 
 procedure TMetadataManipulatorTest.WhenCreateAnIndexMustExecuteTheSQLAsExpected;
 begin
-  var SQL := 'create index MyIndex on MyTableDB (FKField, RequiredField)';
+  var SQL := 'create index MyIndex on MyTableDB (FKField,RequiredField)';
 
   FMetadataManipulator.CreateIndex(FMapper.FindTable(TMyTable).Indexes[0]);
 
@@ -308,13 +314,51 @@ begin
   Assert.AreEqual(SQL, FSQLExecuted);
 end;
 
+procedure TMetadataManipulatorTest.WhenCreateATableMustCreateThePrimaryKeyToo;
+begin
+  var SQL :=
+    'create table MyTableForeingKey (' +
+      'Id FieldType(50) not null,' +
+      'Value SpecialFieldType not null,' +
+      'constraint PK_MyTableForeingKey primary key (Id))';
+  var Table := FMapper.FindTable(TMyTableForeingKey);
+
+  FMetadataManipulator.CreateTable(Table);
+
+  Assert.AreEqual(SQL, FSQLExecuted);
+end;
+
 procedure TMetadataManipulatorTest.WhenCreateATableWithManyValueAssociationThisFieldCantBeCreated;
 begin
   var SQL :=
     'create table MyEntityWithManyValueAssociation (' +
-      'Id FieldType not null)';
+      'Id FieldType not null,' +
+      'constraint PK_MyEntityWithManyValueAssociation primary key (Id))';
 
   FMetadataManipulator.CreateTable(FMapper.FindTable(TMyEntityWithManyValueAssociation));
+
+  Assert.AreEqual(SQL, FSQLExecuted);
+end;
+
+procedure TMetadataManipulatorTest.WhenCreateATableWithoutPrimaryKeyCantRaiseAnyError;
+begin
+  var Table := FMapper.LoadClass(TClassWithoutPrimaryKey);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FMetadataManipulator.CreateTable(Table);
+    end);
+end;
+
+procedure TMetadataManipulatorTest.WhenCreateATableWithoutPrimaryKeyMustExecuteTheSQLAsExpected;
+begin
+  var SQL :=
+    'create table ClassWithoutPrimaryKey (' +
+      'Value FieldType not null)';
+  var Table := FMapper.LoadClass(TClassWithoutPrimaryKey);
+
+  FMetadataManipulator.CreateTable(Table);
 
   Assert.AreEqual(SQL, FSQLExecuted);
 end;
@@ -324,7 +368,8 @@ begin
   var SQL :=
     'create table MyTableForeingKey (' +
       'Id FieldType(50) not null,' +
-      'Value SpecialFieldType not null)';
+      'Value SpecialFieldType not null,' +
+      'constraint PK_MyTableForeingKey primary key (Id))';
   var Table := FMapper.FindTable(TMyTableForeingKey);
 
   FMetadataManipulator.CreateTable(Table);

@@ -1147,6 +1147,14 @@ type
     property Value: String read FValue write FValue;
   end;
 
+  [Entity]
+  TClassWithoutPrimaryKey = class
+  private
+    FValue: Integer;
+  published
+    property Value: Integer read FValue write FValue;
+  end;
+
 implementation
 
 uses Delphi.ORM.Mapper;
