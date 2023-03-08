@@ -565,7 +565,6 @@ procedure TMapperTest.Setup;
 begin
   FLazyLoader := TMock.CreateInterface<ILazyLoader>;
   FMapper := TMapper.Create;
-  FMapper.SingleTableInheritanceClasses := [TMyEntityWithSingleTableInheritanceAttribute, TAnotherSingleInherited];
 
   FLazyLoader.Setup.WillReturn(1234).When.GetKey;
 end;

@@ -481,6 +481,7 @@ type
     property Value: String read FValue write FValue;
   end;
 
+  [SingleTableInheritance]
   TMyEntityWithSingleTableInheritanceAttribute = class
   private
     FId: Integer;
@@ -507,6 +508,7 @@ type
     property SimpleProperty: Integer read FSimpleProperty write FSimpleProperty;
   end;
 
+  [SingleTableInheritance]
   TAnotherSingleInherited = class(TMyEntityWithSingleTableInheritanceAttribute)
   private
     FAProperty: String;
@@ -1170,9 +1172,6 @@ begin
 
   inherited;
 end;
-
-initialization
-  TMapper.Default.SingleTableInheritanceClasses := [TMyEntityWithSingleTableInheritanceAttribute, TAnotherSingleInherited];
 
 end.
 

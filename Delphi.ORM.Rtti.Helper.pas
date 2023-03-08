@@ -12,7 +12,6 @@ type
   TRttiTypeHelper = class helper for TRttiObject
   public
     function AsArray: TRttiDynamicArrayType;
-    function GetAttribute<T: TCustomAttribute>: T;
     function IsArray: Boolean;
   end;
 
@@ -92,18 +91,6 @@ end;
 function TRttiTypeHelper.AsArray: TRttiDynamicArrayType;
 begin
   Result := Self as TRttiDynamicArrayType;
-end;
-
-function TRttiTypeHelper.GetAttribute<T>: T;
-var
-  Attribute: TCustomAttribute;
-
-begin
-  Result := nil;
-
-  for Attribute in GetAttributes do
-    if Attribute is T then
-      Exit(T(Attribute));
 end;
 
 function TRttiTypeHelper.IsArray: Boolean;

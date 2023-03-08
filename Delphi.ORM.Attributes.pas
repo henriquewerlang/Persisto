@@ -23,6 +23,7 @@ type
   ForeignKeyNameAttribute = class(TCustomNameAttribute);
   ManyValueAssociationLinkNameAttribute = class(TCustomNameAttribute);
   PrimaryKeyAttribute = class(TCustomNameAttribute);
+  SingleTableInheritanceAttribute = class(TCustomAttribute);
   TableNameAttribute = class(TCustomNameAttribute);
 
   IndexAttribute = class(TCustomNameAttribute)

@@ -231,7 +231,6 @@ type
     FDefaultCollation: String;
     FDefaultRecords: TDictionary<String, TObject>;
     FDelayLoadTable: TList<TTable>;
-    FSingleTableInheritanceClasses: TDictionary<TClass, Boolean>;
     FTables: TDictionary<TRttiInstanceType, TTable>;
 
     function CheckAttribute<T: TCustomAttribute>(const TypeInfo: TRttiType): Boolean;
@@ -240,7 +239,6 @@ type
     function GetNameAttribute<T: TCustomNameAttribute>(const TypeInfo: TRttiNamedObject; var Name: String): Boolean;
     function GetManyValuAssociationLinkName(const Field: TField): String;
     function GetPrimaryKeyPropertyName(const TypeInfo: TRttiInstanceType): String;
-    function GetSingleTableInheritanceClasses: TArray<TClass>;
     function GetTableDatabaseName(const Table: TTable): String;
     function GetTables: TArray<TTable>;
     function IsSingleTableInheritance(const RttiType: TRttiInstanceType): Boolean;
@@ -257,7 +255,6 @@ type
     procedure LoadTableIndexes(const TypeInfo: TRttiInstanceType; const Table: TTable);
     procedure LoadTableInfo(const TypeInfo: TRttiInstanceType; const Table: TTable);
     procedure LoadTableManyValueAssociations(const Table: TTable);
-    procedure SetSingleTableInheritanceClasses(const Value: TArray<TClass>);
   public
     constructor Create;
 
@@ -274,7 +271,6 @@ type
 
     property DefaultCollation: String read FDefaultCollation write FDefaultCollation;
     property DefaultRecords: TDictionary<String, TObject> read FDefaultRecords;
-    property SingleTableInheritanceClasses: TArray<TClass> read GetSingleTableInheritanceClasses write SetSingleTableInheritanceClasses;
     property Tables: TArray<TTable> read GetTables;
 
     class property Default: TMapper read FDefault;
@@ -377,7 +373,6 @@ begin
   FContext := TRttiContext.Create;
   FDefaultRecords := TDictionary<String, TObject>.Create;
   FDelayLoadTable := TList<TTable>.Create;
-  FSingleTableInheritanceClasses := TDictionary<TClass, Boolean>.Create;
   FTables := TObjectDictionary<TRttiInstanceType, TTable>.Create([doOwnsValues]);
 end;
 
@@ -396,8 +391,6 @@ begin
   FDefaultRecords.Free;
 
   FDelayLoadTable.Free;
-
-  FSingleTableInheritanceClasses.Free;
 
   FTables.Free;
 
@@ -451,11 +444,6 @@ begin
     Result := 'Id';
 end;
 
-function TMapper.GetSingleTableInheritanceClasses: TArray<TClass>;
-begin
-  Result := FSingleTableInheritanceClasses.Keys.ToArray;
-end;
-
 function TMapper.GetTableDatabaseName(const Table: TTable): String;
 begin
   if not GetNameAttribute<TableNameAttribute>(Table.ClassTypeInfo, Result) then
@@ -469,7 +457,7 @@ end;
 
 function TMapper.IsSingleTableInheritance(const RttiType: TRttiInstanceType): Boolean;
 begin
-  Result := FSingleTableInheritanceClasses.ContainsKey(RttiType.MetaclassType);
+  Result := RttiType.GetAttribute<SingleTableInheritanceAttribute> <> nil;
 end;
 
 class destructor TMapper.Destroy;
@@ -719,12 +707,6 @@ begin
       else
         raise EManyValueAssociationLinkError.Create(Table, ChildTable);
     end;
-end;
-
-procedure TMapper.SetSingleTableInheritanceClasses(const Value: TArray<TClass>);
-begin
-  for var AValue in Value do
-    FSingleTableInheritanceClasses.Add(AValue, True);
 end;
 
 function TMapper.TryFindTable(const ClassInfo: PTypeInfo; var Table: TTable): Boolean;
