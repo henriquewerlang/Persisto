@@ -162,6 +162,10 @@ type
     procedure WhenTheDefaultRecordsArentInTheTableMustBeAllInserted;
     [Test]
     procedure WhenTheRecordAlreadyInTheDatabaseMustUpdateTheRecord;
+    [Test]
+    procedure WhenTheSequenceNotExistsInDatabaseMustBeCreated;
+    [Test]
+    procedure WhenTheSequenceNotExistsInTheMapperMustBeDroped;
   end;
 
   TMyForeignKeyClass = class
@@ -252,6 +256,18 @@ type
     [FieldInfo(150)]
     [NewUniqueIdentifier]
     property VarChar: String read FVarChar write FVarChar;
+  end;
+
+  TClassWithSequence = class
+  private
+    FId: Integer;
+    FSequence: String;
+  published
+    property Id: Integer read FId write FId;
+    [Sequence('MySequence')]
+    property Sequence: String read FSequence write FSequence;
+    [Sequence('AnotherSequence')]
+    property AnotherSequence: String read FSequence write FSequence;
   end;
 
 implementation
@@ -582,6 +598,9 @@ begin
   for var Table in FMapper.Tables do
     LoadDatabaseTable(Table);
 
+  for var Sequence in FMapper.Sequences do
+    FDatabaseSchema.Sequences.Add(TDatabaseSequence.Create(Sequence.Name));
+
   FOnSchemaLoad();
 end;
 
@@ -734,6 +753,8 @@ begin
   FMapper.LoadClass(TMyClassWithAllFieldsType);
 
   FMapper.LoadClass(TMyEntityWithManyValueAssociation);
+
+  FMapper.LoadClass(TClassWithSequence);
 
   FOnSchemaLoad :=
     procedure
@@ -1429,6 +1450,36 @@ begin
     end;
 
   FMetadataManipulator.Expect.Once.When.CreateTempField(It.IsAny<TField>);
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+
+  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+end;
+
+procedure TDatabaseMetadataUpdateTest.WhenTheSequenceNotExistsInDatabaseMustBeCreated;
+begin
+  FOnSchemaLoad :=
+    procedure
+    begin
+      FDatabaseSchema.Sequences.Remove(FDatabaseSchema.Sequence['MySequence']);
+    end;
+
+  FMetadataManipulator.Expect.Once.When.CreateSequence(It.IsAny<TSequence>);
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+
+  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+end;
+
+procedure TDatabaseMetadataUpdateTest.WhenTheSequenceNotExistsInTheMapperMustBeDroped;
+begin
+  FOnSchemaLoad :=
+    procedure
+    begin
+      FDatabaseSchema.Sequences.Add(TDatabaseSequence.Create('AnySequence'));
+    end;
+
+  FMetadataManipulator.Expect.Once.When.DropSequence(It.IsAny<TDatabaseSequence>);
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 

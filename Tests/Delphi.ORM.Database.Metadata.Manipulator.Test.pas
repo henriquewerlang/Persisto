@@ -91,6 +91,10 @@ type
     procedure WhenCreateATableWithoutPrimaryKeyCantRaiseAnyError;
     [Test]
     procedure WhenCreateATableWithoutPrimaryKeyMustExecuteTheSQLAsExpected;
+    [Test]
+    procedure WhenCreateASequenceMustExecuteTheSQLAsExpected;
+    [Test]
+    procedure WhenDropASequenceMustExecuteTheSQLAsExpected;
   end;
 
   TMetadataManipulatorMock = class(TMetadataManipulator, IMetadataManipulator)
@@ -314,6 +318,18 @@ begin
   Assert.AreEqual(SQL, FSQLExecuted);
 end;
 
+procedure TMetadataManipulatorTest.WhenCreateASequenceMustExecuteTheSQLAsExpected;
+begin
+  var Sequence := TSequence.Create('MySequence');
+  var SQL := 'create sequence MySequence increment by 1 start with 1';
+
+  FMetadataManipulator.CreateSequence(Sequence);
+
+  Assert.AreEqual(SQL, FSQLExecuted);
+
+  Sequence.Free;
+end;
+
 procedure TMetadataManipulatorTest.WhenCreateATableMustCreateThePrimaryKeyToo;
 begin
   var SQL :=
@@ -405,6 +421,18 @@ begin
   FMetadataManipulator.DropForeignKey(DatabaseForeignKey);
 
   Assert.AreEqual(SQL, FSQLExecuted);
+end;
+
+procedure TMetadataManipulatorTest.WhenDropASequenceMustExecuteTheSQLAsExpected;
+begin
+  var Sequence := TDatabaseSequence.Create('MySequence');
+  var SQL := 'drop sequence MySequence';
+
+  FMetadataManipulator.DropSequence(Sequence);
+
+  Assert.AreEqual(SQL, FSQLExecuted);
+
+  Sequence.Free;
 end;
 
 procedure TMetadataManipulatorTest.WhenDropATableMustExecuteTheSQLHasExpected;

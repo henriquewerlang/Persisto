@@ -44,6 +44,16 @@ type
     property Value: String read FValue write FValue;
   end;
 
+  TClassWithSequence = class
+  private
+    FId: Integer;
+    FSequence: String;
+  published
+    property Id: Integer read FId write FId;
+    [Sequence('MySequence')]
+    property Sequence: String read FSequence write FSequence;
+  end;
+
   [Entity]
   TMyTestClass = class
   private

@@ -11,6 +11,7 @@ type
   TDatabaseForeignKey = class;
   TDatabaseIndex = class;
   TDatabaseSchema = class;
+  TDatabaseSequence = class;
   TDatabaseTable = class;
 
   IMetadataManipulator = interface
@@ -23,12 +24,14 @@ type
     procedure CreateField(const Field: TField);
     procedure CreateForeignKey(const ForeignKey: TForeignKey);
     procedure CreateIndex(const Index: TIndex);
+    procedure CreateSequence(const Sequence: TSequence);
     procedure CreateTable(const Table: TTable);
     procedure CreateTempField(const Field: TField);
     procedure DropDefaultConstraint(const Field: TDatabaseField);
     procedure DropField(const Field: TDatabaseField);
     procedure DropForeignKey(const ForeignKey: TDatabaseForeignKey);
     procedure DropIndex(const Index: TDatabaseIndex);
+    procedure DropSequence(const Sequence: TDatabaseSequence);
     procedure DropTable(const Table: TDatabaseTable);
     procedure InsertRecord(const Value: TObject);
     procedure LoadSchema(const Schema: TDatabaseSchema);
@@ -39,14 +42,18 @@ type
 
   TDatabaseSchema = class
   private
+    FSequences: TList<TDatabaseSequence>;
     FTables: TList<TDatabaseTable>;
 
     function GetTable(const Name: String): TDatabaseTable;
+    function GetSequence(const Name: String): TDatabaseSequence;
   public
     constructor Create;
 
     destructor Destroy; override;
 
+    property Sequence[const Name: String]: TDatabaseSequence read GetSequence;
+    property Sequences: TList<TDatabaseSequence> read FSequences;
     property Table[const Name: String]: TDatabaseTable read GetTable;
     property Tables: TList<TDatabaseTable> read FTables;
   end;
@@ -162,6 +169,9 @@ type
     constructor Create(const Field: TDatabaseField; const Name, Check: String);
 
     property Check: String read FCheck write FCheck;
+  end;
+
+  TDatabaseSequence = class(TDatabaseNamedObject)
   end;
 
   TDatabaseMetadataUpdate = class
@@ -455,6 +465,8 @@ var
 
   DatabaseIndex: TDatabaseIndex;
 
+  DatabaseSequence: TDatabaseSequence;
+
   DatabaseTable: TDatabaseTable;
 
   ForeignKey: TForeignKey;
@@ -462,6 +474,8 @@ var
   Field: TField;
 
   Index: TIndex;
+
+  Sequence: TSequence;
 
   Table: TTable;
 
@@ -571,6 +585,10 @@ begin
   Tables := TDictionary<String, TTable>.Create;
 
   LoadDatabaseSchema;
+
+  for Sequence in Mapper.Sequences do
+    if not Assigned(Schema.Sequence[Sequence.Name]) then
+      FMetadataManipulator.CreateSequence(Sequence);
 
   for Table in Mapper.Tables do
   begin
@@ -685,6 +703,10 @@ begin
     else
       DropTable(DatabaseTable);
 
+  for DatabaseSequence in Schema.Sequences do
+    if not Assigned(Mapper.FindSequence(DatabaseSequence.Name)) then
+      FMetadataManipulator.DropSequence(DatabaseSequence);
+
   Schema.Free;
 
   Tables.Free;
@@ -696,14 +718,22 @@ constructor TDatabaseSchema.Create;
 begin
   inherited;
 
+  FSequences := TObjectList<TDatabaseSequence>.Create;
   FTables := TObjectList<TDatabaseTable>.Create;
 end;
 
 destructor TDatabaseSchema.Destroy;
 begin
+  FSequences.Free;
+
   FTables.Free;
 
   inherited;
+end;
+
+function TDatabaseSchema.GetSequence(const Name: String): TDatabaseSequence;
+begin
+  Result := TDatabaseNamedObject.FindObject<TDatabaseSequence>(Sequences, Name);
 end;
 
 function TDatabaseSchema.GetTable(const Name: String): TDatabaseTable;

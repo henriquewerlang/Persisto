@@ -33,12 +33,14 @@ type
     procedure CreateField(const Field: TField);
     procedure CreateForeignKey(const ForeignKey: TForeignKey);
     procedure CreateIndex(const Index: TIndex);
+    procedure CreateSequence(const Sequence: TSequence);
     procedure CreateTable(const Table: TTable);
     procedure CreateTempField(const Field: TField);
     procedure DropDefaultConstraint(const Field: TDatabaseField);
     procedure DropField(const Field: TDatabaseField);
     procedure DropIndex(const Index: TDatabaseIndex);
     procedure DropForeignKey(const ForeignKey: TDatabaseForeignKey);
+    procedure DropSequence(const Sequence: TDatabaseSequence);
     procedure DropTable(const Table: TDatabaseTable);
     procedure InsertRecord(const Value: TObject);
     procedure RenameField(const SourceField, DestinyField: TField);
@@ -91,6 +93,11 @@ begin
     Connection.ExecuteDirect(Format('create index %s on %s (%s)', [Index.DatabaseName, Index.Table.DatabaseName, GetFieldList(Index.Fields)]));
 end;
 
+procedure TMetadataManipulator.CreateSequence(const Sequence: TSequence);
+begin
+  Connection.ExecuteDirect(Format('create sequence %s increment by 1 start with 1', [Sequence.Name]));
+end;
+
 procedure TMetadataManipulator.CreateTable(const Table: TTable);
 begin
   var Fields := EmptyStr;
@@ -137,6 +144,11 @@ end;
 procedure TMetadataManipulator.DropIndex(const Index: TDatabaseIndex);
 begin
   Connection.ExecuteDirect(Format('drop index %s on %s', [Index.Name, Index.Table.Name]));
+end;
+
+procedure TMetadataManipulator.DropSequence(const Sequence: TDatabaseSequence);
+begin
+  Connection.ExecuteDirect(Format('drop sequence %s', [Sequence.Name]));
 end;
 
 procedure TMetadataManipulator.DropTable(const Table: TDatabaseTable);
