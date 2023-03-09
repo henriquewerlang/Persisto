@@ -573,15 +573,19 @@ var
 
   procedure LoadDatabaseSchema;
   begin
-    Schema.Free;
-
     Schema := TDatabaseSchema.Create;
 
     FMetadataManipulator.LoadSchema(Schema);
   end;
 
+  procedure CreateTable(const Table: TTable);
+  begin
+    FMetadataManipulator.CreateTable(Table);
+
+    DatabaseTable := TDatabaseTable.Create(Schema, Table.DatabaseName);
+  end;
+
 begin
-  Schema := nil;
   Tables := TDictionary<String, TTable>.Create;
 
   LoadDatabaseSchema;
@@ -597,7 +601,7 @@ begin
     Tables.Add(Table.DatabaseName, Table);
 
     if not Assigned(DatabaseTable) then
-      FMetadataManipulator.CreateTable(Table)
+      CreateTable(Table)
     else
       for Field in Table.Fields do
         if not Field.IsManyValueAssociation then
@@ -627,7 +631,9 @@ begin
             end;
           end;
         end;
+  end;
 
+  for Table in Mapper.Tables do
     if Table.DefaultRecords.Count > 0 then
     begin
       var RecordFound: Boolean;
@@ -646,7 +652,6 @@ begin
           FMetadataManipulator.InsertRecord(DefaultRecord);
       end;
     end;
-  end;
 
   for Table in Mapper.Tables do
   begin

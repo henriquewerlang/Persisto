@@ -111,7 +111,7 @@ begin
       Fields := Fields + GetFieldDefinition(Field);
     end;
 
-  Connection.ExecuteDirect(Format('create table %s (%s%s)', [Table.DatabaseName, Fields, GetPrimaryKey(Table, ',')]));
+  Connection.ExecuteDirect(Format('create table %s (%s)', [Table.DatabaseName, Fields]));
 end;
 
 procedure TMetadataManipulator.CreateTempField(const Field: TField);

@@ -86,8 +86,6 @@ type
     [Test]
     procedure WhenUpdateARecordMustExecuteTheSQLAsExpected;
     [Test]
-    procedure WhenCreateATableMustCreateThePrimaryKeyToo;
-    [Test]
     procedure WhenCreateATableWithoutPrimaryKeyCantRaiseAnyError;
     [Test]
     procedure WhenCreateATableWithoutPrimaryKeyMustExecuteTheSQLAsExpected;
@@ -330,26 +328,11 @@ begin
   Sequence.Free;
 end;
 
-procedure TMetadataManipulatorTest.WhenCreateATableMustCreateThePrimaryKeyToo;
-begin
-  var SQL :=
-    'create table MyTableForeingKey (' +
-      'Id FieldType(50) not null,' +
-      'Value SpecialFieldType not null,' +
-      'constraint PK_MyTableForeingKey primary key (Id))';
-  var Table := FMapper.FindTable(TMyTableForeingKey);
-
-  FMetadataManipulator.CreateTable(Table);
-
-  Assert.AreEqual(SQL, FSQLExecuted);
-end;
-
 procedure TMetadataManipulatorTest.WhenCreateATableWithManyValueAssociationThisFieldCantBeCreated;
 begin
   var SQL :=
     'create table MyEntityWithManyValueAssociation (' +
-      'Id FieldType not null,' +
-      'constraint PK_MyEntityWithManyValueAssociation primary key (Id))';
+      'Id FieldType not null)';
 
   FMetadataManipulator.CreateTable(FMapper.FindTable(TMyEntityWithManyValueAssociation));
 
@@ -384,8 +367,7 @@ begin
   var SQL :=
     'create table MyTableForeingKey (' +
       'Id FieldType(50) not null,' +
-      'Value SpecialFieldType not null,' +
-      'constraint PK_MyTableForeingKey primary key (Id))';
+      'Value SpecialFieldType not null)';
   var Table := FMapper.FindTable(TMyTableForeingKey);
 
   FMetadataManipulator.CreateTable(Table);

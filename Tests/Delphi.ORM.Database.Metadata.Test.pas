@@ -166,6 +166,10 @@ type
     procedure WhenTheSequenceNotExistsInDatabaseMustBeCreated;
     [Test]
     procedure WhenTheSequenceNotExistsInTheMapperMustBeDroped;
+    [Test]
+    procedure WhenCreateTheTableMustCreateThePrimaryKeyIndexOfTheTable;
+    [Test]
+    procedure WhenCreateTheTableMustCreateAllForeignKeysOfTheTable;
   end;
 
   TMyForeignKeyClass = class
@@ -889,6 +893,36 @@ begin
     end).When.CreateTempField(It.IsAny<TField>);
 
   FMetadataManipulator.Expect.Once.When.CreateTempField(It.IsAny<TField>);
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+
+  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+end;
+
+procedure TDatabaseMetadataUpdateTest.WhenCreateTheTableMustCreateAllForeignKeysOfTheTable;
+begin
+  FOnSchemaLoad :=
+    procedure
+    begin
+      RemoveTable('MyClass');
+    end;
+
+  FMetadataManipulator.Expect.ExecutionCount(3).When.CreateForeignKey(It.IsAny<TForeignKey>);
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+
+  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+end;
+
+procedure TDatabaseMetadataUpdateTest.WhenCreateTheTableMustCreateThePrimaryKeyIndexOfTheTable;
+begin
+  FOnSchemaLoad :=
+    procedure
+    begin
+      RemoveTable('MyForeignKeyClass');
+    end;
+
+  FMetadataManipulator.Expect.Once.When.CreateIndex(It.IsAny<TIndex>);
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 
