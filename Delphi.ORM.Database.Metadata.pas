@@ -665,7 +665,8 @@ begin
         else
           DatabaseIndex := DatabaseTable.Index[Index.DatabaseName];
 
-        if not Assigned(DatabaseIndex) or not CheckSameFields(Index.Fields, DatabaseIndex.Fields) or (DatabaseIndex.Name <> Index.DatabaseName) then
+        if not Assigned(DatabaseIndex) or not CheckSameFields(Index.Fields, DatabaseIndex.Fields) or (DatabaseIndex.Name <> Index.DatabaseName)
+          or (DatabaseIndex.Unique xor Index.Unique) then
           RecreateIndex(Index, DatabaseIndex);
       end;
   end;

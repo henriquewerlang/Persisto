@@ -86,11 +86,20 @@ begin
 end;
 
 procedure TMetadataManipulator.CreateIndex(const Index: TIndex);
+
+  function CheckUniqueIndex: String;
+  begin
+    if Index.Unique then
+      Result := 'unique '
+    else
+      Result := EmptyStr;
+  end;
+
 begin
   if Index.PrimaryKey then
     Connection.ExecuteDirect(Format('alter table %s add %s', [Index.Table.DatabaseName, GetPrimaryKey(Index.Table, EmptyStr)]))
   else
-    Connection.ExecuteDirect(Format('create index %s on %s (%s)', [Index.DatabaseName, Index.Table.DatabaseName, GetFieldList(Index.Fields)]));
+    Connection.ExecuteDirect(Format('create %sindex %s on %s (%s)', [CheckUniqueIndex, Index.DatabaseName, Index.Table.DatabaseName, GetFieldList(Index.Fields)]));
 end;
 
 procedure TMetadataManipulator.CreateSequence(const Sequence: TSequence);

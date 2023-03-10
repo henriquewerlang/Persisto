@@ -170,6 +170,8 @@ type
     procedure WhenCreateTheTableMustCreateThePrimaryKeyIndexOfTheTable;
     [Test]
     procedure WhenCreateTheTableMustCreateAllForeignKeysOfTheTable;
+    [Test]
+    procedure WhenAnIndexBecameUniqueMustRecreateTheIndex;
   end;
 
   TMyForeignKeyClass = class
@@ -191,6 +193,7 @@ type
   [Index('MyIndex2', 'AnotherForeignKey')]
   [Index('MyIndex3', 'ForeignKey;AnotherForeignKey')]
   [Index('MyIndex4', 'ForeignKey')]
+  [UniqueKey('UniqueKey', 'Id')]
   TMyClass = class
   private
     FAnotherForeignKey: TMyAnotherForeignKeyClass;
@@ -646,6 +649,7 @@ begin
     begin
       var DatabaseIndex := TDatabaseIndex.Create(Result, Index.DatabaseName);
       DatabaseIndex.PrimaryKey := Index.PrimaryKey;
+      DatabaseIndex.Unique := Index.Unique;
 
       for var Field in Index.Fields do
         DatabaseIndex.Fields := DatabaseIndex.Fields + [Result.Field[Field.DatabaseName]];
@@ -838,6 +842,24 @@ begin
     end).When.CreateTempField(It.IsAny<TField>);
 
   FMetadataManipulator.Expect.Once.When.CreateTempField(It.IsAny<TField>);
+
+  FDatabaseMetadataUpdate.UpdateDatabase;
+
+  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+end;
+
+procedure TDatabaseMetadataUpdateTest.WhenAnIndexBecameUniqueMustRecreateTheIndex;
+begin
+  FOnSchemaLoad :=
+    procedure
+    begin
+      FDatabaseSchema.Table['MyClass'].Index['UniqueKey'].Unique := False;
+    end;
+  var Table := FMapper.FindTable(TMyClass);
+
+  FMetadataManipulator.Expect.Once.When.DropIndex(It.IsAny<TDatabaseIndex>);
+
+  FMetadataManipulator.Expect.Once.When.CreateIndex(It.IsEqualTo(Table.Indexes[5]));
 
   FDatabaseMetadataUpdate.UpdateDatabase;
 

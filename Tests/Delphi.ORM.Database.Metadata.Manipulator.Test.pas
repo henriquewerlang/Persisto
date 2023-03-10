@@ -93,6 +93,8 @@ type
     procedure WhenCreateASequenceMustExecuteTheSQLAsExpected;
     [Test]
     procedure WhenDropASequenceMustExecuteTheSQLAsExpected;
+    [Test]
+    procedure WhenCreateAUniqueIndexMustExecuteTheSQLAsExpected;
   end;
 
   TMetadataManipulatorMock = class(TMetadataManipulator, IMetadataManipulator)
@@ -123,6 +125,7 @@ type
 
   [TableName('MyTableDB')]
   [Index('MyIndex', 'ForeignKeyField;RequiredField')]
+  [UniqueKey('MyUniqueKey', 'RequiredField')]
   TMyTable = class
   private
     FDateTimeField: TDateTime;
@@ -358,6 +361,15 @@ begin
   var Table := FMapper.LoadClass(TClassWithoutPrimaryKey);
 
   FMetadataManipulator.CreateTable(Table);
+
+  Assert.AreEqual(SQL, FSQLExecuted);
+end;
+
+procedure TMetadataManipulatorTest.WhenCreateAUniqueIndexMustExecuteTheSQLAsExpected;
+begin
+  var SQL := 'create unique index MyUniqueKey on MyTableDB (RequiredField)';
+
+  FMetadataManipulator.CreateIndex(FMapper.FindTable(TMyTable).Indexes[1]);
 
   Assert.AreEqual(SQL, FSQLExecuted);
 end;
