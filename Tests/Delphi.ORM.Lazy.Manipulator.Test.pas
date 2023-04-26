@@ -55,6 +55,8 @@ type
     procedure IfTheLazyLoaderIsntLoadedMustReturnEmptyInTheGetKeyFunction;
     [Test]
     procedure WhenSetTheLoadedValueTheLazyFieldMustLoadTheInternalValueAgain;
+    [Test]
+    procedure WhenFillTheLoaderTheLoadedPropertyMustBeFilledWithFalseValue;
   end;
 
 implementation
@@ -123,6 +125,17 @@ begin
   var GenericType := FContext.GetType(TMyEntity);
 
   Assert.AreEqual(GenericType, TLazyManipulator.GetLazyLoadingType(FLazyProperty));
+end;
+
+procedure TLazyManipulatorTest.WhenFillTheLoaderTheLoadedPropertyMustBeFilledWithFalseValue;
+begin
+  var Manipulator := TLazyManipulator.GetManipulator(FLazyClass, FLazyProperty);
+
+  Manipulator.Loaded := True;
+
+  Manipulator.Loader := FLazyLoaderMock.Instance;
+
+  Assert.IsFalse(Manipulator.Loaded);
 end;
 
 procedure TLazyManipulatorTest.WhenGetKeyInTheManipulatorMustReturnTheInternalKeyOfTheLazy;

@@ -178,11 +178,17 @@ end;
 
 procedure TLazyManipulator.SetLoaded(const Value: Boolean);
 begin
+{$IFDEF DCC}
   LazyLoadedField.SetValue(FLazyInstance, TValue.From(Value));
+{$ELSE}
+  TJSObject(FLazyInstance)['FLoaded'] := Value;
+{$ENDIF}
 end;
 
 procedure TLazyManipulator.SetLoader(const Value: ILazyLoader);
 begin
+  SetLoaded(False);
+
 {$IFDEF DCC}
   LazyLoaderField.SetValue(FLazyInstance, TValue.From(Value));
 {$ELSE}

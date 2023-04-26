@@ -39,8 +39,6 @@ type
     [Test]
     procedure WhenLazySetValueMustLoadTheValuePassedToTheLazyProperty;
     [Test]
-    procedure WhenFillTheValueOfTheLazyPropertyCantTryToLoadTheValueFromLoader;
-    [Test]
     procedure AfterLoadedTheValueTheLoaderMustBeCleared;
   end;
 
@@ -128,19 +126,6 @@ begin
   Assert.AreEqual(MyClass, FClass.Lazy.Value);
 
   MyClass.Free;
-end;
-
-procedure TLazyTest.WhenFillTheValueOfTheLazyPropertyCantTryToLoadTheValueFromLoader;
-begin
-  FClass.Lazy := nil;
-
-  FLazyLoader.Expect.Never.When.LoadValue;
-
-  TLazyManipulator.GetManipulator(FClass, FLazyProperty).Loader := FLazyLoader.Instance;
-
-  FClass.Lazy.Value;
-
-  Assert.CheckExpectation(FLazyLoader.CheckExpectations);
 end;
 
 procedure TLazyTest.WhenGetValueFromTheLazyFieldMoreThenOnceMustCallOnlyOnceTheLoader;
