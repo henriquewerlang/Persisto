@@ -19,7 +19,7 @@ type
     FSequenceCursor: IDatabaseCursor;
     FTableCursor: IDatabaseCursor;
 
-    procedure CheckExection(const SQL: String);
+    procedure CheckExecution(const SQL: String);
   public
     [Setup]
     procedure Setup;
@@ -139,7 +139,7 @@ uses System.Rtti, System.Variants, System.SysUtils, Delphi.Mock, Delphi.ORM.Data
 
 { TManipulatorSQLServerTest }
 
-procedure TManipulatorSQLServerTest.CheckExection(const SQL: String);
+procedure TManipulatorSQLServerTest.CheckExecution(const SQL: String);
 begin
   FConnection.Setup.WillExecute(
     procedure (const Params: TArray<TValue>)
@@ -404,7 +404,7 @@ procedure TManipulatorSQLServerTest.WhenCreateADefaultConstraintMustExecuteTheSQ
 begin
   var Field := FMapper.FindTable(TMyTestClass).Field['UniqueIdentifier'];
 
-  CheckExection('alter table MyTable add constraint DF_MyTable_MyField default (newsequentialid()) for MyField');
+  CheckExecution('alter table MyTable add constraint DF_MyTable_MyField default (newsequentialid()) for MyField');
 
   FManipulator.CreateDefaultConstraint(Field);
 end;
