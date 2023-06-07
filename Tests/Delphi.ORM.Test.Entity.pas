@@ -72,7 +72,6 @@ type
     property Value: Double read FValue write FValue;
   end;
 
-  [Entity]
   TClassOnlyPublic = class
   private
     FName: String;
@@ -80,6 +79,19 @@ type
   public
     property Name: String read FName write FName;
     property Value: Integer read FValue write FValue;
+  end;
+
+  [Entity]
+  TPublicClass = class
+  private
+    FId: Integer;
+    FName: String;
+    FValue: Integer;
+  public
+    property Name: String read FName write FName;
+    property Value: Integer read FValue write FValue;
+  published
+    property Id: Integer read FId write FId;
   end;
 
   [Entity]

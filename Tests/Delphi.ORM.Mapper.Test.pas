@@ -362,6 +362,8 @@ type
     procedure TheSequenceNameMustBeLoadedWithTheNameInsideTheAttribute;
     [Test]
     procedure WhenAlreadyExistsTheSequenceMappedMustRaiseAnError;
+    [Test]
+    procedure WhenTheClassHasntPublishedFieldsMustRaiseAnError;
   end;
 
   [Entity]
@@ -372,6 +374,13 @@ type
   published
     property Id: Integer read FId write FId;
     property Value: String read FValue write FValue;
+  end;
+
+  TMyClassWithoutPublishedFields = class
+  private
+    FId: Integer;
+  public
+    property Id: Integer read FId write FId;
   end;
 
 implementation
@@ -1293,7 +1302,7 @@ begin
 
   Assert.IsTrue(FMapper.TryFindTable(TypeInfo(TMyTestClass), Table));
 
-  Assert.IsTrue(FMapper.TryFindTable(TypeInfo(TClassOnlyPublic), Table));
+  Assert.IsTrue(FMapper.TryFindTable(TypeInfo(TClassWithPrimaryKeyAttribute), Table));
 end;
 
 procedure TMapperTest.WhenLoadTheSchemaWithAClassInParamsTheMapperMustLoadOnlyTheClassesInTheUnitOfThatClass;
@@ -1417,6 +1426,15 @@ begin
   var Table := FMapper.LoadClass(TMyEntityInheritedFromSimpleClass);
 
   Assert.AreEqual(FMapper.FindTable(TMyEntityInheritedFromSingle), Table.BaseTable);
+end;
+
+procedure TMapperTest.WhenTheClassHasntPublishedFieldsMustRaiseAnError;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      FMapper.LoadClass(TMyClassWithoutPublishedFields);
+    end, ETableWithoutPublishedFields);
 end;
 
 procedure TMapperTest.WhenTheClassHasTheIndexAnnotationMustLoadTheIndexInfoOfTheTable;

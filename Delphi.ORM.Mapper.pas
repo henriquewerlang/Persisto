@@ -57,6 +57,11 @@ type
     constructor Create(const SequenceName: String);
   end;
 
+  ETableWithoutPublishedFields = class(Exception)
+  public
+    constructor Create(const Table: TTable);
+  end;
+
   TTableObject = class
   private
     FTable: TTable;
@@ -650,6 +655,9 @@ begin
     if Prop.Visibility = mvPublished then
       LoadFieldInfo(Table, Prop as TRttiInstanceProperty, TField.Create(Table));
 
+  if Table.Fields = nil then
+    raise ETableWithoutPublishedFields.Create(Table);
+
   for var Field in Table.Fields do
     if Field.Name = PrimaryKeyFieldName then
     begin
@@ -1055,6 +1063,13 @@ end;
 constructor ESequenceAlreadyExists.Create(const SequenceName: String);
 begin
   inherited CreateFmt('The sequence [%s] already exists!', [SequenceName]);
+end;
+
+{ ETableWithoutPublishedFields }
+
+constructor ETableWithoutPublishedFields.Create(const Table: TTable);
+begin
+  inherited CreateFmt('The class %s hasn''t published field, check yout implementation!', [Table.Name]);
 end;
 
 end.

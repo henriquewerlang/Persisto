@@ -669,22 +669,24 @@ end;
 
 procedure TQueryBuilderTest.OnlyPublishedPropertiesMustAppearInInsertSQL;
 begin
-  var MyClass := TClassOnlyPublic.Create;
+  var MyClass := TPublicClass.Create;
+  MyClass.Id := 10;
   MyClass.Name := 'My name';
   MyClass.Value := 222;
 
   Builder.Insert(MyClass);
 
-  Assert.AreEqual('insert into ClassOnlyPublic()values()', DatabaseClass.SQL);
+  Assert.AreEqual('insert into PublicClass(Id)values(10)', DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.OnlyPublishedPropertiesMustAppearInUpdateSQL;
 begin
-  var MyClass := TClassOnlyPublic.Create;
+  var MyClass := TPublicClass.Create;
+  MyClass.Id := 0;
   MyClass.Name := 'My name';
   MyClass.Value := 222;
 
-  AddObjectToCache(TClassOnlyPublic.Create);
+  AddObjectToCache(TPublicClass.Create);
 
   Builder.Update(MyClass);
 
