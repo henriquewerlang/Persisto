@@ -41,7 +41,10 @@ uses
   Delphi.ORM.Nullable.Manipulator in '..\Delphi.ORM.Nullable.Manipulator.pas',
   Delphi.ORM.Nullable.Manipulator.Test in 'Delphi.ORM.Nullable.Manipulator.Test.pas',
   Delphi.ORM.Change.Manager in '..\Delphi.ORM.Change.Manager.pas',
-  Delphi.ORM.Change.Manager.Test in 'Delphi.ORM.Change.Manager.Test.pas';
+  Delphi.ORM.Change.Manager.Test in 'Delphi.ORM.Change.Manager.Test.pas',
+  Delphi.ORM.Database.Manipulator.SQLite in '..\Delphi.ORM.Database.Manipulator.SQLite.pas',
+  Delphi.ORM.Database.Manipulator.SQLite.Test in 'Delphi.ORM.Database.Manipulator.SQLite.Test.pas',
+  Delphi.ORM.Database.Connection.FireDAC in '..\Delphi.ORM.Database.Connection.FireDAC.pas';
 
 begin
   FastMM_EnterDebugMode;
