@@ -1,9 +1,10 @@
-[submodule "Externals/Delphi.Mock"]
-	path = Externals/Delphi.Mock
-	url = https://github.com/henriquewerlang/Delphi.Mock.git
 [submodule "Externals/DUnitX"]
 	path = Externals/DUnitX
 	url = https://github.com/VSoftTechnologies/DUnitX.git
 [submodule "Externals/FastMM5"]
 	path = Externals/FastMM5
 	url = https://github.com/pleriche/FastMM5.git
+[submodule "Externals/Translucent"]
+	path = Externals/Translucent
+	url = https://github.com/henriquewerlang/Translucent.git
+	branch = master
