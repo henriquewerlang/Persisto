@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Query.Builder, Delphi.ORM.Database.Connection, Delphi.ORM.Attributes, Delphi.ORM.Test.Entity, Delphi.ORM.Cache, Delphi.Mock.Intf,
+uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Query.Builder, Delphi.ORM.Database.Connection, Delphi.ORM.Attributes, Delphi.ORM.Test.Entity, Delphi.ORM.Cache, Translucent.Intf,
   Delphi.ORM.Cursor.Mock, Delphi.ORM.Lazy;
 
 type
@@ -589,7 +589,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Nullable, Delphi.Mock, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy.Manipulator;
+uses System.SysUtils, System.DateUtils, Delphi.ORM.Mapper, Delphi.ORM.Nullable, Translucent, Delphi.ORM.Rtti.Helper, Delphi.ORM.Lazy.Manipulator;
 
 const
   COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '', '');

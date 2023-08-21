@@ -2,7 +2,7 @@
 
 interface
 
-uses DUnitX.TestFramework, Delphi.ORM.Classes.Loader, Delphi.ORM.Database.Connection, Delphi.ORM.Cache, Delphi.ORM.Query.Builder, Delphi.Mock.Intf, Delphi.ORM.Cursor.Mock,
+uses DUnitX.TestFramework, Delphi.ORM.Classes.Loader, Delphi.ORM.Database.Connection, Delphi.ORM.Cache, Delphi.ORM.Query.Builder, Translucent.Intf, Delphi.ORM.Cursor.Mock,
   Delphi.ORM.Change.Manager;
 
 type
@@ -110,7 +110,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.Variants, System.Rtti, Delphi.Mock, Delphi.ORM.Test.Entity, Delphi.ORM.Mapper, Delphi.ORM.Lazy.Manipulator;
+uses System.SysUtils, System.Variants, System.Rtti, Translucent, Delphi.ORM.Test.Entity, Delphi.ORM.Mapper, Delphi.ORM.Lazy.Manipulator;
 
 { TClassLoaderTest }
 

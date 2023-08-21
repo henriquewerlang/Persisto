@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Lazy, Delphi.ORM.Test.Entity, Delphi.Mock.Intf;
+uses System.Rtti, DUnitX.TestFramework, Delphi.ORM.Lazy, Delphi.ORM.Test.Entity, Translucent.Intf;
 
 type
   [TestFixture]
@@ -61,7 +61,7 @@ type
 
 implementation
 
-uses Delphi.ORM.Lazy.Manipulator, Delphi.Mock;
+uses Delphi.ORM.Lazy.Manipulator, Translucent;
 
 { TLazyManipulatorTest }
 

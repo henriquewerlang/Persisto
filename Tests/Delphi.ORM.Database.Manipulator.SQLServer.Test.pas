@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Generics.Collections, DUnitX.TestFramework, Delphi.Mock.Intf, Delphi.ORM.Database.Connection, Delphi.ORM.Database.Metadata, Delphi.ORM.Attributes,
+uses System.Generics.Collections, DUnitX.TestFramework, Translucent.Intf, Delphi.ORM.Database.Connection, Delphi.ORM.Database.Metadata, Delphi.ORM.Attributes,
   Delphi.ORM.Database.Metadata.Manipulator, Delphi.ORM.Mapper, Delphi.ORM.Nullable;
 
 type
@@ -135,7 +135,7 @@ type
 
 implementation
 
-uses System.Rtti, System.Variants, System.SysUtils, Delphi.Mock, Delphi.ORM.Database.Manipulator.SQLServer, Delphi.ORM.Cursor.Mock;
+uses System.Rtti, System.Variants, System.SysUtils, Translucent, Delphi.ORM.Database.Manipulator.SQLServer, Delphi.ORM.Cursor.Mock;
 
 { TManipulatorSQLServerTest }
 

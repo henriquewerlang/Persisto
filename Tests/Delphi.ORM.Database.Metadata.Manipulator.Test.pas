@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Rtti, System.Generics.Collections, DUnitX.TestFramework, Delphi.Mock.Intf, Delphi.ORM.Database.Metadata.Manipulator, Delphi.ORM.Database.Metadata, Delphi.ORM.Mapper,
+uses System.Rtti, System.Generics.Collections, DUnitX.TestFramework, Translucent.Intf, Delphi.ORM.Database.Metadata.Manipulator, Delphi.ORM.Database.Metadata, Delphi.ORM.Mapper,
   Delphi.ORM.Database.Connection, Delphi.ORM.Attributes;
 
 type
@@ -154,7 +154,7 @@ type
 
 implementation
 
-uses System.SysUtils, Delphi.Mock, Delphi.ORM.Test.Entity;
+uses System.SysUtils, Translucent, Delphi.ORM.Test.Entity;
 
 { TMetadataManipulatorTest }
 

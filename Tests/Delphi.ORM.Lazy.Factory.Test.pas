@@ -2,7 +2,7 @@
 
 interface
 
-uses DUnitX.TestFramework, Delphi.Mock, Delphi.Mock.Intf, Delphi.ORM.Cache, Delphi.ORM.Database.Connection, Delphi.ORM.Lazy, Delphi.ORM.Cursor.Mock, Delphi.ORM.Mapper,
+uses DUnitX.TestFramework, Translucent, Translucent.Intf, Delphi.ORM.Cache, Delphi.ORM.Database.Connection, Delphi.ORM.Lazy, Delphi.ORM.Cursor.Mock, Delphi.ORM.Mapper,
   Delphi.ORM.Test.Entity;
 
 type
