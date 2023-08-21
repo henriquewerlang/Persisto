@@ -34,14 +34,11 @@ type
     procedure Rollback;
   public
     constructor Create(const Connection: TDatabaseConnectionUnidac);
-
-    destructor Destroy; override;
   end;
 
   TDatabaseConnectionUnidac = class(TInterfacedObject, IDatabaseConnection)
   private
     FConnection: TUniConnection;
-    FReadWriteControl: IReadWriteSync;
 
     function ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
     function OpenCursor(const SQL: String): IDatabaseCursor;
@@ -76,11 +73,7 @@ end;
 
 destructor TDatabaseCursorUnidac.Destroy;
 begin
-  try
-    FQuery.Free;
-  finally
-    FConnection.FReadWriteControl.EndWrite;
-  end;
+  FQuery.Free;
 
   inherited;
 end;
@@ -95,11 +88,7 @@ begin
   if FQuery.Active then
     FQuery.Next
   else
-  begin
-    FConnection.FReadWriteControl.BeginWrite;
-
     FQuery.Open;
-  end;
 
   Result := not FQuery.Eof;
 end;
@@ -116,7 +105,6 @@ begin
   FConnection.Options.DisconnectedMode := True;
   FConnection.Pooling := True;
   FConnection.PoolingOptions.MaxPoolSize := 500;
-  FReadWriteControl := TMultiReadExclusiveWriteSynchronizer.Create;
 end;
 
 destructor TDatabaseConnectionUnidac.Destroy;
@@ -128,13 +116,7 @@ end;
 
 procedure TDatabaseConnectionUnidac.ExecuteDirect(const SQL: String);
 begin
-  FReadWriteControl.BeginWrite;
-
-  try
-    FConnection.ExecSQL(SQL);
-  finally
-    FReadWriteControl.EndWrite;
-  end;
+  FConnection.ExecSQL(SQL);
 end;
 
 function TDatabaseConnectionUnidac.ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
@@ -194,16 +176,7 @@ begin
 
   FConnection := Connection;
 
-  FConnection.FReadWriteControl.BeginWrite;
-
   FConnection.FConnection.StartTransaction;
-end;
-
-destructor TDatabaseTransactionUnidac.Destroy;
-begin
-  FConnection.FReadWriteControl.EndWrite;
-
-  inherited;
 end;
 
 procedure TDatabaseTransactionUnidac.Rollback;
