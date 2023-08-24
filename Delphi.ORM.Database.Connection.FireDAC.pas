@@ -103,7 +103,7 @@ begin
   FConnection.FetchOptions.CursorKind := ckForwardOnly;
   FConnection.FetchOptions.Items := [];
   FConnection.FetchOptions.Mode := fmOnDemand;
-  FConnection.FetchOptions.RowsetSize := 1000;
+  FConnection.FetchOptions.RowsetSize := 10;
   FConnection.FetchOptions.Unidirectional := True;
   FConnection.ResourceOptions.SilentMode := True;
 end;
