@@ -172,41 +172,29 @@
         <DCCReference Include="..\Externals\FastMM5\FastMM5.pas"/>
         <DCCReference Include="Persisto.DataSet.Test.pas"/>
         <DCCReference Include="..\Persisto.DataSet.pas"/>
-        <DCCReference Include="..\Persisto.Connection.pas"/>
         <DCCReference Include="Persisto.Query.Builder.Test.pas"/>
-        <DCCReference Include="..\Persisto.Query.Builder.pas"/>
         <DCCReference Include="Persisto.Classes.Loader.Test.pas"/>
-        <DCCReference Include="..\Persisto.Classes.Loader.pas"/>
-        <DCCReference Include="..\Persisto.Attributes.pas"/>
         <DCCReference Include="Persisto.Mapper.Test.pas"/>
-        <DCCReference Include="..\Persisto.Mapper.pas"/>
         <DCCReference Include="..\Persisto.Rtti.Helper.pas"/>
         <DCCReference Include="Persisto.Test.Entity.pas"/>
         <DCCReference Include="Persisto.Cursor.Mock.pas"/>
         <DCCReference Include="Persisto.Rtti.Helper.Test.pas"/>
-        <DCCReference Include="..\Persisto.Nullable.pas"/>
         <DCCReference Include="Persisto.Nullable.Test.pas"/>
-        <DCCReference Include="..\Persisto.Lazy.pas"/>
         <DCCReference Include="Persisto.Lazy.Test.pas"/>
-        <DCCReference Include="..\Persisto.Cache.pas"/>
         <DCCReference Include="Persisto.Cache.Test.pas"/>
         <DCCReference Include="Persisto.Lazy.Factory.Test.pas"/>
-        <DCCReference Include="..\Persisto.Lazy.Factory.pas"/>
-        <DCCReference Include="..\Persisto.Database.Metadata.pas"/>
         <DCCReference Include="Persisto.Database.Metadata.Test.pas"/>
-        <DCCReference Include="..\Persisto.Database.Metadata.Manipulator.pas"/>
         <DCCReference Include="Persisto.Database.Metadata.Manipulator.Test.pas"/>
-        <DCCReference Include="..\Persisto.Database.Manipulator.SQLServer.pas"/>
+        <DCCReference Include="..\Persisto.SQLServer.pas"/>
         <DCCReference Include="Persisto.Database.Manipulator.SQLServer.Test.pas"/>
-        <DCCReference Include="..\Persisto.Lazy.Manipulator.pas"/>
         <DCCReference Include="Persisto.Lazy.Manipulator.Test.pas"/>
-        <DCCReference Include="..\Persisto.Nullable.Manipulator.pas"/>
         <DCCReference Include="Persisto.Nullable.Manipulator.Test.pas"/>
-        <DCCReference Include="..\Persisto.Change.Manager.pas"/>
         <DCCReference Include="Persisto.Change.Manager.Test.pas"/>
-        <DCCReference Include="..\Persisto.Database.Manipulator.SQLite.pas"/>
+        <DCCReference Include="..\Persisto.SQLite.pas"/>
         <DCCReference Include="Persisto.Database.Manipulator.SQLite.Test.pas"/>
         <DCCReference Include="..\Persisto.Connection.Firedac.pas"/>
+        <DCCReference Include="..\Persisto.Mapping.pas"/>
+        <DCCReference Include="..\Persisto.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -250,15 +238,15 @@
                 </DeployFile>
                 <DeployFile LocalName="Win32\Debug\Delphi.ORM.Tests.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployFile LocalName="Win64\Debug\Delphi.ORM.Tests.exe" Configuration="Debug" Class="ProjectOutput"/>
-                <DeployFile LocalName="Win64\Debug\Manager.Tests.rsm" Configuration="Debug" Class="DebugSymbols">
-                    <Platform Name="Win64">
-                        <RemoteName>Manager_Tests.rsm</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
                 <DeployFile LocalName="Win64\Debug\Persisto.Tests.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win64">
                         <RemoteName>Persisto_Tests.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Win64\Debug\Persisto.Tests.rsm" Configuration="Debug" Class="DebugSymbols">
+                    <Platform Name="Win64">
+                        <RemoteName>Persisto_Tests.rsm</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

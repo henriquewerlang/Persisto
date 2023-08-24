@@ -2,7 +2,7 @@
 
 interface
 
-uses DUnitX.TestFramework, Persisto.Change.Manager, Persisto.Test.Entity, Persisto.Mapper;
+uses DUnitX.TestFramework, Persisto, Persisto.Test.Entity;
 
 type
   [TestFixture]

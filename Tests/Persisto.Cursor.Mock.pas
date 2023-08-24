@@ -2,7 +2,7 @@ unit Persisto.Cursor.Mock;
 
 interface
 
-uses Persisto.Connection;
+uses Persisto;
 
 type
   TCursorMock = class(TInterfacedObject, IDatabaseCursor)

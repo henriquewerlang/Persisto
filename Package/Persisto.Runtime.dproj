@@ -144,20 +144,10 @@
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="dbrtl.dcp"/>
         <DCCReference Include="vcl.dcp"/>
-        <DCCReference Include="..\Persisto.Attributes.pas"/>
-        <DCCReference Include="..\Persisto.Classes.Loader.pas"/>
-        <DCCReference Include="..\Persisto.Connection.pas"/>
         <DCCReference Include="..\Persisto.DataSet.pas"/>
-        <DCCReference Include="..\Persisto.Mapper.pas"/>
-        <DCCReference Include="..\Persisto.Query.Builder.pas"/>
         <DCCReference Include="..\Persisto.Rtti.Helper.pas"/>
-        <DCCReference Include="..\Persisto.Nullable.pas"/>
-        <DCCReference Include="..\Persisto.Lazy.pas"/>
-        <DCCReference Include="..\Persisto.Cache.pas"/>
-        <DCCReference Include="..\Persisto.Lazy.Factory.pas"/>
-        <DCCReference Include="..\Persisto.Change.Manager.pas"/>
-        <DCCReference Include="..\Persisto.Lazy.Manipulator.pas"/>
-        <DCCReference Include="..\Persisto.Nullable.Manipulator.pas"/>
+        <DCCReference Include="..\Persisto.Mapping.pas"/>
+        <DCCReference Include="..\Persisto.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

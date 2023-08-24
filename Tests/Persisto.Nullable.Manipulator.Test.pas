@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Persisto.Nullable.Manipulator, Persisto.Test.Entity;
+uses System.Rtti, DUnitX.TestFramework, Persisto.Mapping, Persisto.Test.Entity;
 
 type
   [TestFixture]

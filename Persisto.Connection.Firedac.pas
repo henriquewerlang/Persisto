@@ -2,7 +2,7 @@ unit Persisto.Connection.Firedac;
 
 interface
 
-uses Persisto.Connection, FireDAC.Comp.Client;
+uses Persisto, FireDAC.Comp.Client;
 
 type
   TDatabaseCursorFireDAC = class(TInterfacedObject, IDatabaseCursor)

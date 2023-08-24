@@ -247,8 +247,7 @@ type
 
 implementation
 
-uses System.Math, Persisto.Nullable, Persisto.Rtti.Helper, Persisto.Lazy, {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF}, Persisto.Lazy.Manipulator,
-  Persisto.Nullable.Manipulator;
+uses System.Math, Persisto.Rtti.Helper, Persisto.Mapping, {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF};
 
 const
   SELF_FIELD_NAME = 'Self';

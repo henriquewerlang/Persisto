@@ -2,8 +2,7 @@
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Persisto.Query.Builder, Persisto.Connection, Persisto.Attributes, Persisto.Test.Entity, Persisto.Cache, Translucent.Intf,
-  Persisto.Cursor.Mock, Persisto.Lazy;
+uses System.Rtti, DUnitX.TestFramework, Persisto, Persisto.Mapping, Persisto.Test.Entity, Translucent.Intf, Persisto.Cursor.Mock;
 
 type
   TDatabaseTest = class;
@@ -589,7 +588,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.DateUtils, Persisto.Mapper, Persisto.Nullable, Translucent, Persisto.Rtti.Helper, Persisto.Lazy.Manipulator;
+uses System.SysUtils, System.DateUtils, Translucent, Persisto.Rtti.Helper;
 
 const
   COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '', '');

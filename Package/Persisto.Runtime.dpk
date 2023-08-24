@@ -34,19 +34,9 @@ requires
   vcl;
 
 contains
-  Persisto.Attributes in '..\Persisto.Attributes.pas',
-  Persisto.Classes.Loader in '..\Persisto.Classes.Loader.pas',
-  Persisto.Connection in '..\Persisto.Connection.pas',
   Persisto.DataSet in '..\Persisto.DataSet.pas',
-  Persisto.Mapper in '..\Persisto.Mapper.pas',
-  Persisto.Query.Builder in '..\Persisto.Query.Builder.pas',
   Persisto.Rtti.Helper in '..\Persisto.Rtti.Helper.pas',
-  Persisto.Nullable in '..\Persisto.Nullable.pas',
-  Persisto.Lazy in '..\Persisto.Lazy.pas',
-  Persisto.Cache in '..\Persisto.Cache.pas',
-  Persisto.Lazy.Factory in '..\Persisto.Lazy.Factory.pas',
-  Persisto.Change.Manager in '..\Persisto.Change.Manager.pas',
-  Persisto.Lazy.Manipulator in '..\Persisto.Lazy.Manipulator.pas',
-  Persisto.Nullable.Manipulator in '..\Persisto.Nullable.Manipulator.pas';
+  Persisto.Mapping in '..\Persisto.Mapping.pas',
+  Persisto in '..\Persisto.pas';
 
 end.

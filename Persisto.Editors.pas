@@ -14,7 +14,7 @@ type
 
 implementation
 
-uses System.Rtti, Persisto.Attributes;
+uses System.Rtti, Persisto.Mapping;
 
 { TObjectClassNameProperty }
 

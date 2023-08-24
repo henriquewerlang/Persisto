@@ -2,7 +2,7 @@
 
 interface
 
-uses System.SysUtils, System.Generics.Collections, DUnitX.TestFramework, Translucent.Intf, Persisto.Database.Metadata, Persisto.Mapper, Persisto.Attributes, Persisto.Nullable;
+uses System.SysUtils, System.Generics.Collections, DUnitX.TestFramework, Translucent.Intf, Persisto, Persisto.Mapping;
 
 type
   [TestFixture]

@@ -60,8 +60,6 @@ type
     procedure WhenCallTheGetRttiTypeMustReturnTheTypeAsExpected;
     [Test]
     procedure WhenCallTheGetRttiTypeOfAnClassMustReturnTheTypeAsExpected;
-    [Test]
-    procedure WhenCallTheGetGenericRttiTypeMustReturnTheInternalTypeOfTheDeclaredGeneric;
   end;
 
   TMyAttribute = class(TCustomAttribute);
@@ -212,11 +210,6 @@ end;
 procedure TRttiHelperFunctionTest.TearDown;
 begin
   FContext.Free;
-end;
-
-procedure TRttiHelperFunctionTest.WhenCallTheGetGenericRttiTypeMustReturnTheInternalTypeOfTheDeclaredGeneric;
-begin
-  Assert.AreEqual(FContext.GetType(TypeInfo(Integer)), GetGenericRttiType('TList', FContext.GetType(TypeInfo(TList<Integer>))));
 end;
 
 procedure TRttiHelperFunctionTest.WhenCallTheGetRttiTypeMustReturnTheTypeAsExpected;

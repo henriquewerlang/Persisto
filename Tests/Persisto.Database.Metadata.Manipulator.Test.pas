@@ -2,8 +2,7 @@
 
 interface
 
-uses System.Rtti, System.Generics.Collections, DUnitX.TestFramework, Translucent.Intf, Persisto.Database.Metadata.Manipulator, Persisto.Database.Metadata, Persisto.Mapper,
-  Persisto.Connection, Persisto.Attributes;
+uses System.Rtti, System.Generics.Collections, DUnitX.TestFramework, Translucent.Intf, Persisto, Persisto.Mapping;
 
 type
   TMetadataManipulatorMock = class;

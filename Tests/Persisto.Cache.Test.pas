@@ -2,7 +2,7 @@
 
 interface
 
-uses DUnitX.TestFramework, Persisto.Cache;
+uses DUnitX.TestFramework, Persisto;
 
 type
   [TestFixture]

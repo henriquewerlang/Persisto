@@ -1,8 +1,8 @@
-﻿unit Persisto.Database.Manipulator.SQLServer;
+﻿unit Persisto.SQLServer;
 
 interface
 
-uses System.Generics.Collections, Persisto.Database.Metadata.Manipulator, Persisto.Database.Metadata, Persisto.Mapper, Persisto.Attributes, Persisto.Connection;
+uses System.Generics.Collections, Persisto, Persisto.Mapping;
 
 type
   TManipulatorSQLServer = class(TMetadataManipulator, IMetadataManipulator)

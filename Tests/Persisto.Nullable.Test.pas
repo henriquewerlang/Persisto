@@ -32,7 +32,7 @@ type
 
 implementation
 
-uses Persisto.Nullable;
+uses Persisto.Mapping;
 
 { TNullableTest }
 

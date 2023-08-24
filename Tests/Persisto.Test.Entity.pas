@@ -2,7 +2,7 @@
 
 interface
 
-uses System.SysUtils, Persisto.Attributes, Persisto.Nullable, Persisto.Lazy;
+uses System.SysUtils, Persisto.Mapping;
 
 type
   TMyEntityInheritedFromSimpleClass = class;
@@ -1178,8 +1178,6 @@ type
   end;
 
 implementation
-
-uses Persisto.Mapper;
 
 { TManyValueParentChildError }
 

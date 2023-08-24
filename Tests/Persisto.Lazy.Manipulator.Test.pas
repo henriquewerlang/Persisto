@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Persisto.Lazy, Persisto.Test.Entity, Translucent.Intf;
+uses System.Rtti, DUnitX.TestFramework, Persisto.Mapping, Persisto.Test.Entity, Translucent.Intf;
 
 type
   [TestFixture]
@@ -61,7 +61,7 @@ type
 
 implementation
 
-uses Persisto.Lazy.Manipulator, Translucent;
+uses Translucent;
 
 { TLazyManipulatorTest }
 

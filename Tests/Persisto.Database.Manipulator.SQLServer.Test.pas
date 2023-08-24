@@ -2,8 +2,7 @@
 
 interface
 
-uses System.Generics.Collections, DUnitX.TestFramework, Translucent.Intf, Persisto.Connection, Persisto.Database.Metadata, Persisto.Attributes,
-  Persisto.Database.Metadata.Manipulator, Persisto.Mapper, Persisto.Nullable;
+uses System.Generics.Collections, DUnitX.TestFramework, Translucent.Intf, Persisto, Persisto.Mapping;
 
 type
   [TestFixture]
@@ -135,7 +134,7 @@ type
 
 implementation
 
-uses System.Rtti, System.Variants, System.SysUtils, Translucent, Persisto.Database.Manipulator.SQLServer, Persisto.Cursor.Mock;
+uses System.Rtti, System.Variants, System.SysUtils, Translucent, Persisto.SQLServer, Persisto.Cursor.Mock;
 
 { TManipulatorSQLServerTest }
 

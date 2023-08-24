@@ -2,20 +2,9 @@
 
 interface
 
-uses DUnitX.TestFramework, Translucent, Translucent.Intf, Persisto.Cache, Persisto.Connection, Persisto.Lazy, Persisto.Cursor.Mock, Persisto.Mapper, Persisto.Test.Entity;
+uses DUnitX.TestFramework, Translucent, Translucent.Intf, Persisto, Persisto.Mapping, Persisto.Cursor.Mock, Persisto.Test.Entity;
 
 type
-  [TestFixture]
-  TLazyFactoryTest = class
-  public
-    [Test]
-    procedure WhenCreateTheFactoryForASingleClassMustCreateTheSingleFactory;
-    [Test]
-    procedure WhenCreateTheFactoryForAManyValueClassMustCreateTheManyValueFactory;
-    [Test]
-    procedure WhenTheKeyIsEmptyTheCreatorMustReturnANilValue;
-  end;
-
   [TestFixture]
   TLazySingleClassFactoryTest = class
   private
@@ -75,7 +64,7 @@ type
 
 implementation
 
-uses System.Rtti, Persisto.Lazy.Factory, Persisto.Rtti.Helper, Persisto.Change.Manager;
+uses System.Rtti, Persisto.Rtti.Helper;
 
 { TLazySingleClassFactoryTest }
 
@@ -255,33 +244,6 @@ begin
   Assert.IsFalse(Value.IsEmpty);
 
   Assert.AreEqual(3, Value.ArrayLength);
-end;
-
-{ TLazyFactoryTest }
-
-procedure TLazyFactoryTest.WhenCreateTheFactoryForAManyValueClassMustCreateTheManyValueFactory;
-begin
-  var Instance := CreateLoader(nil, nil, TMapper.Default.FindTable(TLazyArrayClass).Field['LazyArray'], 0);
-
-  Assert.IsNotNull(Instance);
-
-  Assert.AreEqual(TLazyManyValueClassFactory.ClassName, TObject(Instance).ClassName);
-end;
-
-procedure TLazyFactoryTest.WhenCreateTheFactoryForASingleClassMustCreateTheSingleFactory;
-begin
-  var Instance := CreateLoader(nil, nil, TMapper.Default.FindTable(TLazyArrayClass).Field['Lazy'], 0);
-
-  Assert.IsNotNull(Instance);
-
-  Assert.AreEqual(TLazySingleClassFactory.ClassName, TObject(Instance).ClassName);
-end;
-
-procedure TLazyFactoryTest.WhenTheKeyIsEmptyTheCreatorMustReturnANilValue;
-begin
-  var Instance := CreateLoader(nil, nil, TMapper.Default.FindTable(TLazyArrayClass).Field['Lazy'], TValue.Empty);
-
-  Assert.IsNull(Instance);
 end;
 
 end.

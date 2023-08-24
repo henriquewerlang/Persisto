@@ -2,7 +2,7 @@
 
 interface
 
-uses DUnitX.TestFramework, Persisto.Database.Metadata, Persisto.Connection, Persisto.Database.Manipulator.SQLite, Persisto.Attributes;
+uses DUnitX.TestFramework, Persisto, Persisto.Mapping, Persisto.SQLite;
 
 type
   [TestFixture]
@@ -39,7 +39,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.Rtti, Persisto.Mapper;
+uses System.SysUtils, System.Rtti;
 
 { TManipulatorSQLiteTest }
 

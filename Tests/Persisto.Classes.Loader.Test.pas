@@ -2,7 +2,7 @@
 
 interface
 
-uses DUnitX.TestFramework, Persisto.Classes.Loader, Persisto.Connection, Persisto.Cache, Persisto.Query.Builder, Translucent.Intf, Persisto.Cursor.Mock, Persisto.Change.Manager;
+uses DUnitX.TestFramework, Persisto, Persisto.Mapping, Translucent.Intf, Persisto.Cursor.Mock;
 
 type
   [TestFixture]
@@ -109,7 +109,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.Variants, System.Rtti, Translucent, Persisto.Test.Entity, Persisto.Mapper, Persisto.Lazy.Manipulator;
+uses System.SysUtils, System.Variants, System.Rtti, Translucent, Persisto.Test.Entity;
 
 { TClassLoaderTest }
 

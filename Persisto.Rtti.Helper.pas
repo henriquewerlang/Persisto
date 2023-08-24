@@ -38,50 +38,26 @@ type
     class property FormatSettings: TFormatSettings read GFFormatSettings;
   end;
 
-function GetGenericRttiType(const Name: String; const RttiType: TRttiType): TRttiType;
 function GetRttiType(const AClass: TClass): TRttiType; overload;
-function GetRttiType(const AQualifiedName: String): TRttiType; overload;
-function GetRttiType(const AType: PTypeInfo): TRttiType; overload;
+function GetRttiType(const TypeInfo: PTypeInfo): TRttiType; overload;
 
 implementation
 
 uses {$IFDEF PAS2JS}RTLConsts, JS{$ELSE}System.Variants, System.SysConst{$ENDIF};
 
-function GetGenericRttiType(const Name: String; const RttiType: TRttiType): TRttiType;
-var
-  TypeName: String;
-
-begin
-  TypeName := RttiType.Name;
-
-  Result := GetRttiType(TypeName.Substring(Succ(Name.Length), Pred(TypeName.Length) - Succ(Name.Length)));
-end;
-
-function GetRttiType(const AType: PTypeInfo): TRttiType;
-var
-  Context: TRttiContext;
-
-begin
-  Context := TRttiContext.Create;
-
-  Result := Context.GetType(AType);
-
-  Context.Free;
-end;
-
 function GetRttiType(const AClass: TClass): TRttiType;
 begin
-  Exit(GetRttiType(AClass.ClassInfo));
+  Result := GetRttiType(AClass.ClassInfo);
 end;
 
-function GetRttiType(const AQualifiedName: String): TRttiType; overload;
+function GetRttiType(const TypeInfo: PTypeInfo): TRttiType;
 var
   Context: TRttiContext;
 
 begin
   Context := TRttiContext.Create;
 
-  Result := Context.FindType(AQualifiedName);
+  Result := Context.GetType(TypeInfo);
 
   Context.Free;
 end;
