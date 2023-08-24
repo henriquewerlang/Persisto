@@ -1,0 +1,96 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{8D1E7946-7658-4DCF-B759-ADBF9390627A}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="Persisto.Runtime.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Persisto.Runtime.Firedac.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Persisto.Runtime.Unidac.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Persisto.Runtime.ZeosLib.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Persisto.Design.dproj">
+            <Dependencies>Persisto.Runtime.dproj</Dependencies>
+        </Projects>
+        <Projects Include="..\Tests\Persisto.Tests.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="Persisto_Runtime">
+        <MSBuild Projects="Persisto.Runtime.dproj"/>
+    </Target>
+    <Target Name="Persisto_Runtime:Clean">
+        <MSBuild Projects="Persisto.Runtime.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Persisto_Runtime:Make">
+        <MSBuild Projects="Persisto.Runtime.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Persisto_Runtime_Firedac">
+        <MSBuild Projects="Persisto.Runtime.Firedac.dproj"/>
+    </Target>
+    <Target Name="Persisto_Runtime_Firedac:Clean">
+        <MSBuild Projects="Persisto.Runtime.Firedac.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Persisto_Runtime_Firedac:Make">
+        <MSBuild Projects="Persisto.Runtime.Firedac.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Persisto_Runtime_Unidac">
+        <MSBuild Projects="Persisto.Runtime.Unidac.dproj"/>
+    </Target>
+    <Target Name="Persisto_Runtime_Unidac:Clean">
+        <MSBuild Projects="Persisto.Runtime.Unidac.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Persisto_Runtime_Unidac:Make">
+        <MSBuild Projects="Persisto.Runtime.Unidac.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Persisto_Runtime_ZeosLib">
+        <MSBuild Projects="Persisto.Runtime.ZeosLib.dproj"/>
+    </Target>
+    <Target Name="Persisto_Runtime_ZeosLib:Clean">
+        <MSBuild Projects="Persisto.Runtime.ZeosLib.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Persisto_Runtime_ZeosLib:Make">
+        <MSBuild Projects="Persisto.Runtime.ZeosLib.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Persisto_Design" DependsOnTargets="Persisto.Runtime">
+        <MSBuild Projects="Persisto.Design.dproj"/>
+    </Target>
+    <Target Name="Persisto_Design:Clean" DependsOnTargets="Persisto.Runtime:Clean">
+        <MSBuild Projects="Persisto.Design.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Persisto_Design:Make" DependsOnTargets="Persisto.Runtime:Make">
+        <MSBuild Projects="Persisto.Design.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Persisto_Tests">
+        <MSBuild Projects="..\Tests\Persisto.Tests.dproj"/>
+    </Target>
+    <Target Name="Persisto_Tests:Clean">
+        <MSBuild Projects="..\Tests\Persisto.Tests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Persisto_Tests:Make">
+        <MSBuild Projects="..\Tests\Persisto.Tests.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="Persisto_Runtime;Persisto_Runtime_Firedac;Persisto_Runtime_Unidac;Persisto_Runtime_ZeosLib;Persisto_Design;Persisto_Tests"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="Persisto_Runtime:Clean;Persisto_Runtime_Firedac:Clean;Persisto_Runtime_Unidac:Clean;Persisto_Runtime_ZeosLib:Clean;Persisto_Design:Clean;Persisto_Tests:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="Persisto_Runtime:Make;Persisto_Runtime_Firedac:Make;Persisto_Runtime_Unidac:Make;Persisto_Runtime_ZeosLib:Make;Persisto_Design:Make;Persisto_Tests:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

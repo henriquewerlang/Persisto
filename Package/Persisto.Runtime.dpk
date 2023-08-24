@@ -1,0 +1,52 @@
+﻿package Persisto.Runtime;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$ENDIF IMPLICITBUILDING}
+{$RUNONLY}
+{$IMPLICITBUILD ON}
+
+requires
+  rtl,
+  dbrtl,
+  vcl;
+
+contains
+  Persisto.Attributes in '..\Persisto.Attributes.pas',
+  Persisto.Classes.Loader in '..\Persisto.Classes.Loader.pas',
+  Persisto.Connection in '..\Persisto.Connection.pas',
+  Persisto.DataSet in '..\Persisto.DataSet.pas',
+  Persisto.Mapper in '..\Persisto.Mapper.pas',
+  Persisto.Query.Builder in '..\Persisto.Query.Builder.pas',
+  Persisto.Rtti.Helper in '..\Persisto.Rtti.Helper.pas',
+  Persisto.Nullable in '..\Persisto.Nullable.pas',
+  Persisto.Lazy in '..\Persisto.Lazy.pas',
+  Persisto.Cache in '..\Persisto.Cache.pas',
+  Persisto.Lazy.Factory in '..\Persisto.Lazy.Factory.pas',
+  Persisto.Change.Manager in '..\Persisto.Change.Manager.pas',
+  Persisto.Lazy.Manipulator in '..\Persisto.Lazy.Manipulator.pas',
+  Persisto.Nullable.Manipulator in '..\Persisto.Nullable.Manipulator.pas';
+
+end.

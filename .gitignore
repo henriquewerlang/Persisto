@@ -72,7 +72,7 @@ modules/
 TestInsightSettings.ini
 
 #Trash
-Delphi.ORM.Tests_MemoryManager_EventLog.txt
+Persisto.Tests_MemoryManager_EventLog.txt
 
 #DevExpress
 *.skincfg
