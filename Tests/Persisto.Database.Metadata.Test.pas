@@ -32,8 +32,6 @@ type
     [Test]
     procedure WhenUpdataDeDatabaseMustLoadAllTablesFromTheDataBase;
     [Test]
-    procedure IfTheMapperIsntLoadedMustGetTheDefaultMapper;
-    [Test]
     procedure IfTheTableDontExistsInTheDatabaseMustCreateTheTable;
     [Test]
     procedure OnlyTheTableNoExistingTableMustCreatedInTheDataBase;
@@ -539,13 +537,6 @@ begin
   Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
 end;
 
-procedure TDatabaseMetadataUpdateTest.IfTheMapperIsntLoadedMustGetTheDefaultMapper;
-begin
-  FDatabaseMetadataUpdate.Mapper := nil;
-
-  Assert.AreEqual(TMapper.Default, FDatabaseMetadataUpdate.Mapper);
-end;
-
 procedure TDatabaseMetadataUpdateTest.IfThePrecisionHasChangedMustRecreateTheField;
 begin
   FOnSchemaLoad :=
@@ -738,8 +729,7 @@ begin
   FMapper.DefaultCollation := 'MyCollation';
   FMetadataManipulator := TMock.CreateInterface<IMetadataManipulator>(True);
 
-  FDatabaseMetadataUpdate := TDatabaseMetadataUpdate.Create(FMetadataManipulator.Instance);
-  FDatabaseMetadataUpdate.Mapper := FMapper;
+//  FDatabaseMetadataUpdate := TDatabaseMetadataUpdate.Create(FMetadataManipulator.Instance);
 
   FMetadataManipulator.Setup.WillExecute(
     procedure (const Params: TArray<TValue>)

@@ -37,7 +37,7 @@ type
     property Id: Integer read FId write FId;
     [NewUniqueIdentifier]
     property AnotherField: String read FAnotherField write FAnotherField;
-    [FixedValue('MyValue')]
+    [FixedValue('''MyValue''')]
     property FixedValue: String read FFixedValue write FFixedValue;
     [Sequence('MySequence')]
     property Sequence: String read FSequence write FSequence;

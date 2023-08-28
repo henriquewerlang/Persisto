@@ -1402,7 +1402,7 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      Builder.Select.All.From<TObject>(TMapper.Default.FindTable(TClassWithForeignKey)).Open;
+      Builder.Select.All.From(TMapper.Default.FindTable(TClassWithForeignKey)).Open;
     end);
 end;
 

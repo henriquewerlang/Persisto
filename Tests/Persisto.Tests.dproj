@@ -195,6 +195,7 @@
         <DCCReference Include="..\Persisto.Connection.Firedac.pas"/>
         <DCCReference Include="..\Persisto.Mapping.pas"/>
         <DCCReference Include="..\Persisto.pas"/>
+        <DCCReference Include="Persisto.Manager.Test.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

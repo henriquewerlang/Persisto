@@ -12,6 +12,7 @@ type
     FFieldType: TDictionary<String, TTypeKind>;
     FForeignKeyCursor: IDatabaseCursor;
     FIndexCursor: IDatabaseCursor;
+    FManager: TManager;
     FManipulator: IMetadataManipulator;
     FMapper: TMapper;
     FSchema: TDatabaseSchema;
@@ -197,7 +198,6 @@ begin
     ['Table1', 'Index1', 'Date', 0, 0],
     ['Table2', 'Index2', 'DateTime', 0, 1],
     ['Table1', 'Index3', 'Time', 1, 0]]);
-  FManipulator := TManipulatorSQLServer.Create(FConnection.Instance);
   FSequenceCursor := TCursorMock.Create([
     ['Sequence1'],
     ['Sequence2'],
@@ -220,7 +220,10 @@ begin
     ['Table4', 'VarcharMax', 'varchar', -1, 0, 0, 0, 'MyCollate', NULL, NULL],
     ['Table4', 'Unknow', 'unknow', 0, 0, 0, 0, NULL, NULL, NULL]]);
   FMapper := TMapper.Create;
+  FManager := TManager.Create(FConnection.Instance, nil);
   FSchema := TDatabaseSchema.Create;
+
+  FManipulator := TManipulatorSQLServer.Create(FManager);
 
   FConnection.Setup.WillReturn(TValue.From(FForeignKeyCursor)).When.OpenCursor(It.IsEqualTo(FOREIGN_KEY_LOAD_SQL));
 
@@ -255,6 +258,8 @@ begin
   FTableCursor := nil;
 
   FFieldType.Free;
+
+  FManager.Free;
 
   FMapper.Free;
 

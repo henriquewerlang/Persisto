@@ -16,6 +16,7 @@ type
     FDatabaseIndex: TDatabaseIndex;
     FDatabaseSchema: TDatabaseSchema;
     FDatabaseTable: TDatabaseTable;
+    FManager: TManager;
     FMapper: TMapper;
     FMetadataManipulator: IMetadataManipulator;
     FMetadataManipulatorClass: TMetadataManipulatorMock;
@@ -202,8 +203,9 @@ begin
   FCursor := TMock.CreateInterface<IDatabaseCursor>(True);
   FDatabaseSchema := TDatabaseSchema.Create;
   FDatabaseTable := TDatabaseTable.Create(FDatabaseSchema, 'MyTableDB');
+  FManager := TManager.Create(FConnection.Instance, nil);
   FMapper := TMapper.Create;
-  FMetadataManipulatorClass := TMetadataManipulatorMock.Create(FConnection.Instance);
+  FMetadataManipulatorClass := TMetadataManipulatorMock.Create(FManager);
   FSQLExecuted := EmptyStr;
   FTransaction := TMock.CreateInterface<IDatabaseTransaction>(True);
 
@@ -260,6 +262,8 @@ begin
   FTransaction := nil;
 
   FDatabaseSchema.Free;
+
+  FManager.Free;
 
   FMapper.Free;
 end;

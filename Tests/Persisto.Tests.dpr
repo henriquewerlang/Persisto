@@ -8,6 +8,8 @@ uses
   TestInsight.DUnitX,
   DUnitX.TestFramework,
   DUnitX.MemoryLeakMonitor.FastMM5,
+  FireDAC.Phys.SQLite,
+  FireDAC.Phys.SQLiteWrapper.Stat,
   Persisto.DataSet.Test in 'Persisto.DataSet.Test.pas',
   Persisto.DataSet in '..\Persisto.DataSet.pas',
   Persisto.Query.Builder.Test in 'Persisto.Query.Builder.Test.pas',
@@ -32,7 +34,8 @@ uses
   Persisto.Database.Manipulator.SQLite.Test in 'Persisto.Database.Manipulator.SQLite.Test.pas',
   Persisto.Connection.Firedac in '..\Persisto.Connection.Firedac.pas',
   Persisto.Mapping in '..\Persisto.Mapping.pas',
-  Persisto in '..\Persisto.pas';
+  Persisto in '..\Persisto.pas',
+  Persisto.Manager.Test in 'Persisto.Manager.Test.pas';
 
 begin
   FastMM_EnterDebugMode;
