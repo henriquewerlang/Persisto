@@ -233,7 +233,7 @@ begin
 
   FConnection.Setup.WillReturn(TValue.From(FSequenceCursor)).When.OpenCursor(It.IsEqualTo(SEQUENCE_LOAD_SQL));
 
-  FMapper.LoadClass(TMyTestClass);
+  FMapper.GetTable(TMyTestClass);
 
   FFieldType.Add('bigint', tkInt64);
   FFieldType.Add('bit', tkEnumeration);
@@ -406,7 +406,7 @@ end;
 
 procedure TManipulatorSQLServerTest.WhenCreateADefaultConstraintMustExecuteTheSQLAsExpected;
 begin
-  var Field := FMapper.FindTable(TMyTestClass).Field['UniqueIdentifier'];
+  var Field := FMapper.GetTable(TMyTestClass).Field['UniqueIdentifier'];
 
   CheckExecution('alter table MyTable add constraint DF_MyTable_MyField default (newsequentialid()) for MyField');
 
@@ -415,7 +415,7 @@ end;
 
 procedure TManipulatorSQLServerTest.WhenCreateARequiredTempFieldMustLoadTheDefaultValueHasExpected;
 begin
-  var Field := FMapper.FindTable(TMyTestClass).Field['Field'];
+  var Field := FMapper.GetTable(TMyTestClass).Field['Field'];
 
   FManipulator.CreateTempField(Field);
 
@@ -428,7 +428,7 @@ end;
 
 procedure TManipulatorSQLServerTest.WhenCreateARequiredUniqueIdentifierFieldMustCreateTheDefaultAsExpected;
 begin
-  var Field := FMapper.FindTable(TMyTestClass).Field['UniqueIdentifier'];
+  var Field := FMapper.GetTable(TMyTestClass).Field['UniqueIdentifier'];
 
   FManipulator.CreateTempField(Field);
 
@@ -437,7 +437,7 @@ end;
 
 procedure TManipulatorSQLServerTest.WhenCreateTheTempFieldMustCallTheBaseClassToExecuteTheCreation;
 begin
-  var Field := FMapper.FindTable(TMyTestClass).Field['Field'];
+  var Field := FMapper.GetTable(TMyTestClass).Field['Field'];
 
   FConnection.Expect.Once.When.ExecuteDirect(It.IsAny<String>);
 
@@ -448,7 +448,7 @@ end;
 
 procedure TManipulatorSQLServerTest.WhenCreateTheTempFieldNotRequiredCantLoadTheFixedValue;
 begin
-  var Field := FMapper.FindTable(TMyTestClass).Field['NoRequeriedField'];
+  var Field := FMapper.GetTable(TMyTestClass).Field['NoRequeriedField'];
 
   FManipulator.CreateTempField(Field);
 
@@ -557,7 +557,7 @@ end;
 procedure TManipulatorSQLServerTest.WhenRenameAColumnMustExecuteTheSQLAsExpected;
 begin
   var Executed := False;
-  var Table := FMapper.FindTable(TMyTestClass);
+  var Table := FMapper.GetTable(TMyTestClass);
 
   FConnection.Setup.WillExecute(
     procedure (const Params: TArray<TValue>)

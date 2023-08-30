@@ -195,13 +195,9 @@ type
     [Test]
     procedure WhenLoadANullableFieldMustLoadTheFieldTypeWithTheInternalNullableType;
     [Test]
-    procedure IfTheFindTableNotFoundTheClassMustRaiseAnError;
-    [Test]
     procedure WhenTheClassHasAForeignKeyAndTheKeyTableIsntLoadedMustLoadTheTableFirstAndNotRaiseAnError;
     [Test]
     procedure TheFindTableWithTypeInfoMustReturnTheTableHasExpected;
-    [Test]
-    procedure TheFindTableWithTypeInfoMustRaiseAnErrorIfNotFindTheTable;
     [Test]
     procedure WhenTheClassHasASimpleInheritenceMustLoadTheBaseTableProperty;
     [Test]
@@ -384,14 +380,14 @@ uses System.Variants, System.SysUtils, System.DateUtils, System.TypInfo, Persist
 
 procedure TMapperTest.EveryPropertyThatIsAnObjectMustCreateAForeignKeyInTheListOfTheTable;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithFieldNameAttribute);
+  var Table := FMapper.GetTable(TMyEntityWithFieldNameAttribute);
 
   Assert.AreEqual<Integer>(2, Length(Table.ForeignKeys));
 end;
 
 procedure TMapperTest.IfTheBaseClassHasTheSingleTableAttributeCantLoadBaseTableProperty;
 begin
-  var Table := FMapper.LoadClass(TMyEntityInheritedFromSingle);
+  var Table := FMapper.GetTable(TMyEntityInheritedFromSingle);
 
   Assert.IsNull(Table.BaseTable);
 end;
@@ -401,7 +397,7 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      FMapper.LoadClass(TManyValueParentWithoutPrimaryKey);
+      FMapper.GetTable(TManyValueParentWithoutPrimaryKey);
     end, EChildTableMustHasToHaveAPrimaryKey);
 end;
 
@@ -410,14 +406,14 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      FMapper.LoadClass(TMyClassWithIndexWithError);
+      FMapper.GetTable(TMyClassWithIndexWithError);
     end);
 end;
 
 procedure TMapperTest.IfTheFieldIsAClassMustReturnFalseInTheHasValueFunctionIfTheClassValueIsNotLoaded;
 begin
   var MyClass := TClassWithForeignKey.Create;
-  var Table := FMapper.LoadClass(MyClass.ClassType);
+  var Table := FMapper.GetTable(MyClass.ClassType);
   var Value: TValue;
 
   Assert.IsFalse(Table.Field['AnotherClass'].HasValue(MyClass, Value));
@@ -429,7 +425,7 @@ procedure TMapperTest.IfTheFieldIsAClassMustReturnTrueInTheHasValueFunctionIfThe
 begin
   var MyClass := TClassWithForeignKey.Create;
   MyClass.AnotherClass := TClassWithPrimaryKey.Create;
-  var Table := FMapper.LoadClass(MyClass.ClassType);
+  var Table := FMapper.GetTable(MyClass.ClassType);
   var Value: TValue;
 
   Assert.IsTrue(Table.Field['AnotherClass'].HasValue(MyClass, Value));
@@ -442,7 +438,7 @@ end;
 procedure TMapperTest.IfTheFieldIsAnEnumeratorMustReturnTheOrdinalValueFromVariant;
 begin
   var Field: TField;
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
   var Value: Variant := Enum3;
 
   Table.FindField('Enumerator', Field);
@@ -452,7 +448,7 @@ end;
 
 procedure TMapperTest.IfTheFieldIsANullableTypeMustBeMarkedHasNotRequired;
 begin
-  var Table := FMapper.LoadClass(TClassWithNullableProperty);
+  var Table := FMapper.GetTable(TClassWithNullableProperty);
 
   Assert.IsFalse(Table.Field['Nullable'].Required);
 end;
@@ -461,7 +457,7 @@ procedure TMapperTest.IfTheFieldIsLazyAndHasAnValueLoadedMustReturnTrueInTheHasV
 begin
   var MyClass := TLazyClass.Create;
   MyClass.Lazy.Value := TMyEntity.Create;
-  var Table := FMapper.LoadClass(MyClass.ClassType);
+  var Table := FMapper.GetTable(MyClass.ClassType);
   var Value: TValue;
 
   Assert.IsTrue(Table.Field['Lazy'].HasValue(MyClass, Value));
@@ -474,7 +470,7 @@ end;
 procedure TMapperTest.IfTheFieldIsLazyLoadingAndHasntValueMustReturnFalseInHasValueFunction;
 begin
   var MyClass := TLazyClass.Create;
-  var Table := FMapper.LoadClass(MyClass.ClassType);
+  var Table := FMapper.GetTable(MyClass.ClassType);
   var Value: TValue;
 
   MyClass.Lazy.Value;
@@ -487,7 +483,7 @@ end;
 procedure TMapperTest.IfTheFieldIsNullableMustReturnFalseInTheHasValueFunctionIfTheValueNotLoaded;
 begin
   var MyClass := TClassWithNullableProperty.Create;
-  var Table := FMapper.LoadClass(MyClass.ClassType);
+  var Table := FMapper.GetTable(MyClass.ClassType);
   var Value: TValue;
 
   Assert.IsFalse(Table.Field['Nullable'].HasValue(MyClass, Value));
@@ -495,25 +491,16 @@ begin
   MyClass.Free;
 end;
 
-procedure TMapperTest.IfTheFindTableNotFoundTheClassMustRaiseAnError;
-begin
-  Assert.WillRaise(
-    procedure
-    begin
-      FMapper.FindTable(TMyEntityWithoutEntityAttribute);
-    end, ETableNotFound);
-end;
-
 procedure TMapperTest.IfTheForeignKeyHasTheNameAttributeTheDatabaseNameMustBeTheAttributeValue;
 begin
-  var Table := FMapper.LoadClass(TMyEntityForeignKeyWithName);
+  var Table := FMapper.GetTable(TMyEntityForeignKeyWithName);
 
   Assert.AreEqual('MyForeignKey', Table.ForeignKeys[0].DatabaseName);
 end;
 
 procedure TMapperTest.IfTheForeignKeyTableHasASpecialAttributeInThePrimaryKeyTheSpecialTypeOfTheFieldMustBeTheSame;
 begin
-  var Table := FMapper.LoadClass(TForeignKeyClassToSpecialCase);
+  var Table := FMapper.GetTable(TForeignKeyClassToSpecialCase);
 
   Assert.AreEqual(stUniqueIdentifier, Table.Field['SpecialTypeForeignKey'].SpecialType)
 end;
@@ -521,7 +508,7 @@ end;
 procedure TMapperTest.IfTheValueVariantIsNullValueMustReturnAEmptyTValue;
 begin
   var Field: TField;
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
 
   Table.FindField('AnsiString', Field);
 
@@ -532,7 +519,7 @@ procedure TMapperTest.IfTheVariantValueIsGUIDValueMustConvertToTValueAsExpected;
 begin
   var Field: TField;
   var GUIDValue := StringToGUID('{12345678-1234-1234-1234-123456789012}');
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
   var Value: Variant := GUIDValue.ToString;
 
   Table.FindField('GUID', Field);
@@ -545,14 +532,14 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      FMapper.LoadClass(TMyEntityForeignKeyToConcrete);
+      FMapper.GetTable(TMyEntityForeignKeyToConcrete);
     end);
 end;
 
 procedure TMapperTest.MustLoadTheFieldsInTheIndexHasExpected;
 begin
   var MyField, MyField2: TField;
-  var Table := FMapper.LoadClass(TMyClassWithIndex);
+  var Table := FMapper.GetTable(TMyClassWithIndex);
 
   Table.FindField('MyField', MyField);
   Table.FindField('MyField2', MyField2);
@@ -564,7 +551,7 @@ end;
 
 procedure TMapperTest.OnlyPublishedFieldMutsBeLoadedInTheTable;
 begin
-  var Table := FMapper.LoadClass(TMyEntity);
+  var Table := FMapper.GetTable(TMyEntity);
 
   Assert.AreEqual<Integer>(3, Length(Table.Fields));
 end;
@@ -592,7 +579,7 @@ end;
 procedure TMapperTest.TheAnotherVariantValuesMustJustConvertToTValue;
 begin
   var Field: TField;
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
   var Value: Variant := 123456;
 
   Table.FindField('Integer', Field);
@@ -606,13 +593,13 @@ begin
 
   FMapper.LoadAll;
 
-  Assert.IsFalse(FMapper.TryFindTable(TMyEntityWithSingleTableInheritanceAttribute.ClassInfo, Table));
+  Assert.IsNull(FMapper.GetTable(TMyEntityWithSingleTableInheritanceAttribute.ClassInfo));
 end;
 
 procedure TMapperTest.TheConversionOfTheTValueMustBeLikeExpected(TypeToConvert, ValueToCompare: String);
 begin
   var FieldToCompare: TField := nil;
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
   var Value: TValue;
 
   for var Field in Table.Fields do
@@ -658,43 +645,43 @@ end;
 
 procedure TMapperTest.TheDatabaseNameOfATableMustBeTheNameOfClassRemovingTheFirstCharOfTheClassName;
 begin
-  var Table := FMapper.LoadClass(TMyEntity);
+  var Table := FMapper.GetTable(TMyEntity);
 
   Assert.AreEqual('MyEntity', Table.DatabaseName);
 end;
 
 procedure TMapperTest.TheDefaultConstraintMustHaveTheAutoGeneratedTypeLoadedHasExpected;
 begin
-  var Table := FMapper.LoadClass(TAutoGeneratedClass);
+  var Table := FMapper.GetTable(TAutoGeneratedClass);
 
   Assert.AreEqual(agtNewUniqueIdentifier, Table.Field['Id'].DefaultConstraint.AutoGeneratedType);
 end;
 
 procedure TMapperTest.TheFieldInPrimaryKeyMustBeMarkedWithInPrimaryKey;
 begin
-  var Table := FMapper.LoadClass(TMyEntity);
+  var Table := FMapper.GetTable(TMyEntity);
 
   Assert.IsTrue(Table.PrimaryKey.InPrimaryKey);
 end;
 
 procedure TMapperTest.TheFieldLinkingTheParentAndChildOfManyValueAssociationMustBeLoaded;
 begin
-  var ChildTable := FMapper.LoadClass(TMyEntityWithManyValueAssociationChild);
-  var Table := FMapper.LoadClass(TMyEntityWithManyValueAssociation);
+  var ChildTable := FMapper.GetTable(TMyEntityWithManyValueAssociationChild);
+  var Table := FMapper.GetTable(TMyEntityWithManyValueAssociation);
 
   Assert.AreEqual(ChildTable.Fields[1], Table.ManyValueAssociations[0].ForeignKey.Field);
 end;
 
 procedure TMapperTest.TheFieldOfAForeignKeyMustBeFilledWithTheFieldOfTheClassThatIsAForeignKey;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithFieldNameAttribute);
+  var Table := FMapper.GetTable(TMyEntityWithFieldNameAttribute);
 
   Assert.AreEqual(Table.Fields[1], Table.ForeignKeys[0].Field);
 end;
 
 procedure TMapperTest.TheFieldsMustBeOrderedByPriorityFirstPrimaryKeyThenRegularFieldsThenForeignKeysThenManyValueAssociations;
 begin
-  var Table := FMapper.LoadClass(TUnorderedClass);
+  var Table := FMapper.GetTable(TUnorderedClass);
 
   Assert.AreEqual('Id', Table.Fields[0].DatabaseName);
   Assert.AreEqual('AField', Table.Fields[1].DatabaseName);
@@ -711,7 +698,7 @@ end;
 procedure TMapperTest.TheFieldTablePropertyMustReturnTheFieldIfFoundIt;
 begin
   var Field: TField;
-  var Table := FMapper.LoadClass(TMyTestClass);
+  var Table := FMapper.GetTable(TMyTestClass);
 
   Table.FindField('Field', Field);
 
@@ -720,14 +707,14 @@ end;
 
 procedure TMapperTest.TheFieldThatGenerateAForignKeyMustLoadThisInfoInTheField;
 begin
-  var Table := FMapper.LoadClass(TClassWithForeignKey);
+  var Table := FMapper.GetTable(TClassWithForeignKey);
 
   Assert.IsNotNull(Table.Fields[1].ForeignKey);
 end;
 
 procedure TMapperTest.TheFieldTypeOfAForeignKeyMustBeEqualToThePrimaryKeyOfForeignKeyTable;
 begin
-  var Table := FMapper.LoadClass(TForeignKeyClassToSpecialCase);
+  var Table := FMapper.GetTable(TForeignKeyClassToSpecialCase);
 
   Assert.AreEqual(FContext.GetType(TypeInfo(Double)), Table.Field['FloatForeignKey'].FieldType);
 end;
@@ -735,7 +722,7 @@ end;
 procedure TMapperTest.TheFindFieldFunctionMustReturnTheFieldDefinitionWhenFindTheField;
 begin
   var Field: TField;
-  var Table := FMapper.LoadClass(TUnorderedClass);
+  var Table := FMapper.GetTable(TUnorderedClass);
 
   Table.FindField('BForeignKey', Field);
 
@@ -745,37 +732,28 @@ end;
 procedure TMapperTest.TheFindFieldFunctionMustReturnTrueIfTheFieldExistsInTheTable;
 begin
   var Field: TField;
-  var Table := FMapper.LoadClass(TUnorderedClass);
+  var Table := FMapper.GetTable(TUnorderedClass);
 
   Assert.IsTrue(Table.FindField('BForeignKey', Field));
 end;
 
-procedure TMapperTest.TheFindTableWithTypeInfoMustRaiseAnErrorIfNotFindTheTable;
-begin
-  Assert.WillRaise(
-    procedure
-    begin
-      FMapper.FindTable(TMyEntityWithoutEntityAttribute.ClassInfo);
-    end, ETableNotFound);
-end;
-
 procedure TMapperTest.TheFindTableWithTypeInfoMustReturnTheTableHasExpected;
 begin
-  FMapper.LoadClass(TClassWithForeignKey);
+  FMapper.GetTable(TClassWithForeignKey);
 
-  Assert.IsNotNull(FMapper.FindTable(TClassWithForeignKey.ClassInfo));
+  Assert.IsNotNull(FMapper.GetTable(TClassWithForeignKey.ClassInfo));
 end;
 
 procedure TMapperTest.TheForeignKeyCreatedForTheInheritanceMustBeMarkedHasInheritanceLink;
 begin
-  var Table := FMapper.LoadClass(TMyEntityInheritedFromSimpleClass);
+  var Table := FMapper.GetTable(TMyEntityInheritedFromSimpleClass);
 
   Assert.IsTrue(Table.ForeignKeys[0].IsInheritedLink);
 end;
 
 procedure TMapperTest.TheForeignKeyDatabaseNameMustBeTheConcatenationOfTheTablesAndFieldInfo;
 begin
-  var Table := FMapper.LoadClass(TMyEntityForeignKeyAlias);
+  var Table := FMapper.GetTable(TMyEntityForeignKeyAlias);
 
   Assert.AreEqual('FK_MyEntityForeignKeyAlias_MyEntityInheritedFromSimpleClass_IdForeignKey', Table.ForeignKeys[0].DatabaseName);
 end;
@@ -784,7 +762,7 @@ procedure TMapperTest.TheFunctionGetValueFromFieldMustReturnTheValueOfThePropert
 begin
   var MyClass := TMyEntityWithAllTypeOfFields.Create;
   MyClass.&String := 'My Field';
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
 
   var Field := Table.Field['String'];
 
@@ -797,7 +775,7 @@ procedure TMapperTest.TheGetCacheFunctionWithAnInstanceMustBuildTheKeyWithTheCla
 begin
   var MyClass := TClassForeignKey.Create;
   MyClass.Id := 123456;
-  var Table := FMapper.LoadClass(TClassWithPrimaryKey);
+  var Table := FMapper.GetTable(TClassWithPrimaryKey);
 
   Assert.AreEqual('Persisto.Test.Entity.TClassForeignKey.123456', Table.GetCacheKey(MyClass));
 
@@ -806,28 +784,28 @@ end;
 
 procedure TMapperTest.TheLoadingOfForeingKeyMustBeAfterAllTablesAreLoadedToTheFindTableWorksPropertily;
 begin
-  var Table := FMapper.LoadClass(TZZZZ);
+  var Table := FMapper.GetTable(TZZZZ);
 
   Assert.IsNotNull(Table.ForeignKeys[0].ParentTable);
 end;
 
 procedure TMapperTest.TheManyValueAssociationMustLoadTheFieldThatGeneratedTheValue;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithManyValueAssociation);
+  var Table := FMapper.GetTable(TMyEntityWithManyValueAssociation);
 
   Assert.AreEqual(Table.Fields[1], Table.ManyValueAssociations[0].Field);
 end;
 
 procedure TMapperTest.TheNameOfManyValueAssociationLinkCanBeDefinedByTheAttributeToTheLinkHappen;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithManyValueAssociation);
+  var Table := FMapper.GetTable(TMyEntityWithManyValueAssociation);
 
   Assert.AreEqual('ManyValueAssociation', Table.ManyValueAssociations[0].ForeignKey.Field.PropertyInfo.Name);
 end;
 
 procedure TMapperTest.TheNameOfPrimaryKeyIndexMustBeAsExpected;
 begin
-  var Table := FMapper.LoadClass(TMyEntity2);
+  var Table := FMapper.GetTable(TMyEntity2);
 
   Assert.AreEqual('PK_AnotherTableName', Table.Indexes[0].DatabaseName);
 end;
@@ -837,14 +815,14 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      FMapper.LoadClass(TMyEntityForeignKeyToAnotherSingle);
+      FMapper.GetTable(TMyEntityForeignKeyToAnotherSingle);
     end, EForeignKeyToSingleTableInheritanceTable);
 end;
 
 procedure TMapperTest.TheParentTableMustBeTheTableLinkedToTheField;
 begin
-  var ParentTable := FMapper.LoadClass(TMyEntityWithPrimaryKey);
-  var Table := FMapper.LoadClass(TMyEntityWithFieldNameAttribute);
+  var ParentTable := FMapper.GetTable(TMyEntityWithPrimaryKey);
+  var Table := FMapper.GetTable(TMyEntityWithFieldNameAttribute);
 
   Assert.AreEqual(ParentTable, Table.ForeignKeys[0].ParentTable);
 end;
@@ -854,13 +832,13 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      FMapper.LoadClass(TClassWithPrimaryKeyNullableProperty);
+      FMapper.GetTable(TClassWithPrimaryKeyNullableProperty);
     end, EClassWithPrimaryKeyNullable);
 end;
 
 procedure TMapperTest.ThePrimaryKeyIndexMustBeMarkedAsUniqueAndInPrimaryKey;
 begin
-  var Table := FMapper.LoadClass(TClassWithPrimaryKey);
+  var Table := FMapper.GetTable(TClassWithPrimaryKey);
 
   Assert.IsTrue(Table.Indexes[0].PrimaryKey);
 
@@ -869,7 +847,7 @@ end;
 
 procedure TMapperTest.ThePrimaryKeyIndexMustLoadThePrimaryKeyFieldInTheIndexFieldList;
 begin
-  var Table := FMapper.LoadClass(TClassWithPrimaryKey);
+  var Table := FMapper.GetTable(TClassWithPrimaryKey);
 
   Assert.AreEqual<NativeInt>(1, Length(Table.Indexes[0].Fields));
 
@@ -878,8 +856,8 @@ end;
 
 procedure TMapperTest.ThePrimaryKeyReferenceInAnInheritedClassMustHaveSameTypeOfTheKeyOfTheBaseType;
 begin
-  var TableChild := FMapper.LoadClass(TMyEntityInheritedFromSimpleClass);
-  var TableParent := FMapper.LoadClass(TMyEntityInheritedFromSingle);
+  var TableChild := FMapper.GetTable(TMyEntityInheritedFromSimpleClass);
+  var TableParent := FMapper.GetTable(TMyEntityInheritedFromSingle);
 
   Assert.AreEqual(TableParent.PrimaryKey, TableChild.PrimaryKey);
 end;
@@ -888,7 +866,7 @@ procedure TMapperTest.TheSequenceNameMustBeLoadedWithTheNameInsideTheAttribute;
 begin
   var Mapper := TMapper.Create;
 
-  Mapper.LoadClass(TAutoGeneratedClass);
+  Mapper.GetTable(TAutoGeneratedClass);
 
   Assert.AreEqual('MySequence', Mapper.Sequences[0].Name);
 
@@ -897,39 +875,39 @@ end;
 
 procedure TMapperTest.TheTableOfManyValueAssociationMustBeTheChildTableOfThisLink;
 begin
-  var ChildTable := FMapper.LoadClass(TMyEntityWithManyValueAssociationChild);
-  var Table := FMapper.LoadClass(TMyEntityWithManyValueAssociation);
+  var ChildTable := FMapper.GetTable(TMyEntityWithManyValueAssociationChild);
+  var Table := FMapper.GetTable(TMyEntityWithManyValueAssociation);
 
   Assert.AreEqual(ChildTable, Table.ManyValueAssociations[0].ChildTable);
 end;
 
 procedure TMapperTest.WhenAClassDoesNotHaveThePrimaryKeyAttributeAndHasAnIdFieldThisWillBeThePrimaryKey;
 begin
-  var Table := FMapper.LoadClass(TMyEntity2);
+  var Table := FMapper.GetTable(TMyEntity2);
 
   Assert.AreEqual('Id', Table.PrimaryKey.DatabaseName);
 end;
 
 procedure TMapperTest.WhenAClassIsInheritedFromAClassWithTheSingleTableInheritanceAttributeCantGenerateAnyForeignKey;
 begin
-  Assert.AreEqual<Integer>(0, Length(FMapper.LoadClass(TMyEntityInheritedFromSingle).ForeignKeys));
+  Assert.AreEqual<Integer>(0, Length(FMapper.GetTable(TMyEntityInheritedFromSingle).ForeignKeys));
 end;
 
 procedure TMapperTest.WhenAClassIsInheritedFromAClassWithTheSingleTableInheritanceAttributeMustLoadAllFieldsInTheTable;
 begin
-  Assert.AreEqual<Integer>(3, Length(FMapper.LoadClass(TMyEntityInheritedFromSingle).Fields));
+  Assert.AreEqual<Integer>(3, Length(FMapper.GetTable(TMyEntityInheritedFromSingle).Fields));
 end;
 
 procedure TMapperTest.WhenAClassIsInheritedFromAClassWithTheSingleTableInheritanceAttributeThePrimaryKeyMustBeLoadedFromTheTopClass;
 begin
-  var Table := FMapper.LoadClass(TMyEntityInheritedFromSingle);
+  var Table := FMapper.GetTable(TMyEntityInheritedFromSingle);
 
   Assert.IsTrue(Assigned(Table.PrimaryKey));
 end;
 
 procedure TMapperTest.WhenAClassWithManyValueAssociationHasAChildClassWithMoreThenOneForeignKeyToParentClassMustLoadTheForeignKeyWithTheSameNameOfTheParentTable;
 begin
-  var Table := FMapper.LoadClass(TManyValueAssociationParent);
+  var Table := FMapper.GetTable(TManyValueAssociationParent);
 
   Assert.AreEqual('IdManyValueAssociationParent', Table.ManyValueAssociations[0].ForeignKey.Field.DatabaseName);
 end;
@@ -937,7 +915,7 @@ end;
 procedure TMapperTest.WhenAddADefaultRecordMustAddThisValueToTheTableOfTheObject;
 begin
   var MyClass := TMyClass.Create;
-  var Table := FMapper.LoadClass(MyClass.ClassType);
+  var Table := FMapper.GetTable(MyClass.ClassType);
 
   FMapper.AddDefaultRecord(MyClass);
 
@@ -948,7 +926,7 @@ end;
 
 procedure TMapperTest.WhenAFieldIsAForeignKeyThePropertyIsForeignKeyMustReturnTrue;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithManyValueAssociationChild);
+  var Table := FMapper.GetTable(TMyEntityWithManyValueAssociationChild);
 
   var Field := Table.Fields[1];
 
@@ -957,7 +935,7 @@ end;
 
 procedure TMapperTest.WhenAFieldIsAForeignKeyThePropertyIsJoinLinkMustReturnTrue;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithManyValueAssociationChild);
+  var Table := FMapper.GetTable(TMyEntityWithManyValueAssociationChild);
 
   var Field := Table.Fields[1];
 
@@ -966,7 +944,7 @@ end;
 
 procedure TMapperTest.WhenAFieldIsAManyValueAssociationThePropertyIsJoinLinkReturnTrue;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithManyValueAssociation);
+  var Table := FMapper.GetTable(TMyEntityWithManyValueAssociation);
 
   var Field := Table.Fields[1];
 
@@ -975,7 +953,7 @@ end;
 
 procedure TMapperTest.WhenAFieldIsAManyValueAssociationThePropertyIsManyValueAssociationReturnTrue;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithManyValueAssociation);
+  var Table := FMapper.GetTable(TMyEntityWithManyValueAssociation);
 
   var Field := Table.Field['ManyValueAssociationList'];
 
@@ -984,21 +962,21 @@ end;
 
 procedure TMapperTest.WhenAFieldIsAutoGeneratedMustLoadTheDefaultConstraintInfoOfTheField;
 begin
-  var Table := FMapper.LoadClass(TAutoGeneratedClass);
+  var Table := FMapper.GetTable(TAutoGeneratedClass);
 
   Assert.IsNotNull(Table.Field['Id'].DefaultConstraint);
 end;
 
 procedure TMapperTest.WhenAFieldIsWithTheAutoGeneratedAttributeMustLoadAsTrueThePropertyInField;
 begin
-  var Table := FMapper.LoadClass(TMyEntity);
+  var Table := FMapper.GetTable(TMyEntity);
 
   Assert.IsTrue(Table.Fields[0].AutoGenerated);
 end;
 
 procedure TMapperTest.WhenAForeignKeyFieldHasTheFieldNameAttributeThisMustBeTheDatabaseNameField;
 begin
-  var Table := FMapper.LoadClass(TClassWithNamedForeignKey);
+  var Table := FMapper.GetTable(TClassWithNamedForeignKey);
 
   Assert.AreEqual('MyFk', Table.Fields[1].DatabaseName);
 end;
@@ -1010,9 +988,9 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      Mapper.LoadClass(TAutoGeneratedClass);
+      Mapper.GetTable(TAutoGeneratedClass);
 
-      Mapper.LoadClass(TClassWithSequence);
+      Mapper.GetTable(TClassWithSequence);
     end, ESequenceAlreadyExists);
 
   Mapper.Free;
@@ -1020,21 +998,21 @@ end;
 
 procedure TMapperTest.WhenANotRequiredPropertyHasTheRequiredAttributeMustMarkTheFieldHasRequired;
 begin
-  var Table := FMapper.LoadClass(TRequiredClass);
+  var Table := FMapper.GetTable(TRequiredClass);
 
   Assert.IsTrue(Table.Field['RequiredObject'].Required);
 end;
 
 procedure TMapperTest.WhenAPropertyIsAnArrayMustLoadAManyValueLink;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithManyValueAssociation);
+  var Table := FMapper.GetTable(TMyEntityWithManyValueAssociation);
 
   Assert.AreEqual<Integer>(1, Length(Table.ManyValueAssociations));
 end;
 
 procedure TMapperTest.WhenATableIsLoadedMustFillTheMapperPropertyOfTheTable;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
 
   Assert.AreEqual(FMapper, Table.Mapper);
 end;
@@ -1043,7 +1021,7 @@ procedure TMapperTest.WhenCallGetCacheKeyMustBuildTheValueOfTheCacheKeyWithThePr
 begin
   var MyClass := TClassWithPrimaryKey.Create;
   MyClass.Id := 123456;
-  var Table := FMapper.LoadClass(TClassWithPrimaryKey);
+  var Table := FMapper.GetTable(TClassWithPrimaryKey);
 
   Assert.AreEqual('Persisto.Test.Entity.TClassWithPrimaryKey.123456', Table.GetCacheKey(MyClass));
 
@@ -1052,14 +1030,14 @@ end;
 
 procedure TMapperTest.WhenCallGetCacheValueWithVariantAndTheTableDontHavePrimaryKeyMustLoadTheKeyAsExpected;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithoutPrimaryKey);
+  var Table := FMapper.GetTable(TMyEntityWithoutPrimaryKey);
 
   Assert.AreEqual('Persisto.Test.Entity.TMyEntityWithoutPrimaryKey.', Table.GetCacheKey(1234));
 end;
 
 procedure TMapperTest.WhenCallGetCacheValueWithVariantMustBuildTheKeyAsExpected;
 begin
-  var Table := FMapper.LoadClass(TClassWithPrimaryKey);
+  var Table := FMapper.GetTable(TClassWithPrimaryKey);
 
   Assert.AreEqual('Persisto.Test.Entity.TClassWithPrimaryKey.123456', Table.GetCacheKey(123456));
 end;
@@ -1083,7 +1061,7 @@ begin
   var LazyValue := TMyEntity.Create;
   var MyClass := TLazyClass.Create;
 
-  var Table := FMapper.LoadClass(MyClass.ClassType);
+  var Table := FMapper.GetTable(MyClass.ClassType);
 
   Table.Field['Lazy'].SetValue(MyClass, LazyValue);
 
@@ -1098,7 +1076,7 @@ procedure TMapperTest.WhenGetPropertyValueMustReturnTheValueOfTheProperty;
 begin
   var MyClass := TLazyClass.Create;
   MyClass.Id := 123;
-  var Table := FMapper.LoadClass(TLazyClass);
+  var Table := FMapper.GetTable(TLazyClass);
 
   Assert.AreEqual(123, Table.Fields[0].GetPropertyValue(MyClass).AsInteger);
 
@@ -1107,7 +1085,7 @@ end;
 
 procedure TMapperTest.WhenGetTheStringValueOfANullableTypeAndTheValueIsFilledMustReturnTheValue;
 begin
-  var Table := FMapper.LoadClass(TClassWithNullableProperty);
+  var Table := FMapper.GetTable(TClassWithNullableProperty);
   var TheValue := TClassWithNullableProperty.Create;
   TheValue.Nullable := 123456;
 
@@ -1118,7 +1096,7 @@ end;
 
 procedure TMapperTest.WhenGetTheStringValueOfANullableTypeAndTheValueIsNullMustReturnTheNullStringValue;
 begin
-  var Table := FMapper.LoadClass(TClassWithNullableProperty);
+  var Table := FMapper.GetTable(TClassWithNullableProperty);
   var TheValue := TClassWithNullableProperty.Create;
 
   Assert.AreEqual('null', Table.Fields[1].GetAsString(TheValue));
@@ -1128,7 +1106,7 @@ end;
 
 procedure TMapperTest.WhenGetTheStringValueOfLazyPropertyMustReturnThePrimaryKeyValueOfLoadedValue;
 begin
-  var Table := FMapper.LoadClass(TLazyClass);
+  var Table := FMapper.GetTable(TLazyClass);
   var TheEntity := TMyEntity.Create;
   var TheValue := TLazyClass.Create;
   TheValue.Lazy.Value := TheEntity;
@@ -1146,7 +1124,7 @@ begin
   var MyClass := TMyEntityWithAllTypeOfFields.Create;
   var ValueToCompare := EmptyStr;
 
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
 
   var FieldToCompare := Table.Field[FieldName];
 
@@ -1200,7 +1178,7 @@ end;
 procedure TMapperTest.WhenGetValueOfAndFieldNullableMustReturnEmptyIfHasNoValue;
 begin
   var MyClass := TClassWithNullableProperty.Create;
-  var Table := FMapper.LoadClass(MyClass.ClassType);
+  var Table := FMapper.GetTable(MyClass.ClassType);
 
   var Field := Table.Field['Nullable'];
 
@@ -1211,20 +1189,20 @@ end;
 
 procedure TMapperTest.WhenLoadAClassMustKeepTheOrderingOfTablesToTheFindTableContinueToWorking;
 begin
-  FMapper.LoadClass(TMyEntity2);
+  FMapper.GetTable(TMyEntity2);
 
-  FMapper.LoadClass(TMyEntity);
+  FMapper.GetTable(TMyEntity);
 
-  FMapper.LoadClass(TMyEntity3);
+  FMapper.GetTable(TMyEntity3);
 
-  var Table := FMapper.FindTable(TMyEntity);
+  var Table := FMapper.GetTable(TMyEntity);
 
   Assert.AreEqual<TRttiType>(FContext.GetType(TMyEntity), Table.ClassTypeInfo);
 end;
 
 procedure TMapperTest.WhenLoadAFieldMustFillThePropertyWithThePropertyInfo;
 begin
-  var Table := FMapper.LoadClass(TMyEntity3);
+  var Table := FMapper.GetTable(TMyEntity3);
   var TypeInfo := FContext.GetType(TMyEntity3).GetProperties[0];
 
   Assert.AreEqual<TObject>(TypeInfo, Table.Fields[0].PropertyInfo);
@@ -1233,7 +1211,7 @@ end;
 procedure TMapperTest.WhenLoadAFieldMustLoadTheFieldTypeWithTheTypeOfTheProperty;
 begin
   var IntegerType := FContext.GetType(TypeInfo(Integer));
-  var Table := FMapper.LoadClass(TClassWithNullableProperty);
+  var Table := FMapper.GetTable(TClassWithNullableProperty);
 
   Assert.AreEqual(IntegerType, Table.Fields[0].FieldType);
 end;
@@ -1241,21 +1219,21 @@ end;
 procedure TMapperTest.WhenLoadANullableFieldMustLoadTheFieldTypeWithTheInternalNullableType;
 begin
   var IntegerType := FContext.GetType(TypeInfo(Integer));
-  var Table := FMapper.LoadClass(TClassWithNullableProperty);
+  var Table := FMapper.GetTable(TClassWithNullableProperty);
 
   Assert.AreEqual(IntegerType, Table.Fields[1].FieldType);
 end;
 
 procedure TMapperTest.WhenLoadATableMustLoadAllFieldsToo;
 begin
-  var Table := FMapper.LoadClass(TMyEntity);
+  var Table := FMapper.GetTable(TMyEntity);
 
   Assert.AreEqual<Integer>(3, Length(Table.Fields));
 end;
 
 procedure TMapperTest.WhenLoadATableWithSingleInheritenceMustLoadTheFieldsOfAllLevels;
 begin
-  Assert.AreEqual<NativeInt>(4, Length(FMapper.LoadClass(TAnotherSingleInheritedConcrete).Fields));
+  Assert.AreEqual<NativeInt>(4, Length(FMapper.GetTable(TAnotherSingleInheritedConcrete).Fields));
 end;
 
 procedure TMapperTest.WhenLoadMoreThenOneTimeTheSameClassCantRaiseAnError;
@@ -1263,22 +1241,22 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      FMapper.LoadClass(TMyEntity);
+      FMapper.GetTable(TMyEntity);
 
-      FMapper.LoadClass(TMyEntity);
+      FMapper.GetTable(TMyEntity);
     end);
 end;
 
 procedure TMapperTest.WhenLoadTheFieldOfATableMustLoadTheNameOfTheFieldWithThePropertyName;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithFieldNameAttribute);
+  var Table := FMapper.GetTable(TMyEntityWithFieldNameAttribute);
 
   Assert.AreEqual('Name', Table.Fields[0].Name);
 end;
 
 procedure TMapperTest.WhenLoadTheIndexMustLoadTheNameOfTheIndexHasExpected;
 begin
-  var Table := FMapper.LoadClass(TMyClassWithIndex);
+  var Table := FMapper.GetTable(TMyClassWithIndex);
 
   Assert.AreEqual('MyIndex', Table.Indexes[1].DatabaseName);
   Assert.AreEqual('MyIndex2', Table.Indexes[2].DatabaseName);
@@ -1287,29 +1265,25 @@ end;
 
 procedure TMapperTest.WhenLoadTheSchemaMustLoadAllClassesFromTheUnitsPassedInTheParams;
 begin
-  var Table: TTable;
-
   FMapper.LoadAll([TMyClass, TMyTestClass]);
 
-  Assert.IsTrue(FMapper.TryFindTable(TypeInfo(TMyClass), Table));
+  Assert.IsNotNull(FMapper.GetTable(TypeInfo(TMyClass)));
 
-  Assert.IsTrue(FMapper.TryFindTable(TypeInfo(TMyTestClass), Table));
+  Assert.IsNotNull(FMapper.GetTable(TypeInfo(TMyTestClass)));
 
-  Assert.IsTrue(FMapper.TryFindTable(TypeInfo(TClassWithPrimaryKeyAttribute), Table));
+  Assert.IsNotNull(FMapper.GetTable(TypeInfo(TClassWithPrimaryKeyAttribute)));
 end;
 
 procedure TMapperTest.WhenLoadTheSchemaWithAClassInParamsTheMapperMustLoadOnlyTheClassesInTheUnitOfThatClass;
 begin
-  var Table: TTable;
-
   FMapper.LoadAll([TMyClass2]);
 
-  Assert.IsFalse(FMapper.TryFindTable(TypeInfo(TMyTestClass), Table));
+  Assert.IsNull(FMapper.GetTable(TypeInfo(TMyTestClass)));
 end;
 
 procedure TMapperTest.WhenLoadTheTableMustLoadTheNameOfTheTableWithTheNameOfTheClassWithoutTheTChar;
 begin
-  var Table := FMapper.LoadClass(TMyEntity2);
+  var Table := FMapper.GetTable(TMyEntity2);
 
   Assert.AreEqual('MyEntity2', Table.Name);
 end;
@@ -1319,7 +1293,7 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      FMapper.LoadClass(TMyEntityForeignKeyToClassWithoutPrimaryKey);
+      FMapper.GetTable(TMyEntityForeignKeyToClassWithoutPrimaryKey);
     end, EClassWithoutPrimaryKeyDefined);
 end;
 
@@ -1328,13 +1302,13 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      FMapper.LoadClass(TLazyArrayClass);
+      FMapper.GetTable(TLazyArrayClass);
     end);
 end;
 
 procedure TMapperTest.WhenMappingALazyArrayClassMustLoadTheFieldWithTheExpectedPropertyValueFilled;
 begin
-  var Table := FMapper.LoadClass(TLazyArrayClass);
+  var Table := FMapper.GetTable(TLazyArrayClass);
 
   var Field := Table['LazyArray'];
 
@@ -1353,7 +1327,7 @@ begin
   var MyClass := TMyEntityWithAllTypeOfFields.Create;
   var ValueToCompare := NULL;
 
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
 
   for var Field in Table.Fields do
     if Field.DatabaseName = FieldName then
@@ -1383,14 +1357,14 @@ end;
 
 procedure TMapperTest.WhenTheAttributeIsASequenceMustLoadTheNameOfTheSequenceInTheDefaultConstraint;
 begin
-  var Table := FMapper.LoadClass(TAutoGeneratedClass);
+  var Table := FMapper.GetTable(TAutoGeneratedClass);
 
   Assert.AreEqual('MySequence', Table.Field['Sequence'].DefaultConstraint.Sequence.Name);
 end;
 
 procedure TMapperTest.WhenTheChildClassIsDeclaredBeforeTheParentClassTheLinkBetweenOfTablesMustBeCreated;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithManyValueAssociation);
+  var Table := FMapper.GetTable(TMyEntityWithManyValueAssociation);
 
   Assert.AreEqual<Integer>(1, Length(Table.ManyValueAssociations));
 end;
@@ -1398,7 +1372,7 @@ end;
 procedure TMapperTest.WhenTheClassDontHaveAPrimaryKeyMustLoadTheCacheKeyWithoutThePrimaryKeyValue;
 begin
   var MyClass := TMyEntityWithoutPrimaryKey.Create;
-  var Table := FMapper.LoadClass(TMyEntityWithoutPrimaryKey);
+  var Table := FMapper.GetTable(TMyEntityWithoutPrimaryKey);
 
   Assert.AreEqual('Persisto.Test.Entity.TMyEntityWithoutPrimaryKey.', Table.GetCacheKey(MyClass));
 
@@ -1410,15 +1384,15 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      FMapper.LoadClass(TMyEntityForeignKeyAlias);
+      FMapper.GetTable(TMyEntityForeignKeyAlias);
     end);
 end;
 
 procedure TMapperTest.WhenTheClassHasASimpleInheritenceMustLoadTheBaseTableProperty;
 begin
-  var Table := FMapper.LoadClass(TMyEntityInheritedFromSimpleClass);
+  var Table := FMapper.GetTable(TMyEntityInheritedFromSimpleClass);
 
-  Assert.AreEqual(FMapper.FindTable(TMyEntityInheritedFromSingle), Table.BaseTable);
+  Assert.AreEqual(FMapper.GetTable(TMyEntityInheritedFromSingle), Table.BaseTable);
 end;
 
 procedure TMapperTest.WhenTheClassHasntPublishedFieldsMustRaiseAnError;
@@ -1426,27 +1400,27 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      FMapper.LoadClass(TMyClassWithoutPublishedFields);
+      FMapper.GetTable(TMyClassWithoutPublishedFields);
     end, ETableWithoutPublishedFields);
 end;
 
 procedure TMapperTest.WhenTheClassHasTheIndexAnnotationMustLoadTheIndexInfoOfTheTable;
 begin
-  var Table := FMapper.LoadClass(TMyClassWithIndex);
+  var Table := FMapper.GetTable(TMyClassWithIndex);
 
   Assert.AreEqual<NativeInt>(4, Length(Table.Indexes));
 end;
 
 procedure TMapperTest.WhenTheClassHaveThePrimaryKeyAttributeThePrimaryKeyWillBeTheFieldFilled;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithPrimaryKey);
+  var Table := FMapper.GetTable(TMyEntityWithPrimaryKey);
 
   Assert.AreEqual('Value', Table.PrimaryKey.DatabaseName);
 end;
 
 procedure TMapperTest.WhenTheClassHaveTheTableNameAttributeTheDatabaseNameMustBeLikeTheNameInAttribute;
 begin
-  var Table := FMapper.LoadClass(TMyEntity2);
+  var Table := FMapper.GetTable(TMyEntity2);
 
   Assert.AreEqual('AnotherTableName', Table.DatabaseName);
 end;
@@ -1456,43 +1430,43 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      FMapper.LoadClass(TZZZZ);
+      FMapper.GetTable(TZZZZ);
     end);
 end;
 
 procedure TMapperTest.WhenTheClassIsInheritedFromANormalClassCantLoadFieldsFormTheBaseClass;
 begin
-  Assert.AreEqual<Integer>(2, Length(FMapper.LoadClass(TMyEntityInheritedFromSimpleClass).Fields));
+  Assert.AreEqual<Integer>(2, Length(FMapper.GetTable(TMyEntityInheritedFromSimpleClass).Fields));
 end;
 
 procedure TMapperTest.WhenTheClassIsInheritedFromANormalClassMustCreateAForeignKeyForTheBaseClass;
 begin
-  Assert.AreEqual<Integer>(1, Length(FMapper.LoadClass(TMyEntityInheritedFromSimpleClass).ForeignKeys));
+  Assert.AreEqual<Integer>(1, Length(FMapper.GetTable(TMyEntityInheritedFromSimpleClass).ForeignKeys));
 end;
 
 procedure TMapperTest.WhenTheClassIsInheritedFromTObjectCantCreateAForeignKeyForThatClass;
 begin
-  Assert.AreEqual<Integer>(0, Length(FMapper.LoadClass(TMyEntity).ForeignKeys));
+  Assert.AreEqual<Integer>(0, Length(FMapper.GetTable(TMyEntity).ForeignKeys));
 end;
 
 procedure TMapperTest.WhenTheClassIsInheritedMustLoadThePrimaryKeyFromBaseClass;
 begin
-  var Table := FMapper.LoadClass(TMyEntityInheritedFromSimpleClass);
+  var Table := FMapper.GetTable(TMyEntityInheritedFromSimpleClass);
 
   Assert.IsTrue(Assigned(Table.PrimaryKey));
 end;
 
 procedure TMapperTest.WhenTheClassIsInheritedMustShareTheSamePrimaryKeyFromTheBaseClass;
 begin
-  var BaseTable := FMapper.LoadClass(TMyEntityInheritedFromSingle);
-  var Table := FMapper.LoadClass(TMyEntityInheritedFromSimpleClass);
+  var BaseTable := FMapper.GetTable(TMyEntityInheritedFromSingle);
+  var Table := FMapper.GetTable(TMyEntityInheritedFromSimpleClass);
 
   Assert.AreSame(BaseTable.PrimaryKey, Table.PrimaryKey);
 end;
 
 procedure TMapperTest.WhenTheFieldHasFieldInfoAttributeWithSpecialTypeFilledMustLoadThisInfoInTheField;
 begin
-  var Table := FMapper.LoadClass(TMyTestClass);
+  var Table := FMapper.GetTable(TMyTestClass);
 
   Assert.AreEqual(stUniqueIdentifier, Table.Fields[0].SpecialType);
 end;
@@ -1501,7 +1475,7 @@ procedure TMapperTest.WhenTheFieldAsTheSequenceAttributeMustLoadTheSequenceInThe
 begin
   var Mapper := TMapper.Create;
 
-  Mapper.LoadClass(TAutoGeneratedClass);
+  Mapper.GetTable(TAutoGeneratedClass);
 
   Assert.AreEqual<NativeInt>(1, Length(Mapper.Sequences));
 
@@ -1510,14 +1484,14 @@ end;
 
 procedure TMapperTest.WhenTheFieldHasAForeignKeyToASpecialFieldTheSpecialTypeOfTheFieldMustBeEqualToThePrimaryKeyOfForeignKeyClass;
 begin
-  var Table := FMapper.LoadClass(TForeignKeyClassToSpecialCase);
+  var Table := FMapper.GetTable(TForeignKeyClassToSpecialCase);
 
   Assert.AreEqual(stDateTime, Table.Field['DateTimeForeignKey'].SpecialType)
 end;
 
 procedure TMapperTest.WhenTheFieldHasFieldInfoAttributeWithPrecisionAndScaleFilledMustLoadThisInfoInTheField;
 begin
-  var Table := FMapper.LoadClass(TMyTestClass);
+  var Table := FMapper.GetTable(TMyTestClass);
 
   Assert.AreEqual(15, Table.Fields[2].Size);
   Assert.AreEqual(7, Table.Fields[2].Scale);
@@ -1525,49 +1499,49 @@ end;
 
 procedure TMapperTest.WhenTheFieldHasFieldInfoAttributeWithSizeFilledMustLoadThisInfoInTheField;
 begin
-  var Table := FMapper.LoadClass(TMyTestClass);
+  var Table := FMapper.GetTable(TMyTestClass);
 
   Assert.AreEqual(150, Table.Fields[1].Size);
 end;
 
 procedure TMapperTest.WhenTheFieldHasTheFixedValueAttributeMustLoadTheValueInTheDefaultConstraint;
 begin
-  var Table := FMapper.LoadClass(TAutoGeneratedClass);
+  var Table := FMapper.GetTable(TAutoGeneratedClass);
 
   Assert.AreEqual('''MyValue''', Table.Field['FixedValue'].DefaultConstraint.FixedValue);
 end;
 
 procedure TMapperTest.WhenTheFieldHasTheNoUpdateAttributeTheFieldMustBeMarkedAsReadOnly;
 begin
-  var Table := FMapper.LoadClass(TClassWithNoUpdateAttribute);
+  var Table := FMapper.GetTable(TClassWithNoUpdateAttribute);
 
   Assert.IsTrue(Table.Field['NoUpdate'].IsReadOnly);
 end;
 
 procedure TMapperTest.WhenTheFieldHaveTheFieldNameAttributeMustLoadThisNameInTheDatabaseName;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithFieldNameAttribute);
+  var Table := FMapper.GetTable(TMyEntityWithFieldNameAttribute);
 
   Assert.AreEqual('AnotherFieldName', Table.Fields[0].DatabaseName);
 end;
 
 procedure TMapperTest.WhenTheFieldIsAClassMustFillTheDatabaseNameWithIdPlusPropertyName;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithFieldNameAttribute);
+  var Table := FMapper.GetTable(TMyEntityWithFieldNameAttribute);
 
   Assert.AreEqual('IdMyForeignKey', Table.Fields[1].DatabaseName);
 end;
 
 procedure TMapperTest.WhenTheFieldIsAClassMustMarkAsNotRequired;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
 
   Assert.IsFalse(Table.Field['Class'].Required);
 end;
 
 procedure TMapperTest.WhenTheFieldIsAForeignKeyMustAppendTheIdInTheDatabaseNameOfTheField;
 begin
-  var Table := FMapper.LoadClass(TLazyClass);
+  var Table := FMapper.GetTable(TLazyClass);
 
   Assert.AreEqual('IdLazy', Table.Fields[1].DatabaseName);
 end;
@@ -1575,7 +1549,7 @@ end;
 procedure TMapperTest.WhenTheFieldIsLazyLoadingAndTheValueIsntLoadedMustReturnEmptyValueInParam;
 begin
   var MyClass := TLazyClass.Create;
-  var Table := FMapper.LoadClass(MyClass.ClassType);
+  var Table := FMapper.GetTable(MyClass.ClassType);
   var Value: TValue := 123;
 
   Table.Field['Lazy'].HasValue(MyClass, Value);
@@ -1588,7 +1562,7 @@ end;
 procedure TMapperTest.WhenTheFieldIsLazyLoadingAndTheValueIsntLoadedMustReturnFalseInTheFunction;
 begin
   var MyClass := TLazyClass.Create;
-  var Table := FMapper.LoadClass(MyClass.ClassType);
+  var Table := FMapper.GetTable(MyClass.ClassType);
   var Value: TValue;
 
   Assert.IsFalse(Table.Field['Lazy'].HasValue(MyClass, Value));
@@ -1599,7 +1573,7 @@ end;
 procedure TMapperTest.WhenTheFieldIsBooleanTypeMustLoadTheSpecialTypeWithBoolean;
 begin
   var Mapper := TMapper.Create;
-  var Table := Mapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Table := Mapper.GetTable(TMyEntityWithAllTypeOfFields);
 
   Assert.AreEqual(stBoolean, Table.Field['Boolean'].SpecialType);
 
@@ -1608,7 +1582,7 @@ end;
 
 procedure TMapperTest.WhenTheFieldIsManyValueAssociationMustLoadTheManyValuePropertyOfTheField;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithManyValueAssociation);
+  var Table := FMapper.GetTable(TMyEntityWithManyValueAssociation);
 
   var Field := Table.Field['ManyValueAssociationList'];
 
@@ -1617,42 +1591,42 @@ end;
 
 procedure TMapperTest.WhenTheFieldIsMappedMustLoadTheReferenceToTheTableOfTheField;
 begin
-  var Table := FMapper.LoadClass(TMyEntity);
+  var Table := FMapper.GetTable(TMyEntity);
 
   Assert.AreEqual(Table, Table.Fields[0].Table);
 end;
 
 procedure TMapperTest.WhenTheFieldIsntAutoGeneratedTheDefaultConstraintMustBeNil;
 begin
-  var Table := FMapper.LoadClass(TAutoGeneratedClass);
+  var Table := FMapper.GetTable(TAutoGeneratedClass);
 
   Assert.IsNull(Table.Field['Value'].DefaultConstraint);
 end;
 
 procedure TMapperTest.WhenTheFieldIsOfDateTimeTypeMustLoadTheSpecialTypeWithDateTime;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
 
   Assert.AreEqual(stDateTime, Table.Field['DateTime'].SpecialType);
 end;
 
 procedure TMapperTest.WhenTheFieldIsOfDateTypeMustLoadTheSpecialTypeWithDate;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
 
   Assert.AreEqual(stDate, Table.Field['Date'].SpecialType);
 end;
 
 procedure TMapperTest.WhenTheFieldIsOfTimeTypeMustLoadTheSpecialTypeWithTime;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
 
   Assert.AreEqual(stTime, Table.Field['Time'].SpecialType);
 end;
 
 procedure TMapperTest.WhenTheFieldIsRequiredMustLoadThisInfoInTheField;
 begin
-  var Table := FMapper.LoadClass(TRequiredClass);
+  var Table := FMapper.GetTable(TRequiredClass);
 
   var Field := Table.Field['RequiredField'];
 
@@ -1661,7 +1635,7 @@ end;
 
 procedure TMapperTest.WhenTheFieldsAreLoadedMustFillTheNameWithTheNameOfPropertyOfTheClass;
 begin
-  var Table := FMapper.LoadClass(TMyEntity3);
+  var Table := FMapper.GetTable(TMyEntity3);
 
   Assert.AreEqual('Id', Table.Fields[0].DatabaseName);
 end;
@@ -1671,7 +1645,7 @@ begin
   var MyClass := TMyEntityWithAllTypeOfFields.Create;
   MyClass.Enumerator := Enum3;
 
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
 
   var Field := Table.Field['Enumerator'];
 
@@ -1684,21 +1658,21 @@ end;
 
 procedure TMapperTest.WhenTheForeignKeyIsAClassAliasMustLoadTheForeignClassAndLinkToForeignKey;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithForeignKeyAlias);
+  var Table := FMapper.GetTable(TMyEntityWithForeignKeyAlias);
 
   Assert.AreEqual<Integer>(1, Length(Table.ForeignKeys));
 end;
 
 procedure TMapperTest.WhenTheForeignKeyIsCreatesMustLoadTheParentTable;
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithFieldNameAttribute);
+  var Table := FMapper.GetTable(TMyEntityWithFieldNameAttribute);
 
   Assert.IsNotNull(Table.ForeignKeys[0].ParentTable);
 end;
 
 procedure TMapperTest.WhenTheForeignKeyTableHasAFloatKeyMustLoadThePrecisionAndSizeFromThePrimaryKey;
 begin
-  var Table := FMapper.LoadClass(TForeignKeyClassToSpecialCase);
+  var Table := FMapper.GetTable(TForeignKeyClassToSpecialCase);
 
   Assert.AreEqual(20, Table.Field['FloatForeignKey'].Size);
   Assert.AreEqual(5, Table.Field['FloatForeignKey'].Scale);
@@ -1708,7 +1682,7 @@ procedure TMapperTest.WhenTheLazyFieldIsntLoadedAndHaveAKeyFilledMustReturnTheKe
 begin
   var MyClass := TLazyClass.Create;
   TLazyManipulator.GetManipulator(MyClass.Lazy).Loader := FLazyLoader.Instance;
-  var Table := FMapper.LoadClass(MyClass.ClassType);
+  var Table := FMapper.GetTable(MyClass.ClassType);
 
   Assert.AreEqual(1234, Table.Field['Lazy'].GetValue(MyClass).AsInteger);
 
@@ -1722,7 +1696,7 @@ begin
 
   MyClass.Lazy.Value := TheClass;
 
-  var Table := FMapper.LoadClass(TLazyClass);
+  var Table := FMapper.GetTable(TLazyClass);
   var Field := Table.Fields[1];
 
   Assert.AreEqual<TObject>(TheClass, Field.GetValue(MyClass).AsObject);
@@ -1737,14 +1711,14 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      FMapper.LoadClass(TManyValueAssociationParentNoLink);
+      FMapper.GetTable(TManyValueAssociationParentNoLink);
     end, EManyValueAssociationLinkError);
 end;
 
 procedure TMapperTest.WhenTheNullablePropertyIsFilledWithAValueMustLoadTheValue;
 begin
   var MyClass := TClassWithNullableProperty.Create;
-  var Table := FMapper.LoadClass(MyClass.ClassType);
+  var Table := FMapper.GetTable(MyClass.ClassType);
 
   var Field := Table.Fields[1];
 
@@ -1758,7 +1732,7 @@ end;
 procedure TMapperTest.WhenTheNullablePropertyIsFilledWithTheNullValueMustMarkAsNullTheValue;
 begin
   var MyClass := TClassWithNullableProperty.Create;
-  var Table := FMapper.LoadClass(MyClass.ClassType);
+  var Table := FMapper.GetTable(MyClass.ClassType);
 
   var Field := Table.Fields[1];
 
@@ -1773,7 +1747,7 @@ procedure TMapperTest.WhenTheNullablePropertyIsLoadedMustReturnTheFilled;
 begin
   var MyClass := TClassWithNullableProperty.Create;
   MyClass.Nullable := 123456;
-  var Table := FMapper.LoadClass(MyClass.ClassType);
+  var Table := FMapper.GetTable(MyClass.ClassType);
 
   var Field := Table.Fields[1];
 
@@ -1784,54 +1758,54 @@ end;
 
 procedure TMapperTest.WhenThePropertyIsANativeTypeMustMarkTheFieldAsRequired(const FieldName: String);
 begin
-  var Table := FMapper.LoadClass(TMyEntityWithAllTypeOfFields);
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
 
   Assert.IsTrue(Table.Field[FieldName].Required, FieldName);
 end;
 
 procedure TMapperTest.WhenThePropertyIsLazyMustCreateTheForeignKeyToThisProperty;
 begin
-  var Table := FMapper.LoadClass(TLazyClass);
+  var Table := FMapper.GetTable(TLazyClass);
 
   Assert.AreEqual<Integer>(1, Length(Table.ForeignKeys));
 end;
 
 procedure TMapperTest.WhenThePropertyIsLazyMustFillWithTrueTheIsLazyPropertyInTheField;
 begin
-  var Table := FMapper.LoadClass(TLazyClass);
+  var Table := FMapper.GetTable(TLazyClass);
 
   Assert.IsTrue(Table.Fields[1].IsLazy);
 end;
 
 procedure TMapperTest.WhenThePropertyIsNullableMustMarkTheFieldAsNotRequired;
 begin
-  var Table := FMapper.LoadClass(TClassWithNullableProperty);
+  var Table := FMapper.GetTable(TClassWithNullableProperty);
 
   Assert.IsFalse(Table.Fields[1].Required);
 end;
 
 procedure TMapperTest.WhenTheTableHasAPrimaryKeyMustCreateAnIndexForThePrimaryKey;
 begin
-  var Table := FMapper.LoadClass(TClassWithPrimaryKey);
+  var Table := FMapper.GetTable(TClassWithPrimaryKey);
 
   Assert.AreEqual<NativeInt>(1, Length(Table.Indexes));
 end;
 
 procedure TMapperTest.WhenTheTableIsInheritedMustLoadAllManyValueAssociationOfTheClass;
 begin
-  Assert.AreEqual<NativeInt>(1, Length(FMapper.LoadClass(TManyValueClassInherited).ManyValueAssociations));
+  Assert.AreEqual<NativeInt>(1, Length(FMapper.GetTable(TManyValueClassInherited).ManyValueAssociations));
 end;
 
 procedure TMapperTest.WhenTryToFindATableMustReturnTheTableOfTheClass;
 begin
-  var Table := FMapper.LoadClass(TMyEntity3);
+  var Table := FMapper.GetTable(TMyEntity3);
 
   Assert.AreEqual(TMyEntity3, Table.ClassTypeInfo.MetaclassType);
 end;
 
 procedure TMapperTest.WhenUseTheUniqueIndexAttributeMustMarkTheIndexAsUnique;
 begin
-  var Table := FMapper.LoadClass(TMyClassWithIndex);
+  var Table := FMapper.GetTable(TMyClassWithIndex);
 
   Assert.IsTrue(Table.Indexes[3].Unique);
 end;

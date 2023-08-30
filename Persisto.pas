@@ -285,13 +285,7 @@ type
 
   TMapper = class
   private
-    class var [Unsafe] FDefault: TMapper;
-
-    class constructor Create;
-    class destructor Destroy;
-  private
     FContext: TRttiContext;
-    FDefaultCollation: String;
     FDefaultRecords: TDictionary<String, TObject>;
     FDelayLoadTable: TList<TTable>;
     FSequences: TDictionary<String, TSequence>;
@@ -321,27 +315,27 @@ type
     procedure LoadTableIndexes(const TypeInfo: TRttiInstanceType; const Table: TTable);
     procedure LoadTableInfo(const TypeInfo: TRttiInstanceType; const Table: TTable);
     procedure LoadTableManyValueAssociations(const Table: TTable);
-  public
-    constructor Create;
-
-    destructor Destroy; override;
 
     function FindSequence(const Name: String): TSequence;
     function FindTable(const ClassInfo: PTypeInfo): TTable; overload;
     function FindTable(const ClassInfo: TClass): TTable; overload;
     function LoadClass(const ClassInfo: TClass): TTable;
     function TryFindTable(const ClassInfo: PTypeInfo; var Table: TTable): Boolean;
+  public
+    constructor Create;
+
+    destructor Destroy; override;
+
+    function GetTable(const ClassInfo: TClass): TTable; overload;
+    function GetTable(const TypeInfo: PTypeInfo): TTable; overload;
 
     procedure AddDefaultRecord(const Value: TObject);
     procedure LoadAll; overload;
     procedure LoadAll(const Schema: TArray<TClass>); overload;
 
-    property DefaultCollation: String read FDefaultCollation write FDefaultCollation;
     property DefaultRecords: TDictionary<String, TObject> read FDefaultRecords;
     property Sequences: TArray<TSequence> read GetSequences;
     property Tables: TArray<TTable> read GetTables;
-
-    class property Default: TMapper read FDefault;
   end;
 
   IChangeManager = interface
@@ -522,6 +516,7 @@ type
     FDestroyObjects: TDictionary<TObject, Boolean>;
     FFieldList: TQueryBuilderAllFields;
     FFrom: TQueryBuilderFrom;
+    FManager: TManager;
     FOpen: TQueryBuilderOpen;
     FOptions: TBuilderOptions;
     FProcessedObjects: TDictionary<TObject, TObject>;
@@ -1228,11 +1223,6 @@ begin
       Exit(True);
 end;
 
-class constructor TMapper.Create;
-begin
-  FDefault := TMapper.Create;
-end;
-
 constructor TMapper.Create;
 begin
   inherited;
@@ -1338,6 +1328,16 @@ begin
   Result := FSequences.Values.ToArray;
 end;
 
+function TMapper.GetTable(const TypeInfo: PTypeInfo): TTable;
+begin
+
+end;
+
+function TMapper.GetTable(const ClassInfo: TClass): TTable;
+begin
+
+end;
+
 function TMapper.GetTableDatabaseName(const Table: TTable): String;
 begin
   if not GetNameAttribute<TableNameAttribute>(Table.ClassTypeInfo, Result) then
@@ -1352,11 +1352,6 @@ end;
 function TMapper.IsSingleTableInheritance(const RttiType: TRttiInstanceType): Boolean;
 begin
   Result := RttiType.GetAttribute<SingleTableInheritanceAttribute> <> nil;
-end;
-
-class destructor TMapper.Destroy;
-begin
-  FDefault.Free;
 end;
 
 procedure TMapper.LoadAll;
@@ -1552,7 +1547,7 @@ end;
 
 procedure TMapper.LoadTableInfo(const TypeInfo: TRttiInstanceType; const Table: TTable);
 begin
-  var BaseClassInfo := TypeInfo.BaseType as TRttiInstanceType;
+  var BaseClassInfo := TypeInfo.BaseType;
   var IsSingleTableInheritance := IsSingleTableInheritance(BaseClassInfo);
 
   if not IsSingleTableInheritance and (BaseClassInfo.MetaclassType <> TObject) then
@@ -2249,7 +2244,7 @@ begin
     function: TObject
     begin
       Result := nil;
-      var Table := TMapper.Default.FindTable(AObject.ClassType);
+      var Table := FManager.Mapper.GetTable(AObject.ClassInfo);
 
       FConnection.ExecuteDirect(Format('delete from %s%s', [Table.DatabaseName, BuildPrimaryKeyFilter(Table, AObject)]));
     end);
@@ -2327,7 +2322,7 @@ begin
   var OutputFieldNameList: TArray<String> := nil;
   Result := AObject.AsObject;
   var SQL := '(%s)values(%s)';
-  var Table := TMapper.Default.FindTable(AObject.TypeInfo);
+  var Table := FManager.Mapper.GetTable(AObject.TypeInfo);
 
   var Changes := FCache.ChangeManager.Changes[Result];
 
@@ -2568,7 +2563,7 @@ function TQueryBuilder.SaveObject(const AObject: TValue): TObject;
 
   function CheckPrimaryKeyIsEmpty: Boolean;
   begin
-    var Table := TMapper.Default.FindTable(AObject.TypeInfo);
+    var Table := FManager.Mapper.FindTable(AObject.TypeInfo);
 
     Result := Assigned(Table.PrimaryKey) and CheckValueIsEmpty(Table.PrimaryKey.GetValue(AObject.AsObject));
   end;
@@ -2602,7 +2597,7 @@ begin
   var ForeignFieldValue: TValue;
   var ForeignObject := AObject.AsObject;
   var SQL := EmptyStr;
-  var Table := TMapper.Default.FindTable(AObject.TypeInfo);
+  var Table := FManager.Mapper.FindTable(AObject.TypeInfo);
 
   var CacheKey := Table.GetCacheKey(ForeignObject);
 
@@ -2727,7 +2722,7 @@ end;
 
 function TQueryBuilderFrom.From<T>: TQueryBuilderWhere<T>;
 begin
-  Result := TQueryBuilderWhere<T>(From(TMapper.Default.FindTable(T)));
+  Result := TQueryBuilderWhere<T>(From(FAccess.GetManager.Mapper.FindTable(T)));
 end;
 
 function TQueryBuilderFrom.GetSQL: String;

@@ -160,14 +160,14 @@ uses System.SysUtils, Translucent, Persisto.Test.Entity;
 
 procedure TMetadataManipulatorTest.IfTheFieldHasASpecialTypeMustLoadThisTypeInTheSQL;
 begin
-  var Field := FMapper.FindTable(TMyTable).Field['DateTimeField'];
+  var Field := FMapper.GetTable(TMyTable).Field['DateTimeField'];
 
   Assert.AreEqual('DateTimeField SpecialFieldType not null', FMetadataManipulatorClass.GetFieldDefinition(Field));
 end;
 
 procedure TMetadataManipulatorTest.IfTheFieldHasCollationMustLoadTheCollationOfTheField;
 begin
-  var Field := FMapper.FindTable(TMyTable).Field['StringField'];
+  var Field := FMapper.GetTable(TMyTable).Field['StringField'];
   Field.Collation := 'MyCollate';
 
   Assert.AreEqual('StringField FieldType(250) not null collate MyCollate', FMetadataManipulatorClass.GetFieldDefinition(Field));
@@ -175,7 +175,7 @@ end;
 
 procedure TMetadataManipulatorTest.IfTheFieldIsASpecialTypeCantLoadTheSizeOfTheField;
 begin
-  var Field := FMapper.FindTable(TMyTable).Field['DateTimeField'];
+  var Field := FMapper.GetTable(TMyTable).Field['DateTimeField'];
   Field.Scale := 5;
   Field.Size := 10;
 
@@ -184,7 +184,7 @@ end;
 
 procedure TMetadataManipulatorTest.IfTheFieldIsNullableMustBuildTheSQLHasExpected;
 begin
-  var Field := FMapper.FindTable(TMyTable).Field['RequiredField'];
+  var Field := FMapper.GetTable(TMyTable).Field['RequiredField'];
   Field.Required := False;
 
   Assert.AreEqual('RequiredField FieldType null', FMetadataManipulatorClass.GetFieldDefinition(Field));
@@ -192,7 +192,7 @@ end;
 
 procedure TMetadataManipulatorTest.IfTheForeignKeyFieldIsASpecialTypeMustUseThisTypeInTheFieldCreation;
 begin
-  var Field := FMapper.FindTable(TMyTable).Field['ForeignKeyFieldSpecial'];
+  var Field := FMapper.GetTable(TMyTable).Field['ForeignKeyFieldSpecial'];
 
   Assert.AreEqual('IdForeignKeyFieldSpecial SpecialFieldType null', FMetadataManipulatorClass.GetFieldDefinition(Field));
 end;
@@ -213,11 +213,11 @@ begin
   FDatabaseIndex := TDatabaseIndex.Create(FDatabaseTable, 'MyIndex');
   FMetadataManipulator := FMetadataManipulatorClass;
 
-  FMapper.LoadClass(TMyTable);
+  FMapper.GetTable(TMyTable);
 
-  FMapper.LoadClass(TMyEntityWithManyValueAssociation);
+  FMapper.GetTable(TMyEntityWithManyValueAssociation);
 
-  FMapper.LoadClass(TMyEntity2);
+  FMapper.GetTable(TMyEntity2);
 
   FConnection.Setup.WillExecute(
     procedure (const Params: TArray<TValue>)
@@ -270,14 +270,14 @@ end;
 
 procedure TMetadataManipulatorTest.TheFieldDefinitionMustBuildTheSQLHasExpected;
 begin
-  var Field := FMapper.FindTable(TMyTable).Field['RequiredField'];
+  var Field := FMapper.GetTable(TMyTable).Field['RequiredField'];
 
   Assert.AreEqual('RequiredField FieldType not null', FMetadataManipulatorClass.GetFieldDefinition(Field));
 end;
 
 procedure TMetadataManipulatorTest.TheFieldDefinitionMustLoadTheSQLWithTheDatabaseNameFieldName;
 begin
-  var Field := FMapper.FindTable(TMyTable).Field['RequiredField'];
+  var Field := FMapper.GetTable(TMyTable).Field['RequiredField'];
   Field.DatabaseName := 'IdMyField';
   Field.Name := 'MyField';
 
@@ -286,7 +286,7 @@ end;
 
 procedure TMetadataManipulatorTest.WhenCreateAFieldMustBuildTheSQLHasExpected;
 begin
-  var Field := FMapper.FindTable(TMyTable).Field['RequiredField'];
+  var Field := FMapper.GetTable(TMyTable).Field['RequiredField'];
   var SQL := 'alter table MyTableDB add RequiredField FieldType not null';
 
   FMetadataManipulator.CreateField(Field);
@@ -298,7 +298,7 @@ procedure TMetadataManipulatorTest.WhenCreateAForeignKeyMustExecuteTheSQLAsExpec
 begin
   var SQL := 'alter table MyTableDB add constraint FK_MyTableDB_MyTableForeingKey_FKField foreign key (FKField) references MyTableForeingKey (Id)';
 
-  FMetadataManipulator.CreateForeignKey(FMapper.FindTable(TMyTable).ForeignKeys[0]);
+  FMetadataManipulator.CreateForeignKey(FMapper.GetTable(TMyTable).ForeignKeys[0]);
 
   Assert.AreEqual(SQL, FSQLExecuted);
 end;
@@ -307,14 +307,14 @@ procedure TMetadataManipulatorTest.WhenCreateAnIndexMustExecuteTheSQLAsExpected;
 begin
   var SQL := 'create index MyIndex on MyTableDB (FKField,RequiredField)';
 
-  FMetadataManipulator.CreateIndex(FMapper.FindTable(TMyTable).Indexes[0]);
+  FMetadataManipulator.CreateIndex(FMapper.GetTable(TMyTable).Indexes[0]);
 
   Assert.AreEqual(SQL, FSQLExecuted);
 end;
 
 procedure TMetadataManipulatorTest.WhenCreateAPrimaryKeyIndexMustExecuteTheSQLAsExpected;
 begin
-  var Index := FMapper.FindTable(TMyEntity2).Indexes[0];
+  var Index := FMapper.GetTable(TMyEntity2).Indexes[0];
   var SQL := 'alter table AnotherTableName add constraint PK_AnotherTableName primary key (Id)';
 
   FMetadataManipulator.CreateIndex(Index);
@@ -340,14 +340,14 @@ begin
     'create table MyEntityWithManyValueAssociation (' +
       'Id FieldType not null)';
 
-  FMetadataManipulator.CreateTable(FMapper.FindTable(TMyEntityWithManyValueAssociation));
+  FMetadataManipulator.CreateTable(FMapper.GetTable(TMyEntityWithManyValueAssociation));
 
   Assert.AreEqual(SQL, FSQLExecuted);
 end;
 
 procedure TMetadataManipulatorTest.WhenCreateATableWithoutPrimaryKeyCantRaiseAnyError;
 begin
-  var Table := FMapper.LoadClass(TClassWithoutPrimaryKey);
+  var Table := FMapper.GetTable(TClassWithoutPrimaryKey);
 
   Assert.WillNotRaise(
     procedure
@@ -361,7 +361,7 @@ begin
   var SQL :=
     'create table ClassWithoutPrimaryKey (' +
       'Value FieldType not null)';
-  var Table := FMapper.LoadClass(TClassWithoutPrimaryKey);
+  var Table := FMapper.GetTable(TClassWithoutPrimaryKey);
 
   FMetadataManipulator.CreateTable(Table);
 
@@ -372,7 +372,7 @@ procedure TMetadataManipulatorTest.WhenCreateAUniqueIndexMustExecuteTheSQLAsExpe
 begin
   var SQL := 'create unique index MyUniqueKey on MyTableDB (RequiredField)';
 
-  FMetadataManipulator.CreateIndex(FMapper.FindTable(TMyTable).Indexes[1]);
+  FMetadataManipulator.CreateIndex(FMapper.GetTable(TMyTable).Indexes[1]);
 
   Assert.AreEqual(SQL, FSQLExecuted);
 end;
@@ -383,7 +383,7 @@ begin
     'create table MyTableForeingKey (' +
       'Id FieldType(50) not null,' +
       'Value SpecialFieldType not null)';
-  var Table := FMapper.FindTable(TMyTableForeingKey);
+  var Table := FMapper.GetTable(TMyTableForeingKey);
 
   FMetadataManipulator.CreateTable(Table);
 
@@ -454,21 +454,21 @@ procedure TMetadataManipulatorTest.WhenGetAllRecordsMustSelectAllRecordsFromTheD
 begin
   var SQL := 'select T1.Id F1,T1.Value F2 from ClassWithPrimaryKey T1';
 
-  FMetadataManipulatorClass.GetAllRecords(FMapper.LoadClass(TClassWithPrimaryKey));
+  FMetadataManipulatorClass.GetAllRecords(FMapper.GetTable(TClassWithPrimaryKey));
 
   Assert.AreEqual(SQL, FSQLExecuted);
 end;
 
 procedure TMetadataManipulatorTest.WhenGetTheFieldDefinitionOfAForeignKeyFieldMustLoadTheInfoFromThePrimaryKeyOfTheForeignKeyTable;
 begin
-  var Field := FMapper.FindTable(TMyTable).Field['ForeignKeyField'];
+  var Field := FMapper.GetTable(TMyTable).Field['ForeignKeyField'];
 
   Assert.AreEqual('FKField FieldType(50) not null constraint DF_MyTableDB_FKField default(AutoGeneratedValue)', FMetadataManipulatorClass.GetFieldDefinition(Field));
 end;
 
 procedure TMetadataManipulatorTest.WhenGetTheNameOfDefaultContraintFunctionMustReturnTheNameAsExpected;
 begin
-  var Field := FMapper.FindTable(TMyTable).Field['RequiredField'];
+  var Field := FMapper.GetTable(TMyTable).Field['RequiredField'];
   Field.DatabaseName := 'MyFieldDB';
 
   Assert.AreEqual('DF_MyTableDB_MyFieldDB', FMetadataManipulator.GetDefaultConstraintName(Field));
@@ -487,28 +487,28 @@ end;
 
 procedure TMetadataManipulatorTest.WhenTheFieldHasDefaultValueMustLoadTheDefaultValueHasExpected;
 begin
-  var Field := FMapper.FindTable(TMyTable).Field['AutoGeneratedField'];
+  var Field := FMapper.GetTable(TMyTable).Field['AutoGeneratedField'];
 
   Assert.AreEqual('AutoGeneratedField SpecialFieldType not null constraint DF_MyTableDB_AutoGeneratedField default(AutoGeneratedValue)', FMetadataManipulatorClass.GetFieldDefinition(Field));
 end;
 
 procedure TMetadataManipulatorTest.WhenTheFieldIsAndFloatFieldMustLoadThePrecisionAndScaleInTheFieldDefinition;
 begin
-  var Field := FMapper.FindTable(TMyTable).Field['FloatField'];
+  var Field := FMapper.GetTable(TMyTable).Field['FloatField'];
 
   Assert.AreEqual('FloatField FieldType(10,5) not null', FMetadataManipulatorClass.GetFieldDefinition(Field));
 end;
 
 procedure TMetadataManipulatorTest.WhenTheFieldTypeIsCharMustLoadTheSizeInTheFieldDefinition;
 begin
-  var Field := FMapper.FindTable(TMyTable).Field['CharField'];
+  var Field := FMapper.GetTable(TMyTable).Field['CharField'];
 
   Assert.AreEqual('CharField FieldType(1) not null', FMetadataManipulatorClass.GetFieldDefinition(Field));
 end;
 
 procedure TMetadataManipulatorTest.WhenTheFieldTypeIsStringMustLoadTheSizeInTheFieldDefinition;
 begin
-  var Field := FMapper.FindTable(TMyTable).Field['StringField'];
+  var Field := FMapper.GetTable(TMyTable).Field['StringField'];
 
   Assert.AreEqual('StringField FieldType(250) not null', FMetadataManipulatorClass.GetFieldDefinition(Field));
 end;
@@ -516,7 +516,7 @@ end;
 procedure TMetadataManipulatorTest.WhenUpdateAFieldMustExecuteTheSQLHasExpected;
 begin
   var SQL := 'update MyTableDB set RequiredField = StringField';
-  var Table := FMapper.FindTable(TMyTable);
+  var Table := FMapper.GetTable(TMyTable);
 
   FMetadataManipulatorClass.UpdateField(Table.Field['StringField'], Table.Field['RequiredField']);
 

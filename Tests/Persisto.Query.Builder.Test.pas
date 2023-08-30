@@ -1402,7 +1402,8 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      Builder.Select.All.From(TMapper.Default.FindTable(TClassWithForeignKey)).Open;
+//      Builder.Select.All.From(TMapper.Default.FindTable(TClassWithForeignKey)).Open;
+      raise Exception.Create('Review this!');
     end);
 end;
 
@@ -2074,17 +2075,19 @@ end;
 
 procedure TQueryBuilderDataManipulationTest.AfterInsertAnObjectInTheDatabaseMustLoadAllFieldsValuesInTheChangeManager;
 begin
-  FCursorClass.Values := [[123456]];
-  var MyClass := TMyEntity.Create;
-  MyClass.Name := 'MyName';
-  MyClass.Value := 123456;
-  var Table := TMapper.Default.FindTable(MyClass.ClassType);
+//  FCursorClass.Values := [[123456]];
+//  var MyClass := TMyEntity.Create;
+//  MyClass.Name := 'MyName';
+//  MyClass.Value := 123456;
+//  var Table := TMapper.Default.FindTable(MyClass.ClassType);
+//
+//  Builder.Insert(MyClass);
+//
+//  Assert.AreEqual('123456', FCache.ChangeManager.Changes[MyClass][Table.Field['Id']]);
+//  Assert.AreEqual('''MyName''', FCache.ChangeManager.Changes[MyClass][Table.Field['Name']]);
+//  Assert.AreEqual('123456', FCache.ChangeManager.Changes[MyClass][Table.Field['Value']]);
 
-  Builder.Insert(MyClass);
-
-  Assert.AreEqual('123456', FCache.ChangeManager.Changes[MyClass][Table.Field['Id']]);
-  Assert.AreEqual('''MyName''', FCache.ChangeManager.Changes[MyClass][Table.Field['Name']]);
-  Assert.AreEqual('123456', FCache.ChangeManager.Changes[MyClass][Table.Field['Value']]);
+  raise Exception.Create('Review this!');
 end;
 
 procedure TQueryBuilderDataManipulationTest.AfterUpdateAnObjectTheForeignObjectMustBeDestroyed;
@@ -2741,13 +2744,14 @@ end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertAnObjectWithEmptyForeignKeyMustLoadTheChangesWithNullValue;
 begin
-  FCursorClass.Values := [[123456]];
-  var MyClass := TClassWithForeignKey.Create;
-  var Table := TMapper.Default.FindTable(MyClass.ClassType);
-
-  Builder.Insert(MyClass);
-
-  Assert.AreEqual('null', FCache.ChangeManager.Changes[MyClass][Table.Field['AnotherClass']]);
+//  FCursorClass.Values := [[123456]];
+//  var MyClass := TClassWithForeignKey.Create;
+//  var Table := TMapper.Default.FindTable(MyClass.ClassType);
+//
+//  Builder.Insert(MyClass);
+//
+//  Assert.AreEqual('null', FCache.ChangeManager.Changes[MyClass][Table.Field['AnotherClass']]);
+  raise Exception.Create('Review this!');
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertAnObjectWithForeignKeysThatIsAlreadyInTheCacheMustUpdateTheReferenceOfTheObjectBeenInserted;
@@ -3112,20 +3116,21 @@ end;
 
 procedure TQueryBuilderDataManipulationTest.WhenTheLazyHasntLoadedCantBeUpdatedThenValuesOfThisFields;
 begin
-  var LazyCache := TLazyClass.Create;
-  LazyCache.Id := 1234;
-  var Manipulator := TLazyManipulator.GetManipulator(LazyCache, TMapper.Default.FindTable(TLazyClass).Field['Lazy'].PropertyInfo);
-  Manipulator.Loader := FLazyLoader.Instance;
-  var MyClass := TLazyClass.Create;
-  MyClass.Id := 1234;
-
-  TLazyManipulator.GetManipulator(MyClass.Lazy).Loader := FLazyLoader.Instance;
-
-  AddObjectToCache(LazyCache);
-
-  Builder.Save(MyClass);
-
-  Assert.IsNotNull(Manipulator.Loader);
+//  var LazyCache := TLazyClass.Create;
+//  LazyCache.Id := 1234;
+//  var Manipulator := TLazyManipulator.GetManipulator(LazyCache, TMapper.Default.FindTable(TLazyClass).Field['Lazy'].PropertyInfo);
+//  Manipulator.Loader := FLazyLoader.Instance;
+//  var MyClass := TLazyClass.Create;
+//  MyClass.Id := 1234;
+//
+//  TLazyManipulator.GetManipulator(MyClass.Lazy).Loader := FLazyLoader.Instance;
+//
+//  AddObjectToCache(LazyCache);
+//
+//  Builder.Save(MyClass);
+//
+//  Assert.IsNotNull(Manipulator.Loader);
+  raise Exception.Create('Review this!');
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenTheLazyHasValueButNotLoadedCantRaiseAnyError;
@@ -3376,19 +3381,20 @@ end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdateAnObjectMustUpdateTheChangeInformationOfTheObject;
 begin
-  var MyClass := TMyEntity.Create;
-  MyClass.Id := 123;
-  MyClass.Name := 'MyName';
-  MyClass.Value := 123456;
-  var Table := TMapper.Default.FindTable(MyClass.ClassType);
-
-  AddObjectToCache(TMyEntity.Create, 123);
-
-  var MyClassUpdated := Builder.Update(MyClass);
-
-  Assert.AreEqual('123', FCache.ChangeManager.Changes[MyClassUpdated][Table.Field['Id']]);
-  Assert.AreEqual('''MyName''', FCache.ChangeManager.Changes[MyClassUpdated][Table.Field['Name']]);
-  Assert.AreEqual('123456', FCache.ChangeManager.Changes[MyClassUpdated][Table.Field['Value']]);
+//  var MyClass := TMyEntity.Create;
+//  MyClass.Id := 123;
+//  MyClass.Name := 'MyName';
+//  MyClass.Value := 123456;
+//  var Table := TMapper.Default.FindTable(MyClass.ClassType);
+//
+//  AddObjectToCache(TMyEntity.Create, 123);
+//
+//  var MyClassUpdated := Builder.Update(MyClass);
+//
+//  Assert.AreEqual('123', FCache.ChangeManager.Changes[MyClassUpdated][Table.Field['Id']]);
+//  Assert.AreEqual('''MyName''', FCache.ChangeManager.Changes[MyClassUpdated][Table.Field['Name']]);
+//  Assert.AreEqual('123456', FCache.ChangeManager.Changes[MyClassUpdated][Table.Field['Value']]);
+  raise Exception.Create('Review this!');
 end;
 
 procedure TQueryBuilderDataManipulationTest.WhenUpdateAnObjectWithManyValueAssociationTheParentForeignKeyOfTheChildObjectMustBeTheReferenceToTheCacheObject;
@@ -3615,21 +3621,23 @@ end;
 
 function TQueryBuilderBaseTest.AddObjectToCache<T>(const Obj: T): T;
 begin
-  Result := Obj;
-  var Table := TMapper.Default.FindTable(TypeInfo(T));
-
-  FCache.ChangeManager.AddInstance(Table, Obj);
-
-  FCache.Add(Table.GetCacheKey(Obj), Obj);
+//  Result := Obj;
+//  var Table := TMapper.Default.FindTable(TypeInfo(T));
+//
+//  FCache.ChangeManager.AddInstance(Table, Obj);
+//
+//  FCache.Add(Table.GetCacheKey(Obj), Obj);
+  raise Exception.Create('Review this!');
 end;
 
 function TQueryBuilderBaseTest.AddObjectToCache<T>(const Obj: T; const PrimaryKeyValue: TValue): T;
 begin
-  var Table := TMapper.Default.FindTable(TypeInfo(T));
-
-  Table.PrimaryKey.SetValue(Obj, PrimaryKeyValue);
-
-  Result := AddObjectToCache(Obj);
+//  var Table := TMapper.Default.FindTable(TypeInfo(T));
+//
+//  Table.PrimaryKey.SetValue(Obj, PrimaryKeyValue);
+//
+//  Result := AddObjectToCache(Obj);
+  raise Exception.Create('Review this!');
 end;
 
 function TQueryBuilderBaseTest.GetBuilder: TQueryBuilder;

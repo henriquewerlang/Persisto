@@ -189,7 +189,6 @@
         <DCCReference Include="Persisto.Database.Manipulator.SQLServer.Test.pas"/>
         <DCCReference Include="Persisto.Lazy.Manipulator.Test.pas"/>
         <DCCReference Include="Persisto.Nullable.Manipulator.Test.pas"/>
-        <DCCReference Include="Persisto.Change.Manager.Test.pas"/>
         <DCCReference Include="..\Persisto.SQLite.pas"/>
         <DCCReference Include="Persisto.Database.Manipulator.SQLite.Test.pas"/>
         <DCCReference Include="..\Persisto.Connection.Firedac.pas"/>

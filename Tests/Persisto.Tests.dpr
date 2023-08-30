@@ -1,4 +1,4 @@
-program Persisto.Tests;
+﻿program Persisto.Tests;
 
 {$STRONGLINKTYPES ON}
 
@@ -29,7 +29,6 @@ uses
   Persisto.Database.Manipulator.SQLServer.Test in 'Persisto.Database.Manipulator.SQLServer.Test.pas',
   Persisto.Lazy.Manipulator.Test in 'Persisto.Lazy.Manipulator.Test.pas',
   Persisto.Nullable.Manipulator.Test in 'Persisto.Nullable.Manipulator.Test.pas',
-  Persisto.Change.Manager.Test in 'Persisto.Change.Manager.Test.pas',
   Persisto.SQLite in '..\Persisto.SQLite.pas',
   Persisto.Database.Manipulator.SQLite.Test in 'Persisto.Database.Manipulator.SQLite.Test.pas',
   Persisto.Connection.Firedac in '..\Persisto.Connection.Firedac.pas',
@@ -49,11 +48,6 @@ begin
   FormatSettings := TFormatSettings.Invariant;
 
   FastMM_BeginEraseFreedBlockContent;
-
-  try
-    TMapper.Default.LoadAll;
-  except
-  end;
 
   TestInsight.DUnitX.RunRegisteredTests;
 end.

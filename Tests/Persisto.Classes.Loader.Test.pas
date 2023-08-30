@@ -294,15 +294,16 @@ end;
 
 procedure TClassLoaderTest.WhenCallTheAddInstanceTheParamsMustBeTheValuesExpected;
 begin
-  var Table := TMapper.Default.FindTable(TMyClass);
-
-  FChangeManager.Expect.Once.When.AddInstance(It(0).IsEqualTo(Table), It(1).IsNotEqualTo<TObject>(nil));
-
-  FCursorMockClass.Values := [['aaa', 111]];
-
-  LoadClass<TMyClass>;
-
-  Assert.CheckExpectation(FChangeManager.CheckExpectations);
+//  var Table := TMapper.Default.FindTable(TMyClass);
+//
+//  FChangeManager.Expect.Once.When.AddInstance(It(0).IsEqualTo(Table), It(1).IsNotEqualTo<TObject>(nil));
+//
+//  FCursorMockClass.Values := [['aaa', 111]];
+//
+//  LoadClass<TMyClass>;
+//
+//  Assert.CheckExpectation(FChangeManager.CheckExpectations);
+  raise Exception.Create('Review this!');
 end;
 
 procedure TClassLoaderTest.WhenHaveMoreThenOneRecordMustLoadAllThenWhenRequested;

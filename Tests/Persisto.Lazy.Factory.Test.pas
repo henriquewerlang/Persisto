@@ -61,8 +61,9 @@ procedure TLazySingleClassFactoryTest.Setup;
 begin
   FConnection := TMock.CreateInterface<IDatabaseConnection>(True);
   FCursorClass := TCursorMock.Create;
-  FLazyField := TMapper.Default.FindTable(TLazyArrayClass).Field['Lazy'];
   FManager := TManager.Create(FConnection.Instance, nil);
+
+  FLazyField := FManager.Mapper.GetTable(TLazyArrayClass).Field['Lazy'];
 
   FCursor := FCursorClass;
   FLoader := TLazySingleClassFactory.Create(FManager, FLazyField, 1234);
@@ -107,8 +108,9 @@ procedure TLazyManyValueClassFactoryTest.Setup;
 begin
   FConnection := TMock.CreateInterface<IDatabaseConnection>(True);
   FCursorClass := TCursorMock.Create;
-  FLazyField := TMapper.Default.FindTable(TLazyArrayClass).Field['LazyArray'];
   FManager := TManager.Create(FConnection.Instance, nil);
+
+  FLazyField := FManager.Mapper.GetTable(TLazyArrayClass).Field['LazyArray'];
 
   FCursor := FCursorClass;
   FLoader := TLazyManyValueClassFactory.Create(FManager, FLazyField, 1234);
