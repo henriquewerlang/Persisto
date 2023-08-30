@@ -1,4 +1,4 @@
-unit Persisto.Connection.Firedac;
+﻿unit Persisto.Connection.Firedac;
 
 interface
 
