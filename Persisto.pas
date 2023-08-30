@@ -447,15 +447,13 @@ type
 
   TLazyFactory = class(TInterfacedObject)
   private
-    FCache: ICache;
-    FConnection: IDatabaseConnection;
     FKeyValue: TValue;
     FLazyField: TField;
+    FManager: TManager;
 
-    function CreateQueryBuilder: TQueryBuilder;
     function GetKey: TValue;
   public
-    constructor Create(const Connection: IDatabaseConnection; const Cache: ICache; const LazyField: TField; const KeyValue: TValue);
+    constructor Create(const Manager: TManager; const LazyField: TField; const KeyValue: TValue);
   end;
 
   TLazySingleClassFactory = class(TLazyFactory, ILazyLoader)
@@ -479,7 +477,7 @@ type
     function GetFieldValueFromCursor(const Index: Integer): Variant;
     function LoadClass(var CurrentObject: TObject): Boolean;
 
-    procedure LoadObject(const CurrentObject: TObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
+    procedure LoadObject(const CurrentObject: TObject; const Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
   public
     constructor Create(const Access: IQueryBuilderAccess);
 
@@ -504,6 +502,7 @@ type
     function GetIdention(Count: Integer; const MinimalIdention: Boolean = True): String;
     function GetJoin: TQueryBuilderJoin;
     function GetLineBreak: String;
+    function GetManager: TManager;
     function GetTable: TTable;
     function OpenCursor: IDatabaseCursor;
 
@@ -545,6 +544,7 @@ type
     function GetIdention(Count: Integer; const MinimalIdention: Boolean = True): String;
     function GetJoin: TQueryBuilderJoin;
     function GetLineBreak: String;
+    function GetManager: TManager;
     function GetTable: TTable;
     function InsertObject(const AObject: TValue): TObject;
     function OpenCursor: IDatabaseCursor;
@@ -634,7 +634,7 @@ type
 
   TQueryBuilderOpen<T: class> = class(TQueryBuilderOpen)
   private
-    FLoader: TObject;
+    FLoader: TClassLoader;
   public
     constructor Create(const Access: IQueryBuilderAccess);
 
@@ -1042,6 +1042,7 @@ type
 
     destructor Destroy; override;
 
+    function OpenCursor(const SQL: String): IDatabaseCursor;
     function Select: TQueryBuilderSelect;
 
     procedure Delete(const &Object: TObject);
@@ -1059,14 +1060,14 @@ implementation
 
 uses System.Variants, Persisto.Rtti.Helper;
 
-function CreateLoader(const Connection: IDatabaseConnection; const Cache: ICache; const LazyField: TField; const KeyValue: TValue): ILazyLoader;
+function CreateLoader(const Manager: TManager; const LazyField: TField; const KeyValue: TValue): ILazyLoader;
 begin
   if KeyValue.IsEmpty then
     Result := nil
   else if LazyField.IsManyValueAssociation then
-    Result := TLazyManyValueClassFactory.Create(Connection, Cache, LazyField, KeyValue)
+    Result := TLazyManyValueClassFactory.Create(Manager, LazyField, KeyValue)
   else
-    Result := TLazySingleClassFactory.Create(Connection, Cache, LazyField, KeyValue);
+    Result := TLazySingleClassFactory.Create(Manager, LazyField, KeyValue);
 end;
 
 function Field(const Name: String): TQueryBuilderComparisonHelper;
@@ -1995,21 +1996,9 @@ end;
 
 function TLazySingleClassFactory.LoadValue: TValue;
 begin
-  var AnObject: TObject := nil;
   var Table := FLazyField.ForeignKey.ParentTable;
 
-  if FCache.Get(Table.GetCacheKey(FKeyValue.AsVariant), AnObject) then
-    Result := AnObject
-  else
-  begin
-    var Query := CreateQueryBuilder;
-
-    try
-      Result := Query.Select.All.From(Table).Where(Field(Table.PrimaryKey.Name) = FKeyValue).Open.One;
-    finally
-      Query.Free;
-    end;
-  end;
+  Result := FManager.Select.All.From(Table).Where(Field(Table.PrimaryKey.Name) = FKeyValue).Open.One;
 end;
 
 { TLazyManyValueClassFactory }
@@ -2017,36 +2006,20 @@ end;
 function TLazyManyValueClassFactory.LoadValue: TValue;
 begin
   var ManyValue := FLazyField.ManyValueAssociation;
-  var Query := CreateQueryBuilder;
+  var Value := FManager.Select.All.From(ManyValue.ChildTable).Where(Field(ManyValue.ForeignKey.Field.Name) = FKeyValue).Open.All;
 
-  try
-    var Value := Query.Select.All.From(ManyValue.ChildTable).Where(Field(ManyValue.ForeignKey.Field.Name) = FKeyValue).Open.All;
-
-    TValue.Make(@Value, FLazyField.FieldType.Handle, Result);
-  finally
-    Query.Free;
-  end;
+  TValue.Make(@Value, FLazyField.FieldType.Handle, Result);
 end;
 
 { TLazyFactory }
 
-constructor TLazyFactory.Create(const Connection: IDatabaseConnection; const Cache: ICache; const LazyField: TField; const KeyValue: TValue);
+constructor TLazyFactory.Create(const Manager: TManager; const LazyField: TField; const KeyValue: TValue);
 begin
   inherited Create;
 
-  FCache := Cache;
-  FConnection := Connection;
+  FManager := Manager;
   FKeyValue := KeyValue;
   FLazyField := LazyField;
-end;
-
-function TLazyFactory.CreateQueryBuilder: TQueryBuilder;
-begin
-  Result := TQueryBuilder.Create(FConnection, FCache);
-
-{$IF DEFINED(DEBUG) and not DEFINED(TESTINSIGHT)}
-  Result.Options := [boBeautifyQuery, boJoinMapping];
-{$IFEND}
 end;
 
 function TLazyFactory.GetKey: TValue;
@@ -2138,7 +2111,7 @@ begin
   LoadObject(CurrentObject, FAccess.Join, FieldIndex, Result);
 end;
 
-procedure TClassLoader.LoadObject(const CurrentObject: TObject; Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
+procedure TClassLoader.LoadObject(const CurrentObject: TObject; const Join: TQueryBuilderJoin; var FieldIndexStart: Integer; const NewObject: Boolean);
 var
   Field: TField;
 
@@ -2174,7 +2147,7 @@ begin
         if Field.IsLazy then
         begin
           var Manipulator := TLazyManipulator.GetManipulator(CurrentObject, Field.PropertyInfo);
-          Manipulator.Loader := CreateLoader(FAccess.Connection, FAccess.Cache, Field, FieldValue)
+          Manipulator.Loader := CreateLoader(FAccess.GetManager, Field, FieldValue)
         end
         else
           Field.SetValue(CurrentObject, FieldValue);
@@ -2522,6 +2495,11 @@ begin
     Result := #13#10
   else
     Result := EmptyStr;
+end;
+
+function TQueryBuilder.GetManager: TManager;
+begin
+  Result := nil;
 end;
 
 function TQueryBuilder.GetSQL: String;
@@ -2962,7 +2940,7 @@ end;
 
 function TQueryBuilderOpen<T>.All: TArray<T>;
 begin
-  Result := TClassLoader(FLoader).LoadAll<T>;
+  Result := FLoader.LoadAll<T>;
 end;
 
 constructor TQueryBuilderOpen<T>.Create(const Access: IQueryBuilderAccess);
@@ -2981,7 +2959,7 @@ end;
 
 function TQueryBuilderOpen<T>.One: T;
 begin
-  Result := TClassLoader(FLoader).Load<T>;
+  Result := FLoader.Load<T>;
 end;
 
 { TQueryBuilderAllFields }
@@ -4165,6 +4143,11 @@ begin
 
 end;
 
+function TManager.OpenCursor(const SQL: String): IDatabaseCursor;
+begin
+  Result := FConnection.OpenCursor(SQL);
+end;
+
 procedure TManager.Save(const &Object: TObject);
 begin
 
@@ -4185,7 +4168,7 @@ begin
   var Updater := TDatabaseMetadataUpdate.Create(Self);
 
   try
-//    Updater.UpdateDatabase;
+    Updater.UpdateDatabase;
   finally
     Updater.Free;
   end;

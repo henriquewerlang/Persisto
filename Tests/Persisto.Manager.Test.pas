@@ -16,6 +16,8 @@ type
     procedure Setup;
     [TearDown]
     procedure TearDown;
+    [Test]
+    procedure WhenInsertAValueInManagerMustInsertTheValueInDatabaseAsExpected;
   end;
 
   [TestFixture]
@@ -33,17 +35,9 @@ type
     procedure WhenUpdateTheDatabaseMustCreateTheTablesAfterTheProcessEnd;
   end;
 
-  [Entity]
-  TMySQLiteTable = class
-  private
-    FId: String;
-  published
-    property Id: String read FId write FId;
-  end;
-
 implementation
 
-uses Persisto.SQLite, Persisto.Connection.Firedac;
+uses Persisto.SQLite, Persisto.Connection.Firedac, Persisto.Test.Entity;
 
 { TManagerTest }
 
@@ -65,6 +59,11 @@ end;
 procedure TManagerTest.TearDown;
 begin
   FManager.Free;
+end;
+
+procedure TManagerTest.WhenInsertAValueInManagerMustInsertTheValueInDatabaseAsExpected;
+begin
+//  FManager.Insert()
 end;
 
 { TManagerDatabaseManipulationTest }
@@ -95,7 +94,7 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      FManager.Select.All.From<TMySQLiteTable>.Open.All;
+      FManager.OpenCursor('select * from MySQLiteTable').Next;
     end);
 end;
 

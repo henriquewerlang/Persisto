@@ -376,13 +376,6 @@ type
     property Value: String read FValue write FValue;
   end;
 
-  TMyClassWithoutPublishedFields = class
-  private
-    FId: Integer;
-  public
-    property Id: Integer read FId write FId;
-  end;
-
 implementation
 
 uses System.Variants, System.SysUtils, System.DateUtils, System.TypInfo, Persisto.Test.Entity, Translucent, Persisto.Rtti.Helper;

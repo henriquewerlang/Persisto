@@ -1177,6 +1177,21 @@ type
     property Value: Integer read FValue write FValue;
   end;
 
+  [Entity]
+  TMySQLiteTable = class
+  private
+    FId: String;
+  published
+    property Id: String read FId write FId;
+  end;
+
+  TMyClassWithoutPublishedFields = class
+  private
+    FId: Integer;
+  public
+    property Id: Integer read FId write FId;
+  end;
+
 implementation
 
 { TManyValueParentChildError }
