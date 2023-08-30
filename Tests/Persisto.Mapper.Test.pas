@@ -589,11 +589,7 @@ end;
 
 procedure TMapperTest.TheClassWithTheSingleTableInheritanceAttributeCantBeMappedInTheTableList;
 begin
-  var Table: TTable;
-
-  FMapper.LoadAll;
-
-  Assert.IsNull(FMapper.GetTable(TMyEntityWithSingleTableInheritanceAttribute.ClassInfo));
+  Assert.IsNull(FMapper.GetTable(TMyEntityWithSingleTableInheritanceAttribute));
 end;
 
 procedure TMapperTest.TheConversionOfTheTValueMustBeLikeExpected(TypeToConvert, ValueToCompare: String);
@@ -1267,18 +1263,18 @@ procedure TMapperTest.WhenLoadTheSchemaMustLoadAllClassesFromTheUnitsPassedInThe
 begin
   FMapper.LoadAll([TMyClass, TMyTestClass]);
 
-  Assert.IsNotNull(FMapper.GetTable(TypeInfo(TMyClass)));
+  Assert.IsNotNull(FMapper.GetTable(TMyClass));
 
-  Assert.IsNotNull(FMapper.GetTable(TypeInfo(TMyTestClass)));
+  Assert.IsNotNull(FMapper.GetTable(TMyTestClass));
 
-  Assert.IsNotNull(FMapper.GetTable(TypeInfo(TClassWithPrimaryKeyAttribute)));
+  Assert.IsNotNull(FMapper.GetTable(TClassWithPrimaryKeyAttribute));
 end;
 
 procedure TMapperTest.WhenLoadTheSchemaWithAClassInParamsTheMapperMustLoadOnlyTheClassesInTheUnitOfThatClass;
 begin
   FMapper.LoadAll([TMyClass2]);
 
-  Assert.IsNull(FMapper.GetTable(TypeInfo(TMyTestClass)));
+  Assert.AreEqual<NativeInt>(1, Length(FMapper.Tables));
 end;
 
 procedure TMapperTest.WhenLoadTheTableMustLoadTheNameOfTheTableWithTheNameOfTheClassWithoutTheTChar;

@@ -91,11 +91,6 @@ type
     constructor Create(ParentTable, ChildTable: TTable);
   end;
 
-  ETableNotFound = class(Exception)
-  public
-    constructor Create(TheClass: TClass);
-  end;
-
   ESequenceAlreadyExists = class(Exception)
   public
     constructor Create(const SequenceName: String);
@@ -287,8 +282,8 @@ type
   private
     FContext: TRttiContext;
     FDefaultRecords: TDictionary<String, TObject>;
-    FDelayLoadTable: TList<TTable>;
     FSequences: TDictionary<String, TSequence>;
+    FManyValueTables: TArray<TTable>;
     FTables: TDictionary<TRttiInstanceType, TTable>;
 
     function CheckAttribute<T: TCustomAttribute>(const TypeInfo: TRttiType): Boolean;
@@ -307,7 +302,6 @@ type
     procedure AddTableForeignKey(const Table: TTable; const Field: TField; const ForeignTable: TTable; const IsInheritedLink: Boolean); overload;
     procedure AddTableForeignKey(const Table: TTable; const Field: TField; const ClassInfoType: TRttiInstanceType); overload;
     procedure LoadDefaultConstraint(const Field: TField);
-    procedure LoadDelayedTables;
     procedure LoadFieldInfo(const Table: TTable; const PropertyInfo: TRttiInstanceProperty; const Field: TField);
     procedure LoadFieldTypeInfo(const Field: TField);
     procedure LoadTableFields(const TypeInfo: TRttiInstanceType; const Table: TTable);
@@ -315,12 +309,6 @@ type
     procedure LoadTableIndexes(const TypeInfo: TRttiInstanceType; const Table: TTable);
     procedure LoadTableInfo(const TypeInfo: TRttiInstanceType; const Table: TTable);
     procedure LoadTableManyValueAssociations(const Table: TTable);
-
-    function FindSequence(const Name: String): TSequence;
-    function FindTable(const ClassInfo: PTypeInfo): TTable; overload;
-    function FindTable(const ClassInfo: TClass): TTable; overload;
-    function LoadClass(const ClassInfo: TClass): TTable;
-    function TryFindTable(const ClassInfo: PTypeInfo; var Table: TTable): Boolean;
   public
     constructor Create;
 
@@ -1174,7 +1162,7 @@ end;
 
 procedure TMapper.AddDefaultRecord(const Value: TObject);
 begin
-  FindTable(Value.ClassType).DefaultRecords.Add(Value);
+  GetTable(Value.ClassType).DefaultRecords.Add(Value);
 end;
 
 procedure TMapper.AddTableForeignKey(const Table: TTable; const Field: TField; const ClassInfoType: TRttiInstanceType);
@@ -1229,7 +1217,6 @@ begin
 
   FContext := TRttiContext.Create;
   FDefaultRecords := TDictionary<String, TObject>.Create;
-  FDelayLoadTable := TList<TTable>.Create;
   FSequences := TObjectDictionary<String, TSequence>.Create([doOwnsValues]);
   FTables := TObjectDictionary<TRttiInstanceType, TTable>.Create([doOwnsValues]);
 end;
@@ -1260,31 +1247,11 @@ begin
 
   FDefaultRecords.Free;
 
-  FDelayLoadTable.Free;
-
   FSequences.Free;
 
   FTables.Free;
 
   inherited;
-end;
-
-function TMapper.FindTable(const ClassInfo: PTypeInfo): TTable;
-begin
-  if not TryFindTable(ClassInfo, Result) then
-    raise ETableNotFound.Create(ClassInfo.TypeData.ClassType);
-end;
-
-function TMapper.FindSequence(const Name: String): TSequence;
-begin
-  Result := nil;
-
-  FSequences.TryGetValue(Name, Result);
-end;
-
-function TMapper.FindTable(const ClassInfo: TClass): TTable;
-begin
-  Result := FindTable(ClassInfo.ClassInfo);
 end;
 
 function TMapper.GetFieldDatabaseName(const Field: TField): String;
@@ -1330,12 +1297,16 @@ end;
 
 function TMapper.GetTable(const TypeInfo: PTypeInfo): TTable;
 begin
+  FManyValueTables := nil;
+  Result := LoadTable(FContext.GetType(TypeInfo).AsInstance);
 
+  for var Table in FManyValueTables do
+    LoadTableManyValueAssociations(Table);
 end;
 
 function TMapper.GetTable(const ClassInfo: TClass): TTable;
 begin
-
+  Result := GetTable(ClassInfo.ClassInfo);
 end;
 
 function TMapper.GetTableDatabaseName(const Table: TTable): String;
@@ -1372,16 +1343,7 @@ begin
 
   for var TypeInfo in FContext.GetTypes do
     if CheckAttribute<EntityAttribute>(TypeInfo) and (SchemaList.IsEmpty or (SchemaList.IndexOf(Format(';%s;', [TypeInfo.AsInstance.DeclaringUnitName])) > -1)) then
-      LoadTable(TypeInfo.AsInstance);
-
-  LoadDelayedTables;
-end;
-
-function TMapper.LoadClass(const ClassInfo: TClass): TTable;
-begin
-  Result := LoadTable(FContext.GetType(ClassInfo).AsInstance);
-
-  LoadDelayedTables;
+      GetTable(TypeInfo.Handle);
 end;
 
 procedure TMapper.LoadDefaultConstraint(const Field: TField);
@@ -1399,12 +1361,6 @@ begin
     if Attribute is FixedValueAttribute then
       Field.FDefaultConstraint.FixedValue := FixedValueAttribute(Attribute).Value;
   end;
-end;
-
-procedure TMapper.LoadDelayedTables;
-begin
-  while FDelayLoadTable.Count > 0 do
-    LoadTableManyValueAssociations(FDelayLoadTable.ExtractAt(0));
 end;
 
 procedure TMapper.LoadFieldInfo(const Table: TTable; const PropertyInfo: TRttiInstanceProperty; const Field: TField);
@@ -1469,7 +1425,7 @@ end;
 
 function TMapper.LoadTable(const TypeInfo: TRttiInstanceType): TTable;
 begin
-  if not TryFindTable(TypeInfo.Handle, Result) and not IsSingleTableInheritance(TypeInfo) then
+  if not FTables.TryGetValue(TypeInfo, Result) and not IsSingleTableInheritance(TypeInfo) then
   begin
     Result := TTable.Create(TypeInfo);
     Result.FMapper := Self;
@@ -1478,8 +1434,6 @@ begin
     Result.FDatabaseName := GetTableDatabaseName(Result);
 
     FTables.Add(TypeInfo, Result);
-
-    FDelayLoadTable.Add(Result);
 
     LoadTableInfo(TypeInfo, Result);
   end;
@@ -1548,6 +1502,7 @@ end;
 procedure TMapper.LoadTableInfo(const TypeInfo: TRttiInstanceType; const Table: TTable);
 begin
   var BaseClassInfo := TypeInfo.BaseType;
+  FManyValueTables := FManyValueTables + [Table];
   var IsSingleTableInheritance := IsSingleTableInheritance(BaseClassInfo);
 
   if not IsSingleTableInheritance and (BaseClassInfo.MetaclassType <> TObject) then
@@ -1601,11 +1556,6 @@ begin
       else
         raise EManyValueAssociationLinkError.Create(Table, ChildTable);
     end;
-end;
-
-function TMapper.TryFindTable(const ClassInfo: PTypeInfo; var Table: TTable): Boolean;
-begin
-  Result := FTables.TryGetValue(FContext.GetType(ClassInfo).AsInstance, Table);
 end;
 
 { TTable }
@@ -1841,13 +1791,6 @@ end;
 constructor EInvalidEnumeratorName.Create(Enumeration: TRttiEnumerationType; EnumeratorValue: String);
 begin
   inherited CreateFmt('Enumerator name ''%s'' is invalid to the enumeration ''%s''', [EnumeratorValue, Enumeration.Name]);
-end;
-
-{ ETableNotFound }
-
-constructor ETableNotFound.Create(TheClass: TClass);
-begin
-  inherited CreateFmt('The class %s not found!', [TheClass.ClassName])
 end;
 
 { EClassWithoutPrimaryKeyDefined }
@@ -2563,7 +2506,7 @@ function TQueryBuilder.SaveObject(const AObject: TValue): TObject;
 
   function CheckPrimaryKeyIsEmpty: Boolean;
   begin
-    var Table := FManager.Mapper.FindTable(AObject.TypeInfo);
+    var Table := FManager.Mapper.GetTable(AObject.TypeInfo);
 
     Result := Assigned(Table.PrimaryKey) and CheckValueIsEmpty(Table.PrimaryKey.GetValue(AObject.AsObject));
   end;
@@ -2597,7 +2540,7 @@ begin
   var ForeignFieldValue: TValue;
   var ForeignObject := AObject.AsObject;
   var SQL := EmptyStr;
-  var Table := FManager.Mapper.FindTable(AObject.TypeInfo);
+  var Table := FManager.Mapper.GetTable(AObject.TypeInfo);
 
   var CacheKey := Table.GetCacheKey(ForeignObject);
 
@@ -2722,7 +2665,7 @@ end;
 
 function TQueryBuilderFrom.From<T>: TQueryBuilderWhere<T>;
 begin
-  Result := TQueryBuilderWhere<T>(From(FAccess.GetManager.Mapper.FindTable(T)));
+  Result := TQueryBuilderWhere<T>(From(FAccess.GetManager.Mapper.GetTable(T)));
 end;
 
 function TQueryBuilderFrom.GetSQL: String;
@@ -3837,8 +3780,9 @@ begin
       DropTable(DatabaseTable);
 
   for DatabaseSequence in Schema.Sequences do
-    if not Assigned(FManager.Mapper.FindSequence(DatabaseSequence.Name)) then
-      FMetadataManipulator.DropSequence(DatabaseSequence);
+    raise Exception.Create('Review this!');
+//    if not Assigned(FManager.Mapper.FindSequence(DatabaseSequence.Name)) then
+//      FMetadataManipulator.DropSequence(DatabaseSequence);
 
   Schema.Free;
 
