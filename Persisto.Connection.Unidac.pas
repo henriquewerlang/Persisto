@@ -2,7 +2,7 @@ unit Persisto.Connection.Unidac;
 
 interface
 
-uses Persisto.Connection, Uni;
+uses Persisto, Uni;
 
 type
   TDatabaseConnectionUnidac = class;
@@ -18,12 +18,6 @@ type
     constructor Create(const Connection: TDatabaseConnectionUnidac; const SQL: String);
 
     destructor Destroy; override;
-  end;
-
-  TDatabaseEmptyCursorUnidac = class(TInterfacedObject, IDatabaseCursor)
-  private
-    function GetFieldValue(const FieldIndex: Integer): Variant;
-    function Next: Boolean;
   end;
 
   TDatabaseTransactionUnidac = class(TInterfacedObject, IDatabaseTransaction)
@@ -121,24 +115,7 @@ end;
 
 function TDatabaseConnectionUnidac.ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
 begin
-  var OutputSQL := EmptyStr;
-
-  for var Field in OutputFields do
-  begin
-    if not OutputSQL.IsEmpty then
-      OutputSQL := OutputSQL + ',';
-
-    OutputSQL := OutputSQL + Format('Inserted.%s', [Field]);
-  end;
-
-  if OutputSQL.IsEmpty then
-  begin
-    ExecuteDirect(SQL);
-
-    Result := TDatabaseEmptyCursorUnidac.Create;
-  end
-  else
-    Result := OpenCursor(SQL.Replace(')values(', Format(')output %s values(', [OutputSQL])));
+  Result := nil;
 end;
 
 function TDatabaseConnectionUnidac.OpenCursor(const SQL: String): IDatabaseCursor;
@@ -149,18 +126,6 @@ end;
 function TDatabaseConnectionUnidac.StartTransaction: IDatabaseTransaction;
 begin
   Result := TDatabaseTransactionUnidac.Create(Self);
-end;
-
-{ TDatabaseEmptyCursorUnidac }
-
-function TDatabaseEmptyCursorUnidac.GetFieldValue(const FieldIndex: Integer): Variant;
-begin
-  Result := NULL;
-end;
-
-function TDatabaseEmptyCursorUnidac.Next: Boolean;
-begin
-  Result := False;
 end;
 
 { TDatabaseTransactionUnidac }

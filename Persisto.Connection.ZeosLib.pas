@@ -2,7 +2,7 @@ unit Persisto.Connection.ZeosLib;
 
 interface
 
-uses Persisto.Connection, ZAbstractConnection, ZConnection, ZAbstractRODataset, ZAbstractDataset, ZDataset;
+uses Persisto, ZAbstractConnection, ZConnection, ZAbstractRODataset, ZAbstractDataset, ZDataset;
 
 type
   TDatabaseCursorZeosLib = class(TInterfacedObject, IDatabaseCursor)
@@ -17,15 +17,9 @@ type
     destructor Destroy; override;
   end;
 
-  TDatabaseEmptyCursorZeosLib = class(TInterfacedObject, IDatabaseCursor)
-  private
-    function GetFieldValue(const FieldIndex: Integer): Variant;
-    function Next: Boolean;
-  end;
-
   TDatabaseTransactionZeosLib = class(TInterfacedObject, IDatabaseTransaction)
   private
-    FConnection: TUniConnection;
+    FConnection: TZConnection;
 
     procedure Commit;
     procedure Rollback;
@@ -77,24 +71,7 @@ end;
 
 function TDatabaseConnectionZeosLib.ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
 begin
-  var OutputSQL := EmptyStr;
-
-  for var Field in OutputFields do
-  begin
-    if not OutputSQL.IsEmpty then
-      OutputSQL := ',';
-
-    OutputSQL := OutputSQL + Format('Inserted.%s', [Field]);
-  end;
-
-  if OutputSQL.IsEmpty then
-  begin
-    ExecuteDirect(SQL);
-
-    Result := TDatabaseEmptyCursorZeosLib.Create;
-  end
-  else
-    Result := OpenCursor(SQL.Replace(')values(', Format(')output %s values(', [OutputSQL])));
+  Result := nil;
 end;
 
 function TDatabaseConnectionZeosLib.OpenCursor(const SQL: String): IDatabaseCursor;
@@ -107,18 +84,6 @@ begin
   Result := TDatabaseTransactionZeosLib.Create(Connection);
 end;
 
-{ TDatabaseEmptyCursorZeosLib }
-
-function TDatabaseEmptyCursorZeosLib.GetFieldValue(const FieldIndex: Integer): Variant;
-begin
-  Result := NULL;
-end;
-
-function TDatabaseEmptyCursorZeosLib.Next: Boolean;
-begin
-  Result := False;
-end;
-
 { TDatabaseCursorZeosLib }
 
 constructor TDatabaseCursorZeosLib.Create(const Connection: TZConnection; const SQL: String);
@@ -128,6 +93,8 @@ begin
   FQuery := TZQuery.Create(nil);
   FQuery.Connection := Connection;
   FQuery.SQL.Text := SQL;
+
+  FQuery.Prepare;
 end;
 
 destructor TDatabaseCursorZeosLib.Destroy;
@@ -156,17 +123,20 @@ end;
 
 procedure TDatabaseTransactionZeosLib.Commit;
 begin
-
+  FConnection.Commit;
 end;
 
 constructor TDatabaseTransactionZeosLib.Create(const Connection: TZConnection);
 begin
+  FConnection := Connection;
 
+  FConnection.StartTransaction;
 end;
 
 procedure TDatabaseTransactionZeosLib.Rollback;
 begin
-
+  FConnection.Rollback;
 end;
 
 end.
+

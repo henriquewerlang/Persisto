@@ -1,4 +1,4 @@
-﻿unit Persisto.Database.Manipulator.SQLite.Test;
+﻿unit Persisto.SQLite.Test;
 
 interface
 

@@ -43,6 +43,8 @@ uses Persisto.SQLite, Persisto.Connection.Firedac, Persisto.Test.Entity;
 
 procedure TManagerTest.PrepareDatabase;
 begin
+  FManager.Mapper.GetTable(TInsertTest);
+
   FManager.UpdateDatabaseSchema;
 end;
 
@@ -63,7 +65,12 @@ end;
 
 procedure TManagerTest.WhenInsertAValueInManagerMustInsertTheValueInDatabaseAsExpected;
 begin
-//  FManager.Insert()
+  FManager.Insert(TInsertTest.Create);
+
+  var Cursor := FManager.OpenCursor('select * from InsertTest');
+
+  Assert.IsTrue(Cursor.Next);
+  Assert.AreEqual('123', String(Cursor.GetFieldValue(1)));
 end;
 
 { TManagerDatabaseManipulationTest }
@@ -71,10 +78,12 @@ end;
 procedure TManagerDatabaseManipulationTest.Setup;
 begin
   var Connection := TDatabaseConnectionFireDAC.Create;
-  Connection.Connection.DriverName := 'SQLite';
+  Connection.Connection.DriverName := 'SQLiteEx';
   Connection.Connection.Params.Database := ':memory:';
 
   FManager := TManager.Create(Connection, TDialectSQLite.Create);
+
+  FManager.Mapper.GetTable(TMySQLiteTable);
 end;
 
 procedure TManagerDatabaseManipulationTest.TearDown;

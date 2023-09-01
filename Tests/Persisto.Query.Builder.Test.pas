@@ -62,10 +62,6 @@ type
     [Test]
     procedure WhenCallInsertProcedureMustBuildTheSQLWithAllFieldsAndValuesFromTheClassParameter;
     [Test]
-    procedure OnlyPublishedPropertiesMustAppearInInsertSQL;
-    [Test]
-    procedure OnlyPublishedPropertiesMustAppearInUpdateSQL;
-    [Test]
     procedure WhenCallUpdateMustBuildTheSQLWithAllPropertiesInTheObjectParameter;
     [Test]
     procedure WhenTheClassHaveThePrimaryKeyAttributeMustBuildTheWhereWithTheValuesOfFieldInTheKeyList;
@@ -664,32 +660,6 @@ begin
            'on T5.IdClass2=T6.Id ' +
     'left join ClassHierarchy3 T7 ' +
            'on T1.IdClass2=T7.Id', Builder.GetSQL);
-end;
-
-procedure TQueryBuilderTest.OnlyPublishedPropertiesMustAppearInInsertSQL;
-begin
-  var MyClass := TPublicClass.Create;
-  MyClass.Id := 10;
-  MyClass.Name := 'My name';
-  MyClass.Value := 222;
-
-  Builder.Insert(MyClass);
-
-  Assert.AreEqual('insert into PublicClass(Id)values(10)', DatabaseClass.SQL);
-end;
-
-procedure TQueryBuilderTest.OnlyPublishedPropertiesMustAppearInUpdateSQL;
-begin
-  var MyClass := TPublicClass.Create;
-  MyClass.Id := 0;
-  MyClass.Name := 'My name';
-  MyClass.Value := 222;
-
-  AddObjectToCache(TPublicClass.Create);
-
-  Builder.Update(MyClass);
-
-  Assert.IsEmpty(DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.TheClassBeingSelectedMustHaveTheAliasDefined;

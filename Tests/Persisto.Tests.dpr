@@ -8,8 +8,6 @@ uses
   TestInsight.DUnitX,
   DUnitX.TestFramework,
   DUnitX.MemoryLeakMonitor.FastMM5,
-  FireDAC.Phys.SQLite,
-  FireDAC.Phys.SQLiteWrapper.Stat,
   Persisto.DataSet.Test in 'Persisto.DataSet.Test.pas',
   Persisto.DataSet in '..\Persisto.DataSet.pas',
   Persisto.Query.Builder.Test in 'Persisto.Query.Builder.Test.pas',
@@ -26,15 +24,17 @@ uses
   Persisto.Database.Metadata.Test in 'Persisto.Database.Metadata.Test.pas',
   Persisto.Database.Metadata.Manipulator.Test in 'Persisto.Database.Metadata.Manipulator.Test.pas',
   Persisto.SQLServer in '..\Persisto.SQLServer.pas',
-  Persisto.Database.Manipulator.SQLServer.Test in 'Persisto.Database.Manipulator.SQLServer.Test.pas',
+  Persisto.SQLServer.Test in 'Persisto.SQLServer.Test.pas',
   Persisto.Lazy.Manipulator.Test in 'Persisto.Lazy.Manipulator.Test.pas',
   Persisto.Nullable.Manipulator.Test in 'Persisto.Nullable.Manipulator.Test.pas',
   Persisto.SQLite in '..\Persisto.SQLite.pas',
-  Persisto.Database.Manipulator.SQLite.Test in 'Persisto.Database.Manipulator.SQLite.Test.pas',
+  Persisto.SQLite.Test in 'Persisto.SQLite.Test.pas',
   Persisto.Connection.Firedac in '..\Persisto.Connection.Firedac.pas',
   Persisto.Mapping in '..\Persisto.Mapping.pas',
   Persisto in '..\Persisto.pas',
-  Persisto.Manager.Test in 'Persisto.Manager.Test.pas';
+  Persisto.Manager.Test in 'Persisto.Manager.Test.pas',
+  Persisto.Database.Dialect.Test in 'Persisto.Database.Dialect.Test.pas',
+  Persisto.SQLite.Firedac.Drive in 'Persisto.SQLite.Firedac.Drive.pas';
 
 begin
   FastMM_EnterDebugMode;

@@ -17,12 +17,6 @@ type
     destructor Destroy; override;
   end;
 
-  TDatabaseEmptyCursorFireDAC = class(TInterfacedObject, IDatabaseCursor)
-  private
-    function GetFieldValue(const FieldIndex: Integer): Variant;
-    function Next: Boolean;
-  end;
-
   TDatabaseTransactionFireDAC = class(TInterfacedObject, IDatabaseTransaction)
   private
     FConnection: TFDConnection;
@@ -52,7 +46,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.Variants, Winapi.ActiveX, FireDAC.Stan.Def, FireDAC.Stan.Option, FireDAC.DApt, FireDAC.Stan.Async, Data.DB;
+uses FireDAC.Stan.Option, Data.DB, FireDAC.Stan.Def, FireDAC.Stan.Async, FireDAC.DApt, FireDAC.Phys.Intf;
 
 { TDatabaseCursorFireDAC }
 
@@ -63,6 +57,8 @@ begin
   FQuery := TFDQuery.Create(nil);
   FQuery.Connection := Connection;
   FQuery.SQL.Text := SQL;
+
+  FQuery.Prepare;
 end;
 
 destructor TDatabaseCursorFireDAC.Destroy;
@@ -86,8 +82,11 @@ function TDatabaseCursorFireDAC.Next: Boolean;
 begin
   if FQuery.Active then
     FQuery.Next
+  else if FQuery.Command.CommandKind in [skDelete, skInsert, skUpdate] then
+    FQuery.ExecSQL
   else
     FQuery.Open;
+
   Result := not FQuery.Eof;
 end;
 
@@ -96,8 +95,6 @@ end;
 constructor TDatabaseConnectionFireDAC.Create;
 begin
   inherited;
-
-  CoInitialize(nil);
 
   FConnection := TFDConnection.Create(nil);
   FConnection.FetchOptions.CursorKind := ckForwardOnly;
@@ -122,25 +119,7 @@ end;
 
 function TDatabaseConnectionFireDAC.ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
 begin
-  var
-  OutputSQL := EmptyStr;
-
-  for var Field in OutputFields do
-  begin
-    if not OutputSQL.IsEmpty then
-      OutputSQL := ',';
-
-    OutputSQL := OutputSQL + Format('Inserted.%s', [Field]);
-  end;
-
-  if OutputSQL.IsEmpty then
-  begin
-    ExecuteDirect(SQL);
-
-    Result := TDatabaseEmptyCursorFireDAC.Create;
-  end
-  else
-    Result := OpenCursor(SQL.Replace(')values(', Format(')output %s values(', [OutputSQL])));
+  Result := nil;
 end;
 
 function TDatabaseConnectionFireDAC.OpenCursor(const SQL: String): IDatabaseCursor;
@@ -151,18 +130,6 @@ end;
 function TDatabaseConnectionFireDAC.StartTransaction: IDatabaseTransaction;
 begin
   Result := TDatabaseTransactionFireDAC.Create(Connection);
-end;
-
-{ TDatabaseEmptyCursorFireDAC }
-
-function TDatabaseEmptyCursorFireDAC.GetFieldValue(const FieldIndex: Integer): Variant;
-begin
-  Result := NULL;
-end;
-
-function TDatabaseEmptyCursorFireDAC.Next: Boolean;
-begin
-  Result := False;
 end;
 
 { TDatabaseTransactionFireDAC }

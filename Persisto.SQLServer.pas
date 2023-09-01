@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Generics.Collections, Persisto, Persisto.Mapping;
+uses System.Generics.Collections, Data.DB, Persisto, Persisto.Mapping;
 
 type
   TManipulatorSQLServer = class(TMetadataManipulator, IMetadataManipulator)
@@ -31,6 +31,16 @@ type
   TDatabaseDefaultConstraintSQLServer = class(TDatabaseDefaultConstraint)
   public
     constructor Create(const Field: TDatabaseField; const Name, Value: String);
+  end;
+
+  TDialectSQLServer = class(TDatabaseDialect, IDatabaseDialect)
+  private
+    function CreateManipulator(const Manager: TManager): IMetadataManipulator;
+    function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
+  public
+    destructor Destroy; override;
+
+    procedure AfterConstruction; override;
   end;
 
 const
@@ -96,14 +106,14 @@ const
     'select Name ' +
       'from sys.sequences';
 
-implementation
-
-uses System.Variants, System.SysUtils;
-
 const
   FIELD_SPECIAL_TYPE_MAPPING: array[TDatabaseSpecialType] of String = ('', 'date', 'datetime', 'time', 'varchar(max)', 'uniqueidentifier', 'bit');
-  FIELD_TYPE_MAPPING: array[TTypeKind] of String = ('', 'int', '', 'tinyint', 'numeric', '', '', '', '', 'char', '', '', '', '', '', '', 'bigint', '', 'varchar', '', '', '', '');
+  FIELD_TYPE_MAPPING: array[System.TTypeKind] of String = ('', 'int', '', 'tinyint', 'numeric', '', '', '', '', 'char', '', '', '', '', '', '', 'bigint', '', 'varchar', '', '', '', '');
   SPECIAL_TYPE_IN_SYSTEM_TYPE: array[TDatabaseSpecialType] of TTypeKind = (tkUnknown, tkFloat, tkFloat, tkFloat, tkUString, tkUString, tkEnumeration);
+
+implementation
+
+uses System.Variants, System.SysUtils, Winapi.ActiveX;
 
 { TManipulatorSQLServer }
 
@@ -111,10 +121,10 @@ constructor TManipulatorSQLServer.Create(const Manager: TManager);
 begin
   inherited;
 
-  FFieldTypeMapping := TDictionary<String, TTypeKind>.Create;
+  FFieldTypeMapping := TDictionary<String, System.TTypeKind>.Create;
   FFieldSpecialTypeMapping := TDictionary<String, TDatabaseSpecialType>.Create;
 
-  for var AType := Low(TTypeKind) to High(TTypeKind) do
+  for var AType := Low(System.TTypeKind) to High(System.TTypeKind) do
     if not FIELD_TYPE_MAPPING[AType].IsEmpty then
       FFieldTypeMapping.Add(FIELD_TYPE_MAPPING[AType], AType);
 
@@ -324,6 +334,63 @@ end;
 constructor TDatabaseDefaultConstraintSQLServer.Create(const Field: TDatabaseField; const Name, Value: String);
 begin
   inherited Create(Field, Name, Value.SubString(1, Value.Length - 2));
+end;
+
+{ TDialectSQLServer }
+
+procedure TDialectSQLServer.AfterConstruction;
+begin
+  inherited;
+
+//  CoInitialize(nil);
+end;
+
+function TDialectSQLServer.CreateManipulator(const Manager: TManager): IMetadataManipulator;
+begin
+  Result := TManipulatorSQLServer.Create(Manager);
+end;
+
+destructor TDialectSQLServer.Destroy;
+begin
+//  CoUninitialize;
+
+  inherited;
+end;
+
+function TDialectSQLServer.MakeInsertStatement(const Table: TTable; const Params: TParams): String;
+begin
+  var FieldNames := EmptyStr;
+  var ParamNames := EmptyStr;
+  var ReturningFields := EmptyStr;
+
+  for var A := 0 to Pred(Params.Count) do
+  begin
+    if not FieldNames.IsEmpty then
+    begin
+      FieldNames := FieldNames + ',';
+      ParamNames := ParamNames + ',';
+    end;
+
+    FieldNames := FieldNames + Params[A].Name;
+    ParamNames := ParamNames + ':' + Params[A].Name;
+  end;
+
+  for var Field in Table.ReturningFields do
+  begin
+    if not ReturningFields.IsEmpty then
+      ReturningFields := ReturningFields + ',';
+
+    ReturningFields := ReturningFields + Format('Inserted.%s', [Field.DatabaseName]);
+  end;
+
+  Result := 'insert into %s(%s)';
+
+  if not ReturningFields.IsEmpty then
+    Result := Result + Format('output %s ', [ReturningFields]);
+
+  Result := Result + 'values(%s)';
+
+  Result := Format(Result, [Table.DatabaseName, FieldNames, ParamNames]);
 end;
 
 end.

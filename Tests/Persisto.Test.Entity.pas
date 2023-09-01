@@ -1192,6 +1192,19 @@ type
     property Id: Integer read FId write FId;
   end;
 
+  [Entity]
+  TInsertTest = class
+  private
+    FId: String;
+    FIntegerValue: Integer;
+    FValue: Double;
+  published
+    [NewUniqueIdentifier, Size(20)]
+    property Id: String read FId write FId;
+    property IntegerValue: Integer read FIntegerValue write FIntegerValue;
+    property Value: Double read FValue write FValue;
+  end;
+
 implementation
 
 { TManyValueParentChildError }

@@ -2,7 +2,7 @@
 
 interface
 
-uses System.TypInfo, System.Rtti, System.SysUtils, System.Generics.Collections, System.Generics.Defaults, Persisto.Mapping;
+uses System.TypInfo, System.Rtti, System.SysUtils, System.Generics.Collections, System.Generics.Defaults, Data.DB, Persisto.Mapping;
 
 type
   TBuilderOptions = set of (boBeautifyQuery, boJoinMapping, boDestroyForeignObjects);
@@ -422,11 +422,12 @@ type
   IDatabaseDialect = interface
     ['{C4BE54B1-7C38-41FA-9F2B-7AEAACA07775}']
     function CreateManipulator(const Manager: TManager): IMetadataManipulator;
+    function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
   end;
 
   TDatabaseDialect = class(TInterfacedObject)
-  protected
-
+  public
+    function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
   end;
 
   TLazyFactory = class(TInterfacedObject)
@@ -1043,7 +1044,7 @@ function Field(const Name: String): TQueryBuilderComparisonHelper;
 
 implementation
 
-uses System.Variants, Persisto.Rtti.Helper;
+uses System.Variants, System.SysConst, Persisto.Rtti.Helper;
 
 function CreateLoader(const Manager: TManager; const LazyField: TField; const KeyValue: TValue): ILazyLoader;
 begin
@@ -4066,8 +4067,6 @@ begin
   FConnection := Connection;
   FDialect := Dialect;
   FMapper := TMapper.Create;
-
-  FMapper.LoadAll;
 end;
 
 procedure TManager.Delete(const &Object: TObject);
@@ -4084,7 +4083,6 @@ end;
 
 procedure TManager.Insert(const &Object: TObject);
 begin
-
 end;
 
 function TManager.OpenCursor(const SQL: String): IDatabaseCursor;
@@ -4116,6 +4114,42 @@ begin
   finally
     Updater.Free;
   end;
+end;
+
+{ TDatabaseDialect }
+
+function TDatabaseDialect.MakeInsertStatement(const Table: TTable; const Params: TParams): String;
+begin
+  var FieldNames := EmptyStr;
+  var ParamNames := EmptyStr;
+  var ReturningFields := EmptyStr;
+
+  for var A := 0 to Pred(Params.Count) do
+  begin
+    if not FieldNames.IsEmpty then
+    begin
+      FieldNames := FieldNames + ',';
+      ParamNames := ParamNames + ',';
+    end;
+
+    FieldNames := FieldNames + Params[A].Name;
+    ParamNames := ParamNames + ':' + Params[A].Name;
+  end;
+
+  for var Field in Table.ReturningFields do
+  begin
+    if not ReturningFields.IsEmpty then
+      ReturningFields := ReturningFields + ',';
+
+    ReturningFields := ReturningFields + Field.DatabaseName;
+  end;
+
+  Result := 'insert into %s(%s)values(%s)';
+
+  if not ReturningFields.IsEmpty then
+    Result := Result + 'returning %s';
+
+  Result := Format(Result, [Table.DatabaseName, FieldNames, ParamNames, ReturningFields]);
 end;
 
 end.
