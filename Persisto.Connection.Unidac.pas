@@ -61,7 +61,6 @@ begin
   FQuery := TUniQuery.Create(nil);
   FQuery.Connection := FConnection.Connection;
   FQuery.SQL.Text := SQL;
-  FQuery.FetchRows := 65000;
   FQuery.UniDirectional := True;
 end;
 
