@@ -584,7 +584,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.DateUtils, Translucent, Persisto.Rtti.Helper;
+uses System.SysUtils, System.DateUtils, Translucent;
 
 const
   COMPARISON_OPERATOR: array[TQueryBuilderComparisonOperator] of String = ('', '=', '<>', '>', '>=', '<', '<=', '', '', '', '');

@@ -178,7 +178,6 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="Persisto.Query.Builder.Test.pas"/>
         <DCCReference Include="Persisto.Classes.Loader.Test.pas"/>
         <DCCReference Include="Persisto.Mapper.Test.pas"/>
-        <DCCReference Include="..\Persisto.Rtti.Helper.pas"/>
         <DCCReference Include="Persisto.Test.Entity.pas"/>
         <DCCReference Include="Persisto.Cursor.Mock.pas"/>
         <DCCReference Include="Persisto.Rtti.Helper.Test.pas"/>

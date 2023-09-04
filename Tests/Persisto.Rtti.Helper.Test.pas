@@ -71,7 +71,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.DateUtils, System.Variants, System.TypInfo, System.SysConst, System.Generics.Collections, Persisto.Rtti.Helper, Persisto.Test.Entity;
+uses System.SysUtils, System.DateUtils, System.Variants, System.TypInfo, System.SysConst, System.Generics.Collections, Persisto.Mapping, Persisto.Test.Entity;
 
 const
   MyConstArray: array[0..2] of Integer = (1, 2, 3);

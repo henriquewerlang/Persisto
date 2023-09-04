@@ -53,7 +53,7 @@ type
 
 implementation
 
-uses System.Rtti, Persisto.Rtti.Helper;
+uses System.Rtti;
 
 { TLazySingleClassFactoryTest }
 

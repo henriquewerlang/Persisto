@@ -1044,7 +1044,7 @@ function Field(const Name: String): TQueryBuilderComparisonHelper;
 
 implementation
 
-uses System.Variants, System.SysConst, Persisto.Rtti.Helper;
+uses System.Variants, System.SysConst;
 
 function CreateLoader(const Manager: TManager; const LazyField: TField; const KeyValue: TValue): ILazyLoader;
 begin

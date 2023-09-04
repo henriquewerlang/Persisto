@@ -13,7 +13,6 @@ uses
   Persisto.Query.Builder.Test in 'Persisto.Query.Builder.Test.pas',
   Persisto.Classes.Loader.Test in 'Persisto.Classes.Loader.Test.pas',
   Persisto.Mapper.Test in 'Persisto.Mapper.Test.pas',
-  Persisto.Rtti.Helper in '..\Persisto.Rtti.Helper.pas',
   Persisto.Test.Entity in 'Persisto.Test.Entity.pas',
   Persisto.Cursor.Mock in 'Persisto.Cursor.Mock.pas',
   Persisto.Rtti.Helper.Test in 'Persisto.Rtti.Helper.Test.pas',

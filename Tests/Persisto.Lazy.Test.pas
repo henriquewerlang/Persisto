@@ -44,7 +44,7 @@ type
 
 implementation
 
-uses System.SysUtils, Translucent, Persisto.Rtti.Helper;
+uses System.SysUtils, Translucent;
 
 { TLazyTest }
 

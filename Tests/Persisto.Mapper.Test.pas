@@ -378,7 +378,7 @@ type
 
 implementation
 
-uses System.Variants, System.SysUtils, System.DateUtils, System.TypInfo, Persisto.Test.Entity, Translucent, Persisto.Rtti.Helper;
+uses System.Variants, System.SysUtils, System.DateUtils, System.TypInfo, Persisto.Test.Entity, Translucent;
 
 { TMapperTest }
 
