@@ -7,7 +7,7 @@ uses Persisto, ZAbstractConnection, ZConnection, ZAbstractRODataset, ZAbstractDa
 type
   TDatabaseCursorZeosLib = class(TInterfacedObject, IDatabaseCursor)
   private
-    FQuery: TZQuery;
+    FQuery: TZReadOnlyQuery;
 
     function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
@@ -90,8 +90,9 @@ constructor TDatabaseCursorZeosLib.Create(const Connection: TZConnection; const 
 begin
   inherited Create;
 
-  FQuery := TZQuery.Create(nil);
+  FQuery := TZReadOnlyQuery.Create(nil);
   FQuery.Connection := Connection;
+  FQuery.Options := FQuery.Options + [doSmartOpen];
   FQuery.SQL.Text := SQL;
 
   FQuery.Prepare;
