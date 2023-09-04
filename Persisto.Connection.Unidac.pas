@@ -49,7 +49,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.Variants, Winapi.ActiveX;
+uses System.SysUtils, System.Variants, Winapi.ActiveX, DBAccess, CRAccess;
 
 { TDatabaseCursorUnidac }
 
@@ -80,6 +80,8 @@ function TDatabaseCursorUnidac.Next: Boolean;
 begin
   if FQuery.Active then
     FQuery.Next
+  else if TDBAccessUtils.GetICommand(FQuery).ParsedSQLType = qtInsert then
+    FQuery.ExecSQL
   else
     FQuery.Open;
 
