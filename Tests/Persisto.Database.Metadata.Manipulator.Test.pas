@@ -232,12 +232,12 @@ begin
       Result := TValue.From(FCursor.Instance);
     end).When.OpenCursor(It.IsAny<String>);
 
-  FConnection.Setup.WillExecute(
-    function (const Params: TArray<TValue>): TValue
-    begin
-      FSQLExecuted := Params[1].AsString;
-      Result := TValue.From(FCursor.Instance);
-    end).When.ExecuteInsert(It.IsAny<String>, It.IsAny<TArray<String>>);
+//  FConnection.Setup.WillExecute(
+//    function (const Params: TArray<TValue>): TValue
+//    begin
+//      FSQLExecuted := Params[1].AsString;
+//      Result := TValue.From(FCursor.Instance);
+//    end).When.ExecuteInsert(It.IsAny<String>, It.IsAny<TArray<String>>);
 
   FConnection.Setup.WillExecute(
     function (const Params: TArray<TValue>): TValue

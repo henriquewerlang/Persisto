@@ -33,7 +33,8 @@ uses
   Persisto in '..\Persisto.pas',
   Persisto.Manager.Test in 'Persisto.Manager.Test.pas',
   Persisto.Database.Dialect.Test in 'Persisto.Database.Dialect.Test.pas',
-  Persisto.SQLite.Firedac.Drive in 'Persisto.SQLite.Firedac.Drive.pas';
+  Persisto.SQLite.Firedac.Drive in 'Persisto.SQLite.Firedac.Drive.pas',
+  Persisto.SQLite.Firedac.Functions in 'Persisto.SQLite.Firedac.Functions.pas';
 
 begin
   FastMM_EnterDebugMode;

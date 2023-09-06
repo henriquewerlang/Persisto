@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework;
+uses System.Rtti, Data.DB, DUnitX.TestFramework;
 
 type
   [TestFixture]
@@ -45,6 +45,26 @@ type
     procedure WhenCallTheAsArrayMustReturnTheRttiTypeOfDynamicArray;
     [Test]
     procedure WhenGetAnAttributeMustReturnTheChosenAttribute;
+    [TestCase('Array', 'MyArray,ftDataSet')]
+    [TestCase('Boolean', 'Boolean,ftBoolean')]
+    [TestCase('Byte', 'Byte,ftByte')]
+    [TestCase('Cardinal', 'Cardinal,ftLongWord')]
+    [TestCase('Char', 'Char,ftString')]
+    [TestCase('Class', 'Class,ftVariant')]
+    [TestCase('Currency', 'Currency,ftCurrency')]
+    [TestCase('Date', 'Date,ftDate')]
+    [TestCase('DateTime', 'DateTime,ftDateTime')]
+    [TestCase('Double', 'Double,ftFloat')]
+    [TestCase('Enumerator', 'MyEnum,ftInteger')]
+    [TestCase('Int64', 'Int64,ftLargeint')]
+    [TestCase('Integer', 'Int,ftInteger')]
+    [TestCase('Sigle', 'Single,ftSingle')]
+    [TestCase('String', 'Str,ftString')]
+    [TestCase('Time', 'Time,ftTime')]
+    [TestCase('WideChar', 'WideChar,ftString')]
+    [TestCase('WideString', 'WideString,ftWideString')]
+    [TestCase('Word', 'Word,ftWord')]
+    procedure TheFieldTypeMustMatchWithPropertyType(const PropertyName: String; const TypeToCompare: TFieldType);
   end;
 
   [TestFixture]
@@ -71,12 +91,23 @@ type
 
 implementation
 
-uses System.SysUtils, System.DateUtils, System.Variants, System.TypInfo, System.SysConst, System.Generics.Collections, Persisto.Mapping, Persisto.Test.Entity;
+uses System.SysUtils, System.DateUtils, System.Variants, System.TypInfo, System.SysConst, System.Generics.Collections, Persisto.Mapping, Persisto.Test.Entity,
+  Persisto.DataSet.Test;
 
 const
   MyConstArray: array[0..2] of Integer = (1, 2, 3);
 
 { TRttiTypeHelperTest }
+
+procedure TRttiTypeHelperTest.TheFieldTypeMustMatchWithPropertyType(const PropertyName: String; const TypeToCompare: TFieldType);
+begin
+  var Context := TRttiContext.Create;
+  var ClassType := Context.GetType(TMyTestClassTypes).AsInstance;
+
+  Assert.AreEqual(TypeToCompare, ClassType.GetProperty(PropertyName).PropertyType.FieldType);
+
+  Context.Free;
+end;
 
 procedure TRttiTypeHelperTest.WhenCallTheAsArrayMustReturnTheRttiTypeOfDynamicArray;
 begin

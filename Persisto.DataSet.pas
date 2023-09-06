@@ -121,7 +121,6 @@ type
 
     function GetCurrentActiveBuffer: TPersistoRecordBuffer;
     function GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
-    function GetFieldInfoFromTypeInfo(PropertyType: PTypeInfo; var Size: Integer): TFieldType;
     function GetFieldTypeFromProperty(&Property: TRttiProperty): TFieldType;
     function GetObjectAndPropertyFromParentDataSet(var Instance: TValue; var &Property: TRttiProperty): Boolean;
     function GetObjectClass<T: class>: TClass;
@@ -636,80 +635,20 @@ begin
 end;
 
 function TPersistoDataSet.GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
+var
+  PropertyType: TRttiType;
+
 begin
   if TNullableManipulator.IsNullable(&Property) then
-    Result := GetFieldInfoFromTypeInfo(TNullableManipulator.GetNullableType(&Property).Handle, Size)
+    PropertyType := TNullableManipulator.GetNullableType(&Property)
   else if TLazyManipulator.IsLazyLoading(&Property) then
-    Result := GetFieldInfoFromTypeInfo(TLazyManipulator.GetLazyLoadingType(&Property).Handle, Size)
+    PropertyType := TLazyManipulator.GetLazyLoadingType(&Property)
   else
-    Result := GetFieldInfoFromTypeInfo(&Property.PropertyType.Handle, Size);
-end;
+    PropertyType := &Property.PropertyType;
 
-function TPersistoDataSet.GetFieldInfoFromTypeInfo(PropertyType: PTypeInfo; var Size: Integer): TFieldType;
-var
-  PropertyKind: TTypeKind;
+  Result := PropertyType.FieldType;
 
-begin
-  PropertyKind := {$IFDEF PAS2JS}TTypeInfo{$ENDIF}(PropertyType).Kind;
-  Result := ftUnknown;
-  Size := 0;
-
-  case PropertyKind of
-{$IFDEF DCC}
-    tkLString,
-    tkUString,
-    tkWChar,
-{$ENDIF}
-    tkChar,
-    tkString: Result := ftString;
-{$IFDEF PAS2JS}
-    tkBool,
-{$ENDIF}
-    tkEnumeration:
-      if PropertyType = TypeInfo(Boolean) then
-        Result := ftBoolean
-      else
-        Result := ftInteger;
-    tkFloat:
-      if PropertyType = TypeInfo(TDate) then
-        Result := ftDate
-      else if PropertyType = TypeInfo(TDateTime) then
-        Result := ftDateTime
-      else if PropertyType = TypeInfo(TTime) then
-        Result := ftTime
-      else
-{$IFDEF DCC}
-        case PropertyType.TypeData.FloatType of
-          ftCurr: Result := TFieldType.ftCurrency;
-          ftDouble: Result := TFieldType.ftFloat;
-          ftExtended: Result := TFieldType.ftExtended;
-          ftSingle: Result := TFieldType.ftSingle;
-        end;
-{$ELSE}
-        Result := TFieldType.ftFloat;
-{$ENDIF}
-    tkInteger:
-{$IFDEF DCC}
-      case PropertyType.TypeData.OrdType of
-        otSByte,
-        otUByte: Result := ftByte;
-        otSWord: Result := ftInteger;
-        otUWord: Result := ftWord;
-        otSLong: Result := ftInteger;
-        otULong: Result := ftLongWord;
-      end;
-{$ELSE}
-      Result := ftInteger;
-{$ENDIF}
-    tkClass: Result := ftVariant;
-{$IFDEF DCC}
-    tkInt64: Result := ftLargeint;
-    tkWString: Result := ftWideString;
-{$ENDIF}
-    tkDynArray: Result := ftDataSet;
-  end;
-
-  case PropertyKind of
+  case PropertyType.TypeKind of
 {$IFDEF DCC}
     tkLString,
     tkUString,
@@ -721,6 +660,7 @@ begin
     tkWChar,
 {$ENDIF}
     tkChar: Size := 1;
+    else Size := 0;
   end;
 end;
 

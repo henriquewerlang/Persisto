@@ -2,7 +2,7 @@
 
 interface
 
-uses Persisto, FireDAC.Comp.Client;
+uses Data.DB, FireDAC.Comp.Client, Persisto;
 
 type
   TDatabaseCursorFireDAC = class(TInterfacedObject, IDatabaseCursor)
@@ -11,8 +11,11 @@ type
 
     function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
+
+    procedure SetParams(const Params: TParams);
   public
-    constructor Create(const Connection: TFDConnection; const SQL: String);
+    constructor Create(const Connection: TFDConnection; const SQL: String); overload;
+    constructor Create(const Connection: TFDConnection; const SQL: String; const Params: TParams); overload;
 
     destructor Destroy; override;
   end;
@@ -31,7 +34,7 @@ type
   private
     FConnection: TFDConnection;
 
-    function ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
+    function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
     function OpenCursor(const SQL: String): IDatabaseCursor;
     function StartTransaction: IDatabaseTransaction;
 
@@ -46,7 +49,7 @@ type
 
 implementation
 
-uses FireDAC.Stan.Option, Data.DB, FireDAC.Stan.Def, FireDAC.Stan.Async, FireDAC.DApt, FireDAC.Phys.Intf;
+uses FireDAC.Stan.Option, FireDAC.Stan.Def, FireDAC.Stan.Async, FireDAC.DApt, FireDAC.Phys.Intf;
 
 { TDatabaseCursorFireDAC }
 
@@ -57,6 +60,13 @@ begin
   FQuery := TFDQuery.Create(nil);
   FQuery.Connection := Connection;
   FQuery.SQL.Text := SQL;
+end;
+
+constructor TDatabaseCursorFireDAC.Create(const Connection: TFDConnection; const SQL: String; const Params: TParams);
+begin
+  Create(Connection, SQL, Params);
+
+  FQuery.Params.Assign(Params);
 
   FQuery.Prepare;
 end;
@@ -90,6 +100,11 @@ begin
   Result := not FQuery.Eof;
 end;
 
+procedure TDatabaseCursorFireDAC.SetParams(const Params: TParams);
+begin
+  FQuery.Params.Assign(Params);
+end;
+
 { TDatabaseConnectionFireDAC }
 
 constructor TDatabaseConnectionFireDAC.Create;
@@ -117,14 +132,14 @@ begin
   FConnection.ExecSQL(SQL);
 end;
 
-function TDatabaseConnectionFireDAC.ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
-begin
-  Result := nil;
-end;
-
 function TDatabaseConnectionFireDAC.OpenCursor(const SQL: String): IDatabaseCursor;
 begin
   Result := TDatabaseCursorFireDAC.Create(Connection, SQL);
+end;
+
+function TDatabaseConnectionFireDAC.PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
+begin
+  Result := TDatabaseCursorFireDAC.Create(Connection, SQL, Params);
 end;
 
 function TDatabaseConnectionFireDAC.StartTransaction: IDatabaseTransaction;

@@ -138,7 +138,6 @@ $(PostBuildEvent)]]></PostBuildEvent>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
         <DCC_UsePackage>DBXSqliteDriver;IndyIPCommon;RESTComponents;bindcompdbx;DBXInterBaseDriver;vcl;IndyIPServer;vclactnband;vclFireDAC;IndySystem;tethering;dsnapcon;FireDACADSDriver;FireDACMSAccDriver;fmxFireDAC;vclimg;FireDAC;vcltouch;vcldb;bindcompfmx;FireDACSqliteDriver;FireDACPgDriver;inetdb;soaprtl;DbxCommonDriver;fmx;FireDACIBDriver;fmxdae;xmlrtl;soapmidas;fmxobj;vclwinx;rtl;DbxClientDriver;CustomIPTransport;vcldsnap;dbexpress;IndyCore;vclx;bindcomp;appanalytics;dsnap;FireDACCommon;IndyIPClient;bindcompvcl;RESTBackendComponents;VCLRESTComponents;soapserver;dbxcds;VclSmp;adortl;vclie;bindengine;DBXMySQLDriver;CloudService;dsnapxml;FireDACMySQLDriver;dbrtl;IndyProtocols;inetdbxpress;FireDACCommonODBC;FireDACCommonDriver;inet;fmxase;$(DCC_UsePackage)</DCC_UsePackage>
-        <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
         <BT_BuildType>Debug</BT_BuildType>
         <VerInfo_Locale>1033</VerInfo_Locale>
     </PropertyGroup>
@@ -199,6 +198,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="Persisto.Manager.Test.pas"/>
         <DCCReference Include="Persisto.Database.Dialect.Test.pas"/>
         <DCCReference Include="Persisto.SQLite.Firedac.Drive.pas"/>
+        <DCCReference Include="Persisto.SQLite.Firedac.Functions.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -1002,7 +1002,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Android64'">
@@ -1010,7 +1010,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='iOSDevice64'">
@@ -1018,7 +1018,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='iOSSimARM64'">
@@ -1026,7 +1026,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Linux64'">
@@ -1034,7 +1034,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='OSX64'">
@@ -1042,7 +1042,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='OSXARM64'">
@@ -1050,7 +1050,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win32'">
@@ -1058,7 +1058,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win64'">
@@ -1066,7 +1066,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Android'">
@@ -1074,7 +1074,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Android64'">
@@ -1082,7 +1082,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='iOSDevice64'">
@@ -1090,7 +1090,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='iOSSimARM64'">
@@ -1098,7 +1098,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Linux64'">
@@ -1106,7 +1106,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='OSX64'">
@@ -1114,7 +1114,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='OSXARM64'">
@@ -1122,7 +1122,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win32'">
@@ -1130,7 +1130,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win64'">
@@ -1138,7 +1138,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
+        <PostBuildEvent>Copy $(PROJECTDIR)\SQLite\$(Platform)\sqlite3.dll $(OUTPUTDIR)\sqlite3.dll</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
 </Project>

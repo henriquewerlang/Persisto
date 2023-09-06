@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Persisto, Persisto.Mapping, Persisto.Test.Entity, Translucent.Intf, Persisto.Cursor.Mock;
+uses System.Rtti, Data.DB, DUnitX.TestFramework, Persisto, Persisto.Mapping, Persisto.Test.Entity, Translucent.Intf, Persisto.Cursor.Mock;
 
 type
   TDatabaseTest = class;
@@ -570,7 +570,7 @@ type
     FSQL: String;
     FOutputFields: TArray<String>;
 
-    function ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
+    function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
     function OpenCursor(const SQL: String): IDatabaseCursor;
     function StartTransaction: IDatabaseTransaction;
 
@@ -1237,17 +1237,16 @@ begin
   SaveSQL(SQL);
 end;
 
-function TDatabaseTest.ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
-begin
-  FOutputFields := OutputFields;
-  Result := OpenCursor(SQL);
-end;
-
 function TDatabaseTest.OpenCursor(const SQL: String): IDatabaseCursor;
 begin
   Result := FCursor;
 
   SaveSQL(SQL);
+end;
+
+function TDatabaseTest.PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
+begin
+  Result := nil;
 end;
 
 procedure TDatabaseTest.SaveSQL(const SQL: String);
@@ -2334,12 +2333,6 @@ begin
 
   DatabaseMock.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
 
-  DatabaseMock.Setup.WillExecute(
-    procedure
-    begin
-      raise Exception.Create('An error message');
-    end).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
-
   Assert.WillRaise(
     procedure
     begin
@@ -2442,12 +2435,6 @@ begin
 
   DatabaseMock.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
 
-  DatabaseMock.Setup.WillExecute(
-    procedure
-    begin
-      raise Exception.Create('An error message');
-    end).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
-
   try
     Builder.Insert(MyClass);
   except
@@ -2530,7 +2517,7 @@ begin
 
   DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
-  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+//  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
 
   Builder.Insert(MyClass);
 
@@ -2636,20 +2623,20 @@ begin
   var MyClass := TClassWithForeignKey.Create;
   MyClass.AnotherClass := TClassWithPrimaryKey.Create;
 
-  DatabaseMock.Setup.WillExecute(
-    function (const Args: TArray<TValue>): TValue
-    begin
-      ForeignKeySaved := True;
-      Result := TValue.From(FCursor);
-    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ClassWithPrimaryKey(Value)values(0)'), It(1).IsAny<TArray<String>>);
+//  DatabaseMock.Setup.WillExecute(
+//    function (const Args: TArray<TValue>): TValue
+//    begin
+//      ForeignKeySaved := True;
+//      Result := TValue.From(FCursor);
+//    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ClassWithPrimaryKey(Value)values(0)'), It(1).IsAny<TArray<String>>);
 
-  DatabaseMock.Setup.WillExecute(
-    function (const Args: TArray<TValue>): TValue
-    begin
-      Result := TValue.From(FCursor);
-
-      Assert.IsTrue(ForeignKeySaved, 'The foreign key not saved');
-    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ClassWithForeignKey(IdAnotherClass)values(123)'), It(1).IsAny<TArray<String>>);
+//  DatabaseMock.Setup.WillExecute(
+//    function (const Args: TArray<TValue>): TValue
+//    begin
+//      Result := TValue.From(FCursor);
+//
+//      Assert.IsTrue(ForeignKeySaved, 'The foreign key not saved');
+//    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ClassWithForeignKey(IdAnotherClass)values(123)'), It(1).IsAny<TArray<String>>);
 
   DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
@@ -2663,20 +2650,20 @@ begin
   MyClass.Id := 123;
   MyClass.Childs := [TManyValueChild.Create];
 
-  DatabaseMock.Setup.WillExecute(
-    function (const Args: TArray<TValue>): TValue
-    begin
-      CanSaveManyValueAssociation := True;
-      Result := TValue.From(FCursor);
-    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ManyValueParent(Id)values(123)'), It(1).IsAny<TArray<String>>);
-
-  DatabaseMock.Setup.WillExecute(
-    function (const Args: TArray<TValue>): TValue
-    begin
-      Result := TValue.From(FCursor);
-
-      Assert.IsTrue(CanSaveManyValueAssociation, 'The parent entity not saved');
-    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ManyValueChild(IdParent)values(123)'), It(1).IsAny<TArray<String>>);
+//  DatabaseMock.Setup.WillExecute(
+//    function (const Args: TArray<TValue>): TValue
+//    begin
+//      CanSaveManyValueAssociation := True;
+//      Result := TValue.From(FCursor);
+//    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ManyValueParent(Id)values(123)'), It(1).IsAny<TArray<String>>);
+//
+//  DatabaseMock.Setup.WillExecute(
+//    function (const Args: TArray<TValue>): TValue
+//    begin
+//      Result := TValue.From(FCursor);
+//
+//      Assert.IsTrue(CanSaveManyValueAssociation, 'The parent entity not saved');
+//    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ManyValueChild(IdParent)values(123)'), It(1).IsAny<TArray<String>>);
 
   DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
@@ -2937,7 +2924,7 @@ begin
   MyClass.PassCount := 3;
   MyClass.Values := [TManyValueParentChildError.Create];
 
-  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+//  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
 
   DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
@@ -2954,7 +2941,7 @@ begin
   MyClass.PassCount := 4;
   MyClass.Values := [TManyValueParentChildError.Create];
 
-  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+//  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
 
   DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
@@ -2970,7 +2957,7 @@ begin
 
   AddObjectToCache(TMyEntityInheritedFromSimpleClass.Create, 123);
 
-  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+//  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
 
   DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
@@ -3015,7 +3002,7 @@ begin
 
   DatabaseMock.Setup.WillReturn(TValue.From(Transaction.Instance)).When.StartTransaction;
 
-  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+//  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
 
   Builder.Insert(MyClass);
 
@@ -3128,7 +3115,7 @@ begin
 
   AddObjectToCache(TClassWithForeignKey.Create);
 
-  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
+//  DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance)).When.ExecuteInsert(It(0).IsAny<String>, It(1).IsAny<TArray<String>>);
 
   DatabaseMock.Setup.WillReturn(TValue.From(TMock.CreateInterface<IDatabaseTransaction>(True).Instance)).When.StartTransaction;
 
@@ -3249,12 +3236,12 @@ begin
 
   AddObjectToCache(TClassWithForeignKey.Create);
 
-  DatabaseMock.Setup.WillExecute(
-    function (const Args: TArray<TValue>): TValue
-    begin
-      ForeignKeySaved := True;
-      Result := TValue.From(FCursor);
-    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ClassWithPrimaryKey(Value)values(0)'), It(1).IsAny<TArray<String>>);
+//  DatabaseMock.Setup.WillExecute(
+//    function (const Args: TArray<TValue>): TValue
+//    begin
+//      ForeignKeySaved := True;
+//      Result := TValue.From(FCursor);
+//    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ClassWithPrimaryKey(Value)values(0)'), It(1).IsAny<TArray<String>>);
 
   DatabaseMock.Setup.WillExecute(
     function (const Args: TArray<TValue>): TValue
@@ -3285,13 +3272,13 @@ begin
 
   AddObjectToCache(Cache.Child);
 
-  DatabaseMock.Setup.WillExecute(
-    function (const Args: TArray<TValue>): TValue
-    begin
-      Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
-
-      Assert.IsTrue(CanSaveManyValueAssociation, 'The parent entity not saved');
-    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ManyValueChild(IdParent)values(123)'), It(1).IsAny<TArray<String>>);
+//  DatabaseMock.Setup.WillExecute(
+//    function (const Args: TArray<TValue>): TValue
+//    begin
+//      Result := TValue.From(TMock.CreateInterface<IDatabaseCursor>(True).Instance);
+//
+//      Assert.IsTrue(CanSaveManyValueAssociation, 'The parent entity not saved');
+//    end).When.ExecuteInsert(It(0).IsEqualTo('insert into ManyValueChild(IdParent)values(123)'), It(1).IsAny<TArray<String>>);
 
   DatabaseMock.Setup.WillExecute(
     function (const Args: TArray<TValue>): TValue

@@ -2,7 +2,7 @@ unit Persisto.Cursor.Mock;
 
 interface
 
-uses Persisto;
+uses Data.DB, Persisto;
 
 type
   TCursorMock = class(TInterfacedObject, IDatabaseCursor)
@@ -13,6 +13,7 @@ type
     function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
 
+    procedure SetParams(const Params: TParams);
     procedure SetValues(const Value: TArray<TArray<Variant>>);
   public
     constructor Create; overload;
@@ -48,6 +49,11 @@ begin
   Inc(FCurrentRecord);
 
   Result := FCurrentRecord < Length(FValues);
+end;
+
+procedure TCursorMock.SetParams(const Params: TParams);
+begin
+
 end;
 
 procedure TCursorMock.SetValues(const Value: TArray<TArray<Variant>>);
