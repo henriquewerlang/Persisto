@@ -2619,7 +2619,7 @@ end;
 procedure TQueryBuilderDataManipulationTest.WhenInsertAnEntityMustSaveTheForeignKeysFirstAfterThisMustInsertTheEntity;
 begin
   FCursorClass.Values := [[123], [123]];
-  var ForeignKeySaved := False;
+//  var ForeignKeySaved := False;
   var MyClass := TClassWithForeignKey.Create;
   MyClass.AnotherClass := TClassWithPrimaryKey.Create;
 
@@ -2645,7 +2645,7 @@ end;
 
 procedure TQueryBuilderDataManipulationTest.WhenInsertAnEntityMustSaveTheManyValueAssociationsAfterInsertedTheEntity;
 begin
-  var CanSaveManyValueAssociation := False;
+//  var CanSaveManyValueAssociation := False;
   var MyClass := TManyValueParent.Create;
   MyClass.Id := 123;
   MyClass.Childs := [TManyValueChild.Create];

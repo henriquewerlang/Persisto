@@ -11,8 +11,6 @@ type
 
     function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
-
-    procedure SetParams(const Params: TParams);
   public
     constructor Create(const Connection: TFDConnection; const SQL: String); overload;
     constructor Create(const Connection: TFDConnection; const SQL: String; const Params: TParams); overload;
@@ -64,7 +62,7 @@ end;
 
 constructor TDatabaseCursorFireDAC.Create(const Connection: TFDConnection; const SQL: String; const Params: TParams);
 begin
-  Create(Connection, SQL, Params);
+  Create(Connection, SQL);
 
   FQuery.Params.Assign(Params);
 
@@ -98,11 +96,6 @@ begin
     FQuery.Open;
 
   Result := not FQuery.Eof;
-end;
-
-procedure TDatabaseCursorFireDAC.SetParams(const Params: TParams);
-begin
-  FQuery.Params.Assign(Params);
 end;
 
 { TDatabaseConnectionFireDAC }
