@@ -8,10 +8,7 @@ type
   [TestFixture]
   TClassLoaderTest = class
   private
-    FAccess: IMock<IQueryBuilderAccess>;
     FBuilder: TQueryBuilder;
-    FCache: ICache;
-    FChangeManager: IMock<IChangeManager>;
     FClassLoader: TClassLoader;
     FCursorMock: IDatabaseCursor;
     FCursorMockClass: TCursorMock;
@@ -70,8 +67,6 @@ type
     [Test]
     procedure WhenThePrimaryKeyDontChangeCantReloadTheForeignKeysOfTheClass;
     [Test]
-    procedure WhenTheLoaderCreateANewObjectMustAddItToTheCacheControl;
-    [Test]
     procedure WhenTheManyValueAssociationFieldHasRepetedKeyMustLoadJustOnceThenProperty;
     [Test]
     procedure WhenTheManyValueAssociationHasAValueInAForeignKeyAndInsideTheManyValueMustLoadTheManyValueAssociationWithAllValues;
@@ -98,11 +93,7 @@ type
     [Test]
     procedure WhenLoadAClassWithALazyArrayClassMustLoadAllValuesAsExpected;
     [Test]
-    procedure AfterLoadAnObjectMustCallTheAddInInstanceOfChangeManager;
-    [Test]
     procedure WhenCallTheAddInstanceTheParamsMustBeTheValuesExpected;
-    [Test]
-    procedure TheAddInstanceMustBeCalledJustOncePerInstance;
     [Test]
     procedure WhenTheLazyFieldAlreadyLoadedAndTheInternalKeyValueHasChangedMustReloadTheLazyControl;
   end;
@@ -112,17 +103,6 @@ implementation
 uses System.SysUtils, System.Variants, System.Rtti, Translucent, Persisto.Test.Entity;
 
 { TClassLoaderTest }
-
-procedure TClassLoaderTest.AfterLoadAnObjectMustCallTheAddInInstanceOfChangeManager;
-begin
-  FChangeManager.Expect.Once.When.AddInstance(It(0).IsAny<TTable>, It(1).IsAny<TObject>);
-
-  FCursorMockClass.Values := [['aaa', 111]];
-
-  LoadClass<TMyClass>;
-
-  Assert.CheckExpectation(FChangeManager.CheckExpectations);
-end;
 
 procedure TClassLoaderTest.EvenIfTheCursorReturnsMoreThanOneRecordTheLoadClassHasToReturnOnlyOneClass;
 begin
@@ -175,25 +155,11 @@ end;
 
 procedure TClassLoaderTest.TearDown;
 begin
-  FAccess := nil;
-  FCache := nil;
-  FChangeManager := nil;
   FCursorMock := nil;
 
   FClassLoader.Free;
 
   FBuilder.Free;
-end;
-
-procedure TClassLoaderTest.TheAddInstanceMustBeCalledJustOncePerInstance;
-begin
-  FChangeManager.Expect.Once.When.AddInstance(It(0).IsAny<TTable>, It(1).IsAny<TObject>);
-
-  FCursorMockClass.Values := [['aaa', 111], ['aaa', 111], ['aaa', 111]];
-
-  LoadClass<TMyClass>;
-
-  Assert.CheckExpectation(FChangeManager.CheckExpectations);
 end;
 
 procedure TClassLoaderTest.TheChildFieldInManyValueAssociationMustBeLoadedWithTheReferenceOfTheParentClass;
@@ -231,31 +197,12 @@ end;
 
 procedure TClassLoaderTest.Setup;
 begin
-  FAccess := TMock.CreateInterface<IQueryBuilderAccess>(True);
-  FChangeManager := TMock.CreateInterface<IChangeManager>(True);
   FCursorMockClass := TCursorMock.Create;
 
-  FBuilder := TQueryBuilder.Create(nil, FCache);
-  FCache := TCache.Create(FChangeManager.Instance);
+  FBuilder := TQueryBuilder.Create(nil);
   FCursorMock := FCursorMockClass;
 
-  FAccess.Setup.WillReturn(TValue.From(FCursorMock)).When.OpenCursor;
-
-  FAccess.Setup.WillReturn(TValue.From(FCache)).When.GetCache;
-
-  FAccess.Setup.WillExecute(
-    function: TValue
-    begin
-      Result := (FBuilder as IQueryBuilderAccess).Table;
-    end).When.GetTable;
-
-  FAccess.Setup.WillExecute(
-    function: TValue
-    begin
-      Result := (FBuilder as IQueryBuilderAccess).Join;
-    end).When.GetJoin;
-
-  FClassLoader := TClassLoader.Create(FAccess.Instance);
+//  FClassLoader := TClassLoader.Create(FAccess.Instance);
 end;
 
 procedure TClassLoaderTest.SetupFixture;
@@ -464,16 +411,6 @@ begin
   Assert.AreEqual(333, TLazyManipulator.GetManipulator(MyObject.Lazy).Loader.GetKey.AsInteger);
 
   Assert.IsFalse(TLazyManipulator.GetManipulator(MyObject.Lazy).Loaded);
-end;
-
-procedure TClassLoaderTest.WhenTheLoaderCreateANewObjectMustAddItToTheCacheControl;
-begin
-  FCursorMockClass.Values := [['aaa', 333]];
-  var SharedObject: TObject;
-
-  LoadClass<TMyClass>;
-
-  Assert.IsTrue(FCache.Get('Persisto.Test.Entity.TMyClass.aaa', SharedObject));
 end;
 
 procedure TClassLoaderTest.WhenTheManyValueAssociationFieldHasRepetedKeyMustLoadJustOnceThenProperty;

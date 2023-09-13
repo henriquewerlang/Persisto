@@ -301,7 +301,7 @@ type
     procedure SetArrayElementInternal(Index: Integer; const Value: TValue); inline;
     procedure SetArrayLengthInternal(const Size: Integer); inline;
   public
-    function GetAsString: String;
+//    function GetAsString: String;
 
     property ArrayElement[Index: Integer]: TValue read GetArrayElementInternal write SetArrayElementInternal;
     property ArrayLength: Integer read GetArrayLengthInternal write SetArrayLengthInternal;
@@ -780,46 +780,6 @@ end;
 function TValueHelper.GetArrayLengthInternal: Integer;
 begin
   Result := GetArrayLength;
-end;
-
-function TValueHelper.GetAsString: String;
-begin
-  if IsEmpty then
-    Exit(EmptyStr);
-
-  case Kind of
-{$IFDEF DCC}
-    tkWChar,
-    tkLString,
-    tkWString,
-    tkUString,
-{$ENDIF}
-    tkChar,
-    tkString:
-      Result := Self.ToString;
-
-{$IFDEF DCC}
-    tkInt64,
-{$ENDIF}
-    tkInteger:
-      Result := Self.ToString;
-
-    tkEnumeration: Result := AsOrdinal.ToString;
-
-    tkFloat:
-    begin
-      if TypeInfo = System.TypeInfo(TDate) then
-        Result := DateToStr(AsExtended, FormatSettings)
-      else if TypeInfo = System.TypeInfo(TTime) then
-        Result := TimeToStr(AsExtended, FormatSettings)
-      else if TypeInfo = System.TypeInfo(TDateTime) then
-        Result := DateTimeToStr(AsExtended, FormatSettings)
-      else
-        Result := FloatToStr(AsExtended, FormatSettings);
-    end;
-
-    tkRecord: Result := AsType<TGUID>.ToString;
-  end;
 end;
 
 procedure TValueHelper.SetArrayElementInternal(Index: Integer; const Value: TValue);

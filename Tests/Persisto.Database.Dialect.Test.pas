@@ -19,6 +19,12 @@ type
     procedure TheDialectMustBuildTheInsertStatementAsExpected;
     [Test]
     procedure WhenTheTableHasTheReturningFieldFilledMustBuildTheReturningClauseInTheInsertStatement;
+    [Test]
+    procedure WhenBuildTheUpdateCommandMustBuildTheCommandAsExpected;
+    [Test]
+    procedure WhenBuildTheUpdateCommandFromATableWithoutPrimaryKeyCantBuildTheWhereClause;
+    [Test]
+    procedure WhenThePrimaryKeyFieldIsInParamListCantBeInTheUpdateCommand;
   end;
 
 implementation
@@ -51,6 +57,52 @@ begin
   var SQL := FDialect.MakeInsertStatement(FMapper.GetTable(TMySQLiteTable), Params);
 
   Assert.AreEqual('insert into MySQLiteTable(Param1,Param2,Param3)values(:Param1,:Param2,:Param3)', SQL);
+
+  Params.Free;
+end;
+
+procedure TDatabaseDialectTest.WhenBuildTheUpdateCommandFromATableWithoutPrimaryKeyCantBuildTheWhereClause;
+begin
+  var Params := TParams.Create(nil);
+
+  Params.CreateParam(ftInteger, 'Param1', ptInput);
+  Params.CreateParam(ftInteger, 'Param2', ptInput);
+  Params.CreateParam(ftInteger, 'Param3', ptInput);
+
+  var SQL := FDialect.MakeUpdateStatement(FMapper.GetTable(TMyEntityWithoutPrimaryKey), Params);
+
+  Assert.AreEqual('update MyEntityWithoutPrimaryKey set Param1=:Param1,Param2=:Param2,Param3=:Param3', SQL);
+
+  Params.Free;
+end;
+
+procedure TDatabaseDialectTest.WhenBuildTheUpdateCommandMustBuildTheCommandAsExpected;
+begin
+  var Params := TParams.Create(nil);
+
+  Params.CreateParam(ftInteger, 'Param1', ptInput);
+  Params.CreateParam(ftInteger, 'Param2', ptInput);
+  Params.CreateParam(ftInteger, 'Param3', ptInput);
+
+  var SQL := FDialect.MakeUpdateStatement(FMapper.GetTable(TMySQLiteTable), Params);
+
+  Assert.AreEqual('update MySQLiteTable set Param1=:Param1,Param2=:Param2,Param3=:Param3 where Id=:Id', SQL);
+
+  Params.Free;
+end;
+
+procedure TDatabaseDialectTest.WhenThePrimaryKeyFieldIsInParamListCantBeInTheUpdateCommand;
+begin
+  var Params := TParams.Create(nil);
+
+  Params.CreateParam(ftInteger, 'Param1', ptInput);
+  Params.CreateParam(ftInteger, 'Param2', ptInput);
+  Params.CreateParam(ftInteger, 'Param3', ptInput);
+  Params.CreateParam(ftInteger, 'Id', ptInput);
+
+  var SQL := FDialect.MakeUpdateStatement(FMapper.GetTable(TMySQLiteTable), Params);
+
+  Assert.AreEqual('update MySQLiteTable set Param1=:Param1,Param2=:Param2,Param3=:Param3 where Id=:Id', SQL);
 
   Params.Free;
 end;

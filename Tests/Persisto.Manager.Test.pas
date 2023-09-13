@@ -24,6 +24,30 @@ type
     procedure BeforeSaveTheMainObjectMustSaveTheForeignKeysOfTheObject;
     [Test]
     procedure WhenInsertAnObjectTheObjectsMustBeProcessedOnlyOneTime;
+    [Test]
+    procedure WhenAClassIsInheritedFromAnotherClassMustInsertTheParentClassInTheInsert;
+    [Test]
+    procedure WhenInsertAnObjectWithForeignKeyMustInsertTheForeignKeyPrimaryKeyValueInTheCurrentObject;
+    [Test]
+    procedure WhenUpdateAnObjectMustUpdateTheChangedFieldsOfTheObject;
+    [Test]
+    procedure WhenUpdateAnObjectMustUpdateOnlyTheObjectCallInTheProcedure;
+    [Test]
+    procedure WhenUpdateAnObjectMustUpdateOnlyTheChangedFieldsOfTheObject;
+    [Test]
+    procedure WhenUpdateAnInheritedObjectMustUpdateAllClassLevelsToo;
+    [Test]
+    procedure WhenChangeTheForeignKeyOfTheObjectMustUpdateTheForeignKeyValueFromTheCurrentTable;
+    [Test]
+    procedure WhenTryToUpdateAForeignObjectMustRaiseErrorExplainingThisNotAllowed;
+    [Test]
+    procedure WhenUpdateAnObjectWithoutChangesCanRaiseAnyUpdateError;
+    [Test]
+    procedure WhenUpdateAnObjectMustUpdateTheForeignKeyOfTheObjectToo;
+    [Test]
+    procedure WhenInsertAClassThatIsRecursiveInItSelfCantRaiseErrorOfStackOverflow;
+    [Test]
+    procedure WhenUpdateAClassThatIsRecursiveInItSelfCantRaiseErrorOfStackOverflow;
   end;
 
   [TestFixture]
@@ -39,6 +63,17 @@ type
     procedure WhenUpdateTheDatabaseCantRaiseAnyError;
     [Test]
     procedure WhenUpdateTheDatabaseMustCreateTheTablesAfterTheProcessEnd;
+  end;
+
+  [TestFixture]
+  TStateObjectTest = class
+  public
+    [Test]
+    procedure WhenFillAValueMustReturnTheValueWhenRequestIt;
+    [Test]
+    procedure WhenCheckTheObjectPropertyMustReturnTheObjectPassedInTheConstructor;
+    [Test]
+    procedure WhenTheClassIsInheritedFromAnotherClassMustAllocTheChangeBufferForAllFieldsInTheTable;
   end;
 
 implementation
@@ -65,6 +100,10 @@ begin
 
   FManager.Mapper.GetTable(TInsertTest);
 
+  FManager.Mapper.GetTable(TMyEntityInheritedFromSimpleClass);
+
+  FManager.Mapper.GetTable(TStackOverflowClass);
+
   FManager.UpdateDatabaseSchema;
 end;
 
@@ -81,6 +120,41 @@ end;
 procedure TManagerTest.TearDown;
 begin
   FManager.Free;
+end;
+
+procedure TManagerTest.WhenAClassIsInheritedFromAnotherClassMustInsertTheParentClassInTheInsert;
+begin
+  var InheritedObject := TMyEntityInheritedFromSimpleClass.Create;
+
+  FManager.Insert(InheritedObject);
+
+  var Cursor := FManager.OpenCursor('select count(*) from MyEntityInheritedFromSingle');
+
+  Assert.IsTrue(Cursor.Next);
+  Assert.AreEqual<Integer>(1, Cursor.GetFieldValue(0));
+
+  Cursor := FManager.OpenCursor('select count(*) from MyEntityInheritedFromSimpleClass');
+
+  Assert.IsTrue(Cursor.Next);
+  Assert.AreEqual<Integer>(1, Cursor.GetFieldValue(0));
+end;
+
+procedure TManagerTest.WhenChangeTheForeignKeyOfTheObjectMustUpdateTheForeignKeyValueFromTheCurrentTable;
+begin
+  Assert.IsTrue(False, 'Fazer o teste!')
+end;
+
+procedure TManagerTest.WhenInsertAClassThatIsRecursiveInItSelfCantRaiseErrorOfStackOverflow;
+begin
+  var &Object := TStackOverflowClass.Create;
+  &Object.Callback := TStackOverflowClass.Create;
+  &Object.Callback.CallBack := &Object;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Insert(&Object);
+    end);
 end;
 
 procedure TManagerTest.WhenInsertAnObjectTheObjectsMustBeProcessedOnlyOneTime;
@@ -107,6 +181,11 @@ begin
   Assert.AreEqual(FormatDateTime('dd-mm-yyyy hh:nn', Now), FormatDateTime('dd-mm-yyyy hh:nn', &Object.DateTime));
 end;
 
+procedure TManagerTest.WhenInsertAnObjectWithForeignKeyMustInsertTheForeignKeyPrimaryKeyValueInTheCurrentObject;
+begin
+  Assert.IsTrue(False, 'Fazer teste');
+end;
+
 procedure TManagerTest.WhenInsertAValueInManagerMustInsertTheValueInDatabaseAsExpected;
 begin
   var &Object := TInsertTest.Create;
@@ -122,6 +201,165 @@ begin
   Assert.AreEqual('abc', String(Cursor.GetFieldValue(0)));
   Assert.AreEqual('123', String(Cursor.GetFieldValue(1)));
   Assert.AreEqual('123.456', FormatFloat('0.000', Cursor.GetFieldValue(2), TFormatSettings.Invariant));
+end;
+
+procedure TManagerTest.WhenTryToUpdateAForeignObjectMustRaiseErrorExplainingThisNotAllowed;
+begin
+  var &Object := TInsertTest.Create;
+  &Object.Id := 'abc';
+
+  Assert.WillRaise(
+    procedure
+    begin
+      FManager.Update(&Object);
+    end, EForeignObjectNotAllowed);
+
+  &Object.Free;
+end;
+
+procedure TManagerTest.WhenUpdateAClassThatIsRecursiveInItSelfCantRaiseErrorOfStackOverflow;
+begin
+  var &Object := TStackOverflowClass.Create;
+  &Object.Callback := TStackOverflowClass.Create;
+  &Object.Callback.CallBack := &Object;
+
+  FManager.Insert(&Object);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Update(&Object);
+    end);
+end;
+
+procedure TManagerTest.WhenUpdateAnInheritedObjectMustUpdateAllClassLevelsToo;
+begin
+  var InheritedObject := TMyEntityInheritedFromSimpleClass.Create;
+  InheritedObject.AnotherProperty := 'aaa';
+  InheritedObject.BaseProperty := 'aaa';
+  InheritedObject.SimpleProperty := 111;
+
+  FManager.Insert(InheritedObject);
+
+  InheritedObject.AnotherProperty := 'bbb';
+  InheritedObject.BaseProperty := 'bbb';
+  InheritedObject.SimpleProperty := 222;
+
+  FManager.Update(InheritedObject);
+
+  var Cursor := FManager.OpenCursor('select AnotherProperty, BaseProperty from MyEntityInheritedFromSingle');
+
+  Cursor.Next;
+
+  Assert.AreEqual<String>('bbb', Cursor.GetFieldValue(0));
+  Assert.AreEqual<String>('bbb', Cursor.GetFieldValue(1));
+
+  Cursor := FManager.OpenCursor('select SimpleProperty from MyEntityInheritedFromSimpleClass');
+
+  Cursor.Next;
+
+  Assert.AreEqual<Integer>(222, Cursor.GetFieldValue(0));
+end;
+
+procedure TManagerTest.WhenUpdateAnObjectMustUpdateOnlyTheChangedFieldsOfTheObject;
+begin
+  var &Object := TInsertTest.Create;
+  &Object.Id := 'abc';
+  &Object.IntegerValue := 111;
+  &Object.Value := 111;
+
+  FManager.Insert(&Object);
+
+  &Object.IntegerValue := 3;
+
+  FManager.ExectDirect('update InsertTest set Value = 555');
+
+  FManager.Update(&Object);
+
+  var Cursor := FManager.OpenCursor('select IntegerValue, Value from InsertTest');
+
+  Assert.IsTrue(Cursor.Next);
+  Assert.AreEqual('3', String(Cursor.GetFieldValue(0)));
+  Assert.AreEqual('555.000', FormatFloat('0.000', Cursor.GetFieldValue(1), TFormatSettings.Invariant));
+end;
+
+procedure TManagerTest.WhenUpdateAnObjectMustUpdateOnlyTheObjectCallInTheProcedure;
+begin
+  var Object1 := TInsertTest.Create;
+  Object1.Id := 'aaa';
+  Object1.IntegerValue := 111;
+  Object1.Value := 111;
+  var Object2 := TInsertTest.Create;
+  Object2.Id := 'bbb';
+  Object2.IntegerValue := 111;
+  Object2.Value := 111;
+
+  FManager.Insert(Object1);
+
+  FManager.Insert(Object2);
+
+  Object2.IntegerValue := 222;
+  Object2.Value := 222.333;
+
+  FManager.Update(Object2);
+
+  var Cursor := FManager.OpenCursor('select IntegerValue, Value from InsertTest where Id = ''aaa''');
+
+  Assert.IsTrue(Cursor.Next);
+  Assert.AreEqual('111', String(Cursor.GetFieldValue(0)));
+  Assert.AreEqual('111.000', FormatFloat('0.000', Cursor.GetFieldValue(1), TFormatSettings.Invariant));
+end;
+
+procedure TManagerTest.WhenUpdateAnObjectMustUpdateTheChangedFieldsOfTheObject;
+begin
+  var &Object := TInsertTest.Create;
+  &Object.Id := 'abc';
+  &Object.IntegerValue := 111;
+  &Object.Value := 111;
+
+  FManager.Insert(&Object);
+
+  &Object.IntegerValue := 222;
+  &Object.Value := 222.333;
+
+  FManager.Update(&Object);
+
+  var Cursor := FManager.OpenCursor('select IntegerValue, Value from InsertTest');
+
+  Assert.IsTrue(Cursor.Next);
+  Assert.AreEqual('222', String(Cursor.GetFieldValue(0)));
+  Assert.AreEqual('222.333', FormatFloat('0.000', Cursor.GetFieldValue(1), TFormatSettings.Invariant));
+end;
+
+procedure TManagerTest.WhenUpdateAnObjectMustUpdateTheForeignKeyOfTheObjectToo;
+begin
+  var MainObject := TInsertTestWithForeignKey.Create;
+  MainObject.FK1 := TInsertAutoGenerated.Create;
+
+  FManager.Insert(MainObject);
+
+  MainObject.FK1.Value := 123;
+
+  FManager.Update(MainObject);
+
+  var Cursor := FManager.OpenCursor('select Value from InsertAutoGenerated');
+
+  Cursor.Next;
+
+  Assert.AreEqual<Integer>(123, Cursor.GetFieldValue(0));
+end;
+
+procedure TManagerTest.WhenUpdateAnObjectWithoutChangesCanRaiseAnyUpdateError;
+begin
+  var InheritedObject := TMyEntityInheritedFromSimpleClass.Create;
+
+  FManager.Insert(InheritedObject);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Update(InheritedObject);
+    end);
 end;
 
 { TManagerDatabaseManipulationTest }
@@ -156,6 +394,59 @@ begin
     begin
       FManager.OpenCursor('select * from MySQLiteTable').Next;
     end);
+end;
+
+{ TStateObjectTest }
+
+procedure TStateObjectTest.WhenCheckTheObjectPropertyMustReturnTheObjectPassedInTheConstructor;
+begin
+  var Mapper := TMapper.Create;
+  var &Object := TObject.Create;
+  var Table := Mapper.GetTable(TInsertTest);
+
+  var OriginalValue := TStateObject.Create(Table, &Object);
+
+  Assert.AreEqual<TObject>(&Object, OriginalValue.&Object);
+
+  Mapper.Free;
+
+  OriginalValue.Free;
+end;
+
+procedure TStateObjectTest.WhenFillAValueMustReturnTheValueWhenRequestIt;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.GetTable(TInsertTest);
+
+  var Field := Table.Field['Id'];
+  var OriginalValue := TStateObject.Create(Table, nil);
+
+  OriginalValue.OldValue[Field] := 123;
+
+  Assert.AreEqual(123, OriginalValue.OldValue[Field].AsInteger);
+
+  Mapper.Free;
+
+  OriginalValue.Free;
+end;
+
+procedure TStateObjectTest.WhenTheClassIsInheritedFromAnotherClassMustAllocTheChangeBufferForAllFieldsInTheTable;
+begin
+  var Mapper := TMapper.Create;
+  var Table := Mapper.GetTable(TClassLevel4);
+
+  var Field := Table.Field['Id'];
+  var OriginalValue := TStateObject.Create(Table, nil);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      OriginalValue.OldValue[Field] := 123;
+    end);
+
+  Mapper.Free;
+
+  OriginalValue.Free;
 end;
 
 end.
