@@ -292,7 +292,6 @@ type
     function GetFieldComparer: IComparer<TField>;
     function GetFieldDatabaseName(const Field: TField): String;
     function GetNameAttribute<T: TCustomNameAttribute>(const TypeInfo: TRttiNamedObject; var Name: String): Boolean;
-    function GetManyValuAssociationLinkName(const Field: TField): String;
     function GetPrimaryKeyPropertyName(const TypeInfo: TRttiInstanceType): String;
     function GetSequences: TArray<TSequence>;
     function GetTableDatabaseName(const Table: TTable): String;
@@ -307,7 +306,6 @@ type
     procedure LoadFieldInfo(const Table: TTable; const PropertyInfo: TRttiInstanceProperty; const Field: TField);
     procedure LoadFieldTypeInfo(const Field: TField);
     procedure LoadTableFields(const TypeInfo: TRttiInstanceType; const Table: TTable);
-    procedure LoadTableForeignKeys(const Table: TTable);
     procedure LoadTableIndexes(const TypeInfo: TRttiInstanceType; const Table: TTable);
     procedure LoadTableInfo(const TypeInfo: TRttiInstanceType; const Table: TTable);
     procedure LoadTableManyValueAssociations(const Table: TTable);
@@ -1169,12 +1167,6 @@ begin
   end;
 end;
 
-function TMapper.GetManyValuAssociationLinkName(const Field: TField): String;
-begin
-  if not GetNameAttribute<ManyValueAssociationLinkNameAttribute>(Field.PropertyInfo, Result) then
-    Result := Field.Table.Name;
-end;
-
 function TMapper.GetNameAttribute<T>(const TypeInfo: TRttiNamedObject; var Name: String): Boolean;
 begin
   var Attribute := TypeInfo.GetAttribute<T>;
@@ -1358,13 +1350,6 @@ begin
     raise ETableWithoutPublishedFields.Create(Table);
 end;
 
-procedure TMapper.LoadTableForeignKeys(const Table: TTable);
-begin
-  for var Field in Table.Fields do
-    if Field.IsForeignKey then
-      AddTableForeignKey(Table, Field, Field.FieldType.AsInstance);
-end;
-
 procedure TMapper.LoadTableIndexes(const TypeInfo: TRttiInstanceType; const Table: TTable);
 begin
   for var Attribute in TypeInfo.GetAttributes do
@@ -1440,25 +1425,34 @@ begin
         raise EClassWithPrimaryKeyNullable.Create(Table);
     end
     else if Field.IsManyValueAssociation then
-      FManyValueTables := FManyValueTables + [Table];
+      FManyValueTables := FManyValueTables + [Table]
+    else if Field.IsForeignKey then
+      AddTableForeignKey(Table, Field, Field.FieldType.AsInstance);
   end;
 
   Inc(Table.FAllFieldCount, Length(Table.Fields));
 
   TArray.Sort<TField>(Table.FFields, FieldComparer);
 
-  LoadTableForeignKeys(Table);
-
   LoadTableIndexes(TypeInfo, Table);
 end;
 
 procedure TMapper.LoadTableManyValueAssociations(const Table: TTable);
+var
+  Field: TField;
+
+  function GetManyValueAssociationLinkName: String;
+  begin
+    if not GetNameAttribute<ManyValueAssociationLinkNameAttribute>(Field.PropertyInfo, Result) then
+      Result := Field.Table.Name;
+  end;
+
 begin
-  for var Field in Table.Fields do
+  for Field in Table.Fields do
     if Field.IsManyValueAssociation then
     begin
       var ChildTable := LoadTable(Field.FieldType.AsArray.ElementType.AsInstance);
-      var LinkName := GetManyValuAssociationLinkName(Field);
+      var LinkName := GetManyValueAssociationLinkName;
 
       for var ForeignKey in ChildTable.ForeignKeys do
         if (ForeignKey.ParentTable = Table) and (ForeignKey.Field.Name = LinkName) then
