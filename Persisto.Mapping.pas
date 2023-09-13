@@ -21,10 +21,14 @@ type
   EntityAttribute = class(TCustomAttribute);
   FieldNameAttribute = class(TCustomNameAttribute);
   ForeignKeyNameAttribute = class(TCustomNameAttribute);
-  ManyValueAssociationLinkNameAttribute = class(TCustomNameAttribute);
   PrimaryKeyAttribute = class(TCustomNameAttribute);
   SingleTableInheritanceAttribute = class(TCustomAttribute);
   TableNameAttribute = class(TCustomNameAttribute);
+
+  ManyValueAssociationLinkNameAttribute = class(TCustomNameAttribute)
+  public
+    constructor Create(const ChildFieldName: String);
+  end;
 
   IndexAttribute = class(TCustomNameAttribute)
   private
@@ -921,6 +925,13 @@ begin
 {$ENDIF}
     tkDynArray: Result := ftDataSet;
   end;
+end;
+
+{ ManyValueAssociationLinkNameAttribute }
+
+constructor ManyValueAssociationLinkNameAttribute.Create(const ChildFieldName: String);
+begin
+  inherited;
 end;
 
 initialization

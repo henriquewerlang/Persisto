@@ -48,11 +48,6 @@ type
     constructor Create;
   end;
 
-  EChildTableMustHasToHaveAPrimaryKey = class(Exception)
-  public
-    constructor Create(ChildTable: TTable);
-  end;
-
   EClassWithoutPrimaryKeyDefined = class(Exception)
   public
     constructor Create(Table: TTable);
@@ -241,27 +236,23 @@ type
     FDatabaseName: String;
     FField: TField;
     FIsInheritedLink: Boolean;
-    FManyValueAssociation: TManyValueAssociation;
     FParentTable: TTable;
   public
     property DatabaseName: String read FDatabaseName;
     property Field: TField read FField;
     property IsInheritedLink: Boolean read FIsInheritedLink;
-    property ManyValueAssociation: TManyValueAssociation read FManyValueAssociation;
     property ParentTable: TTable read FParentTable;
   end;
 
   TManyValueAssociation = class
   private
+    FChildField: TField;
     FChildTable: TTable;
-    FField: TField;
-    FForeignKey: TForeignKey;
   public
-    constructor Create(const Field: TField; const ChildTable: TTable; const ForeignKey: TForeignKey);
+    constructor Create(const ChildTable: TTable; const ChildField: TField);
 
     property ChildTable: TTable read FChildTable;
-    property Field: TField read FField write FField;
-    property ForeignKey: TForeignKey read FForeignKey;
+    property ChildField: TField read FChildField write FChildField;
   end;
 
   TIndex = class(TTableObject)
@@ -283,7 +274,6 @@ type
     FDefaultRecords: TDictionary<String, TObject>;
     FFieldComparer: IComparer<TField>;
     FSequences: TDictionary<String, TSequence>;
-    FManyValueTables: TArray<TTable>;
     FTables: TDictionary<TRttiInstanceType, TTable>;
 
     function CheckAttribute<T: TCustomAttribute>(const TypeInfo: TRttiType): Boolean;
@@ -292,7 +282,6 @@ type
     function GetFieldComparer: IComparer<TField>;
     function GetFieldDatabaseName(const Field: TField): String;
     function GetNameAttribute<T: TCustomNameAttribute>(const TypeInfo: TRttiNamedObject; var Name: String): Boolean;
-    function GetPrimaryKeyPropertyName(const TypeInfo: TRttiInstanceType): String;
     function GetSequences: TArray<TSequence>;
     function GetTableDatabaseName(const Table: TTable): String;
     function GetTables: TArray<TTable>;
@@ -301,6 +290,7 @@ type
     function LoadTable(const TypeInfo: TRttiInstanceType): TTable;
     function SortFieldFunction(const Left, Right: TField): Integer;
 
+    procedure AddTableManyValueAssociation(const Table: TTable; const Field: TField);
     procedure AddTableForeignKey(const Table: TTable; const Field: TField; const ForeignTable: TTable; const IsInheritedLink: Boolean); overload;
     procedure AddTableForeignKey(const Table: TTable; const Field: TField; const ClassInfoType: TRttiInstanceType); overload;
     procedure LoadFieldInfo(const Table: TTable; const PropertyInfo: TRttiInstanceProperty; const Field: TField);
@@ -308,7 +298,6 @@ type
     procedure LoadTableFields(const TypeInfo: TRttiInstanceType; const Table: TTable);
     procedure LoadTableIndexes(const TypeInfo: TRttiInstanceType; const Table: TTable);
     procedure LoadTableInfo(const TypeInfo: TRttiInstanceType; const Table: TTable);
-    procedure LoadTableManyValueAssociations(const Table: TTable);
 
     property FieldComparer: IComparer<TField> read GetFieldComparer write FFieldComparer;
   public
@@ -1011,13 +1000,6 @@ begin
   inherited CreateFmt('You must define a primary key for class %s!', [Table.ClassTypeInfo.Name])
 end;
 
-{ EChildTableMustHasToHaveAPrimaryKey }
-
-constructor EChildTableMustHasToHaveAPrimaryKey.Create(ChildTable: TTable);
-begin
-  inherited CreateFmt('The child table %s hasn''t a primary key, check the implementation!', [ChildTable.ClassTypeInfo.Name]);
-end;
-
 { EForeignKeyToSingleTableInheritanceTable }
 
 constructor EForeignKeyToSingleTableInheritanceTable.Create(ParentTable: TRttiInstanceType);
@@ -1068,6 +1050,34 @@ begin
     AddTableForeignKey(Table, Field, ParentTable, False)
   else
     raise EForeignKeyToSingleTableInheritanceTable.Create(ClassInfoType);
+end;
+
+procedure TMapper.AddTableManyValueAssociation(const Table: TTable; const Field: TField);
+
+  function GetManyValueAssociationLinkName: String;
+  begin
+    if not GetNameAttribute<ManyValueAssociationLinkNameAttribute>(Field.PropertyInfo, Result) then
+      Result := Field.Table.Name;
+  end;
+
+begin
+  var ChildTable := LoadTable(Field.FieldType.AsArray.ElementType.AsInstance);
+
+  if Assigned(Table.PrimaryKey) then
+  begin
+    var LinkName := GetManyValueAssociationLinkName;
+
+    for var ChildField in ChildTable.Fields do
+      if ChildField.Name = LinkName then
+        Field.FManyValueAssociation := TManyValueAssociation.Create(ChildTable, ChildField);
+
+    if Assigned(Field.ManyValueAssociation) then
+      Table.FManyValueAssociations := Table.FManyValueAssociations + [Field.ManyValueAssociation]
+    else
+      raise EManyValueAssociationLinkError.Create(Table, ChildTable);
+  end
+  else
+    raise EClassWithoutPrimaryKeyDefined.Create(Table);
 end;
 
 procedure TMapper.AddTableForeignKey(const Table: TTable; const Field: TField; const ForeignTable: TTable; const IsInheritedLink: Boolean);
@@ -1176,16 +1186,6 @@ begin
     Name := Attribute.Name;
 end;
 
-function TMapper.GetPrimaryKeyPropertyName(const TypeInfo: TRttiInstanceType): String;
-begin
-  var Attribute := TypeInfo.GetAttribute<PrimaryKeyAttribute>;
-
-  if Assigned(Attribute) then
-    Result := Attribute.Name
-  else
-    Result := 'Id';
-end;
-
 function TMapper.GetSequences: TArray<TSequence>;
 begin
   Result := FSequences.Values.ToArray;
@@ -1193,11 +1193,7 @@ end;
 
 function TMapper.GetTable(const TypeInfo: PTypeInfo): TTable;
 begin
-  FManyValueTables := nil;
   Result := LoadTable(FContext.GetType(TypeInfo).AsInstance);
-
-  for var Table in FManyValueTables do
-    LoadTableManyValueAssociations(Table);
 end;
 
 function TMapper.GetTable(const ClassInfo: TClass): TTable;
@@ -1373,6 +1369,36 @@ begin
 end;
 
 procedure TMapper.LoadTableInfo(const TypeInfo: TRttiInstanceType; const Table: TTable);
+
+  function GetPrimaryKeyPropertyName: String;
+  begin
+    var Attribute := TypeInfo.GetAttribute<PrimaryKeyAttribute>;
+
+    if Assigned(Attribute) then
+      Result := Attribute.Name
+    else
+      Result := 'Id';
+  end;
+
+  procedure LoadPrimaryKeyInfo;
+  begin
+    var Field := Table.Field[GetPrimaryKeyPropertyName];
+
+    if Assigned(Field) then
+      if Field.FIsNullable then
+        raise EClassWithPrimaryKeyNullable.Create(Table)
+      else
+      begin
+        Field.FInPrimaryKey := True;
+        Table.FPrimaryKey := Field;
+
+        var PrimaryKeyIndex := CreateIndex(Table, Format('PK_%s', [Table.DatabaseName]));
+        PrimaryKeyIndex.Fields := [Field];
+        PrimaryKeyIndex.PrimaryKey := True;
+        PrimaryKeyIndex.Unique := True;
+      end;
+  end;
+
 begin
   var BaseClassInfo := TypeInfo.BaseType;
 
@@ -1401,31 +1427,14 @@ begin
     BaseClassInfo := BaseClassInfo.BaseType
   end;
 
-  var PrimaryKeyFieldName := GetPrimaryKeyPropertyName(TypeInfo);
+  LoadPrimaryKeyInfo;
 
   for var Field in Table.Fields do
   begin
     Inc(Field.FIndex, Table.FAllFieldCount);
 
-    if Field.Name = PrimaryKeyFieldName then
-    begin
-      Field.FInPrimaryKey := True;
-
-      if not Assigned(Table.FPrimaryKey) then
-      begin
-        var PrimaryKeyIndex := CreateIndex(Table, Format('PK_%s', [Table.DatabaseName]));
-        PrimaryKeyIndex.Fields := [Field];
-        PrimaryKeyIndex.PrimaryKey := True;
-        PrimaryKeyIndex.Unique := True;
-      end;
-
-      Table.FPrimaryKey := Field;
-
-      if Field.FIsNullable then
-        raise EClassWithPrimaryKeyNullable.Create(Table);
-    end
-    else if Field.IsManyValueAssociation then
-      FManyValueTables := FManyValueTables + [Table]
+    if Field.IsManyValueAssociation then
+      AddTableManyValueAssociation(Table, Field)
     else if Field.IsForeignKey then
       AddTableForeignKey(Table, Field, Field.FieldType.AsInstance);
   end;
@@ -1435,37 +1444,6 @@ begin
   TArray.Sort<TField>(Table.FFields, FieldComparer);
 
   LoadTableIndexes(TypeInfo, Table);
-end;
-
-procedure TMapper.LoadTableManyValueAssociations(const Table: TTable);
-var
-  Field: TField;
-
-  function GetManyValueAssociationLinkName: String;
-  begin
-    if not GetNameAttribute<ManyValueAssociationLinkNameAttribute>(Field.PropertyInfo, Result) then
-      Result := Field.Table.Name;
-  end;
-
-begin
-  for Field in Table.Fields do
-    if Field.IsManyValueAssociation then
-    begin
-      var ChildTable := LoadTable(Field.FieldType.AsArray.ElementType.AsInstance);
-      var LinkName := GetManyValueAssociationLinkName;
-
-      for var ForeignKey in ChildTable.ForeignKeys do
-        if (ForeignKey.ParentTable = Table) and (ForeignKey.Field.Name = LinkName) then
-          if Assigned(ChildTable.PrimaryKey) then
-            Field.FManyValueAssociation := TManyValueAssociation.Create(Field, ChildTable, ForeignKey)
-          else
-            raise EChildTableMustHasToHaveAPrimaryKey.Create(ChildTable);
-
-      if Assigned(Field.ManyValueAssociation) then
-        Table.FManyValueAssociations := Table.FManyValueAssociations + [Field.ManyValueAssociation]
-      else
-        raise EManyValueAssociationLinkError.Create(Table, ChildTable);
-    end;
 end;
 
 function TMapper.SortFieldFunction(const Left, Right: TField): Integer;
@@ -1561,14 +1539,12 @@ end;
 
 { TManyValueAssociation }
 
-constructor TManyValueAssociation.Create(const Field: TField; const ChildTable: TTable; const ForeignKey: TForeignKey);
+constructor TManyValueAssociation.Create(const ChildTable: TTable; const ChildField: TField);
 begin
   inherited Create;
 
+  FChildField := ChildField;
   FChildTable := ChildTable;
-  FField := Field;
-  FForeignKey := ForeignKey;
-  FForeignKey.FManyValueAssociation := Self;
 end;
 
 { TField }
@@ -1654,7 +1630,7 @@ end;
 function TLazyManyValueClassFactory.LoadValue: TValue;
 begin
   var ManyValue := FLazyField.ManyValueAssociation;
-  var Value := FManager.Select.All.From(ManyValue.ChildTable).Where(Field(ManyValue.ForeignKey.Field.Name) = FKeyValue).Open.All;
+  var Value := FManager.Select.All.From(ManyValue.ChildTable).Where(Field(ManyValue.ChildField.Name) = FKeyValue).Open.All;
 
   TValue.Make(@Value, FLazyField.FieldType.Handle, Result);
 end;
@@ -1832,8 +1808,8 @@ begin
     begin
       Link.Field.SetValue(CurrentObject, ForeignKeyObject);
 
-      if Assigned(ForeignKeyObject) and Assigned(Link.Field.ForeignKey.ManyValueAssociation) then
-        AddItemToParentArray(ForeignKeyObject, Link.Field.ForeignKey.ManyValueAssociation.Field, CurrentObject);
+//      if Assigned(ForeignKeyObject) and Assigned(Link.Field.ForeignKey.ManyValueAssociation) then
+//        AddItemToParentArray(ForeignKeyObject, Link.Field.ForeignKey.ManyValueAssociation.Field, CurrentObject);
     end
     else if NewChildObject and Link.Field.IsManyValueAssociation then
     begin
@@ -2154,28 +2130,28 @@ end;
 
 procedure TQueryBuilder.SaveManyValueAssociations(const Table: TTable; const CurrentObject, ForeignObject: TObject);
 begin
-  var CurrentArray, ForeignArrayValue: TValue;
-
-  for var ManyValue in Table.ManyValueAssociations do
-    if ManyValue.Field.HasValue(ForeignObject, ForeignArrayValue) and ForeignArrayValue.IsArray then
-    begin
-      CurrentArray := ForeignArrayValue;
-
-      for var A := 0 to Pred(ForeignArrayValue.ArrayLength) do
-      begin
-        var ForeignArrayItem := ForeignArrayValue.ArrayElement[A];
-
-        ManyValue.ForeignKey.Field.SetValue(ForeignArrayItem.AsObject, ForeignObject);
-
-        var SavedObject := SaveObject(ForeignArrayItem);
-
-        ManyValue.ForeignKey.Field.SetValue(SavedObject, CurrentObject);
-
-        CurrentArray.SetArrayElement(A, SavedObject);
-      end;
-
-      ManyValue.Field.SetValue(CurrentObject, CurrentArray);
-    end;
+//  var CurrentArray, ForeignArrayValue: TValue;
+//
+//  for var ManyValue in Table.ManyValueAssociations do
+//    if ManyValue.Field.HasValue(ForeignObject, ForeignArrayValue) and ForeignArrayValue.IsArray then
+//    begin
+//      CurrentArray := ForeignArrayValue;
+//
+//      for var A := 0 to Pred(ForeignArrayValue.ArrayLength) do
+//      begin
+//        var ForeignArrayItem := ForeignArrayValue.ArrayElement[A];
+//
+//        ManyValue.ForeignKey.Field.SetValue(ForeignArrayItem.AsObject, ForeignObject);
+//
+//        var SavedObject := SaveObject(ForeignArrayItem);
+//
+//        ManyValue.ForeignKey.Field.SetValue(SavedObject, CurrentObject);
+//
+//        CurrentArray.SetArrayElement(A, SavedObject);
+//      end;
+//
+//      ManyValue.Field.SetValue(CurrentObject, CurrentArray);
+//    end;
 end;
 
 function TQueryBuilder.SaveObject(const AObject: TValue): TObject;
@@ -2309,7 +2285,7 @@ end;
 function TQueryBuilderFrom.CreateJoinManyValueAssociation(const CurrentJoin: TQueryBuilderJoin; const ManyValueAssociation: TManyValueAssociation;
   const MakeLink: Boolean): TQueryBuilderJoin;
 begin
-  Result := CreateJoin(CurrentJoin, ManyValueAssociation.ChildTable, ManyValueAssociation.Field, Join.Table.PrimaryKey, ManyValueAssociation.ForeignKey.Field, False, MakeLink);
+//  Result := CreateJoin(CurrentJoin, ManyValueAssociation.ChildTable, ManyValueAssociation.Field, Join.Table.PrimaryKey, ManyValueAssociation.ForeignKey.Field, False, MakeLink);
 end;
 
 function TQueryBuilderFrom.CreateJoinTable(const Table: TTable): TQueryBuilderJoin;
