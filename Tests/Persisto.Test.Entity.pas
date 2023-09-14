@@ -113,7 +113,7 @@ type
     FId: Integer;
     FValue: Integer;
   published
-    [NewUniqueIdentifier]
+    [FixedValue('35')]
     property Id: Integer read FId write FId;
     property Value: Integer read FValue write FValue;
   end;
@@ -125,7 +125,7 @@ type
     FId: Integer;
   published
     property AnotherClass: TClassWithPrimaryKey read FAnotherClass write FAnotherClass;
-    [NewUniqueIdentifier]
+    [FixedValue('25')]
     property Id: Integer read FId write FId;
   end;
 
@@ -170,7 +170,7 @@ type
     FId: Integer;
     FRecursive: TClassRecursiveThird;
   published
-    [NewUniqueIdentifier]
+    [FixedValue('1')]
     property Id: Integer read FId write FId;
     property Recursive: TClassRecursiveThird read FRecursive write FRecursive;
   end;
@@ -181,7 +181,7 @@ type
     FId: Integer;
     FRecursive: TClassRecursiveFirst;
   published
-    [NewUniqueIdentifier]
+    [FixedValue('2')]
     property Id: Integer read FId write FId;
     property Recursive: TClassRecursiveFirst read FRecursive write FRecursive;
   end;
@@ -192,8 +192,9 @@ type
     FId: Integer;
     FRecursive: TClassRecursiveSecond;
   published
-    [NewUniqueIdentifier]
+    [FixedValue('3')]
     property Id: Integer read FId write FId;
+    [Required]
     property Recursive: TClassRecursiveSecond read FRecursive write FRecursive;
   end;
 

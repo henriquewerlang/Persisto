@@ -25,6 +25,8 @@ type
     procedure WhenBuildTheUpdateCommandFromATableWithoutPrimaryKeyCantBuildTheWhereClause;
     [Test]
     procedure WhenThePrimaryKeyFieldIsInParamListCantBeInTheUpdateCommand;
+    [Test]
+    procedure WhenBuildTheInserCommandWithoutParamsMustBuildTheInsertCommandWithTheDefaultValuesClause;
   end;
 
 implementation
@@ -57,6 +59,16 @@ begin
   var SQL := FDialect.MakeInsertStatement(FMapper.GetTable(TMySQLiteTable), Params);
 
   Assert.AreEqual('insert into MySQLiteTable(Param1,Param2,Param3)values(:Param1,:Param2,:Param3)', SQL);
+
+  Params.Free;
+end;
+
+procedure TDatabaseDialectTest.WhenBuildTheInserCommandWithoutParamsMustBuildTheInsertCommandWithTheDefaultValuesClause;
+begin
+  var Params := TParams.Create(nil);
+  var SQL := FDialect.MakeInsertStatement(FMapper.GetTable(TMyEntityWithoutPrimaryKey), Params);
+
+  Assert.AreEqual('insert into MyEntityWithoutPrimaryKey default values ', SQL);
 
   Params.Free;
 end;

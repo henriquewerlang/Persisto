@@ -48,6 +48,14 @@ type
     procedure WhenInsertAClassThatIsRecursiveInItSelfCantRaiseErrorOfStackOverflow;
     [Test]
     procedure WhenUpdateAClassThatIsRecursiveInItSelfCantRaiseErrorOfStackOverflow;
+    [Test]
+    procedure WhenInsertAnObjectWithRecursionAndTheForeignKeyIsntRequiredMustDelayTheInsertionOfForeignKeyToGetTheKeyInsertedAndUpdateTheColumnValue;
+    [Test]
+    procedure WhenInsertAnObjectWithEmptyForeignKeysCantRaiseAnyError;
+    [Test]
+    procedure WhenInsertARecursiveRequiredObjectMustInsertTheForeignKeyFirstToInsertTheMainObject;
+    [Test]
+    procedure WhenInsertARecursiveObjectAndCantReciveThePrimaryKeyFromAForeignKeyTableMustRaiseAnErroOfRecursivityProblem;
   end;
 
   [TestFixture]
@@ -78,7 +86,7 @@ type
 
 implementation
 
-uses System.SysUtils, Persisto.SQLite, Persisto.Connection.Firedac, Persisto.Test.Entity;
+uses System.SysUtils, System.Variants, Persisto.SQLite, Persisto.Connection.Firedac, Persisto.Test.Entity;
 
 { TManagerTest }
 
@@ -104,6 +112,10 @@ begin
 
   FManager.Mapper.GetTable(TStackOverflowClass);
 
+  FManager.Mapper.GetTable(TClassWithForeignKey);
+
+  FManager.Mapper.GetTable(TClassRecursiveThird);
+
   FManager.UpdateDatabaseSchema;
 end;
 
@@ -113,12 +125,15 @@ begin
   Connection.Connection.DriverName := 'SQLite';
   Connection.Connection.Params.Database := ':memory:';
   FManager := TManager.Create(Connection, TDialectSQLite.Create);
+  NullStrictConvert := False;
 
   PrepareDatabase;
 end;
 
 procedure TManagerTest.TearDown;
 begin
+  NullStrictConvert := True;
+
   FManager.Free;
 end;
 
@@ -141,7 +156,21 @@ end;
 
 procedure TManagerTest.WhenChangeTheForeignKeyOfTheObjectMustUpdateTheForeignKeyValueFromTheCurrentTable;
 begin
-  Assert.IsTrue(False, 'Fazer o teste!')
+  var &Object1 := TClassWithForeignKey.Create;
+  var &Object2 := TClassWithPrimaryKey.Create;
+
+  FManager.Insert(&Object1);
+
+  FManager.Insert(&Object2);
+
+  &Object1.AnotherClass := &Object2;
+
+  FManager.Update(&Object1);
+
+  var Cursor := FManager.OpenCursor('select IdAnotherClass from ClassWithForeignKey');
+
+  Assert.IsTrue(Cursor.Next);
+  Assert.AreEqual<NativeInt>(35, Cursor.GetFieldValue(0));
 end;
 
 procedure TManagerTest.WhenInsertAClassThatIsRecursiveInItSelfCantRaiseErrorOfStackOverflow;
@@ -181,9 +210,74 @@ begin
   Assert.AreEqual(FormatDateTime('dd-mm-yyyy hh:nn', Now), FormatDateTime('dd-mm-yyyy hh:nn', &Object.DateTime));
 end;
 
+procedure TManagerTest.WhenInsertAnObjectWithEmptyForeignKeysCantRaiseAnyError;
+begin
+  var &Object := TClassWithForeignKey.Create;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Insert(&Object);
+    end);
+end;
+
 procedure TManagerTest.WhenInsertAnObjectWithForeignKeyMustInsertTheForeignKeyPrimaryKeyValueInTheCurrentObject;
 begin
-  Assert.IsTrue(False, 'Fazer teste');
+  var &Object := TClassWithForeignKey.Create;
+  &Object.AnotherClass := TClassWithPrimaryKey.Create;
+
+  FManager.Insert(&Object);
+
+  var Cursor := FManager.OpenCursor('select IdAnotherClass from ClassWithForeignKey');
+
+  Assert.IsTrue(Cursor.Next);
+  Assert.AreEqual<NativeInt>(35, Cursor.GetFieldValue(0));
+end;
+
+procedure TManagerTest.WhenInsertAnObjectWithRecursionAndTheForeignKeyIsntRequiredMustDelayTheInsertionOfForeignKeyToGetTheKeyInsertedAndUpdateTheColumnValue;
+begin
+  var &Object := TStackOverflowClass.Create;
+  &Object.Callback := &Object;
+
+  FManager.Insert(&Object);
+
+  var Cursor := FManager.OpenCursor('select Id, IdCallBack from StackOverflowClass');
+
+  Assert.IsTrue(Cursor.Next);
+  Assert.AreEqual(String(Cursor.GetFieldValue(0)), String(Cursor.GetFieldValue(1)));
+end;
+
+procedure TManagerTest.WhenInsertARecursiveObjectAndCantReciveThePrimaryKeyFromAForeignKeyTableMustRaiseAnErroOfRecursivityProblem;
+begin
+  var &Object := TClassRecursiveThird.Create;
+  &Object.Recursive := TClassRecursiveSecond.Create;
+  &Object.Recursive.Recursive := TClassRecursiveFirst.Create;
+  &Object.Recursive.Recursive.Recursive := &Object;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      FManager.Insert(&Object);
+    end, ERecursionInsertionErro);
+end;
+
+procedure TManagerTest.WhenInsertARecursiveRequiredObjectMustInsertTheForeignKeyFirstToInsertTheMainObject;
+begin
+  var &Object := TClassRecursiveFirst.Create;
+  &Object.Recursive := TClassRecursiveThird.Create;
+  &Object.Recursive.Recursive := TClassRecursiveSecond.Create;
+  &Object.Recursive.Recursive.Recursive := &Object;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Insert(&Object);
+    end);
+
+  var Cursor := FManager.OpenCursor('select IdRecursive from ClassRecursiveThird');
+
+  Assert.IsTrue(Cursor.Next);
+  Assert.AreEqual(2, Integer(Cursor.GetFieldValue(0)));
 end;
 
 procedure TManagerTest.WhenInsertAValueInManagerMustInsertTheValueInDatabaseAsExpected;
