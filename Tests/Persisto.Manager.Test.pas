@@ -66,6 +66,18 @@ type
     procedure WhenInsertAnObjectMustUpdateTheForeignKeyValues;
     [Test]
     procedure WhenUpdateAnObjectMustInsertTheNewObjectInTheForeignKey;
+    [Test]
+    procedure WhenInsertAnObjectWithManyValueAssociationCanRaiseAnyError;
+    [Test]
+    procedure WhenInsertAnObjectWithManyValueAssociationMustInsertTheChildValues;
+    [Test]
+    procedure WhenInsertAnObjectWithManyValueAssociationMustUpdateTheParentForeignKeyValueInTheChildTable;
+    [Test]
+    procedure WhenUpdateAnObjectWithManyValueAssociationCantRaiseAnyError;
+    [Test]
+    procedure WhenUpdateAnObjectWithManyValueAssociationMustUpdateTheChildValues;
+    [Test]
+    procedure WhenUpdateAnObjectWithManyValueAssociationMustInsertTheNewChildValues;
   end;
 
   [TestFixture]
@@ -125,6 +137,8 @@ begin
   FManager.Mapper.GetTable(TClassWithForeignKey);
 
   FManager.Mapper.GetTable(TClassRecursiveThird);
+
+  FManager.Mapper.GetTable(TMyEntityWithManyValueAssociation);
 
   FManager.UpdateDatabaseSchema;
 end;
@@ -262,6 +276,46 @@ begin
 
   Assert.IsTrue(Cursor.Next);
   Assert.AreEqual<NativeInt>(35, Cursor.GetFieldValue(0));
+end;
+
+procedure TManagerTest.WhenInsertAnObjectWithManyValueAssociationCanRaiseAnyError;
+begin
+  var &Object := TMyEntityWithManyValueAssociation.Create;
+  &Object.ManyValueAssociationList := [TMyEntityWithManyValueAssociationChild.Create, TMyEntityWithManyValueAssociationChild.Create];
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Insert(&Object);
+    end);
+end;
+
+procedure TManagerTest.WhenInsertAnObjectWithManyValueAssociationMustInsertTheChildValues;
+begin
+  var &Object := TMyEntityWithManyValueAssociation.Create;
+  &Object.ManyValueAssociationList := [TMyEntityWithManyValueAssociationChild.Create, TMyEntityWithManyValueAssociationChild.Create];
+
+  FManager.Insert(&Object);
+
+  var Cursor := FManager.OpenCursor('select count(*) from MyEntityWithManyValueAssociationChild');
+
+  Cursor.Next;
+
+  Assert.AreEqual(2, Integer(Cursor.GetFieldValue(0)));
+end;
+
+procedure TManagerTest.WhenInsertAnObjectWithManyValueAssociationMustUpdateTheParentForeignKeyValueInTheChildTable;
+begin
+  var &Object := TMyEntityWithManyValueAssociation.Create;
+  &Object.ManyValueAssociationList := [TMyEntityWithManyValueAssociationChild.Create];
+
+  FManager.Insert(&Object);
+
+  var Cursor := FManager.OpenCursor('select IdManyValueAssociation from MyEntityWithManyValueAssociationChild');
+
+  Cursor.Next;
+
+  Assert.IsNotEmpty(String(Cursor.GetFieldValue(0)));
 end;
 
 procedure TManagerTest.WhenInsertAnObjectWithRecursionAndTheForeignKeyIsntRequiredMustDelayTheInsertionOfForeignKeyToGetTheKeyInsertedAndUpdateTheColumnValue;
@@ -531,7 +585,57 @@ begin
 
   Cursor.Next;
 
-  Assert.AreEqual<Integer>(123, Cursor.GetFieldValue(0));
+  Assert.AreEqual(123, Integer(Cursor.GetFieldValue(0)));
+end;
+
+procedure TManagerTest.WhenUpdateAnObjectWithManyValueAssociationCantRaiseAnyError;
+begin
+  var &Object := TMyEntityWithManyValueAssociation.Create;
+  &Object.ManyValueAssociationList := [TMyEntityWithManyValueAssociationChild.Create, TMyEntityWithManyValueAssociationChild.Create];
+
+  FManager.Insert(&Object);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Update(&Object);
+    end);
+end;
+
+procedure TManagerTest.WhenUpdateAnObjectWithManyValueAssociationMustInsertTheNewChildValues;
+begin
+  var &Object := TMyEntityWithManyValueAssociation.Create;
+
+  FManager.Insert(&Object);
+
+  &Object.ManyValueAssociationList := [TMyEntityWithManyValueAssociationChild.Create];
+
+  FManager.Update(&Object);
+
+  var Cursor := FManager.OpenCursor('select count(*) from MyEntityWithManyValueAssociationChild');
+
+  Cursor.Next;
+
+  Assert.AreEqual(1, Integer(Cursor.GetFieldValue(0)));
+end;
+
+procedure TManagerTest.WhenUpdateAnObjectWithManyValueAssociationMustUpdateTheChildValues;
+begin
+  var ChildObject := TMyEntityWithManyValueAssociationChild.Create;
+  var &Object := TMyEntityWithManyValueAssociation.Create;
+  &Object.ManyValueAssociationList := [ChildObject];
+
+  FManager.Insert(&Object);
+
+  ChildObject.Value := 1234;
+
+  FManager.Update(&Object);
+
+  var Cursor := FManager.OpenCursor('select Value from MyEntityWithManyValueAssociationChild');
+
+  Cursor.Next;
+
+  Assert.AreEqual<Integer>(1234, Cursor.GetFieldValue(0));
 end;
 
 procedure TManagerTest.WhenUpdateAnObjectWithoutChangesCanRaiseAnyUpdateError;

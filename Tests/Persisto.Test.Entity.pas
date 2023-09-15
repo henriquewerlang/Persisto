@@ -262,20 +262,24 @@ type
   [Entity]
   TMyEntityWithManyValueAssociationChild = class
   private
-    FId: Integer;
+    FId: String;
     FManyValueAssociation: TMyEntityWithManyValueAssociation;
+    FValue: Integer;
   published
-    property Id: Integer read FId write FId;
+    [NewUniqueIdentifier, UniqueIdentifier]
+    property Id: String read FId write FId;
     property ManyValueAssociation: TMyEntityWithManyValueAssociation read FManyValueAssociation write FManyValueAssociation;
+    property Value: Integer read FValue write FValue;
   end;
 
   [Entity]
   TMyEntityWithManyValueAssociation = class
   private
-    FId: Integer;
+    FId: String;
     FManyValueAssociation: TArray<TMyEntityWithManyValueAssociationChild>;
   published
-    property Id: Integer read FId write FId;
+    [NewUniqueIdentifier, UniqueIdentifier]
+    property Id: String read FId write FId;
     [ManyValueAssociationLinkName('ManyValueAssociation')]
     property ManyValueAssociationList: TArray<TMyEntityWithManyValueAssociationChild> read FManyValueAssociation write FManyValueAssociation;
   end;

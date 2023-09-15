@@ -108,10 +108,6 @@ type
     [Test]
     procedure WhenDontHaveAResultingCursorCantLoadTheProperties;
     [Test]
-    procedure WhenInsertingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheInsert;
-    [Test]
-    procedure WhenUpdatingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheUpdateList;
-    [Test]
     procedure ThenForeignKeyLinkOfAnManyValueAssociationCantAppearInTheSQL;
     [Test]
     procedure WhenTheClassAsAFieldWithNullableRecordMustInsertThenValueOfThePropertyIfNotIsNull;
@@ -905,16 +901,6 @@ begin
   Assert.AreEqual('AnotherField', DatabaseClass.OutputFields[1]);
 end;
 
-procedure TQueryBuilderTest.WhenInsertingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheInsert;
-begin
-  var MyClass := TMyEntityWithManyValueAssociation.Create;
-  MyClass.Id := 12345;
-
-  Builder.Insert(MyClass);
-
-  Assert.AreEqual('insert into MyEntityWithManyValueAssociation(Id)values(12345)', DatabaseClass.SQL);
-end;
-
 procedure TQueryBuilderTest.WhenIsLoadedAJoinMustLoadTheFieldThatIsTheLinkBetweenTheClasses;
 begin
   Builder.Select.All.From<TClassWithForeignKey>;
@@ -1212,18 +1198,6 @@ begin
   Builder.Save(Obj);
 
   Assert.AreEqual('update MyTestClass set Field=0,Name='''',Value=0', DatabaseClass.SQL);
-end;
-
-procedure TQueryBuilderTest.WhenUpdatingAClassWithManyValueAssociationCantPutThisTypeOfFieldInTheUpdateList;
-begin
-  var MyClass := TMyEntityWithManyValueAssociation.Create;
-  MyClass.Id := 12345;
-
-  AddObjectToCache(TMyEntityWithManyValueAssociation.Create, 12345);
-
-  Builder.Update(MyClass);
-
-  Assert.IsEmpty(DatabaseClass.SQL);
 end;
 
 procedure TQueryBuilderTest.WhenUseTheOrderByClauseMustLoadTheSQLHasExpected;
