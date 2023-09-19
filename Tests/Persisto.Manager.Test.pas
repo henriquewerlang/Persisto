@@ -108,7 +108,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.Variants, Persisto.SQLite, Persisto.Connection.Firedac, Persisto.Test.Entity;
+uses System.SysUtils, System.Variants, Persisto.Test.Entity, Persisto.Test.Connection;
 
 { TManagerTest }
 
@@ -145,11 +145,7 @@ end;
 
 procedure TManagerTest.Setup;
 begin
-  var Connection := TDatabaseConnectionFireDAC.Create;
-  Connection.Connection.DriverName := 'SQLite';
-  Connection.Connection.Params.Database := ':memory:';
-  FManager := TManager.Create(Connection, TDialectSQLite.Create);
-  NullStrictConvert := False;
+  FManager := TManager.Create(CreateConnection, CreateDialect);
 
   PrepareDatabase;
 end;
@@ -655,11 +651,7 @@ end;
 
 procedure TManagerDatabaseManipulationTest.Setup;
 begin
-  var Connection := TDatabaseConnectionFireDAC.Create;
-  Connection.Connection.DriverName := 'SQLite';
-  Connection.Connection.Params.Database := ':memory:';
-
-  FManager := TManager.Create(Connection, TDialectSQLite.Create);
+  FManager := TManager.Create(CreateConnection, CreateDialect);
 
   FManager.Mapper.GetTable(TMySQLiteTable);
 end;

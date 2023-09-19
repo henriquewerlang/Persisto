@@ -1,21 +1,22 @@
-unit Persisto.Connection.Unidac;
+﻿unit Persisto.Connection.Unidac;
 
 interface
 
-uses Persisto, Uni;
+uses Persisto, Uni, Data.DB;
 
 type
   TDatabaseConnectionUnidac = class;
 
   TDatabaseCursorUnidac = class(TInterfacedObject, IDatabaseCursor)
   private
-    FConnection: TDatabaseConnectionUnidac;
     FQuery: TUniQuery;
 
+    function GetDataSet: TDataSet;
     function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
   public
-    constructor Create(const Connection: TDatabaseConnectionUnidac; const SQL: String);
+    constructor Create(const Connection: TUniConnection; const SQL: String); overload;
+    constructor Create(const Connection: TUniConnection; const SQL: String; const Params: TParams); overload;
 
     destructor Destroy; override;
   end;
@@ -36,6 +37,7 @@ type
 
     function ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
     function OpenCursor(const SQL: String): IDatabaseCursor;
+    function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
     function StartTransaction: IDatabaseTransaction;
 
     procedure ExecuteDirect(const SQL: String);
@@ -53,15 +55,23 @@ uses System.SysUtils, System.Variants, Winapi.ActiveX, DBAccess, CRAccess;
 
 { TDatabaseCursorUnidac }
 
-constructor TDatabaseCursorUnidac.Create(const Connection: TDatabaseConnectionUnidac; const SQL: String);
+constructor TDatabaseCursorUnidac.Create(const Connection: TUniConnection; const SQL: String);
 begin
   inherited Create;
 
-  FConnection := Connection;
   FQuery := TUniQuery.Create(nil);
-  FQuery.Connection := FConnection.Connection;
+  FQuery.Connection := Connection;
   FQuery.SQL.Text := SQL;
   FQuery.UniDirectional := True;
+end;
+
+constructor TDatabaseCursorUnidac.Create(const Connection: TUniConnection; const SQL: String; const Params: TParams);
+begin
+  Create(Connection, SQL);
+
+  FQuery.Params.Assign(Params);
+
+  FQuery.Prepare;
 end;
 
 destructor TDatabaseCursorUnidac.Destroy;
@@ -69,6 +79,11 @@ begin
   FQuery.Free;
 
   inherited;
+end;
+
+function TDatabaseCursorUnidac.GetDataSet: TDataSet;
+begin
+  Result := FQuery;
 end;
 
 function TDatabaseCursorUnidac.GetFieldValue(const FieldIndex: Integer): Variant;
@@ -121,7 +136,12 @@ end;
 
 function TDatabaseConnectionUnidac.OpenCursor(const SQL: String): IDatabaseCursor;
 begin
-  Result := TDatabaseCursorUnidac.Create(Self, SQL);
+  Result := TDatabaseCursorUnidac.Create(Connection, SQL);
+end;
+
+function TDatabaseConnectionUnidac.PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
+begin
+  Result := TDatabaseCursorUnidac.Create(Connection, SQL, Params);
 end;
 
 function TDatabaseConnectionUnidac.StartTransaction: IDatabaseTransaction;

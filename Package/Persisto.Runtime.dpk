@@ -35,7 +35,6 @@ requires
 
 contains
   Persisto.DataSet in '..\Persisto.DataSet.pas',
-  Persisto.Rtti.Helper in '..\Persisto.Rtti.Helper.pas',
   Persisto.Mapping in '..\Persisto.Mapping.pas',
   Persisto in '..\Persisto.pas';
 

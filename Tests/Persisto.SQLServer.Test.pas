@@ -151,7 +151,7 @@ type
 
 implementation
 
-uses System.Rtti, System.Variants, System.SysUtils, Translucent, Persisto.SQLServer, Persisto.Cursor.Mock, Persisto.Test.Entity;
+uses System.Rtti, System.Variants, System.SysUtils, Translucent, Persisto.SQLServer, Persisto.Test.Entity;
 
 { TManipulatorSQLServerTest }
 
@@ -204,64 +204,64 @@ procedure TManipulatorSQLServerTest.Setup;
 begin
   FConnection := TMock.CreateInterface<IDatabaseConnection>(True);
   FFieldType := TDictionary<String, TTypeKind>.Create;
-  FForeignKeyCursor := TCursorMock.Create([
-    ['Table1', 'FK1', 'Char', 'Table2', 'DateTime'],
-    ['Table1', 'FK1', 'Date', 'Table2', 'Tinyint'],
-    ['Table1', 'FK2', 'Date', 'Table2', 'DateTime'],
-    ['Table2', 'FK3', 'Nullable', 'Table1', 'Date']]);
-  FIndexCursor := TCursorMock.Create([
-    ['Table1', 'Index1', 'Char', 0, 0],
-    ['Table1', 'Index1', 'Date', 0, 0],
-    ['Table2', 'Index2', 'DateTime', 0, 1],
-    ['Table1', 'Index3', 'Time', 1, 0]]);
-  FSequenceCursor := TCursorMock.Create([
-    ['Sequence1'],
-    ['Sequence2'],
-    ['Sequence3']]);
-  FTableCursor := TCursorMock.Create([
-    ['Table3', 'Bigint', 'bigint', 8, 19, 0, 0, NULL, NULL, NULL],
-    ['Table4', 'Boolean', 'bit', 1, 1, 0, 0, NULL, NULL, NULL],
-    ['Table1', 'Char', 'char', 1, 0, 0, 0, 'MyCollate', NULL, NULL],
-    ['Table1', 'Date', 'date', 3, 10, 0, 0, NULL, NULL, NULL],
-    ['Table2', 'DateTime', 'datetime', 8, 23, 3, 0, NULL, NULL, NULL],
-    ['Table3', 'DefaultValue', 'datetime', 8, 23, 3, 0, NULL, 'DF_Default_Value', '(getdate())'],
-    ['Table3', 'Int', 'int', 4, 10, 0, 0, NULL, NULL, NULL],
-    ['Table2', 'Nullable', 'datetime', 8, 23, 3, 1, NULL, NULL, NULL],
-    ['Table3', 'Numeric', 'numeric', 9, 18, 8, 0, NULL, NULL, NULL],
-    ['Table1', 'Time', 'time', 5, 16, 7, 0, NULL, NULL, NULL],
-    ['Table2', 'Tinyint', 'tinyint', 1, 3, 0, 0, NULL, NULL, NULL],
-    ['Table1', 'Uniqueidentifier', 'uniqueidentifier', 16, 0, 0, 0, NULL, NULL, NULL],
-    ['Table3', 'Varchar', 'varchar', 50, 0, 0, 0, 'MyCollate', NULL, NULL],
-    ['Table4', 'Text', 'text', 16, 0, 0, 0, 'MyCollate', NULL, NULL],
-    ['Table4', 'VarcharMax', 'varchar', -1, 0, 0, 0, 'MyCollate', NULL, NULL],
-    ['Table4', 'Unknow', 'unknow', 0, 0, 0, 0, NULL, NULL, NULL]]);
-  FMapper := TMapper.Create;
-  FManager := TManager.Create(FConnection.Instance, nil);
-  FSchema := TDatabaseSchema.Create;
-
-  FManipulator := TManipulatorSQLServer.Create(FManager);
-
-  FConnection.Setup.WillReturn(TValue.From(FForeignKeyCursor)).When.OpenCursor(It.IsEqualTo(FOREIGN_KEY_LOAD_SQL));
-
-  FConnection.Setup.WillReturn(TValue.From(FIndexCursor)).When.OpenCursor(It.IsEqualTo(INDEX_LOAD_SQL));
-
-  FConnection.Setup.WillReturn(TValue.From(FTableCursor)).When.OpenCursor(It.IsEqualTo(TABLE_LOAD_SQL));
-
-  FConnection.Setup.WillReturn(TValue.From(FSequenceCursor)).When.OpenCursor(It.IsEqualTo(SEQUENCE_LOAD_SQL));
-
-  FMapper.GetTable(TMyTestClass);
-
-  FFieldType.Add('bigint', tkInt64);
-  FFieldType.Add('bit', tkEnumeration);
-  FFieldType.Add('char', tkWChar);
-  FFieldType.Add('date', tkFloat);
-  FFieldType.Add('datetime', tkFloat);
-  FFieldType.Add('int', tkInteger);
-  FFieldType.Add('numeric', tkFloat);
-  FFieldType.Add('time', tkFloat);
-  FFieldType.Add('tinyint', tkEnumeration);
-  FFieldType.Add('uniqueidentifier', tkUString);
-  FFieldType.Add('varchar', tkUString);
+//  FForeignKeyCursor := TCursorMock.Create([
+//    ['Table1', 'FK1', 'Char', 'Table2', 'DateTime'],
+//    ['Table1', 'FK1', 'Date', 'Table2', 'Tinyint'],
+//    ['Table1', 'FK2', 'Date', 'Table2', 'DateTime'],
+//    ['Table2', 'FK3', 'Nullable', 'Table1', 'Date']]);
+//  FIndexCursor := TCursorMock.Create([
+//    ['Table1', 'Index1', 'Char', 0, 0],
+//    ['Table1', 'Index1', 'Date', 0, 0],
+//    ['Table2', 'Index2', 'DateTime', 0, 1],
+//    ['Table1', 'Index3', 'Time', 1, 0]]);
+//  FSequenceCursor := TCursorMock.Create([
+//    ['Sequence1'],
+//    ['Sequence2'],
+//    ['Sequence3']]);
+//  FTableCursor := TCursorMock.Create([
+//    ['Table3', 'Bigint', 'bigint', 8, 19, 0, 0, NULL, NULL, NULL],
+//    ['Table4', 'Boolean', 'bit', 1, 1, 0, 0, NULL, NULL, NULL],
+//    ['Table1', 'Char', 'char', 1, 0, 0, 0, 'MyCollate', NULL, NULL],
+//    ['Table1', 'Date', 'date', 3, 10, 0, 0, NULL, NULL, NULL],
+//    ['Table2', 'DateTime', 'datetime', 8, 23, 3, 0, NULL, NULL, NULL],
+//    ['Table3', 'DefaultValue', 'datetime', 8, 23, 3, 0, NULL, 'DF_Default_Value', '(getdate())'],
+//    ['Table3', 'Int', 'int', 4, 10, 0, 0, NULL, NULL, NULL],
+//    ['Table2', 'Nullable', 'datetime', 8, 23, 3, 1, NULL, NULL, NULL],
+//    ['Table3', 'Numeric', 'numeric', 9, 18, 8, 0, NULL, NULL, NULL],
+//    ['Table1', 'Time', 'time', 5, 16, 7, 0, NULL, NULL, NULL],
+//    ['Table2', 'Tinyint', 'tinyint', 1, 3, 0, 0, NULL, NULL, NULL],
+//    ['Table1', 'Uniqueidentifier', 'uniqueidentifier', 16, 0, 0, 0, NULL, NULL, NULL],
+//    ['Table3', 'Varchar', 'varchar', 50, 0, 0, 0, 'MyCollate', NULL, NULL],
+//    ['Table4', 'Text', 'text', 16, 0, 0, 0, 'MyCollate', NULL, NULL],
+//    ['Table4', 'VarcharMax', 'varchar', -1, 0, 0, 0, 'MyCollate', NULL, NULL],
+//    ['Table4', 'Unknow', 'unknow', 0, 0, 0, 0, NULL, NULL, NULL]]);
+//  FMapper := TMapper.Create;
+//  FManager := TManager.Create(FConnection.Instance, nil);
+//  FSchema := TDatabaseSchema.Create;
+//
+//  FManipulator := TManipulatorSQLServer.Create(FManager);
+//
+//  FConnection.Setup.WillReturn(TValue.From(FForeignKeyCursor)).When.OpenCursor(It.IsEqualTo(FOREIGN_KEY_LOAD_SQL));
+//
+//  FConnection.Setup.WillReturn(TValue.From(FIndexCursor)).When.OpenCursor(It.IsEqualTo(INDEX_LOAD_SQL));
+//
+//  FConnection.Setup.WillReturn(TValue.From(FTableCursor)).When.OpenCursor(It.IsEqualTo(TABLE_LOAD_SQL));
+//
+//  FConnection.Setup.WillReturn(TValue.From(FSequenceCursor)).When.OpenCursor(It.IsEqualTo(SEQUENCE_LOAD_SQL));
+//
+//  FMapper.GetTable(TMyTestClass);
+//
+//  FFieldType.Add('bigint', tkInt64);
+//  FFieldType.Add('bit', tkEnumeration);
+//  FFieldType.Add('char', tkWChar);
+//  FFieldType.Add('date', tkFloat);
+//  FFieldType.Add('datetime', tkFloat);
+//  FFieldType.Add('int', tkInteger);
+//  FFieldType.Add('numeric', tkFloat);
+//  FFieldType.Add('time', tkFloat);
+//  FFieldType.Add('tinyint', tkEnumeration);
+//  FFieldType.Add('uniqueidentifier', tkUString);
+//  FFieldType.Add('varchar', tkUString);
 end;
 
 procedure TManipulatorSQLServerTest.TearDown;

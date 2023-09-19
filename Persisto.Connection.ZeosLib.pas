@@ -2,17 +2,19 @@ unit Persisto.Connection.ZeosLib;
 
 interface
 
-uses Persisto, ZAbstractConnection, ZConnection, ZAbstractRODataset, ZAbstractDataset, ZDataset;
+uses Data.DB, Persisto, ZAbstractConnection, ZConnection, ZAbstractRODataset, ZAbstractDataset, ZDataset;
 
 type
   TDatabaseCursorZeosLib = class(TInterfacedObject, IDatabaseCursor)
   private
     FQuery: TZReadOnlyQuery;
 
+    function GetDataSet: TDataSet;
     function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
   public
-    constructor Create(const Connection: TZConnection; const SQL: String);
+    constructor Create(const Connection: TZConnection; const SQL: String); overload;
+    constructor Create(const Connection: TZConnection; const SQL: String; const Params: TParams); overload;
 
     destructor Destroy; override;
   end;
@@ -33,6 +35,7 @@ type
 
     function ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
     function OpenCursor(const SQL: String): IDatabaseCursor;
+    function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
     function StartTransaction: IDatabaseTransaction;
 
     procedure ExecuteDirect(const SQL: String);
@@ -79,6 +82,11 @@ begin
   Result := TDatabaseCursorZeosLib.Create(Connection, SQL);
 end;
 
+function TDatabaseConnectionZeosLib.PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
+begin
+  Result := TDatabaseCursorZeosLib.Create(Connection, SQL, Params);
+end;
+
 function TDatabaseConnectionZeosLib.StartTransaction: IDatabaseTransaction;
 begin
   Result := TDatabaseTransactionZeosLib.Create(Connection);
@@ -94,6 +102,13 @@ begin
   FQuery.Connection := Connection;
   FQuery.Options := FQuery.Options + [doSmartOpen];
   FQuery.SQL.Text := SQL;
+end;
+
+constructor TDatabaseCursorZeosLib.Create(const Connection: TZConnection; const SQL: String; const Params: TParams);
+begin
+  Create(Connection, SQL);
+
+  FQuery.Params.Assign(Params);
 
   FQuery.Prepare;
 end;
@@ -103,6 +118,11 @@ begin
   FQuery.Free;
 
   inherited;
+end;
+
+function TDatabaseCursorZeosLib.GetDataSet: TDataSet;
+begin
+  Result := FQuery;
 end;
 
 function TDatabaseCursorZeosLib.GetFieldValue(const FieldIndex: Integer): Variant;

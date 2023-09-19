@@ -129,39 +129,6 @@ type
     property Id: Integer read FId write FId;
   end;
 
-  [Entity]
-  TClassWithTwoForeignKey = class
-  private
-    FAnotherClass: TClassWithPrimaryKey;
-    FAnotherClass2: TClassWithPrimaryKey;
-    FId: Integer;
-  published
-    property AnotherClass: TClassWithPrimaryKey read FAnotherClass write FAnotherClass;
-    property AnotherClass2: TClassWithPrimaryKey read FAnotherClass2 write FAnotherClass2;
-    property Id: Integer read FId write FId;
-  end;
-
-  [Entity]
-  [PrimaryKey('AnotherClass')]
-  TClassWithTwoForeignKeyAndOneIsAPrimaryKey = class
-  private
-    FAnotherClass: TClassWithPrimaryKey;
-    FAnotherClass2: TClassWithPrimaryKey;
-  published
-    property AnotherClass: TClassWithPrimaryKey read FAnotherClass write FAnotherClass;
-    property AnotherClass2: TClassWithPrimaryKey read FAnotherClass2 write FAnotherClass2;
-  end;
-
-  [Entity]
-  TClassWithForeignKeyRecursive = class
-  private
-    FAnotherClass: TClassWithForeignKey;
-    FId: Integer;
-  published
-    property AnotherClass: TClassWithForeignKey read FAnotherClass write FAnotherClass;
-    property Id: Integer read FId write FId;
-  end;
-
   TClassRecursiveThird = class;
 
   [Entity]
@@ -196,65 +163,6 @@ type
     property Id: Integer read FId write FId;
     [Required]
     property Recursive: TClassRecursiveSecond read FRecursive write FRecursive;
-  end;
-
-  [Entity]
-  TClassReferenceToRecursive = class
-  private
-    FRecursive: TClassRecursiveFirst;
-    FId: Integer;
-  published
-    property Id: Integer read FId write FId;
-    property Recursive: TClassRecursiveFirst read FRecursive write FRecursive;
-  end;
-
-  TClassHierarchy2 = class;
-  TClassHierarchy3 = class;
-
-  [Entity]
-  TClassHierarchy1 = class
-  private
-    FClass1: TClassHierarchy2;
-    FId: Integer;
-    FClass3: TClassHierarchy3;
-  published
-    property Class1: TClassHierarchy2 read FClass1 write FClass1;
-    property Class2: TClassHierarchy3 read FClass3 write FClass3;
-    property Id: Integer read FId write FId;
-  end;
-
-  [Entity]
-  TClassHierarchy2 = class
-  private
-    FId: Integer;
-    FClass2: TClassHierarchy1;
-    FClass3: TClassHierarchy1;
-  published
-    property Class3: TClassHierarchy1 read FClass2 write FClass2;
-    property Class4: TClassHierarchy1 read FClass3 write FClass3;
-    property Id: Integer read FId write FId;
-  end;
-
-  [Entity]
-  TClassHierarchy3 = class
-  private
-    FId: Integer;
-    FValue: String;
-  published
-    property Id: Integer read FId write FId;
-    property Value: String read FValue write FValue;
-  end;
-
-  [Entity]
-  TClassRecursiveItSelf = class
-  private
-    FId: Integer;
-    FRecursive1: TClassRecursiveItSelf;
-    FRecursive2: TClassRecursiveItSelf;
-  published
-    property Id: Integer read FId write FId;
-    property Recursive1: TClassRecursiveItSelf read FRecursive1 write FRecursive1;
-    property Recursive2: TClassRecursiveItSelf read FRecursive2 write FRecursive2;
   end;
 
   TMyEntityWithManyValueAssociation = class;
@@ -319,44 +227,6 @@ type
   published
     property Enumerator: TMyEnumerator read FEnumerator write FEnumerator;
     property Guid: TGUID read FGuid write FGuid;
-  end;
-
-  [Entity]
-  TClassForeignKey = class
-  private
-    FId: Integer;
-    FField1: String;
-    FField2: Double;
-  published
-    property Id: Integer read FId write FId;
-    property Field1: String read FField1 write FField1;
-    property Field2: Double read FField2 write FField2;
-  end;
-
-  [Entity]
-  TClassWithThreeForeignKey = class
-  private
-    FId: Integer;
-    FForeignKey1: TClassForeignKey;
-    FForeignKey2: TClassForeignKey;
-    FForeignKey3: TClassForeignKey;
-  published
-    property Id: Integer read FId write FId;
-    property ForeignKey1: TClassForeignKey read FForeignKey1 write FForeignKey1;
-    property ForeignKey2: TClassForeignKey read FForeignKey2 write FForeignKey2;
-    property ForeignKey3: TClassForeignKey read FForeignKey3 write FForeignKey3;
-  end;
-
-  [Entity]
-  TClassWithSubForeignKey = class
-  private
-    FId: Integer;
-    FForeignKey2: TClassWithThreeForeignKey;
-    FForeignKey1: TClassWithThreeForeignKey;
-  published
-    property Id: Integer read FId write FId;
-    property ForeignKey1: TClassWithThreeForeignKey read FForeignKey1 write FForeignKey1;
-    property ForeignKey2: TClassWithThreeForeignKey read FForeignKey2 write FForeignKey2;
   end;
 
   TManyValueAssociationParent = class;
@@ -668,28 +538,6 @@ type
   end;
 
   [Entity]
-  TWhereClassTest = class
-  private
-    FMyField: Integer;
-    FField1: Integer;
-    FField2: Integer;
-    FField3: Integer;
-    FField4: Integer;
-    FValue: Integer;
-    FWhere: TClassHierarchy1;
-    FId: Integer;
-  published
-    property Field1: Integer read FField1 write FField1;
-    property Field2: Integer read FField2 write FField2;
-    property Field3: Integer read FField3 write FField3;
-    property Field4: Integer read FField4 write FField4;
-    property Id: Integer read FId write FId;
-    property MyField: Integer read FMyField write FMyField;
-    property Value: Integer read FValue write FValue;
-    property Where: TClassHierarchy1 read FWhere write FWhere;
-  end;
-
-  [Entity]
   TClassWithNullableProperty = class
   private
     FId: Integer;
@@ -877,74 +725,6 @@ type
     property ForeignKey: TMyEntity read FForeignKey write FForeignKey;
   end;
 
-  [Entity]
-  TClassWithCascadeForeignClass = class
-  private
-    FId: Integer;
-    FValue: Double;
-  published
-    [NewUniqueIdentifier]
-    property Id: Integer read FId write FId;
-    property Value: Double read FValue write FValue;
-  end;
-
-  [Entity]
-  TClassWithCascadeAttribute = class
-  private
-    FUpdateCascade: TClassWithCascadeForeignClass;
-    FInsertCascade: TClassWithCascadeForeignClass;
-    FUpdateInsertCascade: TClassWithCascadeForeignClass;
-    FId: Integer;
-  published
-    property Id: Integer read FId write FId;
-    property InsertCascade: TClassWithCascadeForeignClass read FInsertCascade write FInsertCascade;
-    property UpdateCascade: TClassWithCascadeForeignClass read FUpdateCascade write FUpdateCascade;
-    property UpdateInsertCascade: TClassWithCascadeForeignClass read FUpdateInsertCascade write FUpdateInsertCascade;
-  end;
-
-  TManyValueParentSelfReference = class;
-
-  [Entity]
-  TManyValueParentSelfReferenceChild = class
-  private
-    FChild: TManyValueParentSelfReference;
-    FId: Integer;
-    FParent: TManyValueParentSelfReference;
-  published
-    property Child: TManyValueParentSelfReference read FChild write FChild;
-    property Id: Integer read FId write FId;
-    property Parent: TManyValueParentSelfReference read FParent write FParent;
-  end;
-
-  [Entity]
-  TManyValueParentSelfReference = class
-  private
-    FChilds: TArray<TManyValueParentSelfReferenceChild>;
-    FId: Integer;
-  published
-    [ManyValueAssociationLinkName('Parent')]
-    property Childs: TArray<TManyValueParentSelfReferenceChild> read FChilds write FChilds;
-    property Id: Integer read FId write FId;
-  end;
-
-  TManyValueParentWithoutPrimaryKey = class;
-
-  TManyValueParentWithoutPrimaryKeyChild = class
-  private
-    FManyValueParentWithoutPrimaryKey: TManyValueParentWithoutPrimaryKey;
-  published
-    property ManyValueParentWithoutPrimaryKey: TManyValueParentWithoutPrimaryKey read FManyValueParentWithoutPrimaryKey write FManyValueParentWithoutPrimaryKey;
-  end;
-
-  TManyValueParentWithoutPrimaryKey = class
-  private
-    FId: String;
-    FChild: TArray<TManyValueParentWithoutPrimaryKeyChild>;
-  published
-    property Child: TArray<TManyValueParentWithoutPrimaryKeyChild> read FChild write FChild;
-    property Id: String read FId write FId;
-  end;
-
   TManyValueClassBase = class;
 
   [Entity]
@@ -988,88 +768,6 @@ type
   end;
 
   [Entity]
-  TMyClassWithForeignKeyBase = class
-  private
-    FMyField: TManyValueClassInherited;
-    FId: Integer;
-  published
-    property Id: Integer read FId write FId;
-    property MyField: TManyValueClassInherited read FMyField write FMyField;
-  end;
-
-  [Entity]
-  TMyClassWithForeignKeyInherited = class(TMyClassWithForeignKeyBase)
-  private
-    FValue: String;
-  published
-    property Value: String read FValue write FValue;
-  end;
-
-  [Entity]
-  TClassWithNoUpdateAttribute = class
-  private
-    FId: String;
-    FNoUpdate: String;
-    FValue: String;
-  published
-    property Id: String read FId write FId;
-    property NoUpdate: String read FNoUpdate;
-    property Value: String read FValue write FValue;
-  end;
-
-  [Entity]
-  TLazyFilterClass = class
-  private
-    FId: Integer;
-    FMany: TManyValueParent;
-  published
-    property Id: Integer read FId write FId;
-    property Many: TManyValueParent read FMany write FMany;
-  end;
-
-  [Entity]
-  TFilterClass = class
-  private
-    FId: Integer;
-    FLazyFilterClass: Lazy<TLazyFilterClass>;
-  published
-    property Id: Integer read FId write FId;
-    property LazyFilterClass: Lazy<TLazyFilterClass> read FLazyFilterClass write FLazyFilterClass;
-  end;
-
-  [Entity]
-  TClassWithFunction = class
-  private
-    FId: Integer;
-  public
-    DestroyCallFunction: TProc;
-
-    destructor Destroy; override;
-  published
-    property Id: Integer read FId write FId;
-  end;
-
-  [Entity]
-  TClassWithForeignKeyToClassWithFunction = class
-  private
-    FForeignKey: TClassWithFunction;
-    FId: Integer;
-  published
-    property ForeignKey: TClassWithFunction read FForeignKey write FForeignKey;
-    property Id: Integer read FId write FId;
-  end;
-
-  [Entity]
-  TClassWithForeignKeyToClassTest = class
-  private
-    FForeignKey: TClassWithForeignKeyToClassWithFunction;
-    FId: Integer;
-  published
-    property ForeignKey: TClassWithForeignKeyToClassWithFunction read FForeignKey write FForeignKey;
-    property Id: Integer read FId write FId;
-  end;
-
-  [Entity]
   [Index('MyIndex', 'MyField')]
   [Index('MyIndex2', 'MyField;MyField2')]
   [UniqueKey('MyUnique', 'MyField;MyField2')]
@@ -1089,30 +787,6 @@ type
   private
     FId: Integer;
   published
-    property Id: Integer read FId write FId;
-  end;
-
-  TClassWithCircularReference = class;
-
-  [Entity]
-  TClassWithCircularReferenceForeignKey = class
-  private
-    FCircularReference: TClassWithCircularReference;
-    FId: Integer;
-  published
-    property CircularReference2: TClassWithCircularReference read FCircularReference write FCircularReference;
-    [NewUniqueIdentifier]
-    property Id: Integer read FId write FId;
-  end;
-
-  [Entity]
-  TClassWithCircularReference = class
-  private
-    FCircularReferente: TClassWithCircularReferenceForeignKey;
-    FId: Integer;
-  published
-    property CircularReferente1: TClassWithCircularReferenceForeignKey read FCircularReferente write FCircularReferente;
-    [NewUniqueIdentifier]
     property Id: Integer read FId write FId;
   end;
 
@@ -1292,6 +966,8 @@ type
 
 implementation
 
+uses System.Internal.ExcUtils;
+
 { TManyValueParentChildError }
 
 function TManyValueParentChildError.GetParent: TManyValueParentError;
@@ -1304,16 +980,6 @@ begin
   Inc(FPassCount);
 end;
 
-{ TClassWithFunction }
-
-destructor TClassWithFunction.Destroy;
-begin
-  if Assigned(DestroyCallFunction) then
-    DestroyCallFunction();
-
-  inherited;
-end;
-
 { TStackOverflowClass }
 
 function TStackOverflowClass.GetCallBack: TStackOverflowClass;
@@ -1323,7 +989,7 @@ begin
   Inc(FPassCount);
 
   if FPassCount > 10 then
-    raise EStackOverflow.Create('Error!');
+    raise ExceptTypes[etStackOverflow].Create('Error!');
 end;
 
 end.

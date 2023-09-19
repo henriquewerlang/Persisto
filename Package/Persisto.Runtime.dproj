@@ -145,7 +145,6 @@
         <DCCReference Include="dbrtl.dcp"/>
         <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="..\Persisto.DataSet.pas"/>
-        <DCCReference Include="..\Persisto.Rtti.Helper.pas"/>
         <DCCReference Include="..\Persisto.Mapping.pas"/>
         <DCCReference Include="..\Persisto.pas"/>
         <BuildConfiguration Include="Base">

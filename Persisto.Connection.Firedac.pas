@@ -9,6 +9,7 @@ type
   private
     FQuery: TFDQuery;
 
+    function GetDataSet: TDataSet;
     function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
   public
@@ -74,6 +75,11 @@ begin
   FQuery.Free;
 
   inherited;
+end;
+
+function TDatabaseCursorFireDAC.GetDataSet: TDataSet;
+begin
+  Result := FQuery;
 end;
 
 function TDatabaseCursorFireDAC.GetFieldValue(const FieldIndex: Integer): Variant;
