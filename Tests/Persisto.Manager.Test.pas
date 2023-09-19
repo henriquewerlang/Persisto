@@ -338,7 +338,7 @@ begin
     procedure
     begin
       FManager.Insert(&Object);
-    end, ERecursionInsertionErro);
+    end, ERecursionInsertionError);
 end;
 
 procedure TManagerTest.WhenInsertARecursiveRequiredObjectMustInsertTheForeignKeyFirstToInsertTheMainObject;

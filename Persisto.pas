@@ -87,7 +87,7 @@ type
     constructor Create;
   end;
 
-  ERecursionInsertionErro = class(Exception)
+  ERecursionInsertionError = class(Exception)
   private
     FRecursionTree: String;
   public
@@ -2946,10 +2946,10 @@ var
   begin
     try
       if not SaveTable(Field.ForeignKey.ParentTable, FieldValue.AsObject) then
-        raise ERecursionInsertionErro.Create(Field.ForeignKey.ParentTable.Name);
+        raise ERecursionInsertionError.Create(Field.ForeignKey.ParentTable.Name);
     except
-      on E: ERecursionInsertionErro do
-        raise ERecursionInsertionErro.Create(Table.Name + '->' + E.RecursionTree);
+      on E: ERecursionInsertionError do
+        raise ERecursionInsertionError.Create(Table.Name + '->' + E.RecursionTree);
     end;
   end;
 
@@ -3253,9 +3253,9 @@ begin
   FOldValues[Field.Index] := Value;
 end;
 
-{ ERecursionInsertionErro }
+{ ERecursionInsertionError }
 
-constructor ERecursionInsertionErro.Create(const RecursionTree: String);
+constructor ERecursionInsertionError.Create(const RecursionTree: String);
 begin
   inherited Create('Error of recursion inserting object, the sequence of error was ' + RecursionTree + ' please check your data and try again!');
 
