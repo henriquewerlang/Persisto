@@ -105,11 +105,6 @@ type
     property RecursionTree: String read FRecursionTree write FRecursionTree;
   end;
 
-  EObjectInsertedMoreThenOnce = class(Exception)
-  public
-    constructor Create;
-  end;
-
   TTableObject = class
   private
     FTable: TTable;
@@ -397,7 +392,7 @@ type
   public
     constructor Create(const QueryBuilder: TQueryBuilder);
 
-    function Load: TObject;
+    function Load: TArray<TObject>;
   end;
 
   TQueryBuilderTableField = class
@@ -415,10 +410,11 @@ type
   private
     FAlias: String;
     FDatabaseFields: TList<TQueryBuilderTableField>;
+    FForeignKeyField: TField;
     FForeignKeyTables: TList<TQueryBuilderTable>;
     FInheritedTable: TQueryBuilderTable;
+    FPrimaryKeyField: TQueryBuilderTableField;
     FTable: TTable;
-    FForeignKeyField: TField;
   public
     constructor Create(const ForeignKeyField: TField); overload;
     constructor Create(const Table: TTable); overload;
@@ -430,13 +426,17 @@ type
     property ForeignKeyField: TField read FForeignKeyField write FForeignKeyField;
     property ForeignKeyTables: TList<TQueryBuilderTable> read FForeignKeyTables write FForeignKeyTables;
     property InheritedTable: TQueryBuilderTable read FInheritedTable write FInheritedTable;
+    property PrimaryKeyField: TQueryBuilderTableField read FPrimaryKeyField write FPrimaryKeyField;
     property Table: TTable read FTable write FTable;
   end;
 
   TQueryBuilder = class
   private
     FManager: TManager;
+    FQueryFrom: TQueryBuilderFrom;
+    FQueryOpen: TObject;
     FQueryTable: TQueryBuilderTable;
+    FQueryWhere: TObject;
 
     function BuildCommand: String;
     function OpenCursor: IDatabaseCursor;
@@ -827,15 +827,18 @@ type
     FMapper: TMapper;
     FProcessedObjects: TDictionary<TObject, Boolean>;
     FQueryBuilder: TQueryBuilder;
-    FStateObjects: TDictionary<TObject, TStateObject>;
+    FStateObjects: TDictionary<String, TStateObject>;
 
+    function BuildStateObjectKey(const Table: TTable; const PrimaryKeyValue: String): String; overload;
+    function BuildStateObjectKey(const Table: TTable; const &Object: TObject): String; overload;
     function CheckStateObjectExists(const Table: TTable; const &Object: TObject): Boolean;
     function GetStateObject(const Table: TTable; const &Object: TObject): TStateObject;
     function InsertTable(const Table: TTable; const &Object: TObject): Boolean;
     function SaveTable(const Table: TTable; const &Object: TObject): Boolean;
     function UpdateTable(const Table: TTable; const &Object: TObject): Boolean;
+    function TryGetStateObject(const StateObjectKey: String; var StateObject: TStateObject): Boolean;
 
-    procedure AddStateObject(const Table: TTable; const StateObject: TStateObject);
+    procedure AddStateObject(const StateObjectKey: String; const StateObject: TStateObject);
     procedure InternalUpdateTable(const Table: TTable; const &Object: TObject);
   public
     constructor Create(const Connection: IDatabaseConnection; const Dialect: IDatabaseDialect);
@@ -1586,38 +1589,74 @@ begin
     Result := TLazySingleClassFactory.Create(Manager, LazyField, KeyValue);
 end;
 
-function TClassLoader.Load: TObject;
+function TClassLoader.Load: TArray<TObject>;
+var
+  ProcessedObjects: TDictionary<TStateObject, Boolean>;
 
-  procedure LoadFieldValues(const QueryTable: TQueryBuilderTable; const &Object: TObject);
-  var
-    ForeignObject: TObject;
-
-    ForeignKeyTable: TQueryBuilderTable;
-
+  function CreateObject(const QueryTable: TQueryBuilderTable): TStateObject;
   begin
-    for var QueryField in QueryTable.DatabaseFields do
-      QueryField.Field.Value[&Object] := TValue.FromVariant(QueryField.DataSetField.AsVariant);
+    var StateObjectKey := FQueryBuilder.FManager.BuildStateObjectKey(QueryTable.Table, QueryTable.PrimaryKeyField.DataSetField.AsString);
 
-    if Assigned(QueryTable.InheritedTable) then
-      LoadFieldValues(QueryTable.InheritedTable, &Object);
-
-    for ForeignKeyTable in QueryTable.ForeignKeyTables do
+    if not FQueryBuilder.FManager.TryGetStateObject(StateObjectKey, Result) then
     begin
-      ForeignObject := ForeignKeyTable.Table.ClassTypeInfo.MetaclassType.Create;
+      Result := TStateObject.Create(QueryTable.Table, QueryTable.Table.ClassTypeInfo.MetaclassType.Create);
 
-      ForeignKeyTable.ForeignKeyField.Value[&Object] := ForeignObject;
-
-      LoadFieldValues(ForeignKeyTable, ForeignObject);
+      FQueryBuilder.FManager.AddStateObject(StateObjectKey, Result);
     end;
   end;
 
-begin
-  var ClassInfo := FQueryBuilder.FQueryTable.Table.ClassTypeInfo;
-  var Cursor := FQueryBuilder.OpenCursor;
-  Result := ClassInfo.MetaclassType.Create;
+  procedure LoadFieldValues(const QueryTable: TQueryBuilderTable; const StateObject: TStateObject);
+  var
+    FieldValue: TValue;
 
-  if Cursor.Next then
-    LoadFieldValues(FQueryBuilder.FQueryTable, Result);
+    ForeignObject: TStateObject;
+
+    procedure DoLoadFieldValues(const QueryTable: TQueryBuilderTable; const StateObject: TStateObject);
+    var
+      ForeignKeyTable: TQueryBuilderTable;
+
+    begin
+      for var QueryField in QueryTable.DatabaseFields do
+      begin
+        FieldValue := TValue.FromVariant(QueryField.DataSetField.AsVariant);
+        QueryField.Field.Value[StateObject.&Object] := FieldValue;
+        StateObject.OldValue[QueryField.Field] := FieldValue;
+      end;
+
+      if Assigned(QueryTable.InheritedTable) then
+        DoLoadFieldValues(QueryTable.InheritedTable, StateObject);
+
+      for ForeignKeyTable in QueryTable.ForeignKeyTables do
+      begin
+        ForeignObject := CreateObject(ForeignKeyTable);
+
+        ForeignKeyTable.ForeignKeyField.Value[StateObject.&Object] := ForeignObject.&Object;
+
+        LoadFieldValues(ForeignKeyTable, ForeignObject);
+      end;
+    end;
+
+  begin
+    if not ProcessedObjects.ContainsKey(StateObject) then
+      DoLoadFieldValues(QueryTable, StateObject);
+  end;
+
+begin
+  var Cursor := FQueryBuilder.OpenCursor;
+  ProcessedObjects := TDictionary<TStateObject, Boolean>.Create;
+  Result := nil;
+
+  while Cursor.Next do
+  begin
+    var StateObject := CreateObject(FQueryBuilder.FQueryTable);
+
+    if not ProcessedObjects.ContainsKey(StateObject) then
+      Result := Result + [StateObject.&Object];
+
+    LoadFieldValues(FQueryBuilder.FQueryTable, StateObject);
+  end;
+
+  ProcessedObjects.Free;
 end;
 
 { TQueryBuilderFrom }
@@ -1666,7 +1705,8 @@ end;
 
 function TQueryBuilder.All: TQueryBuilderFrom;
 begin
-  Result := TQueryBuilderFrom.Create(Self);
+  FQueryFrom := TQueryBuilderFrom.Create(Self);
+  Result := FQueryFrom;
 end;
 
 function TQueryBuilder.BuildCommand: String;
@@ -1687,9 +1727,11 @@ var
 
   procedure LoadFieldList(const QueryTable: TQueryBuilderTable);
   var
-    ForeignKeyFields: TList<TField>;
+    DatabaseField: TQueryBuilderTableField;
 
     Field: TField;
+
+    ForeignKeyFields: TList<TField>;
 
     ForeignKeyTable: TQueryBuilderTable;
 
@@ -1712,6 +1754,11 @@ var
         end
         else
         begin
+          DatabaseField := TQueryBuilderTableField.Create(Field);
+
+          if Field.InPrimaryKey then
+            QueryTable.PrimaryKeyField := DatabaseField;
+
           if FieldIndex > 1 then
             SQL.Append(',');
 
@@ -1719,13 +1766,17 @@ var
 
           SQL.Append(' F').Append(FieldIndex);
 
-          QueryTable.DatabaseFields.Add(TQueryBuilderTableField.Create(Field));
+          QueryTable.DatabaseFields.Add(DatabaseField);
 
           Inc(FieldIndex);
         end;
 
       if Assigned(QueryTable.InheritedTable) then
+      begin
         LoadFieldList(QueryTable.InheritedTable);
+
+        QueryTable.PrimaryKeyField := QueryTable.InheritedTable.PrimaryKeyField;
+      end;
 
       for Field in ForeignKeyFields do
       begin
@@ -1808,6 +1859,12 @@ destructor TQueryBuilder.Destroy;
 begin
   FQueryTable.Free;
 
+  FQueryOpen.Free;
+
+  FQueryFrom.Free;
+
+  FQueryWhere.Free;
+
   inherited;
 end;
 
@@ -1829,6 +1886,7 @@ begin
   inherited Create;
 
   FQueryBuilder := QueryBuilder;
+  FQueryBuilder.FQueryWhere := Self;
 end;
 
 function TQueryBuilderWhere.GetFieldValue(const Comparison: TQueryBuilderComparison; const Field: TField): String;
@@ -1887,7 +1945,7 @@ end;
 
 function TQueryBuilderOpen<T>.All: TArray<T>;
 begin
-  Result := nil;
+  Result := TArray<T>(FLoader.Load);
 end;
 
 constructor TQueryBuilderOpen<T>.Create(const QueryBuilder: TQueryBuilder);
@@ -1895,6 +1953,7 @@ begin
   inherited Create;
 
   FLoader := TClassLoader.Create(QueryBuilder);
+  QueryBuilder.FQueryOpen := Self;
 end;
 
 destructor TQueryBuilderOpen<T>.Destroy;
@@ -1906,7 +1965,12 @@ end;
 
 function TQueryBuilderOpen<T>.One: T;
 begin
-  Result := FLoader.Load as T;
+  var Objects := All;
+
+  if Length(Objects) > 0 then
+    Result := Objects[0]
+  else
+    Result := nil;
  end;
 
 { TQueryBuilderComparison }
@@ -2933,14 +2997,24 @@ end;
 
 { TManager }
 
-procedure TManager.AddStateObject(const Table: TTable; const StateObject: TStateObject);
+procedure TManager.AddStateObject(const StateObjectKey: String; const StateObject: TStateObject);
 begin
-  FStateObjects.Add(StateObject.&Object, StateObject);
+  FStateObjects.Add(StateObjectKey, StateObject);
+end;
+
+function TManager.BuildStateObjectKey(const Table: TTable; const PrimaryKeyValue: String): String;
+begin
+  Result := Format('%s.%s', [Table.DatabaseName, PrimaryKeyValue]);
+end;
+
+function TManager.BuildStateObjectKey(const Table: TTable; const &Object: TObject): String;
+begin
+  Result := BuildStateObjectKey(Table, Table.PrimaryKey.Value[&Object].ToString);
 end;
 
 function TManager.CheckStateObjectExists(const Table: TTable; const &Object: TObject): Boolean;
 begin
-  Result := FStateObjects.ContainsKey(&Object);
+  Result := FStateObjects.ContainsKey(BuildStateObjectKey(Table, &Object));
 end;
 
 constructor TManager.Create(const Connection: IDatabaseConnection; const Dialect: IDatabaseDialect);
@@ -2951,7 +3025,7 @@ begin
   FDialect := Dialect;
   FMapper := TMapper.Create;
   FProcessedObjects := TDictionary<TObject, Boolean>.Create;
-  FStateObjects := TObjectDictionary<TObject, TStateObject>.Create([doOwnsValues]);
+  FStateObjects := TObjectDictionary<String, TStateObject>.Create([doOwnsValues]);
 end;
 
 procedure TManager.Delete(const &Object: TObject);
@@ -2979,7 +3053,7 @@ end;
 
 function TManager.GetStateObject(const Table: TTable; const &Object: TObject): TStateObject;
 begin
-  if not FStateObjects.TryGetValue(&Object, Result) then
+  if not FStateObjects.TryGetValue(BuildStateObjectKey(Table, &Object), Result) then
     raise EForeignObjectNotAllowed.Create;
 end;
 
@@ -3058,51 +3132,48 @@ var
 
 begin
   if not FProcessedObjects.TryGetValue(&Object, Result) then
-    if CheckStateObjectExists(Table, &Object) then
-      raise EObjectInsertedMoreThenOnce.Create
-    else
+  begin
+    DelayedSave := nil;
+    var Field: TField;
+    ManyValueAssociationFields := nil;
+    Result := True;
+    StateObject := TStateObject.Create(Table, &Object);
+
+    FProcessedObjects.Add(&Object, False);
+
+    try
+      DoInsertTable(Table, &Object);
+    except
+      StateObject.Free;
+
+      raise;
+    end;
+
+    AddStateObject(BuildStateObjectKey(Table, &Object), StateObject);
+
+    FProcessedObjects[&Object] := Result;
+
+    if DelayedSave <> nil then
     begin
-      DelayedSave := nil;
-      var Field: TField;
-      ManyValueAssociationFields := nil;
-      Result := True;
-      StateObject := TStateObject.Create(Table, &Object);
+      for Field in DelayedSave do
+        if Field.HasValue(&Object, FieldValue) then
+          SaveForeignTable(Field);
 
-      FProcessedObjects.Add(&Object, False);
+      InternalUpdateTable(Table, &Object);
+    end;
 
-      try
-        DoInsertTable(Table, &Object);
-      except
-        StateObject.Free;
+    for Field in ManyValueAssociationFields do
+    begin
+      FieldValue := Field.Value[&Object];
 
-        raise;
-      end;
-
-      AddStateObject(Table, StateObject);
-
-      FProcessedObjects[&Object] := Result;
-
-      if DelayedSave <> nil then
+      for var A := 0 to Pred(FieldValue.ArrayLength) do
       begin
-        for Field in DelayedSave do
-          if Field.HasValue(&Object, FieldValue) then
-            SaveForeignTable(Field);
+        Field.ManyValueAssociation.ChildField.Value[FieldValue.ArrayElement[A].AsObject] := &Object;
 
-        InternalUpdateTable(Table, &Object);
-      end;
-
-      for Field in ManyValueAssociationFields do
-      begin
-        FieldValue := Field.Value[&Object];
-
-        for var A := 0 to Pred(FieldValue.ArrayLength) do
-        begin
-          Field.ManyValueAssociation.ChildField.Value[FieldValue.ArrayElement[A].AsObject] := &Object;
-
-          InsertTable(Field.ManyValueAssociation.ChildTable, FieldValue.ArrayElement[A].AsObject);
-        end;
+        InsertTable(Field.ManyValueAssociation.ChildTable, FieldValue.ArrayElement[A].AsObject);
       end;
     end;
+  end;
 end;
 
 procedure TManager.InternalUpdateTable(const Table: TTable; const &Object: TObject);
@@ -3185,6 +3256,11 @@ function TManager.Select: TQueryBuilder;
 begin
   FQueryBuilder := TQueryBuilder.Create(Self);
   Result := FQueryBuilder;
+end;
+
+function TManager.TryGetStateObject(const StateObjectKey: String; var StateObject: TStateObject): Boolean;
+begin
+  Result := FStateObjects.TryGetValue(StateObjectKey, StateObject);
 end;
 
 procedure TManager.Update(const &Object: TObject);
@@ -3316,13 +3392,6 @@ begin
   inherited Create('Error of recursion inserting object, the sequence of error was ' + RecursionTree + ' please check your data and try again!');
 
   FRecursionTree := RecursionTree;
-end;
-
-{ EObjectInsertedMoreThenOnce }
-
-constructor EObjectInsertedMoreThenOnce.Create;
-begin
-  inherited Create('You can''t insert the same object more then one time, please use the "Save" method to avoid this error!');
 end;
 
 { TQueryBuilderTable }
