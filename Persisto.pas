@@ -96,6 +96,15 @@ type
     property RecursionTree: String read FRecursionTree write FRecursionTree;
   end;
 
+  ERecursionSelectionError = class(Exception)
+  private
+    FRecursionTree: String;
+  public
+    constructor Create(const RecursionTree: String);
+
+    property RecursionTree: String read FRecursionTree write FRecursionTree;
+  end;
+
   EObjectInsertedMoreThenOnce = class(Exception)
   public
     constructor Create;
@@ -405,20 +414,22 @@ type
   TQueryBuilderTable = class
   private
     FAlias: String;
-    FDatabaseFields: TArray<TQueryBuilderTableField>;
-    FJoinTables: TArray<TQueryBuilderTable>;
-    FParentQueryTable: TQueryBuilderTable;
+    FDatabaseFields: TList<TQueryBuilderTableField>;
+    FForeignKeyTables: TList<TQueryBuilderTable>;
+    FInheritedTable: TQueryBuilderTable;
     FTable: TTable;
+    FForeignKeyField: TField;
   public
+    constructor Create(const ForeignKeyField: TField); overload;
     constructor Create(const Table: TTable); overload;
-    constructor Create(const Table: TTable; const ParentQueryTable: TQueryBuilderTable); overload;
 
     destructor Destroy; override;
 
     property Alias: String read FAlias write FAlias;
-    property DatabaseFields: TArray<TQueryBuilderTableField> read FDatabaseFields write FDatabaseFields;
-    property JoinTables: TArray<TQueryBuilderTable> read FJoinTables write FJoinTables;
-    property ParentQueryTable: TQueryBuilderTable read FParentQueryTable write FParentQueryTable;
+    property DatabaseFields: TList<TQueryBuilderTableField> read FDatabaseFields write FDatabaseFields;
+    property ForeignKeyField: TField read FForeignKeyField write FForeignKeyField;
+    property ForeignKeyTables: TList<TQueryBuilderTable> read FForeignKeyTables write FForeignKeyTables;
+    property InheritedTable: TQueryBuilderTable read FInheritedTable write FInheritedTable;
     property Table: TTable read FTable write FTable;
   end;
 
@@ -438,7 +449,6 @@ type
     destructor Destroy; override;
 
     function All: TQueryBuilderFrom;
-    function First(const Total: Cardinal): TQueryBuilder;
   end;
 
   TQueryBuilderFrom = class
@@ -1578,13 +1588,27 @@ end;
 
 function TClassLoader.Load: TObject;
 
-  procedure LoadFieldValues(const QueryTable: TQueryBuilderTable);
+  procedure LoadFieldValues(const QueryTable: TQueryBuilderTable; const &Object: TObject);
+  var
+    ForeignObject: TObject;
+
+    ForeignKeyTable: TQueryBuilderTable;
+
   begin
     for var QueryField in QueryTable.DatabaseFields do
-      QueryField.Field.Value[Result] := TValue.FromVariant(QueryField.DataSetField.AsVariant);
+      QueryField.Field.Value[&Object] := TValue.FromVariant(QueryField.DataSetField.AsVariant);
 
-    for var JoinTable in QueryTable.JoinTables do
-      LoadFieldValues(JoinTable);
+    if Assigned(QueryTable.InheritedTable) then
+      LoadFieldValues(QueryTable.InheritedTable, &Object);
+
+    for ForeignKeyTable in QueryTable.ForeignKeyTables do
+    begin
+      ForeignObject := ForeignKeyTable.Table.ClassTypeInfo.MetaclassType.Create;
+
+      ForeignKeyTable.ForeignKeyField.Value[&Object] := ForeignObject;
+
+      LoadFieldValues(ForeignKeyTable, ForeignObject);
+    end;
   end;
 
 begin
@@ -1592,9 +1616,8 @@ begin
   var Cursor := FQueryBuilder.OpenCursor;
   Result := ClassInfo.MetaclassType.Create;
 
-  Cursor.Next;
-
-  LoadFieldValues(FQueryBuilder.FQueryTable);
+  if Cursor.Next then
+    LoadFieldValues(FQueryBuilder.FQueryTable, Result);
 end;
 
 { TQueryBuilderFrom }
@@ -1619,7 +1642,7 @@ procedure TQueryBuilder.AfterOpenDataSet(DataSet: TDataSet);
 var
   FieldIndex: Integer;
 
-  procedure LoadDatabaseFields(const QueryTable: TQueryBuilderTable);
+  procedure LoadDataSetFields(const QueryTable: TQueryBuilderTable);
   begin
     for var DatabaseField in QueryTable.DatabaseFields do
     begin
@@ -1628,14 +1651,17 @@ var
       Inc(FieldIndex);
     end;
 
-    for var JoinTable in QueryTable.JoinTables do
-      LoadDatabaseFields(JoinTable);
+    if Assigned(QueryTable.InheritedTable) then
+      LoadDataSetFields(QueryTable.InheritedTable);
+
+    for var ForiegnKeyTable in QueryTable.ForeignKeyTables do
+      LoadDataSetFields(ForiegnKeyTable);
   end;
 
 begin
   FieldIndex := 0;
 
-  LoadDatabaseFields(FQueryTable);
+  LoadDataSetFields(FQueryTable);
 end;
 
 function TQueryBuilder.All: TQueryBuilderFrom;
@@ -1652,6 +1678,8 @@ var
 
   SQL: TStringBuilder;
 
+  RecursiveControl: TDictionary<TField, Boolean>;
+
   procedure AppendFieldName(const QueryTable: TQueryBuilderTable; const Field: TField);
   begin
     SQL.Append(QueryTable.Alias).Append('.').Append(Field.DatabaseName);
@@ -1659,81 +1687,114 @@ var
 
   procedure LoadFieldList(const QueryTable: TQueryBuilderTable);
   var
-    JoinFields: TArray<TField>;
+    ForeignKeyFields: TList<TField>;
 
     Field: TField;
 
+    ForeignKeyTable: TQueryBuilderTable;
+
   begin
-    JoinFields := nil;
+    ForeignKeyFields := TList<TField>.Create;
     QueryTable.Alias := 'T' + TableIndex.ToString;
 
     Inc(TableIndex);
 
-    for Field in QueryTable.Table.Fields do
-      if Field.IsInheritedLink then
-        JoinFields := JoinFields + [Field]
-      else
+    try
+      for Field in QueryTable.Table.Fields do
+        if Field.IsInheritedLink then
+          QueryTable.InheritedTable := TQueryBuilderTable.Create(Field.ForeignKey.ParentTable)
+        else if Field.IsForeignKey then
+        begin
+          if not RecursiveControl.TryAdd(Field, False) then
+            raise ERecursionSelectionError.Create(Format('%s.%s', [Field.Table.Name, Field.Name]));
+
+          ForeignKeyFields.Add(Field);
+        end
+        else
+        begin
+          if FieldIndex > 1 then
+            SQL.Append(',');
+
+          AppendFieldName(QueryTable, Field);
+
+          SQL.Append(' F').Append(FieldIndex);
+
+          QueryTable.DatabaseFields.Add(TQueryBuilderTableField.Create(Field));
+
+          Inc(FieldIndex);
+        end;
+
+      if Assigned(QueryTable.InheritedTable) then
+        LoadFieldList(QueryTable.InheritedTable);
+
+      for Field in ForeignKeyFields do
       begin
-        if FieldIndex > 1 then
-          SQL.Append(',');
+        ForeignKeyTable := TQueryBuilderTable.Create(Field);
 
-        AppendFieldName(QueryTable, Field);
+        QueryTable.ForeignKeyTables.Add(ForeignKeyTable);
 
-        SQL.Append(' F').Append(FieldIndex);
-
-        QueryTable.DatabaseFields := QueryTable.DatabaseFields + [TQueryBuilderTableField.Create(Field)];
-
-        Inc(FieldIndex);
+        try
+          LoadFieldList(ForeignKeyTable);
+        except
+          on E: ERecursionSelectionError do
+            raise ERecursionSelectionError.Create(Format('%s.%s->%s', [Field.Table.Name, Field.Name, E.RecursionTree]));
+        end;
       end;
-
-    for Field in JoinFields do
-    begin
-      var JoinTable := TQueryBuilderTable.Create(Field.ForeignKey.ParentTable, QueryTable);
-
-      QueryTable.JoinTables := QueryTable.JoinTables + [JoinTable];
-
-      LoadFieldList(JoinTable);
+    finally
+      ForeignKeyFields.Free;
     end;
   end;
 
   procedure BuildJoin(const QueryTable: TQueryBuilderTable);
-  begin
-    if Assigned(QueryTable.ParentQueryTable) then
+  var
+    ForeignKeyTable: TQueryBuilderTable;
+
+    procedure MakeJoin(const ParentQueryTable, QueryTable: TQueryBuilderTable; const LinkField: TField);
+    begin
       SQL.Append(' left join ');
 
-    SQL.Append(QueryTable.Table.DatabaseName).Append(' ').Append(QueryTable.Alias);
+      SQL.Append(QueryTable.Table.DatabaseName).Append(' ').Append(QueryTable.Alias);
 
-    if Assigned(QueryTable.ParentQueryTable) then
-    begin
       SQL.Append(' on ');
 
       AppendFieldName(QueryTable, QueryTable.Table.PrimaryKey);
 
       SQL.Append('=');
 
-      AppendFieldName(QueryTable.ParentQueryTable, QueryTable.ParentQueryTable.Table.PrimaryKey);
+      AppendFieldName(ParentQueryTable, LinkField);
+
+      BuildJoin(QueryTable);
     end;
 
-    for var JoinQueryTable in QueryTable.JoinTables do
-      BuildJoin(JoinQueryTable);
+  begin
+    if Assigned(QueryTable.InheritedTable) then
+      MakeJoin(QueryTable, QueryTable.InheritedTable, QueryTable.Table.PrimaryKey);
+
+    for ForeignKeyTable in QueryTable.ForeignKeyTables do
+      MakeJoin(QueryTable, ForeignKeyTable, ForeignKeyTable.ForeignKeyField);
   end;
 
 begin
   FieldIndex := 1;
+  RecursiveControl := TDictionary<TField, Boolean>.Create;
   SQL := TStringBuilder.Create(STRING_BUILDER_START_CAPACITY);
   TableIndex := 1;
 
-  SQL.Append('select ');
+  try
+    SQL.Append('select ');
 
-  LoadFieldList(FQueryTable);
+    LoadFieldList(FQueryTable);
 
-  SQL.Append(' from ');
+    SQL.Append(' from ').Append(FQueryTable.Table.DatabaseName).Append(' ').Append(FQueryTable.Alias);
 
-  BuildJoin(FQueryTable);
+    BuildJoin(FQueryTable);
 
-  Result := SQL.ToString;
+    Result := SQL.ToString;
+  finally
+    RecursiveControl.Free;
 
-  SQL.Free;
+    SQL.Free;
+  end;
 end;
 
 constructor TQueryBuilder.Create(const Manager: TManager);
@@ -1748,11 +1809,6 @@ begin
   FQueryTable.Free;
 
   inherited;
-end;
-
-function TQueryBuilder.First(const Total: Cardinal): TQueryBuilder;
-begin
-  Result := Self;
 end;
 
 procedure TQueryBuilder.LoadTable(const TypeInfo: PTypeInfo);
@@ -1851,7 +1907,7 @@ end;
 function TQueryBuilderOpen<T>.One: T;
 begin
   Result := FLoader.Load as T;
-end;
+ end;
 
 { TQueryBuilderComparison }
 
@@ -3273,20 +3329,26 @@ end;
 
 constructor TQueryBuilderTable.Create(const Table: TTable);
 begin
+  inherited Create;
+  FDatabaseFields := TObjectList<TQueryBuilderTableField>.Create;
+  FForeignKeyTables := TObjectList<TQueryBuilderTable>.Create;
   FTable := Table;
 end;
 
-constructor TQueryBuilderTable.Create(const Table: TTable; const ParentQueryTable: TQueryBuilderTable);
+constructor TQueryBuilderTable.Create(const ForeignKeyField: TField);
 begin
-  Create(Table);
+  Create(ForeignKeyField.ForeignKey.ParentTable);
 
-  FParentQueryTable := ParentQueryTable;
+  FForeignKeyField := ForeignKeyField;
 end;
 
 destructor TQueryBuilderTable.Destroy;
 begin
-  for var QueryTable in JoinTables do
-    QueryTable.Free;
+  FForeignKeyTables.Free;
+
+  InheritedTable.Free;
+
+  FDatabaseFields.Free;
 
   inherited;
 end;
@@ -3298,6 +3360,15 @@ begin
   inherited Create;
 
   FField := Field;
+end;
+
+{ ERecursionSelectionError }
+
+constructor ERecursionSelectionError.Create(const RecursionTree: String);
+begin
+  inherited Create('Error of recursion selecting object, the sequence of error was ' + RecursionTree + ' please change any field in the list to lazy!');
+
+  FRecursionTree := RecursionTree;
 end;
 
 end.

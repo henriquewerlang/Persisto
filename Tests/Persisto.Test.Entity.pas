@@ -916,6 +916,17 @@ type
   end;
 
   [Entity]
+  TInsertTestWithForeignKeyMoreOne = class
+  private
+    FFK: TInsertTestWithForeignKey;
+    FId: String;
+  published
+    [NewUniqueIdentifier, UniqueIdentifier]
+    property Id: String read FId write FId;
+    property FK: TInsertTestWithForeignKey read FFK write FFK;
+  end;
+
+  [Entity]
   TClassLevel1 = class
   private
     FField1: String;
