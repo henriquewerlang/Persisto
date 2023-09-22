@@ -192,6 +192,32 @@ type
     property ManyValueAssociationList: TArray<TMyEntityWithManyValueAssociationChild> read FManyValueAssociation write FManyValueAssociation;
   end;
 
+  TMyManyValue = class;
+
+  [Entity]
+  TMyChildLink = class
+  private
+    FId: String;
+    FManyValueAssociation: TMyEntityWithManyValueAssociation;
+    FMyManyValue: TMyManyValue;
+  published
+    [NewUniqueIdentifier, UniqueIdentifier]
+    property Id: String read FId write FId;
+    property ManyValueAssociation: TMyEntityWithManyValueAssociation read FManyValueAssociation write FManyValueAssociation;
+    property MyManyValue: TMyManyValue read FMyManyValue write FMyManyValue;
+  end;
+
+  [Entity]
+  TMyManyValue = class
+  private
+    FChilds: TArray<TMyChildLink>;
+    FId: String;
+  published
+    [NewUniqueIdentifier, UniqueIdentifier]
+    property Id: String read FId write FId;
+    property Childs: TArray<TMyChildLink> read FChilds write FChilds;
+  end;
+
   [Entity]
   TMyEntityWithPrimaryKeyInLastField = class
   private
@@ -235,13 +261,13 @@ type
   TManyValueAssociationWithThreeForeignKey = class
   private
     FId: Integer;
-    FForeignKeyOne: TManyValueAssociationParent;
-    FForeignKeyTwo: TManyValueAssociationParent;
+    FForeignKeyOne: Lazy<TManyValueAssociationParent>;
+    FForeignKeyTwo: Lazy<TManyValueAssociationParent>;
     FManyValueAssociationParent: TManyValueAssociationParent;
   published
     property Id: Integer read FId write FId;
-    property ForeignKeyOne: TManyValueAssociationParent read FForeignKeyOne write FForeignKeyOne;
-    property ForeignKeyTwo: TManyValueAssociationParent read FForeignKeyTwo write FForeignKeyTwo;
+    property ForeignKeyOne: Lazy<TManyValueAssociationParent> read FForeignKeyOne write FForeignKeyOne;
+    property ForeignKeyTwo: Lazy<TManyValueAssociationParent> read FForeignKeyTwo write FForeignKeyTwo;
     property ManyValueAssociationParent: TManyValueAssociationParent read FManyValueAssociationParent write FManyValueAssociationParent;
   end;
 

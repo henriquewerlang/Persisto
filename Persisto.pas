@@ -259,11 +259,13 @@ type
   private
     FChildField: TField;
     FChildTable: TTable;
+    FField: TField;
   public
-    constructor Create(const ChildTable: TTable; const ChildField: TField);
+    constructor Create(const Field: TField; const ChildTable: TTable; const ChildField: TField);
 
+    property ChildField: TField read FChildField;
     property ChildTable: TTable read FChildTable;
-    property ChildField: TField read FChildField write FChildField;
+    property Field: TField read FField;
   end;
 
   TIndex = class(TTableObject)
@@ -410,22 +412,27 @@ type
   private
     FAlias: String;
     FDatabaseFields: TList<TQueryBuilderTableField>;
-    FForeignKeyField: TField;
+    FForeignKeyField: TForeignKey;
     FForeignKeyTables: TList<TQueryBuilderTable>;
     FInheritedTable: TQueryBuilderTable;
+    FManyValueAssociationField: TManyValueAssociation;
+    FManyValueAssociationTables: TList<TQueryBuilderTable>;
     FPrimaryKeyField: TQueryBuilderTableField;
     FTable: TTable;
   public
-    constructor Create(const ForeignKeyField: TField); overload;
+    constructor Create(const ForeignKeyField: TForeignKey); overload;
+    constructor Create(const ManyValueAssociationField: TManyValueAssociation); overload;
     constructor Create(const Table: TTable); overload;
 
     destructor Destroy; override;
 
     property Alias: String read FAlias write FAlias;
     property DatabaseFields: TList<TQueryBuilderTableField> read FDatabaseFields write FDatabaseFields;
-    property ForeignKeyField: TField read FForeignKeyField write FForeignKeyField;
+    property ForeignKeyField: TForeignKey read FForeignKeyField write FForeignKeyField;
     property ForeignKeyTables: TList<TQueryBuilderTable> read FForeignKeyTables write FForeignKeyTables;
     property InheritedTable: TQueryBuilderTable read FInheritedTable write FInheritedTable;
+    property ManyValueAssociationField: TManyValueAssociation read FManyValueAssociationField write FManyValueAssociationField;
+    property ManyValueAssociationTables: TList<TQueryBuilderTable> read FManyValueAssociationTables write FManyValueAssociationTables;
     property PrimaryKeyField: TQueryBuilderTableField read FPrimaryKeyField write FPrimaryKeyField;
     property Table: TTable read FTable write FTable;
   end;
@@ -989,7 +996,7 @@ begin
 
     for var ChildField in ChildTable.Fields do
       if ChildField.Name = LinkName then
-        Field.FManyValueAssociation := TManyValueAssociation.Create(ChildTable, ChildField);
+        Field.FManyValueAssociation := TManyValueAssociation.Create(Field, ChildTable, ChildField);
 
     if Assigned(Field.ManyValueAssociation) then
       Table.FManyValueAssociations := Table.FManyValueAssociations + [Field.ManyValueAssociation]
@@ -1458,12 +1465,13 @@ end;
 
 { TManyValueAssociation }
 
-constructor TManyValueAssociation.Create(const ChildTable: TTable; const ChildField: TField);
+constructor TManyValueAssociation.Create(const Field: TField; const ChildTable: TTable; const ChildField: TField);
 begin
   inherited Create;
 
   FChildField := ChildField;
   FChildTable := ChildTable;
+  FField := Field;
 end;
 
 { TField }
@@ -1591,11 +1599,28 @@ end;
 
 function TClassLoader.Load: TArray<TObject>;
 var
-  ProcessedObjects: TDictionary<TStateObject, Boolean>;
+  LoadedObjects: TDictionary<TObject, Boolean>;
+
+  ManyValueLoadedObjects: TDictionary<String, Boolean>;
+
+  function BuildStateObjectKey(const QueryTable: TQueryBuilderTable): String;
+  begin
+    Result := FQueryBuilder.FManager.BuildStateObjectKey(QueryTable.Table, QueryTable.PrimaryKeyField.DataSetField.AsString);
+  end;
+
+  function BuildStateObjectKeyManyValue(const QueryTable: TQueryBuilderTable): String;
+  begin
+    Result := '#.' + BuildStateObjectKey(QueryTable);
+  end;
+
+  function CheckManyValueLoaded(const QueryTable: TQueryBuilderTable): Boolean;
+  begin
+    Result := not ManyValueLoadedObjects.TryAdd(BuildStateObjectKeyManyValue(QueryTable), False);
+  end;
 
   function CreateObject(const QueryTable: TQueryBuilderTable): TStateObject;
   begin
-    var StateObjectKey := FQueryBuilder.FManager.BuildStateObjectKey(QueryTable.Table, QueryTable.PrimaryKeyField.DataSetField.AsString);
+    var StateObjectKey := BuildStateObjectKey(QueryTable);
 
     if not FQueryBuilder.FManager.TryGetStateObject(StateObjectKey, Result) then
     begin
@@ -1607,56 +1632,77 @@ var
 
   procedure LoadFieldValues(const QueryTable: TQueryBuilderTable; const StateObject: TStateObject);
   var
+    ArrayLength: Integer;
+
     FieldValue: TValue;
 
-    ForeignObject: TStateObject;
+    ForeignKeyTable, ManyValueAssociationTable: TQueryBuilderTable;
 
-    procedure DoLoadFieldValues(const QueryTable: TQueryBuilderTable; const StateObject: TStateObject);
-    var
-      ForeignKeyTable: TQueryBuilderTable;
+    ForeignObject, ManyValueObject: TStateObject;
 
+  begin
+    for var QueryField in QueryTable.DatabaseFields do
     begin
-      for var QueryField in QueryTable.DatabaseFields do
-      begin
-        FieldValue := TValue.FromVariant(QueryField.DataSetField.AsVariant);
-        QueryField.Field.Value[StateObject.&Object] := FieldValue;
-        StateObject.OldValue[QueryField.Field] := FieldValue;
-      end;
+      FieldValue := TValue.FromVariant(QueryField.DataSetField.AsVariant);
+      QueryField.Field.Value[StateObject.&Object] := FieldValue;
+      StateObject.OldValue[QueryField.Field] := FieldValue;
+    end;
 
-      if Assigned(QueryTable.InheritedTable) then
-        DoLoadFieldValues(QueryTable.InheritedTable, StateObject);
+    if Assigned(QueryTable.InheritedTable) then
+      LoadFieldValues(QueryTable.InheritedTable, StateObject);
 
-      for ForeignKeyTable in QueryTable.ForeignKeyTables do
+    for ForeignKeyTable in QueryTable.ForeignKeyTables do
+      if not ForeignKeyTable.PrimaryKeyField.DataSetField.IsNull then
       begin
         ForeignObject := CreateObject(ForeignKeyTable);
 
-        ForeignKeyTable.ForeignKeyField.Value[StateObject.&Object] := ForeignObject.&Object;
+        ForeignKeyTable.ForeignKeyField.Field.Value[StateObject.&Object] := ForeignObject.&Object;
 
         LoadFieldValues(ForeignKeyTable, ForeignObject);
-      end;
-    end;
 
-  begin
-    if not ProcessedObjects.ContainsKey(StateObject) then
-      DoLoadFieldValues(QueryTable, StateObject);
+        StateObject.OldValue[ForeignKeyTable.ForeignKeyField.Field] := ForeignKeyTable.Table.PrimaryKey.Value[ForeignObject.&Object];
+      end;
+
+    for ManyValueAssociationTable in QueryTable.ManyValueAssociationTables do
+      if not ManyValueAssociationTable.PrimaryKeyField.DataSetField.IsNull then
+      begin
+        ManyValueObject := CreateObject(ManyValueAssociationTable);
+
+        if not CheckManyValueLoaded(ManyValueAssociationTable) then
+        begin
+          FieldValue := ManyValueAssociationTable.ManyValueAssociationField.Field.Value[StateObject.&Object];
+
+          ArrayLength := FieldValue.ArrayLength;
+          FieldValue.ArrayLength := ArrayLength + 1;
+
+          FieldValue.SetArrayElement(ArrayLength, ManyValueObject.&Object);
+
+          ManyValueAssociationTable.ManyValueAssociationField.Field.Value[StateObject.&Object] := FieldValue;
+        end;
+
+        LoadFieldValues(ManyValueAssociationTable, ManyValueObject);
+      end;
   end;
 
 begin
   var Cursor := FQueryBuilder.OpenCursor;
-  ProcessedObjects := TDictionary<TStateObject, Boolean>.Create;
-  Result := nil;
+  LoadedObjects := TDictionary<TObject, Boolean>.Create;
+  ManyValueLoadedObjects := TDictionary<String, Boolean>.Create;
 
   while Cursor.Next do
   begin
     var StateObject := CreateObject(FQueryBuilder.FQueryTable);
 
-    if not ProcessedObjects.ContainsKey(StateObject) then
-      Result := Result + [StateObject.&Object];
+    LoadedObjects.AddOrSetValue(StateObject.&Object, False);
 
     LoadFieldValues(FQueryBuilder.FQueryTable, StateObject);
   end;
 
-  ProcessedObjects.Free;
+  Result := LoadedObjects.Keys.ToArray;
+
+  ManyValueLoadedObjects.Free;
+
+  LoadedObjects.Free;
 end;
 
 { TQueryBuilderFrom }
@@ -1695,6 +1741,9 @@ var
 
     for var ForiegnKeyTable in QueryTable.ForeignKeyTables do
       LoadDataSetFields(ForiegnKeyTable);
+
+    for var ManyValueAssociationTable in QueryTable.ManyValueAssociationTables do
+      LoadDataSetFields(ManyValueAssociationTable);
   end;
 
 begin
@@ -1725,104 +1774,114 @@ var
     SQL.Append(QueryTable.Alias).Append('.').Append(Field.DatabaseName);
   end;
 
-  procedure LoadFieldList(const QueryTable: TQueryBuilderTable);
+  procedure LoadFieldList(const QueryTable: TQueryBuilderTable; const FieldToIgnore: TField);
   var
     DatabaseField: TQueryBuilderTableField;
 
     Field: TField;
 
-    ForeignKeyFields: TList<TField>;
-
-    ForeignKeyTable: TQueryBuilderTable;
+    ForeignKeyTable, ManyValueAssociationTable: TQueryBuilderTable;
 
   begin
-    ForeignKeyFields := TList<TField>.Create;
     QueryTable.Alias := 'T' + TableIndex.ToString;
 
     Inc(TableIndex);
 
-    try
-      for Field in QueryTable.Table.Fields do
-        if Field.IsInheritedLink then
-          QueryTable.InheritedTable := TQueryBuilderTable.Create(Field.ForeignKey.ParentTable)
-        else if Field.IsForeignKey then
+    for Field in QueryTable.Table.Fields do
+      if Field.IsInheritedLink then
+        QueryTable.InheritedTable := TQueryBuilderTable.Create(Field.ForeignKey.ParentTable)
+      else if Field.IsManyValueAssociation then
+        QueryTable.ManyValueAssociationTables.Add(TQueryBuilderTable.Create(Field.ManyValueAssociation))
+      else if Field.IsForeignKey and not Field.IsLazy then
+      begin
+        if Field <> FieldToIgnore then
         begin
           if not RecursiveControl.TryAdd(Field, False) then
             raise ERecursionSelectionError.Create(Format('%s.%s', [Field.Table.Name, Field.Name]));
 
-          ForeignKeyFields.Add(Field);
-        end
-        else
-        begin
-          DatabaseField := TQueryBuilderTableField.Create(Field);
-
-          if Field.InPrimaryKey then
-            QueryTable.PrimaryKeyField := DatabaseField;
-
-          if FieldIndex > 1 then
-            SQL.Append(',');
-
-          AppendFieldName(QueryTable, Field);
-
-          SQL.Append(' F').Append(FieldIndex);
-
-          QueryTable.DatabaseFields.Add(DatabaseField);
-
-          Inc(FieldIndex);
+          QueryTable.ForeignKeyTables.Add(TQueryBuilderTable.Create(Field.ForeignKey));
         end;
-
-      if Assigned(QueryTable.InheritedTable) then
+      end
+      else
       begin
-        LoadFieldList(QueryTable.InheritedTable);
+        DatabaseField := TQueryBuilderTableField.Create(Field);
 
-        QueryTable.PrimaryKeyField := QueryTable.InheritedTable.PrimaryKeyField;
+        if Field.InPrimaryKey then
+          QueryTable.PrimaryKeyField := DatabaseField;
+
+        if FieldIndex > 1 then
+          SQL.Append(',');
+
+        AppendFieldName(QueryTable, Field);
+
+        SQL.Append(' F').Append(FieldIndex);
+
+        QueryTable.DatabaseFields.Add(DatabaseField);
+
+        Inc(FieldIndex);
       end;
 
-      for Field in ForeignKeyFields do
-      begin
-        ForeignKeyTable := TQueryBuilderTable.Create(Field);
+    if Assigned(QueryTable.InheritedTable) then
+    begin
+      LoadFieldList(QueryTable.InheritedTable, nil);
 
-        QueryTable.ForeignKeyTables.Add(ForeignKeyTable);
-
-        try
-          LoadFieldList(ForeignKeyTable);
-        except
-          on E: ERecursionSelectionError do
-            raise ERecursionSelectionError.Create(Format('%s.%s->%s', [Field.Table.Name, Field.Name, E.RecursionTree]));
-        end;
-      end;
-    finally
-      ForeignKeyFields.Free;
+      QueryTable.PrimaryKeyField := QueryTable.InheritedTable.PrimaryKeyField;
     end;
+
+    for ForeignKeyTable in QueryTable.ForeignKeyTables do
+      try
+        LoadFieldList(ForeignKeyTable, nil);
+      except
+        on E: ERecursionSelectionError do
+          raise ERecursionSelectionError.Create(Format('%s.%s->%s', [ForeignKeyTable.Table.Name, ForeignKeyTable.ForeignKeyField.Field.Name, E.RecursionTree]));
+      end;
+
+    for ManyValueAssociationTable in QueryTable.ManyValueAssociationTables do
+      LoadFieldList(ManyValueAssociationTable, ManyValueAssociationTable.ManyValueAssociationField.ChildField);
   end;
 
   procedure BuildJoin(const QueryTable: TQueryBuilderTable);
   var
-    ForeignKeyTable: TQueryBuilderTable;
+    ManyValueAssociationTable, ForeignKeyTable: TQueryBuilderTable;
 
-    procedure MakeJoin(const ParentQueryTable, QueryTable: TQueryBuilderTable; const LinkField: TField);
+    procedure MakeJoin(const QueryTable: TQueryBuilderTable; const QueryTableField: TField; const ForeignQueryTable: TQueryBuilderTable; const ForeignField: TField);
     begin
       SQL.Append(' left join ');
 
-      SQL.Append(QueryTable.Table.DatabaseName).Append(' ').Append(QueryTable.Alias);
+      SQL.Append(ForeignQueryTable.Table.DatabaseName).Append(' ').Append(ForeignQueryTable.Alias);
 
       SQL.Append(' on ');
 
-      AppendFieldName(QueryTable, QueryTable.Table.PrimaryKey);
+      AppendFieldName(ForeignQueryTable, QueryTableField);
 
       SQL.Append('=');
 
-      AppendFieldName(ParentQueryTable, LinkField);
+      AppendFieldName(QueryTable, ForeignField);
+    end;
 
-      BuildJoin(QueryTable);
+    procedure MakeForeignKeyJoin(const QueryTable, ForeignQueryTable: TQueryBuilderTable; const LinkField: TField);
+    begin
+      MakeJoin(QueryTable, QueryTable.PrimaryKeyField.Field, ForeignQueryTable, LinkField);
+
+      BuildJoin(ForeignQueryTable);
+    end;
+
+    procedure MakeManyValueAssociationJoin(const QueryTable, ManyValueAssociationTable: TQueryBuilderTable);
+    begin
+      MakeJoin(QueryTable, ManyValueAssociationTable.ManyValueAssociationField.ChildField, ManyValueAssociationTable, QueryTable.PrimaryKeyField.Field);
+
+      BuildJoin(ManyValueAssociationTable);
     end;
 
   begin
     if Assigned(QueryTable.InheritedTable) then
-      MakeJoin(QueryTable, QueryTable.InheritedTable, QueryTable.Table.PrimaryKey);
+      MakeForeignKeyJoin(QueryTable, QueryTable.InheritedTable, QueryTable.Table.PrimaryKey);
 
     for ForeignKeyTable in QueryTable.ForeignKeyTables do
-      MakeJoin(QueryTable, ForeignKeyTable, ForeignKeyTable.ForeignKeyField);
+      MakeForeignKeyJoin(QueryTable, ForeignKeyTable, ForeignKeyTable.ForeignKeyField.Field);
+
+    for ManyValueAssociationTable in QueryTable.ManyValueAssociationTables do
+      MakeManyValueAssociationJoin(QueryTable, ManyValueAssociationTable);
   end;
 
 begin
@@ -1834,7 +1893,7 @@ begin
   try
     SQL.Append('select ');
 
-    LoadFieldList(FQueryTable);
+    LoadFieldList(FQueryTable, nil);
 
     SQL.Append(' from ').Append(FQueryTable.Table.DatabaseName).Append(' ').Append(FQueryTable.Alias);
 
@@ -3401,19 +3460,29 @@ begin
   inherited Create;
   FDatabaseFields := TObjectList<TQueryBuilderTableField>.Create;
   FForeignKeyTables := TObjectList<TQueryBuilderTable>.Create;
+  FManyValueAssociationTables := TObjectList<TQueryBuilderTable>.Create;
   FTable := Table;
 end;
 
-constructor TQueryBuilderTable.Create(const ForeignKeyField: TField);
+constructor TQueryBuilderTable.Create(const ForeignKeyField: TForeignKey);
 begin
-  Create(ForeignKeyField.ForeignKey.ParentTable);
+  Create(ForeignKeyField.ParentTable);
 
   FForeignKeyField := ForeignKeyField;
+end;
+
+constructor TQueryBuilderTable.Create(const ManyValueAssociationField: TManyValueAssociation);
+begin
+  Create(ManyValueAssociationField.ChildTable);
+
+  FManyValueAssociationField := ManyValueAssociationField;
 end;
 
 destructor TQueryBuilderTable.Destroy;
 begin
   FForeignKeyTables.Free;
+
+  FManyValueAssociationTables.Free;
 
   InheritedTable.Free;
 

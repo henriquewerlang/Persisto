@@ -296,6 +296,8 @@ type
     procedure TheFieldIndexMustMustBeLoadBasedInTheFieldCountOfTheTable;
     [Test]
     procedure WhenLoadAnInheritedTableTheFieldIndexMustBaseAdjustedToTheCountOfFieldInTheBaseClass;
+    [Test]
+    procedure ThenManyValueAssociationMustLoadTheFieldInfo;
   end;
 
   [Entity]
@@ -646,6 +648,13 @@ begin
     begin
       FMapper.GetTable(TMyEntityForeignKeyToAnotherSingle);
     end, EForeignKeyToSingleTableInheritanceTable);
+end;
+
+procedure TMapperTest.ThenManyValueAssociationMustLoadTheFieldInfo;
+begin
+  var Table := FMapper.GetTable(TMyEntityWithManyValueAssociation);
+
+  Assert.AreEqual(Table.Field['ManyValueAssociationList'], Table.ManyValueAssociations[0].Field);
 end;
 
 procedure TMapperTest.TheParentTableMustBeTheTableLinkedToTheField;
