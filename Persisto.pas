@@ -1634,6 +1634,8 @@ var
   var
     ArrayLength: Integer;
 
+    Field: TField;
+
     FieldValue: TValue;
 
     ForeignKeyTable, ManyValueAssociationTable: TQueryBuilderTable;
@@ -1643,9 +1645,16 @@ var
   begin
     for var QueryField in QueryTable.DatabaseFields do
     begin
+      Field := QueryField.Field;
       FieldValue := TValue.FromVariant(QueryField.DataSetField.AsVariant);
-      QueryField.Field.Value[StateObject.&Object] := FieldValue;
-      StateObject.OldValue[QueryField.Field] := FieldValue;
+
+      if Field.IsLazy then
+        TLazyManipulator.GetManipulator(StateObject.&Object, Field.PropertyInfo).Loader := CreateLazyFactory(FQueryBuilder.FManager, Field, FieldValue)
+      else
+      begin
+        Field.Value[StateObject.&Object] := FieldValue;
+        StateObject.OldValue[Field] := FieldValue;
+      end;
     end;
 
     if Assigned(QueryTable.InheritedTable) then

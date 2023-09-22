@@ -65,6 +65,10 @@ type
     procedure WhenTheForeignKeyIsLazyCantRaiseErrorOfCircularReference;
     [Test]
     procedure WhenLoadAnObjectAndChangeTheForiegnKeyValueMustUpdateTheTableAsExpected;
+    [Test]
+    procedure WhenLoadAnLazyObjectCantRaiseAnyErrorThenOpenTheCursor;
+    [Test]
+    procedure WhenLoadAnObjectWithALazyPropertyMustCreateTheLazyFactoryToLoadTheLazyValue;
   end;
 
 implementation
@@ -117,7 +121,12 @@ var
 
     Object7.Childs := [Object8, Object9, Object10];
 
-    Objects := [Object1, Object2, Object3, Object7];
+    var Object11 := TLazyClass.Create;
+    Object11.Id := 1;
+    Object11.Lazy := TMyEntity.Create;
+    Object11.Lazy.Value.Id := 1;
+
+    Objects := [Object1, Object2, Object3, Object7, Object11];
   end;
 
 begin
@@ -202,6 +211,15 @@ begin
     procedure
     begin
       FManager.Select.All.From<TInsertTestWithForeignKey>.Open.One;
+    end);
+end;
+
+procedure TClassLoaderTest.WhenLoadAnLazyObjectCantRaiseAnyErrorThenOpenTheCursor;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Select.All.From<TLazyClass>.Open.One;
     end);
 end;
 
@@ -291,6 +309,13 @@ begin
 
   Assert.AreEqual(35, AObject.Id);
   Assert.AreEqual(1, AObject.Value);
+end;
+
+procedure TClassLoaderTest.WhenLoadAnObjectWithALazyPropertyMustCreateTheLazyFactoryToLoadTheLazyValue;
+begin
+  var LazyObject := FManager.Select.All.From<TLazyClass>.Open.One;
+
+  Assert.IsNotNull(LazyObject.Lazy.Value);
 end;
 
 procedure TClassLoaderTest.WhenLoadAnObjectWithChildValuesMustLoadTheChildPropertiesToo;

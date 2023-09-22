@@ -300,7 +300,7 @@ type
   public
     property PublicField: String read FPublicField write FPublicField;
   published
-    [NewUniqueIdentifier]
+    [FixedValue('100')]
     property Id: Integer read FId write FId;
     property Name: String read FName write FName;
     property Value: Double read FValue write FValue;

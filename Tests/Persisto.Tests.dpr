@@ -16,7 +16,6 @@ uses
   Persisto.Rtti.Helper.Test in 'Persisto.Rtti.Helper.Test.pas',
   Persisto.Nullable.Test in 'Persisto.Nullable.Test.pas',
   Persisto.Lazy.Test in 'Persisto.Lazy.Test.pas',
-  Persisto.Lazy.Factory.Test in 'Persisto.Lazy.Factory.Test.pas',
   Persisto.Database.Metadata.Test in 'Persisto.Database.Metadata.Test.pas',
   Persisto.Database.Metadata.Manipulator.Test in 'Persisto.Database.Metadata.Manipulator.Test.pas',
   Persisto.SQLServer in '..\Persisto.SQLServer.pas',

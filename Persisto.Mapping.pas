@@ -229,7 +229,6 @@ type
 
   Nullable<T> = record
   private
-    FLoaded: Boolean;
     FValue: TValue;
   public
     function GetValue: T;
@@ -748,7 +747,7 @@ end;
 
 procedure Nullable<T>.Clear;
 begin
-  FLoaded := False;
+  FValue := TValue.Empty;
 end;
 
 function Nullable<T>.GetValue: T;
@@ -758,13 +757,11 @@ end;
 
 function Nullable<T>.IsNull: Boolean;
 begin
-  Result := not FLoaded;
+  Result := FValue.IsEmpty;
 end;
 
 procedure Nullable<T>.SetValue(const Value: T);
 begin
-  FLoaded := True;
-
   TValue.Make<T>(Value, FValue);
 end;
 
