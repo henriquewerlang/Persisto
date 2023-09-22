@@ -297,20 +297,14 @@ type
 
   TValueHelper = record helper for TValue
   private
-    class var GFFormatSettings: TFormatSettings;
-
     function GetArrayElementInternal(Index: Integer): TValue; inline;
     function GetArrayLengthInternal: Integer; inline;
 
     procedure SetArrayElementInternal(Index: Integer; const Value: TValue); inline;
     procedure SetArrayLengthInternal(const Size: Integer); inline;
   public
-//    function GetAsString: String;
-
     property ArrayElement[Index: Integer]: TValue read GetArrayElementInternal write SetArrayElementInternal;
     property ArrayLength: Integer read GetArrayLengthInternal write SetArrayLengthInternal;
-
-    class property FormatSettings: TFormatSettings read GFFormatSettings;
   end;
 
 function GetRttiType(const AClass: TClass): TRttiType; overload;
@@ -933,12 +927,6 @@ constructor ManyValueAssociationLinkNameAttribute.Create(const ChildFieldName: S
 begin
   inherited;
 end;
-
-initialization
-  TValue.GFFormatSettings := TFormatSettings.Invariant;
-  TValue.GFFormatSettings.ShortDateFormat := 'yyyy-mm-dd';
-  TValue.GFFormatSettings.LongDateFormat := 'yyyy-mm-dd"T"hh":"mm":"ss.zzz';
-  TValue.GFFormatSettings.LongTimeFormat := 'hh":"mm":"ss';
 
 end.
 
