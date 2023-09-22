@@ -1646,7 +1646,11 @@ var
     for var QueryField in QueryTable.DatabaseFields do
     begin
       Field := QueryField.Field;
-      FieldValue := TValue.FromVariant(QueryField.DataSetField.AsVariant);
+
+      if QueryField.DataSetField.IsNull then
+        FieldValue := TValue.Empty
+      else
+        FieldValue := TValue.FromVariant(QueryField.DataSetField.AsVariant);
 
       if Field.IsLazy then
         TLazyManipulator.GetManipulator(StateObject.&Object, Field.PropertyInfo).Loader := CreateLazyFactory(FQueryBuilder.FManager, Field, FieldValue)

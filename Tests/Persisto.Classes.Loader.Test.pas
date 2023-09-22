@@ -69,6 +69,8 @@ type
     procedure WhenLoadAnLazyObjectCantRaiseAnyErrorThenOpenTheCursor;
     [Test]
     procedure WhenLoadAnObjectWithALazyPropertyMustCreateTheLazyFactoryToLoadTheLazyValue;
+    [Test]
+    procedure WhenLoadAnObjectWithNullableFieldMustLoadTheFieldAsExpected;
   end;
 
 implementation
@@ -126,7 +128,10 @@ var
     Object11.Lazy := TMyEntity.Create;
     Object11.Lazy.Value.Id := 1;
 
-    Objects := [Object1, Object2, Object3, Object7, Object11];
+    var Object12 := TClassWithNullableProperty.Create;
+    Object12.Id := 20;
+
+    Objects := [Object1, Object2, Object3, Object7, Object11, Object12];
   end;
 
 begin
@@ -415,6 +420,13 @@ begin
   var Objects := FManager.Select.All.From<TMyEntityWithManyValueAssociation>.Open.One;
 
   Assert.AreEqual<NativeInt>(3, Length(Objects.ManyValueAssociationList));
+end;
+
+procedure TClassLoaderTest.WhenLoadAnObjectWithNullableFieldMustLoadTheFieldAsExpected;
+begin
+  var &Object := FManager.Select.All.From<TClassWithNullableProperty>.Open.One;
+
+  Assert.IsTrue(&Object.Nullable.IsNull);
 end;
 
 procedure TClassLoaderTest.WhenSelectToOpenAnObjectFromDatabaseCantRaiseAnyError;
