@@ -372,17 +372,18 @@ type
     FValue: String;
   published
     property Id: Integer read FId write FId;
+    [Size(50)]
     property Value: String read FValue write FValue;
   end;
 
   [Entity]
   TZZZZ = class
   private
-    FId: Integer;
     FAAAA: TAAAA;
+    FId: Integer;
   published
-    property AAAA: TAAAA read FAAAA write FAAAA;
     property Id: Integer read FId write FId;
+    property AAAA: TAAAA read FAAAA write FAAAA;
   end;
 
   [Entity]
