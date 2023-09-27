@@ -113,7 +113,6 @@ type
     FId: Integer;
     FValue: Integer;
   published
-    [FixedValue('35')]
     property Id: Integer read FId write FId;
     property Value: Integer read FValue write FValue;
   end;
@@ -959,8 +958,8 @@ type
     FField1: String;
     FId: Integer;
   published
-    [FixedValue('20')]
     property Id: Integer read FId write FId;
+    [Size(10)]
     property Field1: String read FField1 write FField1;
   end;
 
@@ -969,6 +968,7 @@ type
   private
     FField2: String;
   published
+    [Size(10)]
     property Field2: String read FField2 write FField2;
   end;
 
@@ -977,6 +977,7 @@ type
   private
     FField3: String;
   published
+    [Size(10)]
     property Field3: String read FField3 write FField3;
   end;
 
@@ -985,6 +986,7 @@ type
   private
     FField4: String;
   published
+    [Size(10)]
     property Field4: String read FField4 write FField4;
   end;
 

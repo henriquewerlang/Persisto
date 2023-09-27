@@ -97,6 +97,7 @@ var
   procedure InsertObjects;
   begin
     var Object1 := TClassWithPrimaryKey.Create;
+    Object1.Id := 35;
     Object1.Value := 1;
 
     var Object2 := TMyEntityInheritedFromSimpleClass.Create;
@@ -325,7 +326,7 @@ end;
 
 procedure TClassLoaderTest.WhenLoadAnObjectWithChildValuesMustLoadTheChildPropertiesToo;
 begin
-  var Objects := FManager.Select.All.From<TMyEntityWithManyValueAssociation>.Open.One;
+  var Objects := FManager.Select.All.From<TMyEntityWithManyValueAssociation>.OrderBy.Field('ManyValueAssociationList.Value').Open.One;
 
   Assert.AreEqual(111, Objects.ManyValueAssociationList[0].Value);
   Assert.AreEqual(222, Objects.ManyValueAssociationList[1].Value);

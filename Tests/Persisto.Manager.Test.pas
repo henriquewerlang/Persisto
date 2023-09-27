@@ -8,8 +8,10 @@ type
   [TestFixture]
   TManagerTest = class
   private
+    FConnection: IDatabaseConnection;
     FManager: TManager;
 
+    procedure InsertData;
     procedure PrepareDatabase;
   public
     [Setup]
@@ -80,6 +82,42 @@ type
     procedure WhenLoadAnObjectWithOrderByMustLoadTheObjectsInTheOrderAsExpected;
     [Test]
     procedure WhenTheOrderByHasMoreThenOneFieldMustExecuteAsExpected;
+    [Test]
+    procedure WhenFilterAFieldMustReturnTheObjectsInTheFilterAsExpected;
+    [Test]
+    procedure WhenFilterAFieldWithLessThanOperatorMustReturnTheObjectsInTheFilterAsExpected;
+    [Test]
+    procedure WhenFilterAFieldWithLessThanOrEqualOperatorMustReturnTheObjectsInTheFilterAsExpected;
+    [Test]
+    procedure WhenFilterAFieldWithGreaterThanOperatorMustReturnTheObjectsInTheFilterAsExpected;
+    [Test]
+    procedure WhenFilterAFieldWithGreaterThanOrEqualOperatorMustReturnTheObjectsInTheFilterAsExpected;
+    [Test]
+    procedure WhenFilterAFieldWithNotEqualOperatorMustReturnTheObjectsInTheFilterAsExpected;
+    [Test]
+    procedure WhenFilterAFieldWithBetweenOperatorMustReturnTheObjectsInTheFilterAsExpected;
+    [Test]
+    procedure WhenFilterWithBitwiseAndOperatorMustReturnTheObjectsInTheFilterAsExpected;
+    [Test]
+    procedure WhenFilterWithBitwiseOrOperatorMustReturnTheObjectsInTheFilterAsExpected;
+    [Test]
+    procedure WhenMixBitwiseOrAndTheBitwiseAndOperatorMustReturnTheObjectsInTheFilterAsExpected;
+    [Test]
+    procedure WhenFilterAFieldWithLikeOperatorMustReturnTheObjectsInTheFilterAsExpected;
+    [Test]
+    procedure WhenFilterAFieldWithIsNullOperatorMustReturnTheObjectsInTheFilterAsExpected;
+    [Test]
+    procedure WhenFilterAFieldWithLogicalNotOperatorMustReturnTheObjectsInTheFilterAsExpected;
+    [Test]
+    procedure WhenFilterAFieldWithComplexFieldNameMustReturnTheObjectsInTheFilterAsExpected;
+    [Test]
+    procedure WhenFilterAFieldWithComplexFieldNameInManyValueAssociationLinkMustReturnTheObjectsInTheFilterAsExpected;
+    [Test]
+    procedure WhenFilterAComplexFieldFromAnInheritedTableMustReturnTheObjectAsExpected;
+    [Test]
+    procedure WhenFilterAInheritedFieldMustFilterByThisField;
+    [Test]
+    procedure WhenTheOrderByClauseHasAComplexFieldNameMustFindTheFieldAndApplyInTheOrderByList;
   end;
 
   [TestFixture]
@@ -126,43 +164,125 @@ begin
   Assert.IsTrue(Cursor.Next);
 end;
 
+procedure TManagerTest.InsertData;
+begin
+  var AAAAObject: TAAAA;
+  var ClassLevel4: TClassLevel4;
+  var NullObject: TClassWithNullableProperty;
+  var Manager := TManager.Create(FConnection, CreateDialect);
+
+  AAAAObject := TAAAA.Create;
+  AAAAObject.Id := 1;
+  AAAAObject.Value := 'AAA';
+
+  Manager.Insert(AAAAObject);
+
+  AAAAObject := TAAAA.Create;
+  AAAAObject.Id := 5;
+  AAAAObject.Value := 'AAA';
+
+  Manager.Insert(AAAAObject);
+
+  AAAAObject := TAAAA.Create;
+  AAAAObject.Id := 10;
+  AAAAObject.Value := 'AAA';
+
+  Manager.Insert(AAAAObject);
+
+  AAAAObject := TAAAA.Create;
+  AAAAObject.Id := 3;
+  AAAAObject.Value := 'BBB';
+
+  Manager.Insert(AAAAObject);
+
+  AAAAObject := TAAAA.Create;
+  AAAAObject.Id := 8;
+  AAAAObject.Value := 'BBB';
+
+  Manager.Insert(AAAAObject);
+
+  NullObject := TClassWithNullableProperty.Create;
+  NullObject.Id := 1;
+
+  Manager.Insert(NullObject);
+
+  NullObject := TClassWithNullableProperty.Create;
+  NullObject.Id := 2;
+  NullObject.Nullable := 20;
+
+  Manager.Insert(NullObject);
+
+  var ManyObject := TMyManyValue.Create;
+  ManyObject.Childs := [TMyChildLink.Create, TMyChildLink.Create, TMyChildLink.Create];
+  ManyObject.Childs[0].ManyValueAssociation := TMyEntityWithManyValueAssociation.Create;
+  ManyObject.Childs[0].ManyValueAssociation.ManyValueAssociationList := [TMyEntityWithManyValueAssociationChild.Create, TMyEntityWithManyValueAssociationChild.Create];
+  ManyObject.Childs[0].ManyValueAssociation.ManyValueAssociationList[0].Value := 30;
+  ManyObject.Childs[0].ManyValueAssociation.ManyValueAssociationList[1].Value := 20;
+  ManyObject.Childs[1].ManyValueAssociation := TMyEntityWithManyValueAssociation.Create;
+  ManyObject.Childs[1].ManyValueAssociation.ManyValueAssociationList := [TMyEntityWithManyValueAssociationChild.Create];
+  ManyObject.Childs[1].ManyValueAssociation.ManyValueAssociationList[0].Value := 40;
+  ManyObject.Childs[2].ManyValueAssociation := TMyEntityWithManyValueAssociation.Create;
+  ManyObject.Childs[2].ManyValueAssociation.ManyValueAssociationList := [TMyEntityWithManyValueAssociationChild.Create, TMyEntityWithManyValueAssociationChild.Create, TMyEntityWithManyValueAssociationChild.Create];
+  ManyObject.Childs[2].ManyValueAssociation.ManyValueAssociationList[0].Value := 50;
+  ManyObject.Childs[2].ManyValueAssociation.ManyValueAssociationList[1].Value := 10;
+  ManyObject.Childs[2].ManyValueAssociation.ManyValueAssociationList[2].Value := 60;
+
+  Manager.Insert(ManyObject);
+
+  var ManyValueInherited := [TManyValueParentInherited.Create, TManyValueParentInherited.Create];
+  ManyValueInherited[0].Childs := [TManyValueChildInherited.Create];
+  ManyValueInherited[0].Childs[0].Id := 45;
+  ManyValueInherited[0].Childs[0].Value := TClassWithPrimaryKey.Create;
+  ManyValueInherited[0].Childs[0].Value.Id := 11;
+  ManyValueInherited[0].Childs[0].Value.Value := 25;
+  ManyValueInherited[0].Id := 10;
+  ManyValueInherited[1].Childs := [TManyValueChildInherited.Create];
+  ManyValueInherited[1].Childs[0].Id := 15;
+  ManyValueInherited[1].Childs[0].Value := TClassWithPrimaryKey.Create;
+  ManyValueInherited[1].Childs[0].Value.Id := 22;
+  ManyValueInherited[0].Childs[0].Value.Value := 35;
+  ManyValueInherited[1].Id := 20;
+
+  Manager.Insert(ManyValueInherited[0]);
+
+  Manager.Insert(ManyValueInherited[1]);
+
+  ClassLevel4 := TClassLevel4.Create;
+  ClassLevel4.Field1 := 'abc';
+  ClassLevel4.Field2 := 'efg';
+  ClassLevel4.Field3 := 'hij';
+  ClassLevel4.Field4 := 'klm';
+  ClassLevel4.Id := 1;
+
+  Manager.Insert(ClassLevel4);
+
+  ClassLevel4 := TClassLevel4.Create;
+  ClassLevel4.Field1 := 'aaa';
+  ClassLevel4.Field2 := 'bbb';
+  ClassLevel4.Field3 := 'ccc';
+  ClassLevel4.Field4 := 'ddd';
+  ClassLevel4.Id := 2;
+
+  Manager.Insert(ClassLevel4);
+
+  var Objects: TArray<TInsertTestWithForeignKey> := [TInsertTestWithForeignKey.Create, TInsertTestWithForeignKey.Create, TInsertTestWithForeignKey.Create];
+  Objects[0].FK1 := TInsertAutoGenerated.Create;
+  Objects[0].FK1.Value := 20;
+  Objects[1].FK1 := TInsertAutoGenerated.Create;
+  Objects[1].FK1.Value := 30;
+  Objects[2].FK1 := TInsertAutoGenerated.Create;
+  Objects[2].FK1.Value := 10;
+
+  FManager.Insert(Objects[0]);
+
+  FManager.Insert(Objects[1]);
+
+  FManager.Insert(Objects[2]);
+
+  Manager.Free;
+end;
+
 procedure TManagerTest.PrepareDatabase;
-
-  procedure InsertData;
-  begin
-    var AObject: TAAAA;
-
-    AObject := TAAAA.Create;
-    AObject.Id := 1;
-    AObject.Value := 'AAA';
-
-    FManager.Insert(AObject);
-
-    AObject := TAAAA.Create;
-    AObject.Id := 5;
-    AObject.Value := 'AAA';
-
-    FManager.Insert(AObject);
-
-    AObject := TAAAA.Create;
-    AObject.Id := 10;
-    AObject.Value := 'AAA';
-
-    FManager.Insert(AObject);
-
-    AObject := TAAAA.Create;
-    AObject.Id := 3;
-    AObject.Value := 'BBB';
-
-    FManager.Insert(AObject);
-
-    AObject := TAAAA.Create;
-    AObject.Id := 8;
-    AObject.Value := 'BBB';
-
-    FManager.Insert(AObject);
-  end;
-
 begin
   FManager.Mapper.GetTable(TInsertTestWithForeignKey);
 
@@ -180,20 +300,28 @@ begin
 
   FManager.Mapper.GetTable(TAAAA);
 
-  FManager.UpdateDatabaseSchema;
+  FManager.Mapper.GetTable(TClassWithNullableProperty);
 
-  InsertData;
+  FManager.Mapper.GetTable(TMyManyValue);
+
+  FManager.Mapper.GetTable(TManyValueParentInherited);
+
+  FManager.Mapper.GetTable(TClassLevel4);
+
+  FManager.UpdateDatabaseSchema;
 end;
 
 procedure TManagerTest.Setup;
 begin
-  FManager := TManager.Create(CreateConnection, CreateDialect);
+  FConnection := CreateConnection;
+  FManager := TManager.Create(FConnection, CreateDialect);
 
   PrepareDatabase;
 end;
 
 procedure TManagerTest.TearDown;
 begin
+  FConnection := nil;
   NullStrictConvert := True;
 
   FManager.Free;
@@ -220,6 +348,7 @@ procedure TManagerTest.WhenChangeTheForeignKeyOfTheObjectMustUpdateTheForeignKey
 begin
   var &Object1 := TClassWithForeignKey.Create;
   var &Object2 := TClassWithPrimaryKey.Create;
+  &Object2.Id := 35;
 
   FManager.Insert(&Object1);
 
@@ -233,6 +362,179 @@ begin
 
   Assert.IsTrue(Cursor.Next);
   Assert.AreEqual<NativeInt>(35, Cursor.GetFieldValue(0));
+end;
+
+procedure TManagerTest.WhenFilterAComplexFieldFromAnInheritedTableMustReturnTheObjectAsExpected;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TManyValueParentInherited>.Where(Field('Childs.Value.Value') = 35).Open.All;
+
+  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(35, Objects[0].Childs[0].Value.Value);
+end;
+
+procedure TManagerTest.WhenFilterAFieldMustReturnTheObjectsInTheFilterAsExpected;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TAAAA>.Where(Field('Id') = 5).OrderBy.Field('Id').Open.All;
+
+  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(5, Objects[0].Id);
+end;
+
+procedure TManagerTest.WhenFilterAFieldWithBetweenOperatorMustReturnTheObjectsInTheFilterAsExpected;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TAAAA>.Where(Field('Id').Between(3, 8)).OrderBy.Field('Id').Open.All;
+
+  Assert.AreEqual<NativeInt>(3, Length(Objects));
+  Assert.AreEqual(3, Objects[0].Id);
+  Assert.AreEqual(5, Objects[1].Id);
+  Assert.AreEqual(8, Objects[2].Id);
+end;
+
+procedure TManagerTest.WhenFilterAFieldWithComplexFieldNameInManyValueAssociationLinkMustReturnTheObjectsInTheFilterAsExpected;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TMyManyValue>.Where(Field('Childs.ManyValueAssociation.ManyValueAssociationList.Value') = 60).Open.All;
+
+  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(60, Objects[0].Childs[0].ManyValueAssociation.ManyValueAssociationList[0].Value);
+end;
+
+procedure TManagerTest.WhenFilterAFieldWithComplexFieldNameMustReturnTheObjectsInTheFilterAsExpected;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TInsertTestWithForeignKey>.Where(Field('FK1.Value') = 30).Open.All;
+
+  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(30, Objects[0].FK1.Value);
+end;
+
+procedure TManagerTest.WhenFilterAFieldWithGreaterThanOperatorMustReturnTheObjectsInTheFilterAsExpected;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TAAAA>.Where(Field('Id') > 5).OrderBy.Field('Id').Open.All;
+
+  Assert.AreEqual<NativeInt>(2, Length(Objects));
+  Assert.AreEqual(8, Objects[0].Id);
+  Assert.AreEqual(10, Objects[1].Id);
+end;
+
+procedure TManagerTest.WhenFilterAFieldWithGreaterThanOrEqualOperatorMustReturnTheObjectsInTheFilterAsExpected;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TAAAA>.Where(Field('Id') >= 5).OrderBy.Field('Id').Open.All;
+
+  Assert.AreEqual<NativeInt>(3, Length(Objects));
+  Assert.AreEqual(5, Objects[0].Id);
+  Assert.AreEqual(8, Objects[1].Id);
+  Assert.AreEqual(10, Objects[2].Id);
+end;
+
+procedure TManagerTest.WhenFilterAFieldWithIsNullOperatorMustReturnTheObjectsInTheFilterAsExpected;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TClassWithNullableProperty>.Where(Field('Nullable').IsNull).OrderBy.Field('Id').Open.All;
+
+  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(1, Objects[0].Id);
+end;
+
+procedure TManagerTest.WhenFilterAFieldWithLessThanOperatorMustReturnTheObjectsInTheFilterAsExpected;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TAAAA>.Where(Field('Id') < 5).OrderBy.Field('Id').Open.All;
+
+  Assert.AreEqual<NativeInt>(2, Length(Objects));
+  Assert.AreEqual(1, Objects[0].Id);
+  Assert.AreEqual(3, Objects[1].Id);
+end;
+
+procedure TManagerTest.WhenFilterAFieldWithLessThanOrEqualOperatorMustReturnTheObjectsInTheFilterAsExpected;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TAAAA>.Where(Field('Id') <= 5).OrderBy.Field('Id').Open.All;
+
+  Assert.AreEqual<NativeInt>(3, Length(Objects));
+  Assert.AreEqual(1, Objects[0].Id);
+  Assert.AreEqual(3, Objects[1].Id);
+  Assert.AreEqual(5, Objects[2].Id);
+end;
+
+procedure TManagerTest.WhenFilterAFieldWithLikeOperatorMustReturnTheObjectsInTheFilterAsExpected;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TAAAA>.Where(Field('Value').Like('B__')).OrderBy.Field('Id').Open.All;
+
+  Assert.AreEqual<NativeInt>(2, Length(Objects));
+  Assert.AreEqual(3, Objects[0].Id);
+  Assert.AreEqual(8, Objects[1].Id);
+end;
+
+procedure TManagerTest.WhenFilterAFieldWithLogicalNotOperatorMustReturnTheObjectsInTheFilterAsExpected;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TClassWithNullableProperty>.Where(not Field('Nullable').IsNull).OrderBy.Field('Id').Open.All;
+
+  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(2, Objects[0].Id);
+end;
+
+procedure TManagerTest.WhenFilterAFieldWithNotEqualOperatorMustReturnTheObjectsInTheFilterAsExpected;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TAAAA>.Where(Field('Id') <> 5).OrderBy.Field('Id').Open.All;
+
+  Assert.AreEqual<NativeInt>(4, Length(Objects));
+  Assert.AreEqual(1, Objects[0].Id);
+  Assert.AreEqual(3, Objects[1].Id);
+  Assert.AreEqual(8, Objects[2].Id);
+  Assert.AreEqual(10, Objects[3].Id);
+end;
+
+procedure TManagerTest.WhenFilterAInheritedFieldMustFilterByThisField;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TClassLevel4>.Where(Field('Field1') = 'abc').Open.All;
+
+  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual('abc', Objects[0].Field1);
+end;
+
+procedure TManagerTest.WhenFilterWithBitwiseAndOperatorMustReturnTheObjectsInTheFilterAsExpected;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TAAAA>.Where((Field('Id') < 10) and (Field('Id') > 5)).OrderBy.Field('Id').Open.All;
+
+  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(8, Objects[0].Id);
+end;
+
+procedure TManagerTest.WhenFilterWithBitwiseOrOperatorMustReturnTheObjectsInTheFilterAsExpected;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TAAAA>.Where((Field('Id') = 10) or (Field('Id') = 5)).OrderBy.Field('Id').Open.All;
+
+  Assert.AreEqual<NativeInt>(2, Length(Objects));
+  Assert.AreEqual(5, Objects[0].Id);
+  Assert.AreEqual(10, Objects[1].Id);
 end;
 
 procedure TManagerTest.WhenInsertAClassThatIsRecursiveInItSelfCantRaiseErrorOfStackOverflow;
@@ -307,6 +609,7 @@ procedure TManagerTest.WhenInsertAnObjectWithForeignKeyMustInsertTheForeignKeyPr
 begin
   var &Object := TClassWithForeignKey.Create;
   &Object.AnotherClass := TClassWithPrimaryKey.Create;
+  &Object.AnotherClass.Id := 35;
 
   FManager.Insert(&Object);
 
@@ -421,6 +724,8 @@ end;
 
 procedure TManagerTest.WhenLoadAnObjectWithOrderByMustLoadTheObjectsInTheOrderAsExpected;
 begin
+  InsertData;
+
   var Objects := FManager.Select.All.From<TAAAA>.OrderBy.Field('Id', False).Open.All;
 
   Assert.AreEqual(10, Objects[0].Id);
@@ -428,6 +733,16 @@ begin
   Assert.AreEqual(5, Objects[2].Id);
   Assert.AreEqual(3, Objects[3].Id);
   Assert.AreEqual(1, Objects[4].Id);
+end;
+
+procedure TManagerTest.WhenMixBitwiseOrAndTheBitwiseAndOperatorMustReturnTheObjectsInTheFilterAsExpected;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TAAAA>.Where(((Field('Id') = 10) or (Field('Id') = 3)) and (Field('Id') < 5)).OrderBy.Field('Id').Open.All;
+
+  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(3, Objects[0].Id);
 end;
 
 procedure TManagerTest.WhenSaveAnObjectThatAlreadyInTheDatabaseMustUpdateTheFieldsOfTheObject;
@@ -460,8 +775,21 @@ begin
   Assert.AreEqual(1, Integer(Cursor.GetFieldValue(0)));
 end;
 
+procedure TManagerTest.WhenTheOrderByClauseHasAComplexFieldNameMustFindTheFieldAndApplyInTheOrderByList;
+begin
+  InsertData;
+
+  var Objects := FManager.Select.All.From<TInsertTestWithForeignKey>.OrderBy.Field('FK1.Value').Open.All;
+
+  Assert.AreEqual(10, Objects[0].FK1.Value);
+  Assert.AreEqual(20, Objects[1].FK1.Value);
+  Assert.AreEqual(30, Objects[2].FK1.Value);
+end;
+
 procedure TManagerTest.WhenTheOrderByHasMoreThenOneFieldMustExecuteAsExpected;
 begin
+  InsertData;
+
   var Objects := FManager.Select.All.From<TAAAA>.OrderBy.Field('Value').Field('Id', False).Open.All;
 
   Assert.AreEqual(10, Objects[0].Id);
