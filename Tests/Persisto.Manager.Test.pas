@@ -118,6 +118,10 @@ type
     procedure WhenFilterAInheritedFieldMustFilterByThisField;
     [Test]
     procedure WhenTheOrderByClauseHasAComplexFieldNameMustFindTheFieldAndApplyInTheOrderByList;
+    [Test]
+    procedure WhenDontFindTheFieldInTheWhereClauseMustRaiseAnError;
+    [Test]
+    procedure WhenDontFindTheFieldInTheOrderByClauseMustRaiseAnError;
   end;
 
   [TestFixture]
@@ -362,6 +366,24 @@ begin
 
   Assert.IsTrue(Cursor.Next);
   Assert.AreEqual<NativeInt>(35, Cursor.GetFieldValue(0));
+end;
+
+procedure TManagerTest.WhenDontFindTheFieldInTheOrderByClauseMustRaiseAnError;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      FManager.Select.All.From<TClassWithPrimaryKey>.OrderBy.Field('WrongFieldName').Open.All;
+    end, EFieldNotInCurrentSelection);
+end;
+
+procedure TManagerTest.WhenDontFindTheFieldInTheWhereClauseMustRaiseAnError;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      FManager.Select.All.From<TClassWithPrimaryKey>.Where(Field('WrongFieldName') = 35).Open.All;
+    end, EFieldNotInCurrentSelection);
 end;
 
 procedure TManagerTest.WhenFilterAComplexFieldFromAnInheritedTableMustReturnTheObjectAsExpected;

@@ -30,19 +30,9 @@ type
   TQueryBuilderWhere<T: class> = class;
   TTable = class;
 
-  ECantFilterManyValueAssociation = class(Exception)
+  EFieldNotInCurrentSelection = class(Exception)
   public
-    constructor Create(Field: TField);
-  end;
-
-  EFieldNotFoundInTable = class(Exception)
-  public
-    constructor Create(FieldName: String);
-  end;
-
-  ECommandWithoutFromClause = class(Exception)
-  public
-    constructor Create;
+    constructor Create(const Field: TQueryBuilderFieldSearch);
   end;
 
   EClassWithoutPrimaryKeyDefined = class(Exception)
@@ -63,11 +53,6 @@ type
   EForeignKeyToSingleTableInheritanceTable = class(Exception)
   public
     constructor Create(ParentTable: TRttiInstanceType);
-  end;
-
-  EInvalidEnumeratorName = class(Exception)
-  public
-    constructor Create(Enumeration: TRttiEnumerationType; EnumeratorValue: String);
   end;
 
   EManyValueAssociationLinkError = class(Exception)
@@ -874,25 +859,11 @@ begin
   Result := TQueryBuilderComparisonHelper.Create(TQueryBuilderFieldSearch.Create(Name));
 end;
 
-{ EFieldNotFoundInTable }
+{ EFieldNotInCurrentSelection }
 
-constructor EFieldNotFoundInTable.Create(FieldName: String);
+constructor EFieldNotInCurrentSelection.Create(const Field: TQueryBuilderFieldSearch);
 begin
-  inherited CreateFmt('Field "%s" not found in current table!', [FieldName]);
-end;
-
-{ ECantFilterManyValueAssociation }
-
-constructor ECantFilterManyValueAssociation.Create(Field: TField);
-begin
-  inherited CreateFmt('Can''t create a filter of many value association field %s from class %s!', [Field.Name, Field.Table.Name]);
-end;
-
-{ ECommandWithoutFromClause }
-
-constructor ECommandWithoutFromClause.Create;
-begin
-  inherited Create('Command whitout from clause, check the implementation!');
+  inherited CreateFmt('Field "%s" not found in current selection!', [Field.FieldName]);
 end;
 
 { EManyValueAssociationLinkError }
@@ -908,13 +879,6 @@ end;
 constructor EClassWithPrimaryKeyNullable.Create(Table: TTable);
 begin
   inherited CreateFmt('The primary key of the class %s is nullable, it''s not accepted!', [Table.ClassTypeInfo.Name]);
-end;
-
-{ EInvalidEnumeratorName }
-
-constructor EInvalidEnumeratorName.Create(Enumeration: TRttiEnumerationType; EnumeratorValue: String);
-begin
-  inherited CreateFmt('Enumerator name ''%s'' is invalid to the enumeration ''%s''', [EnumeratorValue, Enumeration.Name]);
 end;
 
 { EClassWithoutPrimaryKeyDefined }
@@ -1665,12 +1629,11 @@ var
       if not ForeignKeyTable.PrimaryKeyField.DataSetField.IsNull then
       begin
         ForeignObject := CreateObject(ForeignKeyTable);
+        StateObject.OldValue[ForeignKeyTable.ForeignKeyField.Field] := TValue.FromVariant(ForeignKeyTable.PrimaryKeyField.DataSetField.AsVariant);
 
         ForeignKeyTable.ForeignKeyField.Field.Value[StateObject.&Object] := ForeignObject.&Object;
 
         LoadFieldValues(ForeignKeyTable, ForeignObject);
-
-        StateObject.OldValue[ForeignKeyTable.ForeignKeyField.Field] := ForeignKeyTable.Table.PrimaryKey.Value[ForeignObject.&Object];
       end;
 
     for ManyValueAssociationTable in QueryTable.ManyValueAssociationTables do
@@ -1920,13 +1883,17 @@ var
     function FindField: TQueryBuilderTableField;
     begin
       if Assigned(CurrentTable) then
+      begin
         for var FindFieldName in CurrentTable.DatabaseFields do
           if FindFieldName.Field.Name = FieldName then
             Exit(FindFieldName);
 
-      CurrentTable := CurrentTable.InheritedTable;
+        CurrentTable := CurrentTable.InheritedTable;
 
-      Result := FindField;
+        Result := FindField;
+      end
+      else
+        raise EFieldNotInCurrentSelection.Create(FieldNameToFind);
     end;
 
   begin
