@@ -193,8 +193,8 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Persisto.pas"/>
         <DCCReference Include="Persisto.Manager.Test.pas"/>
         <DCCReference Include="Persisto.Database.Dialect.Test.pas"/>
-        <DCCReference Include="Persisto.SQLite.Firedac.Drive.pas"/>
-        <DCCReference Include="Persisto.SQLite.Firedac.Functions.pas"/>
+        <DCCReference Include="..\Persisto.SQLite.Firedac.Drive.pas"/>
+        <DCCReference Include="..\Persisto.SQLite.Firedac.Functions.pas"/>
         <DCCReference Include="Persisto.Test.Connection.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>

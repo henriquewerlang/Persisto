@@ -852,7 +852,7 @@ function Field(const Name: String): TQueryBuilderComparisonHelper;
 
 implementation
 
-uses System.Variants, System.SysConst, System.Math;
+uses System.Variants, System.SysConst, System.Math, System.Classes;
 
 function Field(const Name: String): TQueryBuilderComparisonHelper;
 begin
