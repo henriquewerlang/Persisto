@@ -17,11 +17,6 @@ type
     function GetSpecialFieldType(const Field: TField): String; override;
   end;
 
-  TDialectSQLite = class(TDatabaseDialect, IDatabaseDialect)
-  private
-    function CreateManipulator(const Manager: TManager): IMetadataManipulator;
-  end;
-
 implementation
 
 uses System.SysUtils, Persisto.Mapping;
@@ -70,13 +65,6 @@ end;
 procedure TManipulatorSQLite.LoadSchema(const Schema: TDatabaseSchema);
 begin
 
-end;
-
-{ TDialectSQLite }
-
-function TDialectSQLite.CreateManipulator(const Manager: TManager): IMetadataManipulator;
-begin
-  Result := TManipulatorSQLite.Create(Manager);
 end;
 
 end.

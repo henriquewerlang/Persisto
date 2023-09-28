@@ -150,8 +150,8 @@ end;
 procedure TClassLoaderTest.Setup;
 begin
   var Connection := CreateConnection;
-  FManager := TManager.Create(Connection, CreateDialect);
-  FManagerInsert := TManager.Create(Connection, CreateDialect);
+  FManager := TManager.Create(Connection, CreateMetadataManipulator);
+  FManagerInsert := TManager.Create(Connection, CreateMetadataManipulator);
 
   InsertDatabaseData(Connection);
 end;
