@@ -5,7 +5,7 @@ interface
 uses Persisto;
 
 function CreateConnection: IDatabaseConnection;
-function CreateMetadataManipulator: IMetadataManipulator;
+function CreateDatabaseManipulator: IDatabaseManipulator;
 
 implementation
 
@@ -20,9 +20,9 @@ begin
   Result := Connection;
 end;
 
-function CreateMetadataManipulator: IMetadataManipulator;
+function CreateDatabaseManipulator: IDatabaseManipulator;
 begin
-  Result := TManipulatorSQLite.Create(nil);
+  Result := TDatabaseManipulatorSQLite.Create;
 end;
 
 end.

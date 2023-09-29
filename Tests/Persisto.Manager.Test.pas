@@ -173,7 +173,7 @@ begin
   var AAAAObject: TAAAA;
   var ClassLevel4: TClassLevel4;
   var NullObject: TClassWithNullableProperty;
-  var Manager := TManager.Create(FConnection, CreateMetadataManipulator);
+  var Manager := TManager.Create(FConnection, CreateDatabaseManipulator);
 
   AAAAObject := TAAAA.Create;
   AAAAObject.Id := 1;
@@ -318,7 +318,7 @@ end;
 procedure TManagerTest.Setup;
 begin
   FConnection := CreateConnection;
-  FManager := TManager.Create(FConnection, CreateMetadataManipulator);
+  FManager := TManager.Create(FConnection, CreateDatabaseManipulator);
 
   PrepareDatabase;
 end;
@@ -1057,7 +1057,7 @@ end;
 
 procedure TManagerDatabaseManipulationTest.Setup;
 begin
-  FManager := TManager.Create(CreateConnection, CreateMetadataManipulator);
+  FManager := TManager.Create(CreateConnection, CreateDatabaseManipulator);
 
   FManager.Mapper.GetTable(TMySQLiteTable);
 end;
