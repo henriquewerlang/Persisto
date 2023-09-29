@@ -7,6 +7,7 @@ uses Persisto, Persisto.Mapping;
 type
   TDatabaseManipulatorSQLite = class(TDatabaseManipulator, IDatabaseManipulator)
   private
+    function CreateSchemaRepository(const Manager: TManager): IDatabaseSchemaRepository;
     function CreateDefaultConstraint(const Field: TField): String;
     function CreateForeignKey(const ForeignKey: TForeignKey): String;
     function CreateIndex(const Index: TIndex): String;
@@ -55,6 +56,11 @@ end;
 function TDatabaseManipulatorSQLite.CreateIndex(const Index: TIndex): String;
 begin
 
+end;
+
+function TDatabaseManipulatorSQLite.CreateSchemaRepository(const Manager: TManager): IDatabaseSchemaRepository;
+begin
+  Result := TDatabaseSchemaRepository<TDatabaseTableSQLite>.Create(Manager);
 end;
 
 function TDatabaseManipulatorSQLite.CreateSequence(const Sequence: TSequence): String;
