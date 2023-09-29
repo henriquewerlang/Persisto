@@ -18,8 +18,6 @@ type
     function GetSpecialFieldType(const Field: TField): String;
     function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
     function RenameField(const Current, Destiny: TField): String;
-
-    procedure LoadSchema(const Schema: TDatabaseSchema);
   public
     constructor Create;
 
@@ -190,127 +188,127 @@ begin
   Result := FIELD_SPECIAL_TYPE_MAPPING[Field.SpecialType];
 end;
 
-procedure TDatabaseManipulatorSQLServer.LoadSchema(const Schema: TDatabaseSchema);
-const
-  COLUMN_COLLATION_INDEX = 7;
-  COLUMN_DEFAULT_NAME_INDEX = 8;
-  COLUMN_DEFAULT_VALUE_INDEX = 9;
-  COLUMN_NAME_INDEX = 1;
-  COLUMN_NULLABLE_INDEX = 6;
-  COLUMN_PRECISION_INDEX = 4;
-  COLUMN_SCALE_INDEX = 5;
-  COLUMN_SIZE_INDEX = 3;
-  COLUMN_TYPE_INDEX = 2;
-  FOREIGN_KEY_NAME_INDEX = 1;
-  FOREIGN_KEY_PARENT_FIELD_NAME_INDEX = 2;
-  FOREIGN_KEY_REFERENCE_NAME_INDEX = 3;
-  FOREIGN_KEY_REFERENCE_FIELD_NAME_INDEX = 4;
-  INDEX_FIELD_NAME_INDEX = 2;
-  INDEX_NAME_INDEX = 1;
-  INDEX_PRIMARY_KEY_INDEX = 3;
-  INDEX_UNIQUE_INDEX = 4;
-  SEQUENCE_NAME = 0;
-  TABLE_NAME_INDEX = 0;
-
-var
-  Cursor: IDatabaseCursor;
-
-  ForeignKey: TDatabaseForeignKey;
-
-  Index: TDatabaseIndex;
-
-  Table: TDatabaseTable;
-
-  Field: TDatabaseField;
-
-  procedure LoadDefaultValue;
-  begin
-    var DefaultName := VarToStr(Cursor.GetFieldValue(COLUMN_DEFAULT_NAME_INDEX));
-    var DefaultValue := VarToStr(Cursor.GetFieldValue(COLUMN_DEFAULT_VALUE_INDEX));
-
-    if not DefaultName.IsEmpty then
-      TDatabaseDefaultConstraintSQLServer.Create(Field, DefaultName, DefaultValue);
-  end;
-
-  procedure LoadFieldInfo;
-  begin
-    Field := TDatabaseField.Create(Table, Cursor.GetFieldValue(COLUMN_NAME_INDEX));
-    Field.Collation := VarToStr(Cursor.GetFieldValue(COLUMN_COLLATION_INDEX));
-    Field.Required := Cursor.GetFieldValue(COLUMN_NULLABLE_INDEX) = 0;
-    Field.Scale := Cursor.GetFieldValue(COLUMN_SCALE_INDEX);
-    Field.Size := Cursor.GetFieldValue(COLUMN_SIZE_INDEX);
-    var FieldType := Cursor.GetFieldValue(COLUMN_TYPE_INDEX);
-
-    if FFieldTypeMapping.ContainsKey(FieldType) then
-      Field.FieldType := FFieldTypeMapping[FieldType];
-
-    if (Field.FieldType = tkUString) and (Field.Size = Word(-1)) then
-      FieldType := 'varchar(max)'
-    else if Field.FieldType = tkFloat then
-      Field.Size := Cursor.GetFieldValue(COLUMN_PRECISION_INDEX);
-
-    if FFieldSpecialTypeMapping.ContainsKey(FieldType) then
-      Field.SpecialType := FFieldSpecialTypeMapping[FieldType];
-
-    LoadDefaultValue;
-  end;
-
-begin
-//  Cursor := OpenCursor(TABLE_LOAD_SQL);
-
-  while Cursor.Next do
-  begin
-    var TableName := Cursor.GetFieldValue(TABLE_NAME_INDEX);
-
-    Table := Schema.Table[TableName];
-
-    if not Assigned(Table) then
-      Table := TDatabaseTable.Create(Schema, TableName);
-
-    LoadFieldInfo;
-  end;
-
-//  Cursor := OpenCursor(INDEX_LOAD_SQL);
-
-  while Cursor.Next do
-  begin
-    var IndexName: String := Cursor.GetFieldValue(INDEX_NAME_INDEX);
-    Table := Schema.Table[Cursor.GetFieldValue(TABLE_NAME_INDEX)];
-
-    Index := Table.Index[IndexName];
-
-    if not Assigned(Index) then
-    begin
-      Index := TDatabaseIndex.Create(Table, IndexName);
-      Index.PrimaryKey := Cursor.GetFieldValue(INDEX_PRIMARY_KEY_INDEX);
-      Index.Unique := Cursor.GetFieldValue(INDEX_UNIQUE_INDEX);
-    end;
-
-    Index.Fields := Index.Fields + [Table.Field[Cursor.GetFieldValue(INDEX_FIELD_NAME_INDEX)]];
-  end;
-
-//  Cursor := OpenCursor(FOREIGN_KEY_LOAD_SQL);
-
-  while Cursor.Next do
-  begin
-    var ForeignKeyName: String := Cursor.GetFieldValue(FOREIGN_KEY_NAME_INDEX);
-    var ReferenceTable := Schema.Table[Cursor.GetFieldValue(FOREIGN_KEY_REFERENCE_NAME_INDEX)];
-    Table := Schema.Table[Cursor.GetFieldValue(TABLE_NAME_INDEX)];
-
-    ForeignKey := Table.ForeignKey[ForeignKeyName];
-
-    if not Assigned(ForeignKey) then
-      ForeignKey := TDatabaseForeignKey.Create(Table, ForeignKeyName, ReferenceTable);
-
-    ForeignKey.Fields := ForeignKey.Fields + [Table.Field[Cursor.GetFieldValue(FOREIGN_KEY_PARENT_FIELD_NAME_INDEX)]];
-    ForeignKey.FieldsReference := ForeignKey.FieldsReference + [ReferenceTable.Field[Cursor.GetFieldValue(FOREIGN_KEY_REFERENCE_FIELD_NAME_INDEX)]];
-  end;
-
-//  Cursor := OpenCursor(SEQUENCE_LOAD_SQL);
-
-  while Cursor.Next do
-    Schema.Sequences.Add(TDatabaseSequence.Create(Cursor.GetFieldValue(SEQUENCE_NAME)));
-end;
+//procedure TDatabaseManipulatorSQLServer.LoadSchema(const Schema: TDatabaseSchema);
+//const
+//  COLUMN_COLLATION_INDEX = 7;
+//  COLUMN_DEFAULT_NAME_INDEX = 8;
+//  COLUMN_DEFAULT_VALUE_INDEX = 9;
+//  COLUMN_NAME_INDEX = 1;
+//  COLUMN_NULLABLE_INDEX = 6;
+//  COLUMN_PRECISION_INDEX = 4;
+//  COLUMN_SCALE_INDEX = 5;
+//  COLUMN_SIZE_INDEX = 3;
+//  COLUMN_TYPE_INDEX = 2;
+//  FOREIGN_KEY_NAME_INDEX = 1;
+//  FOREIGN_KEY_PARENT_FIELD_NAME_INDEX = 2;
+//  FOREIGN_KEY_REFERENCE_NAME_INDEX = 3;
+//  FOREIGN_KEY_REFERENCE_FIELD_NAME_INDEX = 4;
+//  INDEX_FIELD_NAME_INDEX = 2;
+//  INDEX_NAME_INDEX = 1;
+//  INDEX_PRIMARY_KEY_INDEX = 3;
+//  INDEX_UNIQUE_INDEX = 4;
+//  SEQUENCE_NAME = 0;
+//  TABLE_NAME_INDEX = 0;
+//
+//var
+//  Cursor: IDatabaseCursor;
+//
+//  ForeignKey: TDatabaseForeignKey;
+//
+//  Index: TDatabaseIndex;
+//
+//  Table: TDatabaseTable;
+//
+//  Field: TDatabaseField;
+//
+//  procedure LoadDefaultValue;
+//  begin
+//    var DefaultName := VarToStr(Cursor.GetFieldValue(COLUMN_DEFAULT_NAME_INDEX));
+//    var DefaultValue := VarToStr(Cursor.GetFieldValue(COLUMN_DEFAULT_VALUE_INDEX));
+//
+//    if not DefaultName.IsEmpty then
+//      TDatabaseDefaultConstraintSQLServer.Create(Field, DefaultName, DefaultValue);
+//  end;
+//
+//  procedure LoadFieldInfo;
+//  begin
+//    Field := TDatabaseField.Create(Table, Cursor.GetFieldValue(COLUMN_NAME_INDEX));
+//    Field.Collation := VarToStr(Cursor.GetFieldValue(COLUMN_COLLATION_INDEX));
+//    Field.Required := Cursor.GetFieldValue(COLUMN_NULLABLE_INDEX) = 0;
+//    Field.Scale := Cursor.GetFieldValue(COLUMN_SCALE_INDEX);
+//    Field.Size := Cursor.GetFieldValue(COLUMN_SIZE_INDEX);
+//    var FieldType := Cursor.GetFieldValue(COLUMN_TYPE_INDEX);
+//
+//    if FFieldTypeMapping.ContainsKey(FieldType) then
+//      Field.FieldType := FFieldTypeMapping[FieldType];
+//
+//    if (Field.FieldType = tkUString) and (Field.Size = Word(-1)) then
+//      FieldType := 'varchar(max)'
+//    else if Field.FieldType = tkFloat then
+//      Field.Size := Cursor.GetFieldValue(COLUMN_PRECISION_INDEX);
+//
+//    if FFieldSpecialTypeMapping.ContainsKey(FieldType) then
+//      Field.SpecialType := FFieldSpecialTypeMapping[FieldType];
+//
+//    LoadDefaultValue;
+//  end;
+//
+//begin
+////  Cursor := OpenCursor(TABLE_LOAD_SQL);
+//
+//  while Cursor.Next do
+//  begin
+//    var TableName := Cursor.GetFieldValue(TABLE_NAME_INDEX);
+//
+//    Table := Schema.Table[TableName];
+//
+//    if not Assigned(Table) then
+//      Table := TDatabaseTable.Create(Schema, TableName);
+//
+//    LoadFieldInfo;
+//  end;
+//
+////  Cursor := OpenCursor(INDEX_LOAD_SQL);
+//
+//  while Cursor.Next do
+//  begin
+//    var IndexName: String := Cursor.GetFieldValue(INDEX_NAME_INDEX);
+//    Table := Schema.Table[Cursor.GetFieldValue(TABLE_NAME_INDEX)];
+//
+//    Index := Table.Index[IndexName];
+//
+//    if not Assigned(Index) then
+//    begin
+//      Index := TDatabaseIndex.Create(Table, IndexName);
+//      Index.PrimaryKey := Cursor.GetFieldValue(INDEX_PRIMARY_KEY_INDEX);
+//      Index.Unique := Cursor.GetFieldValue(INDEX_UNIQUE_INDEX);
+//    end;
+//
+//    Index.Fields := Index.Fields + [Table.Field[Cursor.GetFieldValue(INDEX_FIELD_NAME_INDEX)]];
+//  end;
+//
+////  Cursor := OpenCursor(FOREIGN_KEY_LOAD_SQL);
+//
+//  while Cursor.Next do
+//  begin
+//    var ForeignKeyName: String := Cursor.GetFieldValue(FOREIGN_KEY_NAME_INDEX);
+//    var ReferenceTable := Schema.Table[Cursor.GetFieldValue(FOREIGN_KEY_REFERENCE_NAME_INDEX)];
+//    Table := Schema.Table[Cursor.GetFieldValue(TABLE_NAME_INDEX)];
+//
+//    ForeignKey := Table.ForeignKey[ForeignKeyName];
+//
+//    if not Assigned(ForeignKey) then
+//      ForeignKey := TDatabaseForeignKey.Create(Table, ForeignKeyName, ReferenceTable);
+//
+//    ForeignKey.Fields := ForeignKey.Fields + [Table.Field[Cursor.GetFieldValue(FOREIGN_KEY_PARENT_FIELD_NAME_INDEX)]];
+//    ForeignKey.FieldsReference := ForeignKey.FieldsReference + [ReferenceTable.Field[Cursor.GetFieldValue(FOREIGN_KEY_REFERENCE_FIELD_NAME_INDEX)]];
+//  end;
+//
+////  Cursor := OpenCursor(SEQUENCE_LOAD_SQL);
+//
+//  while Cursor.Next do
+//    Schema.Sequences.Add(TDatabaseSequence.Create(Cursor.GetFieldValue(SEQUENCE_NAME)));
+//end;
 
 function TDatabaseManipulatorSQLServer.MakeInsertStatement(const Table: TTable; const Params: TParams): String;
 begin
@@ -357,7 +355,7 @@ end;
 
 constructor TDatabaseDefaultConstraintSQLServer.Create(const Field: TDatabaseField; const Name, Value: String);
 begin
-  inherited Create(Field, Name, Value.SubString(1, Value.Length - 2));
+//  inherited Create(Field, Name, Value.SubString(1, Value.Length - 2));
 end;
 
 end.

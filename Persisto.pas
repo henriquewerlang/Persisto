@@ -13,7 +13,6 @@ type
   TDatabaseField = class;
   TDatabaseForeignKey = class;
   TDatabaseIndex = class;
-  TDatabaseSchema = class;
   TDatabaseSequence = class;
   TDatabaseTable = class;
   TField = class;
@@ -579,69 +578,28 @@ type
     function UpdateField(const SourceField, DestinyField: TField): String;
   end;
 
-  TDatabaseSchema = class
-  private
-    FSequences: TList<TDatabaseSequence>;
-    FTables: TList<TDatabaseTable>;
-
-    function GetSequence(const Name: String): TDatabaseSequence;
-    function GetTable(const Name: String): TDatabaseTable;
-  public
-    constructor Create;
-
-    destructor Destroy; override;
-
-    property Sequence[const Name: String]: TDatabaseSequence read GetSequence;
-    property Sequences: TList<TDatabaseSequence> read FSequences;
-    property Table[const Name: String]: TDatabaseTable read GetTable;
-    property Tables: TList<TDatabaseTable> read FTables;
-  end;
-
-  TDatabaseNamedObject = class
+  [SingleTableInheritance]
+  TDatabaseObject = class
   private
     FName: String;
   public
-    constructor Create(const Name: String);
-
-    class function FindObject<T: TDatabaseNamedObject>(const List: Lazy<TArray<T>>; const Name: String): T;
-
     property Name: String read FName write FName;
   end;
 
-  TDatabaseTableObject = class(TDatabaseNamedObject)
-  private
-    FTable: TDatabaseTable;
-  public
-    constructor Create(const Table: TDatabaseTable; const Name: String);
-
-    property Table: TDatabaseTable read FTable;
-  end;
-
-  TDatabaseTable = class(TDatabaseNamedObject)
+  [SingleTableInheritance]
+  TDatabaseTable = class(TDatabaseObject)
   private
     FFields: Lazy<TArray<TDatabaseField>>;
     FForeignKeys: Lazy<TArray<TDatabaseForeignKey>>;
     FIndexes: Lazy<TArray<TDatabaseIndex>>;
-    FSchema: TDatabaseSchema;
-
-    function GetField(const Name: String): TDatabaseField;
-    function GetForeignKey(const Name: String): TDatabaseForeignKey;
-    function GetIndex(const Name: String): TDatabaseIndex;
   public
-    constructor Create(const Schema: TDatabaseSchema; const Name: String);
-
-    destructor Destroy; override;
-
-    property Field[const Name: String]: TDatabaseField read GetField;
     property Fields: Lazy<TArray<TDatabaseField>> read FFields write FFields;
-    property ForeignKey[const Name: String]: TDatabaseForeignKey read GetForeignKey;
     property ForeignKeys: Lazy<TArray<TDatabaseForeignKey>> read FForeignKeys write FForeignKeys;
-    property Index[const Name: String]: TDatabaseIndex read GetIndex;
     property Indexes: Lazy<TArray<TDatabaseIndex>> read FIndexes write FIndexes;
-    property Schema: TDatabaseSchema read FSchema write FSchema;
   end;
 
-  TDatabaseField = class(TDatabaseTableObject)
+  [SingleTableInheritance]
+  TDatabaseField = class(TDatabaseObject)
   private
     FCheck: TDatabaseCheckConstraint;
     FCollation: String;
@@ -652,10 +610,6 @@ type
     FSize: Word;
     FSpecialType: TDatabaseSpecialType;
   public
-    constructor Create(const Table: TDatabaseTable; const Name: String);
-
-    destructor Destroy; override;
-
     property Check: TDatabaseCheckConstraint read FCheck write FCheck;
     property Collation: String read FCollation write FCollation;
     property DefaultConstraint: TDatabaseDefaultConstraint read FDefaultConstraint write FDefaultConstraint;
@@ -666,51 +620,43 @@ type
     property SpecialType: TDatabaseSpecialType read FSpecialType write FSpecialType;
   end;
 
-  TDatabaseIndex = class(TDatabaseTableObject)
+  TDatabaseIndex = class(TDatabaseObject)
   private
     FFields: TArray<TDatabaseField>;
     FPrimaryKey: Boolean;
     FUnique: Boolean;
   public
-    constructor Create(const Table: TDatabaseTable; const Name: String);
-
     property Fields: TArray<TDatabaseField> read FFields write FFields;
     property PrimaryKey: Boolean read FPrimaryKey write FPrimaryKey;
     property Unique: Boolean read FUnique write FUnique;
   end;
 
-  TDatabaseForeignKey = class(TDatabaseTableObject)
+  TDatabaseForeignKey = class(TDatabaseObject)
   private
     FFields: TArray<TDatabaseField>;
     FFieldsReference: TArray<TDatabaseField>;
     FReferenceTable: TDatabaseTable;
   public
-    constructor Create(const ParentTable: TDatabaseTable; const Name: String; const ReferenceTable: TDatabaseTable);
-
     property Fields: TArray<TDatabaseField> read FFields write FFields;
     property FieldsReference: TArray<TDatabaseField> read FFieldsReference write FFieldsReference;
     property ReferenceTable: TDatabaseTable read FReferenceTable write FReferenceTable;
   end;
 
-  TDatabaseDefaultConstraint = class(TDatabaseNamedObject)
+  TDatabaseDefaultConstraint = class(TDatabaseObject)
   private
     FValue: String;
   public
-    constructor Create(const Field: TDatabaseField; const Name, Value: String);
-
     property Value: String read FValue write FValue;
   end;
 
-  TDatabaseCheckConstraint = class(TDatabaseNamedObject)
+  TDatabaseCheckConstraint = class(TDatabaseObject)
   private
     FCheck: String;
   public
-    constructor Create(const Field: TDatabaseField; const Name, Check: String);
-
     property Check: String read FCheck write FCheck;
   end;
 
-  TDatabaseSequence = class(TDatabaseNamedObject)
+  TDatabaseSequence = class(TDatabaseObject)
   end;
 
   TDatabaseSchemaUpdater = class
@@ -719,6 +665,7 @@ type
     FManager: TManager;
 
     function CheckSameFields(const Fields: TArray<TField>; const DatabaseFields: TArray<TDatabaseField>): Boolean;
+    function GetFieldList(const Fields: TArray<TField>): String;
     function FieldInTheList(const DatabaseField: TDatabaseField; const DatabaseFields: TArray<TDatabaseField>): Boolean;
 
     procedure CheckChangingTheList<T>(const List: Lazy<TArray<T>>; const Func: TFunc<T, Boolean>);
@@ -735,9 +682,6 @@ type
   end;
 
   TDatabaseManipulator = class(TInterfacedObject)
-  private
-    function GetFieldList(const Fields: TArray<TField>): String;
-    function GetPrimaryKey(const Table: TTable; const Separator: String): String;
   protected
     function CreateField(const Field: TField): String;
     function CreateForeignKey(const ForeignKey: TForeignKey): String;
@@ -762,8 +706,10 @@ type
   end;
 
   TDatabaseClassGenerator = class
+  private
+    FManager: TManager;
   public
-    constructor Create(const MetadaManipulator: IDatabaseManipulator);
+    constructor Create(const Manager: TManager);
 
     procedure GenerateFile(const Destiny: TStream);
   end;
@@ -2327,111 +2273,6 @@ begin
   Result := TQueryBuilderOpen<T>.Create(FQueryBuilder);
 end;
 
-{ TDatabaseNamedObject }
-
-constructor TDatabaseNamedObject.Create(const Name: String);
-begin
-  inherited Create;
-
-  FName := Name;
-end;
-
-class function TDatabaseNamedObject.FindObject<T>(const List: Lazy<TArray<T>>; const Name: String): T;
-begin
-  Result := nil;
-
-  for var AObject in List.Value do
-    if AnsiCompareText(AObject.Name, Name) = 0 then
-      Exit(AObject);
-end;
-
-{ TDatabaseTableObject }
-
-constructor TDatabaseTableObject.Create(const Table: TDatabaseTable; const Name: String);
-begin
-  inherited Create(Name);
-
-  FTable := Table;
-end;
-
-{ TDatabaseForeignKey }
-
-constructor TDatabaseForeignKey.Create(const ParentTable: TDatabaseTable; const Name: String; const ReferenceTable: TDatabaseTable);
-begin
-  inherited Create(ParentTable, Name);
-
-  FReferenceTable := ReferenceTable;
-
-//  FTable.FForeignKeys.Add(Self);
-end;
-
-{ TDatabaseField }
-
-constructor TDatabaseField.Create(const Table: TDatabaseTable; const Name: String);
-begin
-  inherited;
-
-//  FTable.FFields.Add(Self);
-end;
-
-destructor TDatabaseField.Destroy;
-begin
-  FDefaultConstraint.Free;
-
-  FCheck.Free;
-
-  inherited;
-end;
-
-{ TDatabaseIndex }
-
-constructor TDatabaseIndex.Create(const Table: TDatabaseTable; const Name: String);
-begin
-  inherited;
-
-//  FTable.FIndexes.Add(Self);
-end;
-
-{ TDatabaseTable }
-
-constructor TDatabaseTable.Create(const Schema: TDatabaseSchema; const Name: String);
-begin
-  inherited Create(Name);
-
-//  FFields := TObjectList<TDatabaseField>.Create;
-//  FForeignKeys := TObjectList<TDatabaseForeignKey>.Create;
-//  FIndexes := TObjectList<TDatabaseIndex>.Create;
-  FSchema := Schema;
-
-  Schema.Tables.Add(Self);
-end;
-
-destructor TDatabaseTable.Destroy;
-begin
-//  FFields.Free;
-//
-//  FForeignKeys.Free;
-//
-//  FIndexes.Free;
-
-  inherited;
-end;
-
-function TDatabaseTable.GetField(const Name: String): TDatabaseField;
-begin
-  Result := TDatabaseNamedObject.FindObject<TDatabaseField>(Fields, Name);
-end;
-
-function TDatabaseTable.GetForeignKey(const Name: String): TDatabaseForeignKey;
-begin
-  Result := TDatabaseNamedObject.FindObject<TDatabaseForeignKey>(ForeignKeys, Name);
-end;
-
-function TDatabaseTable.GetIndex(const Name: String): TDatabaseIndex;
-begin
-  Result := TDatabaseNamedObject.FindObject<TDatabaseIndex>(Indexes, Name);
-end;
-
 { TDatabaseSchemaUpdater }
 
 procedure TDatabaseSchemaUpdater.CheckChangingTheList<T>(const List: Lazy<TArray<T>>; const Func: TFunc<T, Boolean>);
@@ -2470,29 +2311,29 @@ end;
 
 procedure TDatabaseSchemaUpdater.DropField(const DatabaseField: TDatabaseField);
 begin
-  for var Table in DatabaseField.Table.Schema.Tables do
-    CheckChangingTheList<TDatabaseForeignKey>(Table.ForeignKeys,
-      function (DatabaseForeignKey: TDatabaseForeignKey): Boolean
-      begin
-        Result := FieldInTheList(DatabaseField, DatabaseForeignKey.FieldsReference) or FieldInTheList(DatabaseField, DatabaseForeignKey.Fields);
-
-        if Result then
-          DropForeignKey(DatabaseForeignKey);
-      end);
-
-  CheckChangingTheList<TDatabaseIndex>(DatabaseField.Table.Indexes,
-    function (Index: TDatabaseIndex): Boolean
-    begin
-      Result := FieldInTheList(DatabaseField, Index.Fields);
-
-      if Result then
-        DropIndex(Index);
-    end);
-
-  if Assigned(DatabaseField.DefaultConstraint) then
-    FDatabaseManipulator.DropDefaultConstraint(DatabaseField);
-
-  FDatabaseManipulator.DropField(DatabaseField);
+//  for var Table in DatabaseField.Table.Schema.Tables do
+//    CheckChangingTheList<TDatabaseForeignKey>(Table.ForeignKeys,
+//      function (DatabaseForeignKey: TDatabaseForeignKey): Boolean
+//      begin
+//        Result := FieldInTheList(DatabaseField, DatabaseForeignKey.FieldsReference) or FieldInTheList(DatabaseField, DatabaseForeignKey.Fields);
+//
+//        if Result then
+//          DropForeignKey(DatabaseForeignKey);
+//      end);
+//
+//  CheckChangingTheList<TDatabaseIndex>(DatabaseField.Table.Indexes,
+//    function (Index: TDatabaseIndex): Boolean
+//    begin
+//      Result := FieldInTheList(DatabaseField, Index.Fields);
+//
+//      if Result then
+//        DropIndex(Index);
+//    end);
+//
+//  if Assigned(DatabaseField.DefaultConstraint) then
+//    FDatabaseManipulator.DropDefaultConstraint(DatabaseField);
+//
+//  FDatabaseManipulator.DropField(DatabaseField);
 //
 //  DatabaseField.Table.Fields.Remove(DatabaseField);
 end;
@@ -2506,44 +2347,57 @@ end;
 
 procedure TDatabaseSchemaUpdater.DropIndex(const DatabaseIndex: TDatabaseIndex);
 begin
-  if DatabaseIndex.PrimaryKey then
-    for var Table in DatabaseIndex.Table.Schema.Tables do
-      CheckChangingTheList<TDatabaseForeignKey>(Table.ForeignKeys,
-        function (DatabaseForeignKey: TDatabaseForeignKey): Boolean
-        begin
-          Result := DatabaseIndex.Table = DatabaseForeignKey.ReferenceTable;
-
-          if Result then
-            DropForeignKey(DatabaseForeignKey);
-        end);
-
-  FDatabaseManipulator.DropIndex(DatabaseIndex);
+//  if DatabaseIndex.PrimaryKey then
+//    for var Table in DatabaseIndex.Table.Schema.Tables do
+//      CheckChangingTheList<TDatabaseForeignKey>(Table.ForeignKeys,
+//        function (DatabaseForeignKey: TDatabaseForeignKey): Boolean
+//        begin
+//          Result := DatabaseIndex.Table = DatabaseForeignKey.ReferenceTable;
+//
+//          if Result then
+//            DropForeignKey(DatabaseForeignKey);
+//        end);
+//
+//  FDatabaseManipulator.DropIndex(DatabaseIndex);
 //
 //  DatabaseIndex.Table.Indexes.Remove(DatabaseIndex);
 end;
 
 procedure TDatabaseSchemaUpdater.DropTable(const DatabaseTable: TDatabaseTable);
 begin
-  for var Table in DatabaseTable.Schema.Tables do
-    CheckChangingTheList<TDatabaseForeignKey>(Table.ForeignKeys,
-      function (DatabaseForeignKey: TDatabaseForeignKey): Boolean
-      begin
-        Result := (DatabaseTable = DatabaseForeignKey.ReferenceTable) or (DatabaseTable = DatabaseForeignKey.Table);
-
-        if Result then
-          DropForeignKey(DatabaseForeignKey);
-      end);
-
-  FDatabaseManipulator.DropTable(DatabaseTable);
+//  for var Table in DatabaseTable.Schema.Tables do
+//    CheckChangingTheList<TDatabaseForeignKey>(Table.ForeignKeys,
+//      function (DatabaseForeignKey: TDatabaseForeignKey): Boolean
+//      begin
+//        Result := (DatabaseTable = DatabaseForeignKey.ReferenceTable) or (DatabaseTable = DatabaseForeignKey.Table);
+//
+//        if Result then
+//          DropForeignKey(DatabaseForeignKey);
+//      end);
+//
+//  FDatabaseManipulator.DropTable(DatabaseTable);
 end;
 
 function TDatabaseSchemaUpdater.FieldInTheList(const DatabaseField: TDatabaseField; const DatabaseFields: TArray<TDatabaseField>): Boolean;
 begin
-  Result := False;
+//  Result := False;
+//
+//  for var Field in DatabaseFields do
+//    if Field = DatabaseField then
+//      Exit(True);
+end;
 
-  for var Field in DatabaseFields do
-    if Field = DatabaseField then
-      Exit(True);
+function TDatabaseSchemaUpdater.GetFieldList(const Fields: TArray<TField>): String;
+begin
+//  Result := EmptyStr;
+//
+//  for var Field in Fields do
+//  begin
+//    if not Result.IsEmpty then
+//      Result := Result + ',';
+//
+//    Result := Result + Field.DatabaseName;
+//  end;
 end;
 
 procedure TDatabaseSchemaUpdater.RecreateField(const Field: TField; const DatabaseField: TDatabaseField);
@@ -2576,6 +2430,7 @@ begin
 end;
 
 procedure TDatabaseSchemaUpdater.UpdateDatabase;
+{
 var
   DatabaseField: TDatabaseField;
 
@@ -2702,8 +2557,9 @@ var
 
     DatabaseTable := TDatabaseTable.Create(Schema, Table.DatabaseName);
   end;
-
+}
 begin
+{
   Tables := TDictionary<String, TTable>.Create;
 
   LoadDatabaseSchema;
@@ -2835,54 +2691,7 @@ begin
   Schema.Free;
 
   Tables.Free;
-end;
-
-{ TDatabaseSchema }
-
-constructor TDatabaseSchema.Create;
-begin
-  inherited;
-
-  FSequences := TObjectList<TDatabaseSequence>.Create;
-  FTables := TObjectList<TDatabaseTable>.Create;
-end;
-
-destructor TDatabaseSchema.Destroy;
-begin
-  FSequences.Free;
-
-  FTables.Free;
-
-  inherited;
-end;
-
-function TDatabaseSchema.GetSequence(const Name: String): TDatabaseSequence;
-begin
-//  Result := TDatabaseNamedObject.FindObject<TDatabaseSequence>(Sequences, Name);
-end;
-
-function TDatabaseSchema.GetTable(const Name: String): TDatabaseTable;
-begin
-//  Result := TDatabaseNamedObject.FindObject<TDatabaseTable>(Tables, Name);
-end;
-
-{ TDatabaseDefaultConstraint }
-
-constructor TDatabaseDefaultConstraint.Create(const Field: TDatabaseField; const Name, Value: String);
-begin
-  inherited Create(Name);
-
-  Field.DefaultConstraint := Self;
-  FValue := Value;
-end;
-
-{ TDatabaseCheckConstraint }
-
-constructor TDatabaseCheckConstraint.Create(const Field: TDatabaseField; const Name, Check: String);
-begin
-  inherited Create(Name);
-
-  FCheck := Check;
+}
 end;
 
 { TDatabaseManipulator }
@@ -3001,19 +2810,6 @@ begin
     GetFieldDefaultConstraint(Field)]);
 end;
 
-function TDatabaseManipulator.GetFieldList(const Fields: TArray<TField>): String;
-begin
-  Result := EmptyStr;
-
-  for var Field in Fields do
-  begin
-    if not Result.IsEmpty then
-      Result := Result + ',';
-
-    Result := Result + Field.DatabaseName;
-  end;
-end;
-
 function TDatabaseManipulator.GetFieldTypeDefinition(Field: TField): String;
 begin
   if Field.SpecialType = stNotDefined then
@@ -3032,16 +2828,6 @@ begin
   end
 //  else
 //    Result := GetSpecialFieldType(Field);
-end;
-
-function TDatabaseManipulator.GetPrimaryKey(const Table: TTable; const Separator: String): String;
-begin
-//  if Assigned(Table.PrimaryKey) then
-//  begin
-//    var Index := GetPrimaryKeyIndex(Table);
-//
-//    Result := Format('%sconstraint %s primary key (%s)', [Separator, Index.DatabaseName, GetFieldList(Index.Fields)]);
-//  end;
 end;
 
 function TDatabaseManipulator.MakeInsertStatement(const Table: TTable; const Params: TParams): String;
@@ -3519,9 +3305,11 @@ end;
 
 { TDatabaseClassGenerator }
 
-constructor TDatabaseClassGenerator.Create(const MetadaManipulator: IDatabaseManipulator);
+constructor TDatabaseClassGenerator.Create(const Manager: TManager);
 begin
+  inherited Create;
 
+  FManager := Manager;
 end;
 
 procedure TDatabaseClassGenerator.GenerateFile(const Destiny: TStream);
@@ -3530,4 +3318,11 @@ begin
 end;
 
 end.
+
+//  if Assigned(Table.PrimaryKey) then
+//  begin
+//    var Index := GetPrimaryKeyIndex(Table);
+//
+//    Result := Format('%sconstraint %s primary key (%s)', [Separator, Index.DatabaseName, GetFieldList(Index.Fields)]);
+//  end;
 
