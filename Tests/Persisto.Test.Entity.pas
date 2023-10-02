@@ -64,7 +64,6 @@ type
   public
     property PublicField: String read FPublicField write FPublicField;
   published
-    [FieldInfo(stUniqueIdentifier)]
     property Field: Integer read FField write FField;
     [FieldInfo(150)]
     property Name: String read FName write FName;
@@ -495,33 +494,36 @@ type
     FAnsiString: AnsiString;
     FBoolean: Boolean;
     FChar: Char;
-    FClass: TMyEntityWithPrimaryKey;
     FDate: TDate;
     FDateTime: TDateTime;
-    FEmptyClass: TMyEntityWithPrimaryKey;
     FEnumerator: TMyEnumerator;
     FFloat: Double;
-    FGUID: TGUID;
     FInt64: Int64;
     FInteger: Integer;
     FString: String;
+    FText: String;
     FTime: TTime;
+    FUniqueIdentifier: String;
   published
     property AnsiChar: AnsiChar read FAnsiChar write FAnsiChar;
+    [Size(150)]
     property AnsiString: AnsiString read FAnsiString write FAnsiString;
     property Boolean: Boolean read FBoolean write FBoolean;
     property Char: Char read FChar write FChar;
-    property &Class: TMyEntityWithPrimaryKey read FClass write FClass;
     property Date: TDate read FDate write FDate;
     property DateTime: TDateTime read FDateTime write FDateTime;
-    property EmptyClass: TMyEntityWithPrimaryKey read FEmptyClass write FEmptyClass;
     property Enumerator: TMyEnumerator read FEnumerator write FEnumerator;
+    [Precision(10, 2)]
     property Float: Double read FFloat write FFloat;
-    property GUID: TGUID read FGUID write FGUID;
     property Int64: Int64 read FInt64 write FInt64;
     property Integer: Integer read FInteger write FInteger;
+    [Size(150)]
     property &String: String read FString write FString;
+    [Text]
+    property Text: String read FText write FText;
     property Time: TTime read FTime write FTime;
+    [UniqueIdentifier]
+    property UniqueIdentifier: String read FUniqueIdentifier write FUniqueIdentifier;
   end;
 
   TMyChildClass = class;
@@ -737,7 +739,7 @@ type
   published
     property Id: Integer read FId write FId;
     property PassCount: Integer read FPassCount write FPassCount;
-    property Values: TArray<TManyValueParentChildError> read FValues write FValues;
+    property Childs: TArray<TManyValueParentChildError> read FValues write FValues;
   end;
 
   [Entity]
@@ -770,7 +772,7 @@ type
     FId: Integer;
   published
     property Id: Integer read FId write FId;
-    property Values: TArray<TManyValueClassBaseChild> read FValues write FValues;
+    property Childs: TArray<TManyValueClassBaseChild> read FValues write FValues;
   end;
 
   TManyValueClassInherited = class;
