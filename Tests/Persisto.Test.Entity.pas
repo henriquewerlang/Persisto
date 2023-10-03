@@ -246,11 +246,9 @@ type
   [Entity]
   TMyClassWithSpecialTypes = class
   private
-    FGuid: TGUID;
     FEnumerator: TMyEnumerator;
   published
     property Enumerator: TMyEnumerator read FEnumerator write FEnumerator;
-    property Guid: TGUID read FGuid write FGuid;
   end;
 
   TManyValueAssociationParent = class;
