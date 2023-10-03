@@ -39,12 +39,6 @@ begin
 
   FastMM_BeginEraseFreedBlockContent;
 
-  DropDatabase;
-
-  CreateDatabase;
-
   TestInsight.DUnitX.RunRegisteredTests;
-
-  DropDatabase;
 end.
 

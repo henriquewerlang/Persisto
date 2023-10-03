@@ -33,21 +33,15 @@ uses
 const
   DATABASE_NAME = 'PersistoDatabaseTest';
 
-function GetSQLiteDatabaseName: String;
+function FormatSQLiteDatabaseName(const DatabaseName: String): String;
 begin
-  Result := Format('.\%s.sqlite3', [DATABASE_NAME]);
+  Result := Format('.\%s.sqlite3', [DatabaseName]);
 end;
 
-procedure ConfigureSQLite(const Connection: TDatabaseConnectionFireDAC);
-begin
-  Connection.Connection.DriverName := 'SQLite';
-  Connection.Connection.Params.Database := GetSQLiteDatabaseName;
-end;
-
-procedure ConfigurePostgreSQL(const Connection: TDatabaseConnectionFireDAC; const DatabaseName: String);
+procedure ConfigureConnection(const Connection: TDatabaseConnectionFireDAC; const DatabaseName: String);
 begin
 {$IFDEF POSTGRESQL}
-  var Driver := TFDPhysPgDriverLink.Create(nil);
+  var Driver := TFDPhysPgDriverLink.Create(Connection.Connection);
   Driver.VendorLib := GetEnvironmentVariable('POSTGRESQL_LIB_PATH');
 
   Connection.Connection.DriverName := 'PG';
@@ -57,6 +51,9 @@ begin
 
   if Driver.VendorLib.IsEmpty or Connection.Connection.Params.UserName.IsEmpty and Connection.Connection.Params.Password.IsEmpty then
     raise EPostgreSQLConfigurationError.Create;
+{$ELSE}
+  Connection.Connection.DriverName := 'SQLite';
+  Connection.Connection.Params.Database := FormatSQLiteDatabaseName(DatabaseName);
 {$ENDIF}
 end;
 
@@ -64,11 +61,7 @@ function CreateConnectionNamed(const DatabaseName: String): IDatabaseConnection;
 begin
   var Connection := TDatabaseConnectionFireDAC.Create;
 
-{$IFDEF POSTGRESQL}
-  ConfigurePostgreSQL(Connection, DatabaseName);
-{$ELSE}
-  ConfigureSQLite(Connection);
-{$ENDIF}
+  ConfigureConnection(Connection, DatabaseName);
 
   Result := Connection;
 end;
@@ -87,25 +80,35 @@ begin
 {$ENDIF}
 end;
 
-procedure CreateDatabase;
+procedure CreateDatabaseNamed(const DatabaseName: String);
 begin
 {$IFDEF POSTGRESQL}
   var Connection := CreateConnectionNamed('postgres');
 
-  Connection.ExecuteDirect('create database ' + DATABASE_NAME);
+  Connection.ExecuteDirect(Format('create database %s', [DatabaseName]));
+{$ENDIF}
+end;
+
+procedure CreateDatabase;
+begin
+  CreateDatabaseNamed(DATABASE_NAME);
+end;
+
+procedure DropDatabaseNamed(const DatabaseName: String);
+begin
+{$IFDEF POSTGRESQL}
+  var Connection := CreateConnectionNamed('postgres');
+
+  Connection.ExecuteDirect(Format('drop database if exists %s with (force)', [DatabaseName]));
+{$ELSE}
+  if TFile.Exists(FormatSQLiteDatabaseName(DatabaseName)) then
+    TFile.Delete(FormatSQLiteDatabaseName(DatabaseName));
 {$ENDIF}
 end;
 
 procedure DropDatabase;
 begin
-{$IFDEF POSTGRESQL}
-  var Connection := CreateConnectionNamed('postgres');
-
-  Connection.ExecuteDirect(Format('drop database if exists %s with (force)', [DATABASE_NAME]));
-{$ELSE}
-  if TFile.Exists(GetSQLiteDatabaseName) then
-    TFile.Delete(GetSQLiteDatabaseName);
-{$ENDIF}
+  DropDatabaseNamed(DATABASE_NAME);
 end;
 
 { EPostgreSQLConfigurationError }

@@ -54,8 +54,8 @@ end;
 function TDatabaseManipulatorPostgreSQL.GetSchemaTablesScripts: TArray<String>;
 begin
   Result := [
-      'create temp view PersistoDatabaseTable as (select table_name Name from information_schema.tables)',
-      'create temp view PersistoDatabaseTableField as (select table_name IdTable, column_name Name from information_schema.columns)'
+      'create or replace temp view PersistoDatabaseTable as (select table_name Name from information_schema.tables)',
+      'create or replace temp view PersistoDatabaseTableField as (select table_name IdTable, column_name Name from information_schema.columns)'
     ];
 end;
 

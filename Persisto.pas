@@ -2439,6 +2439,8 @@ end;
 
 procedure TDatabaseSchemaUpdater.UpdateDatabase;
 var
+  Comparer: TOrdinalIStringComparer;
+
   DatabaseField: TDatabaseField;
 
   DatabaseForeignKey: TDatabaseForeignKey;
@@ -2602,13 +2604,14 @@ var
 
   procedure LoadDatabaseTables;
   begin
-    DatabaseTables := TDictionary<String, TDatabaseTable>.Create;
+    DatabaseTables := TDictionary<String, TDatabaseTable>.Create(Comparer);
 
     for var DatabaseTable in FManager.Select.All.From<TDatabaseTable>.Open.All do
       DatabaseTables.Add(DatabaseTable.Name, DatabaseTable);
   end;
 
 begin
+  Comparer := TOrdinalIStringComparer.Create;
   SQL := TStringBuilder.Create(5000);
 
   ExecuteSchemarScripts(FDatabaseManipulator.GetSchemaTablesScripts);
@@ -2618,12 +2621,13 @@ begin
 //  for Sequence in FManager.Mapper.Sequences do
 //    if not Assigned(Schema.Sequence[Sequence.Name]) then
 //      FDatabaseManipulator.CreateSequence(Sequence);
-//
+//Exit;
   for Table in FManager.Mapper.Tables do
     if not DatabaseTables.TryGetValue(Table.DatabaseName, DatabaseTable) then
-      CreateTable
-    else
-    begin
+      CreateTable;
+
+  for Table in FManager.Mapper.Tables do
+  begin
 //      for Field in Table.Fields do
 //        if not Field.IsManyValueAssociation then
 //        begin
@@ -2652,7 +2656,7 @@ begin
 //            end;
 //          end;
 //        end;
-    end;
+  end;
 //
 //  for Table in FManager.Mapper.Tables do
 //    if Table.DefaultRecords.Count > 0 then
@@ -2736,6 +2740,8 @@ begin
   DatabaseTables.Free;
 
   SQL.Free;
+
+  Comparer.Free;
 end;
 
 { TDatabaseManipulator }
@@ -3204,6 +3210,8 @@ end;
 
 function TManager.Select: TQueryBuilder;
 begin
+  FQueryBuilder.Free;
+
   FQueryBuilder := TQueryBuilder.Create(Self);
   Result := FQueryBuilder;
 end;
