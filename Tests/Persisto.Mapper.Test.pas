@@ -806,7 +806,7 @@ procedure TMapperTest.WhenAForeignKeyFieldHasTheFieldNameAttributeThisMustBeTheD
 begin
   var Table := FMapper.GetTable(TClassWithNamedForeignKey);
 
-  Assert.AreEqual('MyFk', Table.Fields[1].DatabaseName);
+  Assert.AreEqual('MyFk', Table.Field['ForeignKey'].DatabaseName);
 end;
 
 procedure TMapperTest.WhenAlreadyExistsTheSequenceMappedMustRaiseAnError;
@@ -1219,7 +1219,7 @@ procedure TMapperTest.WhenTheFieldIsAClassMustFillTheDatabaseNameWithIdPlusPrope
 begin
   var Table := FMapper.GetTable(TMyEntityWithFieldNameAttribute);
 
-  Assert.AreEqual('IdMyForeignKey', Table.Fields[1].DatabaseName);
+  Assert.AreEqual('IdMyForeignKey', Table.Field['MyForeignKey'].DatabaseName);
 end;
 
 procedure TMapperTest.WhenTheFieldIsAClassMustMarkAsNotRequired;
@@ -1233,7 +1233,7 @@ procedure TMapperTest.WhenTheFieldIsAForeignKeyMustAppendTheIdInTheDatabaseNameO
 begin
   var Table := FMapper.GetTable(TLazyClass);
 
-  Assert.AreEqual('IdLazy', Table.Fields[1].DatabaseName);
+  Assert.AreEqual('IdLazy', Table.Field['Lazy'].DatabaseName);
 end;
 
 procedure TMapperTest.WhenTheFieldIsLazyLoadingAndTheValueIsntLoadedMustReturnEmptyValueInParam;

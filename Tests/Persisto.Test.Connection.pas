@@ -9,6 +9,7 @@ function CreateDatabaseManipulator: IDatabaseManipulator;
 
 procedure CreateDatabase;
 procedure DropDatabase;
+procedure RebootDatabase;
 
 type
   EPostgreSQLConfigurationError = class(Exception)
@@ -109,6 +110,13 @@ end;
 procedure DropDatabase;
 begin
   DropDatabaseNamed(DATABASE_NAME);
+end;
+
+procedure RebootDatabase;
+begin
+  DropDatabase;
+
+  CreateDatabase;
 end;
 
 { EPostgreSQLConfigurationError }

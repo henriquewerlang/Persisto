@@ -2440,29 +2440,17 @@ end;
 procedure TDatabaseSchemaUpdater.UpdateDatabase;
 var
   Comparer: TOrdinalIStringComparer;
-
   DatabaseField: TDatabaseField;
-
   DatabaseForeignKey: TDatabaseForeignKey;
-
   DatabaseIndex: TDatabaseIndex;
-
   DatabaseSequence: TDatabaseSequence;
-
   DatabaseTable: TDatabaseTable;
-
   DatabaseTables: TDictionary<String, TDatabaseTable>;
-
-  ForeignKey: TForeignKey;
-
   Field: TField;
-
+  ForeignKey: TForeignKey;
   Index: TIndex;
-
   Sequence: TSequence;
-
   SQL: TStringBuilder;
-
   Table: TTable;
 
   procedure ExecuteDirect(const SQL: String);
@@ -2571,7 +2559,7 @@ var
         Exit(DatabaseIndex);
   end;
 
-  procedure CreateTableFieldList;
+  procedure BuildFieldList;
   begin
     for var Field in Table.Fields do
       if not Field.IsManyValueAssociation then
@@ -2595,7 +2583,7 @@ var
 
     SQL.Append('(');
 
-    CreateTableFieldList;
+    BuildFieldList;
 
     SQL.Append(')');
 
@@ -2606,7 +2594,7 @@ var
   begin
     DatabaseTables := TDictionary<String, TDatabaseTable>.Create(Comparer);
 
-    for var DatabaseTable in FManager.Select.All.From<TDatabaseTable>.Open.All do
+    for var DatabaseTable in FManagerSchema.Select.All.From<TDatabaseTable>.Open.All do
       DatabaseTables.Add(DatabaseTable.Name, DatabaseTable);
   end;
 

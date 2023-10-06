@@ -602,11 +602,11 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.Setup;
 begin
+  RebootDatabase;
+
   FManager := TManager.Create(CreateConnection, CreateDatabaseManipulator);
 
   FManager.Mapper.LoadAll;
-
-  CreateDatabase;
 end;
 
 procedure TDatabaseSchemaUpdaterTest.TearDown;
