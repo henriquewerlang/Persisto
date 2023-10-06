@@ -109,7 +109,10 @@ end;
 
 procedure DropDatabase;
 begin
-  DropDatabaseNamed(DATABASE_NAME);
+  try
+    DropDatabaseNamed(DATABASE_NAME);
+  except
+  end;
 end;
 
 procedure RebootDatabase;

@@ -735,7 +735,9 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenCreateAFieldMustLoadTheFieldInfoTypeFromTheManipulador;
 begin
-  var FunctionCalled := False;
+  var FunctionDefaultValueCalled := False;
+  var FunctionFieldTypeCalled := False;
+  var FunctionSpecialTypeCalled := False;
   var Manipulator := CreateDatabaseManipulator;
   var ManipulatorMock := TMock.CreateInterface<IDatabaseManipulator>;
 
@@ -743,11 +745,25 @@ begin
   Manager.Mapper.GetTable(TMyClassWithAllFieldsType);
 
   ManipulatorMock.Setup.WillExecute(
-    function: TValue
+    function(const Args: TArray<TValue>): TValue
     begin
-      FunctionCalled := True;
-      Result := 'varchar';
+      FunctionFieldTypeCalled := True;
+      Result := Manipulator.GetFieldType(Args[1].AsType<TField>);
     end).When.GetFieldType(It.IsAny<TField>);
+
+  ManipulatorMock.Setup.WillExecute(
+    function(const Args: TArray<TValue>): TValue
+    begin
+      FunctionSpecialTypeCalled := True;
+      Result := Manipulator.GetSpecialFieldType(Args[1].AsType<TField>);
+    end).When.GetSpecialFieldType(It.IsAny<TField>);
+
+  ManipulatorMock.Setup.WillExecute(
+    function(const Args: TArray<TValue>): TValue
+    begin
+      FunctionDefaultValueCalled := True;
+      Result := Manipulator.GetDefaultValue(Args[1].AsType<TDefaultConstraint>);
+    end).When.GetDefaultValue(It.IsAny<TDefaultConstraint>);
 
   ManipulatorMock.Setup.WillExecute(
     function: TValue
@@ -757,7 +773,9 @@ begin
 
   Manager.UpdateDatabaseSchema;
 
-  Assert.IsTrue(FunctionCalled);
+  Assert.IsTrue(FunctionFieldTypeCalled, 'Field Type Isn''t Called');
+  Assert.IsTrue(FunctionSpecialTypeCalled, 'Special Field Type Isn''t Called');
+  Assert.IsTrue(FunctionDefaultValueCalled, 'Default Value Isn''t Called');
 
   Manager.Free;
 end;
