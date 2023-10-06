@@ -2,14 +2,13 @@
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Translucent.Intf, Persisto, Persisto.Mapping;
+uses System.Rtti, DUnitX.TestFramework, Persisto, Persisto.Mapping;
 
 type
   [TestFixture]
   TMapperTest = class
   private
     FContext: TRttiContext;
-    FLazyLoader: IMock<ILazyLoader>;
     FMapper: TMapper;
   public
     [SetupFixture]
@@ -119,6 +118,8 @@ type
     [Test]
     procedure WhenThePropertyIsLazyMustFillWithTrueTheIsLazyPropertyInTheField;
     [Test]
+    procedure WhenThePropertyIsLazyMustReturnTheFieldTypeWithTheInternalLazyType;
+    [Test]
     procedure WhenThePropertyIsLazyMustCreateTheForeignKeyToThisProperty;
     [Test]
     procedure TheFieldThatGenerateAForignKeyMustLoadThisInfoInTheField;
@@ -207,13 +208,13 @@ type
     [Test]
     procedure WhenTheFieldIsBooleanTypeMustLoadTheSpecialTypeWithBoolean;
     [Test]
+    procedure WhenTheLazyFieldIsntChangedCantRaiseAnyErrorWhenTryToGetTheLazyValue;
+    [Test]
     procedure WhenTheFieldIsLazyLoadingAndTheValueIsntLoadedMustReturnFalseInTheFunction;
     [Test]
     procedure WhenTheFieldIsLazyLoadingAndTheValueIsntLoadedMustReturnEmptyValueInParam;
     [Test]
     procedure IfTheFieldIsLazyLoadingAndHasntValueMustReturnFalseInHasValueFunction;
-    [Test]
-    procedure WhenFillTheLazyFieldValueMustLoadTheValueHasExpected;
     [Test]
     procedure WhenTheFieldIsManyValueAssociationMustLoadTheManyValuePropertyOfTheField;
     [Test]
@@ -298,6 +299,10 @@ type
     procedure WhenLoadAnInheritedTableTheFieldIndexMustBaseAdjustedToTheCountOfFieldInTheBaseClass;
     [Test]
     procedure ThenManyValueAssociationMustLoadTheFieldInfo;
+    [Test]
+    procedure WhenGetTheLazyValueFromAFieldMustReturnTheInternalInstanceOfTheInterface;
+    [Test]
+    procedure WhenFillTheLazyValueFromAFieldMustLoadTheFieldValueOfTheLazyRecord;
   end;
 
   [Entity]
@@ -461,10 +466,7 @@ end;
 
 procedure TMapperTest.Setup;
 begin
-  FLazyLoader := TMock.CreateInterface<ILazyLoader>;
   FMapper := TMapper.Create;
-
-  FLazyLoader.Setup.WillReturn(1234).When.GetKey;
 end;
 
 procedure TMapperTest.SetupFixture;
@@ -474,8 +476,6 @@ end;
 
 procedure TMapperTest.TearDown;
 begin
-  FLazyLoader := nil;
-
   FMapper.Free;
 end;
 
@@ -870,18 +870,26 @@ begin
   Assert.IsTrue(Length(FMapper.Tables) > 0, 'No entities loaded!');
 end;
 
-procedure TMapperTest.WhenFillTheLazyFieldValueMustLoadTheValueHasExpected;
+procedure TMapperTest.WhenFillTheLazyValueFromAFieldMustLoadTheFieldValueOfTheLazyRecord;
 begin
-  var LazyValue := TMyEntity.Create;
   var MyClass := TLazyClass.Create;
-
   var Table := FMapper.GetTable(MyClass.ClassType);
 
-  Table.Field['Lazy'].Value[MyClass] := LazyValue;
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyFactoryObject.Create(nil, nil, 1234);
 
-  Assert.AreEqual(LazyValue, MyClass.Lazy.Value);
+  Assert.AreEqual(1234, MyClass.Lazy.LazyValue.Key.AsInteger);
 
-  LazyValue.Free;
+  MyClass.Free;
+end;
+
+procedure TMapperTest.WhenGetTheLazyValueFromAFieldMustReturnTheInternalInstanceOfTheInterface;
+begin
+  var MyClass := TLazyClass.Create;
+  var Table := FMapper.GetTable(TLazyClass);
+
+  var LazyValue := Table.Field['Lazy'].LazyValue[MyClass];
+
+  Assert.IsNotNull(LazyValue);
 
   MyClass.Free;
 end;
@@ -1163,9 +1171,9 @@ end;
 
 procedure TMapperTest.WhenTheFieldHasFieldInfoAttributeWithSpecialTypeFilledMustLoadThisInfoInTheField;
 begin
-  var Table := FMapper.GetTable(TMyTestClass);
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
 
-  Assert.AreEqual(stUniqueIdentifier, Table.Fields[0].SpecialType);
+  Assert.AreEqual(stUniqueIdentifier, Table.Field['UniqueIdentifier'].SpecialType);
 end;
 
 procedure TMapperTest.WhenTheFieldAsTheSequenceAttributeMustLoadTheSequenceInTheList;
@@ -1224,9 +1232,9 @@ end;
 
 procedure TMapperTest.WhenTheFieldIsAClassMustMarkAsNotRequired;
 begin
-  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
+  var Table := FMapper.GetTable(TMyEntityForeignKeyAlias);
 
-  Assert.IsFalse(Table.Field['Class'].Required);
+  Assert.IsFalse(Table.Field['ForeignKey'].Required);
 end;
 
 procedure TMapperTest.WhenTheFieldIsAForeignKeyMustAppendTheIdInTheDatabaseNameOfTheField;
@@ -1352,11 +1360,27 @@ begin
   Assert.AreEqual(5, Table.Field['FloatForeignKey'].Scale);
 end;
 
+procedure TMapperTest.WhenTheLazyFieldIsntChangedCantRaiseAnyErrorWhenTryToGetTheLazyValue;
+begin
+  var MyClass := TLazyClass.Create;
+  var Table := FMapper.GetTable(MyClass.ClassType);
+  var Value: TValue;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Table.Field['Lazy'].HasValue(MyClass, Value);
+    end);
+
+  MyClass.Free;
+end;
+
 procedure TMapperTest.WhenTheLazyFieldIsntLoadedAndHaveAKeyFilledMustReturnTheKeyValueInGetValueFunction;
 begin
   var MyClass := TLazyClass.Create;
-  TLazyManipulator.GetManipulator(MyClass.Lazy).Loader := FLazyLoader.Instance;
   var Table := FMapper.GetTable(MyClass.ClassType);
+
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyFactoryObject.Create(nil, nil, 1234);
 
   Assert.AreEqual(1234, Table.Field['Lazy'].Value[MyClass].AsInteger);
 
@@ -1371,7 +1395,7 @@ begin
   MyClass.Lazy.Value := TheClass;
 
   var Table := FMapper.GetTable(TLazyClass);
-  var Field := Table.Fields[1];
+  var Field := Table.Field['Lazy'];
 
   Assert.AreEqual<TObject>(TheClass, Field.Value[MyClass].AsObject);
 
@@ -1434,7 +1458,14 @@ procedure TMapperTest.WhenThePropertyIsLazyMustFillWithTrueTheIsLazyPropertyInTh
 begin
   var Table := FMapper.GetTable(TLazyClass);
 
-  Assert.IsTrue(Table.Fields[1].IsLazy);
+  Assert.IsTrue(Table.Field['Lazy'].IsLazy);
+end;
+
+procedure TMapperTest.WhenThePropertyIsLazyMustReturnTheFieldTypeWithTheInternalLazyType;
+begin
+  var Table := FMapper.GetTable(TLazyClass);
+
+  Assert.AreEqual(GetRttiType(TypeInfo(Integer)), Table.Field['Lazy'].FieldType);
 end;
 
 procedure TMapperTest.WhenThePropertyIsNullableMustMarkTheFieldAsNotRequired;

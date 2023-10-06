@@ -641,8 +641,8 @@ var
 begin
   if TNullableManipulator.IsNullable(&Property) then
     PropertyType := TNullableManipulator.GetNullableType(&Property)
-  else if TLazyManipulator.IsLazyLoading(&Property) then
-    PropertyType := TLazyManipulator.GetLazyLoadingType(&Property)
+//  else if TLazyManipulator.IsLazyLoading(&Property) then
+//    PropertyType := TLazyManipulator.GetLazyLoadingType(&Property)
   else
     PropertyType := &Property.PropertyType;
 
@@ -754,11 +754,11 @@ end;
 
 procedure TPersistoDataSet.GetPropertyValue(const &Property: TRttiProperty; var Instance: TValue);
 begin
-  if TLazyManipulator.IsLazyLoading(&Property) then
-    Instance := TLazyManipulator.GetManipulator(Instance.AsObject, &Property).Value
-  else if TNullableManipulator.IsNullable(&Property) then
-    Instance := TNullableManipulator.GetManipulator(Instance.AsObject, &Property).Value
-  else
+//  if TLazyManipulator.IsLazyLoading(&Property) then
+//    Instance := TLazyManipulator.GetManipulator(Instance.AsObject, &Property).Value
+//  else if TNullableManipulator.IsNullable(&Property) then
+//    Instance := TNullableManipulator.GetManipulator(Instance.AsObject, &Property).Value
+//  else
     Instance := &Property.GetValue(Instance.AsObject);
 end;
 
@@ -1126,8 +1126,8 @@ begin
 
         if &Property.PropertyType.IsInstance then
           CurrentObjectType := &Property.PropertyType as TRttiInstanceType
-        else if TLazyManipulator.IsLazyLoading(&Property) then
-          CurrentObjectType := TLazyManipulator.GetLazyLoadingType(&Property).AsInstance;
+//        else if TLazyManipulator.IsLazyLoading(&Property) then
+//          CurrentObjectType := TLazyManipulator.GetLazyLoadingType(&Property).AsInstance;
       end;
 
 {$IFDEF DCC}
@@ -1310,8 +1310,8 @@ begin
 
     if TNullableManipulator.IsNullable(&Property) then
       TNullableManipulator.GetManipulator(Instance.AsObject, &Property).Value := Value
-    else if TLazyManipulator.IsLazyLoading(&Property) then
-      TLazyManipulator.GetManipulator(Instance.AsObject, &Property).Value := Value
+//    else if TLazyManipulator.IsLazyLoading(&Property) then
+//      TLazyManipulator.GetManipulator(Instance.AsObject, &Property).Value := Value
     else
       &Property.SetValue(Instance.AsObject, Value);
   end

@@ -298,6 +298,7 @@ type
   published
     [FixedValue('100')]
     property Id: Integer read FId write FId;
+    [Size(100)]
     property Name: String read FName write FName;
     property Value: Double read FValue write FValue;
   end;
@@ -595,12 +596,12 @@ type
   [Entity]
   TLazyArrayClassChild = class
   private
-    FLazyArrayClass: TLazyArrayClass;
     FId: Integer;
+    FLazyArrayClass: Lazy<TLazyArrayClass>;
   published
     [NewUniqueIdentifier]
     property Id: Integer read FId write FId;
-    property LazyArrayClass: TLazyArrayClass read FLazyArrayClass write FLazyArrayClass;
+    property LazyArrayClass: Lazy<TLazyArrayClass> read FLazyArrayClass write FLazyArrayClass;
   end;
 
   [Entity]

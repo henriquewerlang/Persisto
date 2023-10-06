@@ -2755,7 +2755,6 @@ begin
         Value := 'C'
       else
         Value := 'Value String';
-
     ftByte,
     ftInteger,
     ftLargeint,
@@ -2767,7 +2766,6 @@ begin
       else
         Value := 123;
     end;
-
     ftCurrency,
     ftFloat,
     ftSingle: Value := 123.456;

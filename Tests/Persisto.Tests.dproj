@@ -221,7 +221,6 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="Persisto.Nullable.Test.pas"/>
         <DCCReference Include="Persisto.Lazy.Test.pas"/>
         <DCCReference Include="Persisto.Database.Schema.Updater.Test.pas"/>
-        <DCCReference Include="Persisto.Lazy.Manipulator.Test.pas"/>
         <DCCReference Include="Persisto.Nullable.Manipulator.Test.pas"/>
         <DCCReference Include="Persisto.Manager.Test.pas"/>
         <DCCReference Include="Persisto.Test.Connection.pas"/>

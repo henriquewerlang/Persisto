@@ -2,179 +2,244 @@
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Persisto, Persisto.Test.Entity, Persisto.Mapping, Translucent.Intf;
+uses DUnitX.TestFramework, Persisto, Persisto.Mapping;
 
 type
   [TestFixture]
   TLazyTest = class
+  public
+    [Test]
+    procedure WhenLoadTheLazyValueMustReturnTheValueLoaded;
+    [Test]
+    procedure TheIsLazyFunctionMustReturnTrueIfTheValueIsLazy;
+    [Test]
+    procedure WhenGetLazyTypeMustReturnTheRttiTypeAsExpected;
+  end;
+
+  [TestFixture]
+  TLazyValueTest = class
   private
-    FClass: TLazyClass;
-    FContext: TRttiContext;
-    FLazyLoader: IMock<ILazyLoader>;
-    FLazyProperty: TRttiProperty;
-    FRttiType: TRttiType;
+    FLazyValue: ILazyValue;
   public
     [Setup]
     procedure Setup;
-    [SetupFixture]
-    procedure SetupFixture;
     [TearDown]
     procedure TearDown;
     [Test]
-    procedure WhenFillTheValueMustReturnTheValueFilled;
+    procedure WhenGetTheKeyOfAnUnloadedLazyFieldMustReturnEmpty;
     [Test]
-    procedure WhenTheValueIsFilledTheHasValueFunctionMustReturnTrue;
+    procedure WhenFillTheValueMustReturnTheFilledValue;
+  end;
+
+  [TestFixture]
+  TLazyFactoryObjectTest = class
+  private
+    FManager: TManager;
+
+    procedure LoadDatabaseData;
+  public
+    [Setup]
+    procedure Setup;
+    [TearDown]
+    procedure TearDown;
     [Test]
-    procedure WhenCallTheSetLazyValueAcessProcedureMustFillTheInternalAccessOfTheRecord;
+    procedure WhenGetTheKeyValueFromTheLazyValueFactoryMustReturnTheValueAsExpected;
     [Test]
-    procedure WhenTheValueIsEmptyAndTheAccessFieldIsLoadedMustReturnTrueInTheHasValueFunction;
+    procedure WhenFillTheValueMustReturnTheLoadedValueAsExpected;
     [Test]
-    procedure WhenFillTheValueMustFillWithNilTheLazyLoaderField;
+    procedure WhenFillTheValueMustCleanUpTheKeyValue;
     [Test]
-    procedure WhenGetValueFromTheLazyFieldMoreThenOnceMustCallOnlyOnceTheLoader;
+    procedure WhenTheValueIsntLoadedMustLoadTheValueFromDatabase;
+  end;
+
+  [TestFixture]
+  TLazyFactoryManyValueTest = class
+  private
+    FManager: TManager;
+
+    procedure LoadDatabaseData;
+  public
+    [Setup]
+    procedure Setup;
+    [TearDown]
+    procedure TearDown;
     [Test]
-    procedure WhenOnlyCreatesTheClassAndTryToGetTheValueMustReturnNil;
+    procedure WhenGetTheKeyValueFromTheLazyValueFactoryMustReturnTheValueAsExpected;
     [Test]
-    procedure TheValueOfTheLoaderMustBeReturnedInTheValuePropertyIfItExists;
+    procedure WhenFillTheValueMustReturnTheLoadedValueAsExpected;
     [Test]
-    procedure WhenLazySetValueMustLoadTheValuePassedToTheLazyProperty;
-    [Test]
-    procedure AfterLoadedTheValueTheLoaderMustBeCleared;
+    procedure WhenTheValueIsntLoadedMustLoadTheValueFromDatabase;
   end;
 
 implementation
 
-uses System.SysUtils, Translucent;
+uses Persisto.Test.Entity, Persisto.Test.Connection;
 
 { TLazyTest }
 
-procedure TLazyTest.AfterLoadedTheValueTheLoaderMustBeCleared;
+procedure TLazyTest.TheIsLazyFunctionMustReturnTrueIfTheValueIsLazy;
 begin
-  var Manipulator := TLazyManipulator.GetManipulator(FClass, FLazyProperty);
-  Manipulator.Loader := FLazyLoader.Instance;
-
-  FLazyLoader.Setup.WillReturn(TValue.Empty).When.LoadValue;
-
-  FClass.Lazy.Value;
-
-  Assert.IsNull(Manipulator.Loader);
+  Assert.IsTrue(IsLazy(GetRttiType(TypeInfo(Lazy<TMyEntity>))));
 end;
 
-procedure TLazyTest.Setup;
+procedure TLazyTest.WhenGetLazyTypeMustReturnTheRttiTypeAsExpected;
 begin
-  FClass := TLazyClass.Create;
-  FContext := TRttiContext.Create;
-  FLazyLoader := TMock.CreateInterface<ILazyLoader>;
-  FRttiType := FContext.GetType(TLazyClass);
-
-  FLazyProperty := FRttiType.GetProperty('Lazy');
-
-  FLazyLoader.Setup.WillReturn(123).When.GetKey;
+  Assert.AreEqual(GetRttiType(TMyEntity), GetLazyType(GetRttiType(TypeInfo(Lazy<TMyEntity>))));
 end;
 
-procedure TLazyTest.SetupFixture;
+procedure TLazyTest.WhenLoadTheLazyValueMustReturnTheValueLoaded;
 begin
-  Setup;
+  var LazyClass := TLazyClass.Create;
+  var MyEntity := TMyEntity.Create;
 
-  TearDown;
+  LazyClass.Lazy := MyEntity;
+
+  Assert.AreEqual(MyEntity, LazyClass.Lazy.Value);
+
+  LazyClass.Free;
+
+  MyEntity.Free;
 end;
 
-procedure TLazyTest.TearDown;
+{ TLazyValueTest }
+
+procedure TLazyValueTest.Setup;
 begin
-  FLazyLoader := nil;
-
-  FContext.Free;
-
-  FClass.Free;
+  FLazyValue := TLazyValue.Create;
 end;
 
-procedure TLazyTest.TheValueOfTheLoaderMustBeReturnedInTheValuePropertyIfItExists;
+procedure TLazyValueTest.TearDown;
 begin
-  var MyClass := TMyEntity.Create;
-
-  FLazyLoader.Setup.WillReturn(MyClass).When.LoadValue;
-
-  TLazyManipulator.GetManipulator(FClass, FLazyProperty).Loader := FLazyLoader.Instance;
-
-  Assert.AreEqual(MyClass, FClass.Lazy.Value);
-
-  MyClass.Free;
+  FLazyValue := nil;
 end;
 
-procedure TLazyTest.WhenCallTheSetLazyValueAcessProcedureMustFillTheInternalAccessOfTheRecord;
+procedure TLazyValueTest.WhenFillTheValueMustReturnTheFilledValue;
 begin
-  TLazyManipulator.GetManipulator(FClass.Lazy).Loader := FLazyLoader.Instance;
+  FLazyValue.Value := 10;
 
-  Assert.AreEqual(FLazyLoader.Instance, TLazyManipulator.GetManipulator(FClass.Lazy).Loader);
+  Assert.AreEqual(10, FLazyValue.Value.AsInteger);
 end;
 
-procedure TLazyTest.WhenFillTheValueMustFillWithNilTheLazyLoaderField;
+procedure TLazyValueTest.WhenGetTheKeyOfAnUnloadedLazyFieldMustReturnEmpty;
 begin
-  TLazyManipulator.GetManipulator(FClass.Lazy).Loader := FLazyLoader.Instance;
-
-  FClass.Lazy.Value := nil;
-
-  Assert.IsNull(TLazyManipulator.GetManipulator(FClass.Lazy).Loader);
+  Assert.IsTrue(FLazyValue.Key.IsEmpty);
 end;
 
-procedure TLazyTest.WhenFillTheValueMustReturnTheValueFilled;
+{ TLazyFactoryObjectTest }
+
+procedure TLazyFactoryObjectTest.LoadDatabaseData;
 begin
-  var MyClass := TMyEntity.Create;
+  RebootDatabase;
 
-  FClass.Lazy.Value := MyClass;
+  FManager.Mapper.GetTable(TLazyClass);
 
-  Assert.AreEqual(MyClass, FClass.Lazy.Value);
+  FManager.UpdateDatabaseSchema;
 
-  MyClass.Free;
+  FManager.ExectDirect('insert into MyEntity (Id, Name, Value) values (20, ''abc'', 123.456)');
+
+  FManager.ExectDirect('insert into LazyClass (Id, IdLazy) values (10, 20)');
 end;
 
-procedure TLazyTest.WhenGetValueFromTheLazyFieldMoreThenOnceMustCallOnlyOnceTheLoader;
+procedure TLazyFactoryObjectTest.Setup;
 begin
-  FLazyLoader.Expect.Once.When.LoadValue;
+  FManager := TManager.Create(CreateConnection, CreateDatabaseManipulator);
 
-  TLazyManipulator.GetManipulator(FClass, FLazyProperty).Loader := FLazyLoader.Instance;
-
-  FClass.Lazy.Value;
-
-  FClass.Lazy.Value;
-
-  FClass.Lazy.Value;
-
-  Assert.CheckExpectation(FLazyLoader.CheckExpectations);
+  LoadDatabaseData;
 end;
 
-procedure TLazyTest.WhenLazySetValueMustLoadTheValuePassedToTheLazyProperty;
+procedure TLazyFactoryObjectTest.TearDown;
 begin
-  var MyClass := TMyEntity.Create;
-
-  TLazyManipulator.GetManipulator(FClass, FLazyProperty).Value := MyClass;
-
-  Assert.AreEqual(MyClass, FClass.Lazy.Value);
-
-  MyClass.Free;
+  FManager.Free;
 end;
 
-procedure TLazyTest.WhenOnlyCreatesTheClassAndTryToGetTheValueMustReturnNil;
+procedure TLazyFactoryObjectTest.WhenFillTheValueMustCleanUpTheKeyValue;
 begin
-  Assert.IsNull(FClass.Lazy.Value);
+  var LazyFactory := TLazyFactoryManyValue.Create(nil, nil, 10) as ILazyValue;
+
+  LazyFactory.Value := 20;
+
+  Assert.IsTrue(LazyFactory.Key.IsEmpty);
 end;
 
-procedure TLazyTest.WhenTheValueIsEmptyAndTheAccessFieldIsLoadedMustReturnTrueInTheHasValueFunction;
+procedure TLazyFactoryObjectTest.WhenFillTheValueMustReturnTheLoadedValueAsExpected;
 begin
-  TLazyManipulator.GetManipulator(FClass, FLazyProperty).Loader := FLazyLoader.Instance;
+  var LazyFactory := TLazyFactoryManyValue.Create(nil, nil, nil) as ILazyValue;
 
-  Assert.IsTrue(FClass.Lazy.HasValue);
+  LazyFactory.Value := 10;
+
+  Assert.AreEqual(10, LazyFactory.Value.AsInteger);
 end;
 
-procedure TLazyTest.WhenTheValueIsFilledTheHasValueFunctionMustReturnTrue;
+procedure TLazyFactoryObjectTest.WhenGetTheKeyValueFromTheLazyValueFactoryMustReturnTheValueAsExpected;
 begin
-  var MyClass := TMyEntity.Create;
+  var LazyFactory := TLazyFactoryObject.Create(nil, nil, 10) as ILazyValue;
 
-  FClass.Lazy.Value := MyClass;
+  Assert.AreEqual(10, LazyFactory.Key.AsInteger);
+end;
 
-  Assert.IsTrue(FClass.Lazy.HasValue);
+procedure TLazyFactoryObjectTest.WhenTheValueIsntLoadedMustLoadTheValueFromDatabase;
+begin
+  var LazyFactory := TLazyFactoryObject.Create(FManager, FManager.Mapper.GetTable(TMyEntity).PrimaryKey, 20) as ILazyValue;
 
-  MyClass.Free;
+  Assert.IsFalse(LazyFactory.Value.IsEmpty);
+
+  Assert.IsNotNull(LazyFactory.Value.AsObject);
+end;
+
+{ TLazyFactoryManyValueTest }
+
+procedure TLazyFactoryManyValueTest.LoadDatabaseData;
+begin
+  RebootDatabase;
+
+  FManager.Mapper.GetTable(TLazyArrayClassChild);
+
+  FManager.UpdateDatabaseSchema;
+
+  FManager.ExectDirect('insert into LazyArrayClassChild (Id, IdLazyArrayClass) values (1, 10)');
+
+  FManager.ExectDirect('insert into LazyArrayClassChild (Id, IdLazyArrayClass) values (2, 10)');
+
+  FManager.ExectDirect('insert into LazyArrayClassChild (Id, IdLazyArrayClass) values (3, 10)');
+end;
+
+procedure TLazyFactoryManyValueTest.Setup;
+begin
+  FManager := TManager.Create(CreateConnection, CreateDatabaseManipulator);
+
+  LoadDatabaseData;
+end;
+
+procedure TLazyFactoryManyValueTest.TearDown;
+begin
+  FManager.Free;
+end;
+
+procedure TLazyFactoryManyValueTest.WhenFillTheValueMustReturnTheLoadedValueAsExpected;
+begin
+  var LazyFactory := TLazyFactoryManyValue.Create(nil, nil, nil) as ILazyValue;
+
+  LazyFactory.Value := 20;
+
+  Assert.AreEqual(20, LazyFactory.Value.AsInteger);
+end;
+
+procedure TLazyFactoryManyValueTest.WhenGetTheKeyValueFromTheLazyValueFactoryMustReturnTheValueAsExpected;
+begin
+  var LazyFactory := TLazyFactoryManyValue.Create(nil, nil, 20) as ILazyValue;
+
+  Assert.AreEqual(20, LazyFactory.Key.AsInteger);
+end;
+
+procedure TLazyFactoryManyValueTest.WhenTheValueIsntLoadedMustLoadTheValueFromDatabase;
+begin
+  var LazyFactory := TLazyFactoryManyValue.Create(FManager, FManager.Mapper.GetTable(TLazyArrayClassChild).Field['LazyArrayClass'], 10) as ILazyValue;
+
+  Assert.IsFalse(LazyFactory.Value.IsEmpty);
+
+  var ArrayValue := LazyFactory.Value.AsType<TArray<TObject>>;
+
+  Assert.AreEqual<NativeInt>(3, Length(ArrayValue));
 end;
 
 end.

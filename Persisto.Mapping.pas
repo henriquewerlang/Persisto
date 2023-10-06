@@ -135,96 +135,53 @@ type
     property Name: String read FName write FName;
   end;
 
-  ILazyLoader = {$IFDEF DCC}interface{$ELSE}class
+  ILazyValue = {$IFDEF DCC}interface{$ELSE}class
   public
 {$ENDIF}
     function GetKey: TValue;{$IFDEF PAS2JS} virtual; abstract;{$ENDIF}
-    function LoadValue: TValue;{$IFDEF PAS2JS} virtual; abstract;{$ENDIF}
+    function GetValue: TValue;{$IFDEF PAS2JS} virtual; abstract;{$ENDIF}
 {$IFDEF PAS2JS}
-    function LoadValueAsync: TValue; virtual; abstract; async;
+    function GetValueAsync: TValue; virtual; abstract; async;
 {$ENDIF}
+
+    procedure SetValue(const Value: TValue);{$IFDEF PAS2JS} virtual; abstract;{$ENDIF}
+
+    property Key: TValue read GetKey;
+    property Value: TValue read GetValue write SetValue;
   end;
 
   Lazy<T> = record
   private
-    FLoaded: Boolean;
-    FLoader: ILazyLoader;
-    FValue: TValue;
+    FLazyValue: ILazyValue;
 
-    function NeedLoadValue: Boolean;
-
-    procedure SetTValue(const Value: TValue);
+    procedure SetValue(const Value: T);
   public
-    function GetHasValue: Boolean;
+    function GetLazyValue: ILazyValue;
     function GetValue: T;
 {$IFDEF PAS2JS}
     function GetValueAsync: T; async;
 {$ENDIF}
-
-    procedure SetValue(const Value: T);
 
 {$IFDEF DCC}
     class operator Implicit(const Value: Lazy<T>): T;
     class operator Implicit(const Value: T): Lazy<T>;
 {$ENDIF}
 
-    property HasValue: Boolean read GetHasValue;
-    property Loaded: Boolean read FLoaded;
+    property LazyValue: ILazyValue read GetLazyValue;
     property Value: T read GetValue write SetValue;
   end;
 
-  ILazyManipulator = interface
-    function GetHasValue: Boolean;
-    function GetKey: TValue;
-    function GetLoaded: Boolean;
-    function GetLoader: ILazyLoader;
-    function GetRttiType: TRttiType;
-    function GetValue: TValue;
-
-    procedure SetLoaded(const Value: Boolean);
-    procedure SetLoader(const Value: ILazyLoader);
-    procedure SetValue(const Value: TValue);
-
-    property HasValue: Boolean read GetHasValue;
-    property Key: TValue read GetKey;
-    property Loaded: Boolean read GetLoaded write SetLoaded;
-    property Loader: ILazyLoader read GetLoader write SetLoader;
-    property RttiType: TRttiType read GetRttiType;
-    property Value: TValue read GetValue write SetValue;
-  end;
-
-  TLazyManipulator = class(TInterfacedObject, ILazyManipulator)
+  TLazyValue = class({$IFDEF DCC}TInterfacedObject, {$ENDIF}ILazyValue)
   private
-    FLazyInstance: Pointer;
-    FLazyType: TRttiType;
+    FValue: TValue;
+  protected
+    function GetKey: TValue;{$IFDEF PAS2JS} override;{$ENDIF}
+    function GetValue: TValue;{$IFDEF PAS2JS} override;{$ENDIF}
+{$IFDEF PAS2JS}
+    function GetValueAsync: TValue; override; async;
+{$ENDIF}
 
-    function GetHasValue: Boolean;
-    function GetKey: TValue;
-    function GetLazyLoadedField: TRttiField;
-    function GetLazyLoaderField: TRttiField;
-    function GetLazyValueField: TRttiField;
-    function GetLoaded: Boolean;
-    function GetLoader: ILazyLoader;
-    function GetRttiType: TRttiType;
-    function GetValue: TValue;
-
-    procedure SetLoaded(const Value: Boolean);
-    procedure SetLoader(const Value: ILazyLoader);
-    procedure SetValue(const Value: TValue);
-
-    property LazyLoadedField: TRttiField read GetLazyLoadedField;
-    property LazyLoaderField: TRttiField read GetLazyLoaderField;
-    property LazyValueField: TRttiField read GetLazyValueField;
-  public
-    constructor Create(const LazyInstance: Pointer; const LazyType: TRttiType);
-
-    class function GetManipulator(const ObjectInstance: TObject; const LazyProperty: TRttiProperty): ILazyManipulator; overload;
-    class function GetManipulator(const LazyInstance: Pointer; const LazyType: TRttiType): ILazyManipulator; overload;
-    class function GetManipulator<T>(const LazyInstance: T): ILazyManipulator; overload;
-    class function GetLazyLoadingType(const LazyProperty: TRttiProperty): TRttiType; overload;
-    class function GetLazyLoadingType(const LazyType: TRttiType): TRttiType; overload;
-    class function IsLazyLoading(const LazyProperty: TRttiProperty): Boolean; overload;
-    class function IsLazyLoading(const LazyType: TRttiType): Boolean; overload;
+    procedure SetValue(const Value: TValue);{$IFDEF PAS2JS} override;{$ENDIF}
   end;
 
   Nullable<T> = record
@@ -289,11 +246,6 @@ type
     property FieldType: TFieldType read GetFieldType;
   end;
 
-  TRttiInstancePropertyHelper = class helper for TRttiInstanceProperty
-  public
-    function GetRawValue(Instance: Pointer): Pointer;
-  end;
-
   TValueHelper = record helper for TValue
   private
     function GetArrayElementInternal(Index: Integer): TValue; inline;
@@ -306,8 +258,10 @@ type
     property ArrayLength: Integer read GetArrayLengthInternal write SetArrayLengthInternal;
   end;
 
+function GetLazyType(const RttiType: TRttiType): TRttiType;
 function GetRttiType(const AClass: TClass): TRttiType; overload;
 function GetRttiType(const TypeInfo: PTypeInfo): TRttiType; overload;
+function IsLazy(const RttiType: TRttiType): Boolean;
 
 implementation
 
@@ -316,6 +270,11 @@ uses {$IFDEF PAS2JS}RTLConsts, JS{$ELSE}System.Variants, System.SysConst{$ENDIF}
 const
   LAZY_NAME = 'Lazy<';
   NULLABLE_TYPE_NAME = 'Nullable<';
+
+function GetLazyType(const RttiType: TRttiType): TRttiType;
+begin
+  Result := RttiType.GetMethod('GetValue').ReturnType;
+end;
 
 function GetRttiType(const AClass: TClass): TRttiType;
 begin
@@ -334,28 +293,54 @@ begin
   Context.Free;
 end;
 
+function IsLazy(const RttiType: TRttiType): Boolean;
+begin
+  Result := RttiType.Name.StartsWith(LAZY_NAME);
+end;
+
+{ TLazyValue }
+
+function TLazyValue.GetKey: TValue;
+begin
+  Result := TValue.Empty;
+end;
+
+function TLazyValue.GetValue: TValue;
+begin
+  Result := FValue;
+end;
+
+procedure TLazyValue.SetValue(const Value: TValue);
+begin
+  FValue := Value;
+end;
+
+{$IFDEF PAS2JS}
+function TLazyValue.GetValueAsync: TValue;
+begin
+  Result := GetValue;
+end;
+{$ENDIF}
+
 { Lazy<T> }
 
-function Lazy<T>.GetHasValue: Boolean;
+function Lazy<T>.GetLazyValue: ILazyValue;
 begin
-  Result := not FValue.IsEmpty or Assigned(FLoader);
+  if not Assigned(FLazyValue) then
+    FLazyValue := TLazyValue.Create;
+
+  Result := FLazyValue;
 end;
 
 function Lazy<T>.GetValue: T;
 begin
-  if NeedLoadValue then
-    SetTValue(FLoader.LoadValue);
-
-  Result := FValue.AsType<T>;
+  Result := LazyValue.Value.AsType<T>;
 end;
 
 {$IFDEF PAS2JS}
 function Lazy<T>.GetValueAsync: T;
 begin
-  if NeedLoadValue then
-    SetTValue(await(FLoader.LoadValueAsync));
-
-  Result := FValue.AsType<T>;
+  Result := LazyValue.GetValueAsync.AsType<T>;
 end;
 {$ENDIF}
 
@@ -371,24 +356,9 @@ begin
 end;
 {$ENDIF}
 
-function Lazy<T>.NeedLoadValue: Boolean;
-begin
-  Result := not FLoaded and Assigned(FLoader);
-
-  if not FLoaded and not Assigned(FLoader) then
-    SetTValue(TValue.Empty);
-end;
-
-procedure Lazy<T>.SetTValue(const Value: TValue);
-begin
-  FLoaded := True;
-  FLoader := nil;
-  FValue := Value;
-end;
-
 procedure Lazy<T>.SetValue(const Value: T);
 begin
-  SetTValue(TValue.From<T>(Value));
+  LazyValue.Value := TValue.From<T>(Value);
 end;
 
 { TCustomNameAttribute }
@@ -525,141 +495,6 @@ begin
   FValue := Value;
 end;
 
-{ TLazyManipulator }
-
-constructor TLazyManipulator.Create(const LazyInstance: Pointer; const LazyType: TRttiType);
-begin
-  inherited Create;
-
-  FLazyInstance := LazyInstance;
-  FLazyType := LazyType;
-end;
-
-function TLazyManipulator.GetHasValue: Boolean;
-begin
-  Result := FLazyType.GetMethod('GetHasValue').Invoke(TValue.From(FLazyInstance), []).AsBoolean;
-end;
-
-function TLazyManipulator.GetLazyLoadedField: TRttiField;
-begin
-  Result := FLazyType.GetField('FLoaded');
-end;
-
-function TLazyManipulator.GetLazyLoaderField: TRttiField;
-begin
-  Result := FLazyType.GetField('FLoader');
-end;
-
-class function TLazyManipulator.GetLazyLoadingType(const LazyType: TRttiType): TRttiType;
-begin
-  Result := LazyType.GetMethod('GetValue').ReturnType;
-end;
-
-function TLazyManipulator.GetLazyValueField: TRttiField;
-begin
-  Result := FLazyType.GetField('FValue');
-end;
-
-class function TLazyManipulator.GetLazyLoadingType(const LazyProperty: TRttiProperty): TRttiType;
-begin
-  Result := GetLazyLoadingType(LazyProperty.PropertyType);
-end;
-
-function TLazyManipulator.GetLoaded: Boolean;
-begin
-{$IFDEF DCC}
-  Result := LazyLoadedField.GetValue(FLazyInstance).AsBoolean;
-{$ELSE}
-  Result := Boolean(TJSObject(FLazyInstance)['FLoaded']);
-{$ENDIF}
-end;
-
-function TLazyManipulator.GetLoader: ILazyLoader;
-begin
-{$IFDEF DCC}
-  Result := LazyLoaderField.GetValue(FLazyInstance).AsType<ILazyLoader>;
-{$ELSE}
-  Result := ILazyLoader(TJSObject(FLazyInstance)['FLoader']);
-{$ENDIF}
-end;
-
-class function TLazyManipulator.GetManipulator(const ObjectInstance: TObject; const LazyProperty: TRttiProperty): ILazyManipulator;
-begin
-  Result := GetManipulator(TRttiInstanceProperty(LazyProperty).GetRawValue(ObjectInstance), LazyProperty.PropertyType)
-end;
-
-class function TLazyManipulator.GetManipulator(const LazyInstance: Pointer; const LazyType: TRttiType): ILazyManipulator;
-begin
-  Result := TLazyManipulator.Create(LazyInstance, LazyType);
-end;
-
-class function TLazyManipulator.GetManipulator<T>(const LazyInstance: T): ILazyManipulator;
-begin
-  Result := GetManipulator(@LazyInstance, Persisto.Mapping.GetRttiType(TypeInfo(T)));
-end;
-
-function TLazyManipulator.GetRttiType: TRttiType;
-begin
-  Result := GetLazyLoadingType(FLazyType);
-end;
-
-function TLazyManipulator.GetValue: TValue;
-begin
-{$IFDEF DCC}
-  Result := PValue(PByte(FLazyInstance) + LazyValueField.Offset)^;
-{$ELSE}
-  Result := TValue(TJSObject(FLazyInstance)['FValue']);
-{$ENDIF}
-end;
-
-function TLazyManipulator.GetKey: TValue;
-var
-  Loader: ILazyLoader;
-
-begin
-  Loader := GetLoader;
-
-  if Assigned(Loader) then
-    Result := Loader.GetKey
-  else
-    Result := TValue.Empty;
-end;
-
-class function TLazyManipulator.IsLazyLoading(const LazyType: TRttiType): Boolean;
-begin
-  Result := LazyType.Name.StartsWith(LAZY_NAME);
-end;
-
-class function TLazyManipulator.IsLazyLoading(const LazyProperty: TRttiProperty): Boolean;
-begin
-  Result := IsLazyLoading(LazyProperty.PropertyType);
-end;
-
-procedure TLazyManipulator.SetLoaded(const Value: Boolean);
-begin
-{$IFDEF DCC}
-  LazyLoadedField.SetValue(FLazyInstance, TValue.From(Value));
-{$ELSE}
-  TJSObject(FLazyInstance)['FLoaded'] := Value;
-{$ENDIF}
-end;
-
-procedure TLazyManipulator.SetLoader(const Value: ILazyLoader);
-begin
-  SetLoaded(False);
-
-{$IFDEF DCC}
-  LazyLoaderField.SetValue(FLazyInstance, TValue.From(Value));
-{$ELSE}
-  TJSObject(FLazyInstance)['FLoader'] := Value;
-{$ENDIF}
-end;
-
-procedure TLazyManipulator.SetValue(const Value: TValue);
-begin
-  FLazyType.GetMethod('SetValue').Invoke(TValue.From(FLazyInstance), [Value]);
-end;
-
 { TNullableManipulator }
 
 constructor TNullableManipulator.Create(const NullableInstance: Pointer; const NullableType: TRttiType);
@@ -672,7 +507,7 @@ end;
 
 class function TNullableManipulator.GetManipulator(const ObjectInstance: TObject; const NullableProperty: TRttiProperty): INullableManipulator;
 begin
-  Result := GetManipulator(TRttiInstanceProperty(NullableProperty).GetRawValue(ObjectInstance), NullableProperty.PropertyType);
+//  Result := GetManipulator(TRttiInstanceProperty(NullableProperty).GetRawValue(ObjectInstance), NullableProperty.PropertyType);
 end;
 
 class function TNullableManipulator.GetManipulator(const Instance: Pointer; const NullableType: TRttiType): INullableManipulator;
@@ -793,56 +628,6 @@ begin
   var NativeSize: NativeInt := Size;
 
   DynArraySetLength(PPointer(GetReferenceToRawData)^, TypeInfo, 1, @NativeSize);
-{$ENDIF}
-end;
-
-{ TRttiInstancePropertyHelper }
-
-function TRttiInstancePropertyHelper.GetRawValue(Instance: Pointer): Pointer;
-{$IFDEF DCC}
-type
-  PIntPtr = ^IntPtr;
-
-var
-  getter: Pointer;
-  code: Pointer;
-  args: TArray<TValue>;
-begin
-  getter := PropInfo^.GetProc;
-  if (IntPtr(getter) and PROPSLOT_MASK) = PROPSLOT_FIELD then
-    // Field
-    Exit(PByte(Instance) + (IntPtr(getter) and (not PROPSLOT_MASK)));
-
-  if (IntPtr(getter) and PROPSLOT_MASK) = PROPSLOT_VIRTUAL then
-  begin
-    // Virtual dispatch, but with offset, not slot
-    code := PPointer(PIntPtr(Instance)^ + SmallInt(IntPtr(getter)))^;
-  end
-  else
-  begin
-    // Static dispatch
-    code := getter;
-  end;
-
-//  CheckCodeAddress(code);
-
-  if Index = Integer($80000000) then
-  begin
-    // no index
-    SetLength(args, 1);
-    args[0] := TObject(Instance);
-    Result := Invoke(code, args, ccReg, PropertyType.Handle, False).AsType<Pointer>; // not static
-  end
-  else
-  begin
-    SetLength(args, 2);
-    args[0] := TObject(Instance);
-    args[1] := Index;
-    Result := Invoke(code, args, ccReg, PropertyType.Handle, False).AsType<Pointer>; // not static
-  end;
-{$ELSE}
-begin
-  Result := Pointer(TJSObject(Instance)[PropertyTypeInfo.Getter]);
 {$ENDIF}
 end;
 
