@@ -746,7 +746,7 @@ begin
     function: TValue
     begin
       FunctionCalled := True;
-      Result := 'varchar(10)';
+      Result := 'varchar';
     end).When.GetFieldType(It.IsAny<TField>);
 
   ManipulatorMock.Setup.WillExecute(

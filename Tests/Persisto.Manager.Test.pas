@@ -132,6 +132,8 @@ type
   public
     [Setup]
     procedure Setup;
+    [SetupFixture]
+    procedure SetupFixture;
     [TearDown]
     procedure TearDown;
     [Test]
@@ -1028,6 +1030,11 @@ begin
   FManager := TManager.Create(CreateConnection, CreateDatabaseManipulator);
 
   FManager.Mapper.GetTable(TMySQLiteTable);
+end;
+
+procedure TManagerDatabaseManipulationTest.SetupFixture;
+begin
+  RebootDatabase;
 end;
 
 procedure TManagerDatabaseManipulationTest.TearDown;
