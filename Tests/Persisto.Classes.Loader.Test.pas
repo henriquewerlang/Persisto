@@ -103,6 +103,7 @@ var
     var Object2 := TMyEntityInheritedFromSimpleClass.Create;
     Object2.AnotherProperty := 'abc';
     Object2.BaseProperty := 'def';
+    Object2.Id := 10;
     Object2.SimpleProperty := 111;
 
     var Object3 := TMyEntityWithManyValueAssociation.Create;
@@ -149,6 +150,8 @@ end;
 
 procedure TClassLoaderTest.Setup;
 begin
+  RebootDatabase;
+
   var Connection := CreateConnection;
   FManager := TManager.Create(Connection, CreateDatabaseManipulator);
   FManagerInsert := TManager.Create(Connection, CreateDatabaseManipulator);
@@ -161,6 +164,8 @@ begin
   FManager.Free;
 
   FManagerInsert.Free;
+
+  DropDatabase;
 end;
 
 procedure TClassLoaderTest.TheChildOfAChildObjectMustBeLoadedAsExpected;
