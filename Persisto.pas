@@ -2710,7 +2710,7 @@ begin
 //  for Sequence in FManager.Mapper.Sequences do
 //    if not Assigned(Schema.Sequence[Sequence.Name]) then
 //      FDatabaseManipulator.CreateSequence(Sequence);
-//Exit;
+
   for Table in FManager.Mapper.Tables do
     if not DatabaseTables.TryGetValue(Table.DatabaseName, DatabaseTable) then
       CreateTable;

@@ -124,7 +124,6 @@ type
     FId: Integer;
   published
     property AnotherClass: TClassWithPrimaryKey read FAnotherClass write FAnotherClass;
-    [FixedValue('25')]
     property Id: Integer read FId write FId;
   end;
 
@@ -136,7 +135,6 @@ type
     FId: Integer;
     FRecursive: TClassRecursiveThird;
   published
-    [FixedValue('1')]
     property Id: Integer read FId write FId;
     property Recursive: TClassRecursiveThird read FRecursive write FRecursive;
   end;
@@ -147,7 +145,6 @@ type
     FId: Integer;
     FRecursive: TClassRecursiveFirst;
   published
-    [FixedValue('2')]
     property Id: Integer read FId write FId;
     property Recursive: TClassRecursiveFirst read FRecursive write FRecursive;
   end;
@@ -158,7 +155,6 @@ type
     FId: Integer;
     FRecursive: TClassRecursiveSecond;
   published
-    [FixedValue('3')]
     property Id: Integer read FId write FId;
     [Required]
     property Recursive: TClassRecursiveSecond read FRecursive write FRecursive;
@@ -420,7 +416,6 @@ type
   published
     [Size(50)]
     property BaseProperty: String read FBaseProperty write FBaseProperty;
-    [FixedValue('10')]
     property Id: Integer read FId write FId;
   end;
 
