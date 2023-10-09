@@ -898,9 +898,7 @@ begin
   var MyClass := TClassWithNullableProperty.Create;
   var Table := FMapper.GetTable(MyClass.ClassType);
 
-  var Field := Table.Field['Nullable'];
-
-  Assert.IsTrue(Field.Value[MyClass].IsEmpty);
+  Assert.IsTrue(Table.Field['Nullable'].Value[MyClass].IsEmpty);
 
   MyClass.Free;
 end;
@@ -972,7 +970,7 @@ begin
   var IntegerType := FContext.GetType(TypeInfo(Integer));
   var Table := FMapper.GetTable(TClassWithNullableProperty);
 
-  Assert.AreEqual(IntegerType, Table.Fields[1].FieldType);
+  Assert.AreEqual(IntegerType, Table.Field['Nullable'].FieldType);
 end;
 
 procedure TMapperTest.WhenLoadATableMustLoadAllFieldsCountWithTheTotalFieldOfTheTable;

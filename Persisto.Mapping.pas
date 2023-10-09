@@ -226,6 +226,7 @@ type
   end;
 
 function GetLazyType(const RttiType: TRttiType): TRttiType;
+function GetNullableType(const RttiType: TRttiType): TRttiType;
 function GetRttiType(const AClass: TClass): TRttiType; overload;
 function GetRttiType(const TypeInfo: PTypeInfo): TRttiType; overload;
 function IsLazy(const RttiType: TRttiType): Boolean;
@@ -240,6 +241,11 @@ const
   NULLABLE_TYPE_NAME = 'Nullable<';
 
 function GetLazyType(const RttiType: TRttiType): TRttiType;
+begin
+  Result := RttiType.GetMethod('GetValue').ReturnType;
+end;
+
+function GetNullableType(const RttiType: TRttiType): TRttiType;
 begin
   Result := RttiType.GetMethod('GetValue').ReturnType;
 end;

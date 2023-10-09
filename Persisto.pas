@@ -237,10 +237,13 @@ type
     FSpecialType: TDatabaseSpecialType;
   strict private
     function GetLazyValue(const Instance: TObject): ILazyValue;
+    function GetNullValue(const Instance: TObject): TValue;
     function GetPropertyValue(const Instance: TObject): TValue;
+    function GetRawPointerOfProperty(const Instance: TObject): Pointer;
     function GetValue(const Instance: TObject): TValue; virtual;
 
     procedure SetLazyValue(const Instance: TObject; const Value: ILazyValue);
+    procedure SetNullValue(const Instance: TObject; const Value: TValue);
     procedure SetValue(const Instance: TObject; const Value: TValue); overload;
   public
     destructor Destroy; override;
@@ -263,6 +266,7 @@ type
     property LazyValue[const Instance: TObject]: ILazyValue read GetLazyValue write SetLazyValue;
     property ManyValueAssociation: TManyValueAssociation read FManyValueAssociation;
     property Name: String read FName write FName;
+    property NullValue[const Instance: TObject]: TValue read GetNullValue write SetNullValue;
     property PropertyInfo: TRttiInstanceProperty read FPropertyInfo;
     property Required: Boolean read FRequired write FRequired;
     property Scale: Word read FScale write FScale;
@@ -1106,15 +1110,15 @@ begin
   Field.FIsLazy := IsLazy(Field.FieldType);
   Field.FIsNullable := IsNullable(Field.FieldType);
 
-//  if Field.FIsNullable then
-//    Field.FFieldType := TNullableManipulator.GetNullableType(Field.PropertyInfo)
-//  else
+  if Field.FIsNullable then
+    Field.FFieldType := GetNullableType(Field.FieldType)
+  else
   if Field.IsLazy then
     Field.FFieldType := GetLazyType(Field.FieldType);
 
   Field.FIsForeignKey := Field.FieldType.IsInstance;
   Field.FIsManyValueAssociation := Field.FieldType.IsArray;
-  Field.FRequired := PropertyInfo.HasAttribute<RequiredAttribute> or not Field.FIsNullable and not (Field.FieldType.TypeKind in [tkClass]);
+  Field.FRequired := PropertyInfo.HasAttribute<RequiredAttribute> or not Field.FIsNullable and not Field.FieldType.IsInstance;
 
   Field.FDatabaseName := GetFieldDatabaseName(Field);
 
@@ -1400,9 +1404,19 @@ begin
   Result := PropertyInfo.PropertyType.GetMethod('GetLazyValue').Invoke(GetPropertyValue(Instance), []).AsType<ILazyValue>;
 end;
 
+function TField.GetNullValue(const Instance: TObject): TValue;
+begin
+  Result := PropertyInfo.PropertyType.GetField('FValue').GetValue(GetRawPointerOfProperty(Instance)).AsType<TValue>;
+end;
+
 function TField.GetPropertyValue(const Instance: TObject): TValue;
 begin
   Result := PropertyInfo.GetValue(Instance);
+end;
+
+function TField.GetRawPointerOfProperty(const Instance: TObject): Pointer;
+begin
+  Result := PByte(Instance) + (IntPtr(PropertyInfo.PropInfo^.GetProc) and (not PROPSLOT_MASK));
 end;
 
 function TField.GetValue(const Instance: TObject): TValue;
@@ -1421,7 +1435,7 @@ begin
       Value := Lazy.Value;
   end
   else if FIsNullable then
-    Value := PropertyInfo.PropertyType.GetMethod('GetValue').Invoke(GetPropertyValue(Instance), [])
+    Value := NullValue[Instance]
   else
     Value := GetPropertyValue(Instance);
 
@@ -1430,15 +1444,18 @@ end;
 
 procedure TField.SetLazyValue(const Instance: TObject; const Value: ILazyValue);
 begin
-  var LazyInstance := PByte(Instance) + (IntPtr(PropertyInfo.PropInfo^.GetProc) and (not PROPSLOT_MASK));
+  PropertyInfo.PropertyType.GetField('FLazyValue').SetValue(GetRawPointerOfProperty(Instance), TValue.From(Value));
+end;
 
-  PropertyInfo.PropertyType.GetField('FLazyValue').SetValue(LazyInstance, TValue.From(Value));
+procedure TField.SetNullValue(const Instance: TObject; const Value: TValue);
+begin
+  PropertyInfo.PropertyType.GetField('FValue').SetValue(GetRawPointerOfProperty(Instance), Value);
 end;
 
 procedure TField.SetValue(const Instance: TObject; const Value: TValue);
 begin
   if FIsNullable then
-    PropertyInfo.PropertyType.GetMethod('SetValue').Invoke(GetPropertyValue(Instance), [Value])
+    NullValue[Instance] := Value
   else if IsLazy then
     LazyValue[Instance].Value := Value
   else
