@@ -372,13 +372,6 @@ type
     property Tables: TArray<TTable> read GetTables;
   end;
 
-  TLazyAccess = record
-  private
-    FLazyValue: ILazyValue;
-  public
-    constructor Create(const LazyValue: ILazyValue);
-  end;
-
   TLazyFactory = class(TInterfacedObject)
   private
     FFilterField: TField;
@@ -3448,19 +3441,5 @@ begin
 
 end;
 
-{ TLazyAccess }
-
-constructor TLazyAccess.Create(const LazyValue: ILazyValue);
-begin
-  FLazyValue := LazyValue;
-end;
-
 end.
-
-//  if Assigned(Table.PrimaryKey) then
-//  begin
-//    var Index := GetPrimaryKeyIndex(Table);
-//
-//    Result := Format('%sconstraint %s primary key (%s)', [Separator, Index.DatabaseName, GetFieldList(Index.Fields)]);
-//  end;
 
