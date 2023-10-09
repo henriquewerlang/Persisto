@@ -27,6 +27,8 @@ type
     [Test]
     procedure WhenComparingNamesOfTablesMustBeCaseInsensitivityTheComparision;
     [Test]
+    procedure WhenCreateATableMustCreateThePrimaryKeyToo;
+    [Test]
     procedure IfTheTableExistsInTheDatabaseMustCreateTheFieldThatDontExists;
     [Test]
     procedure IfTheForeignKeyNotExistsInTheDatabaseMustBeCreated;
@@ -790,6 +792,19 @@ begin
     procedure
     begin
       Cursor.Next;
+    end);
+end;
+
+procedure TDatabaseSchemaUpdaterTest.WhenCreateATableMustCreateThePrimaryKeyToo;
+begin
+  FManager.UpdateDatabaseSchema;
+
+  FManager.ExectDirect('insert into ClassWithPrimaryKey (Id, Value) values (10, 10)');
+
+  Assert.WillRaise(
+    procedure
+    begin
+      FManager.ExectDirect('insert into ClassWithPrimaryKey (Id, Value) values (10, 10)');
     end);
 end;
 

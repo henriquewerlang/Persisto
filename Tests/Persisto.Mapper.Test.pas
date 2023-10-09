@@ -307,16 +307,6 @@ type
     procedure WhenFillTheLazyValueFromAFieldMustLoadTheFieldValueOfTheLazyRecord;
   end;
 
-  [Entity]
-  TMyClass2  = class
-  private
-    FId: Integer;
-    FValue: String;
-  published
-    property Id: Integer read FId write FId;
-    property Value: String read FValue write FValue;
-  end;
-
 implementation
 
 uses System.Variants, System.SysUtils, System.DateUtils, System.TypInfo, Persisto.Test.Entity, Translucent;
@@ -1044,7 +1034,7 @@ end;
 
 procedure TMapperTest.WhenLoadTheSchemaWithAClassInParamsTheMapperMustLoadOnlyTheClassesInTheUnitOfThatClass;
 begin
-  FMapper.LoadAll([TMyClass2]);
+  FMapper.LoadAll([TMyClass]);
 
   Assert.AreEqual<NativeInt>(1, Length(FMapper.Tables));
 end;

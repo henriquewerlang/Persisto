@@ -29,29 +29,30 @@ type
   private
     FAnotherField: String;
     FFixedValue: String;
-    FId: Integer;
-    FSequence: String;
+    FId: String;
+    FSequence: Integer;
     FValue: String;
   published
-    [NewUniqueIdentifier]
-    property Id: Integer read FId write FId;
-    [NewUniqueIdentifier]
+    [NewUniqueIdentifier, Size(150)]
+    property Id: String read FId write FId;
+    [NewUniqueIdentifier, Size(150)]
     property AnotherField: String read FAnotherField write FAnotherField;
-    [FixedValue('''MyValue''')]
+    [FixedValue('''MyValue'''), Size(150)]
     property FixedValue: String read FFixedValue write FFixedValue;
     [Sequence('MySequence')]
-    property Sequence: String read FSequence write FSequence;
+    property Sequence: Integer read FSequence write FSequence;
+    [Size(150)]
     property Value: String read FValue write FValue;
   end;
 
   TClassWithSequence = class
   private
     FId: Integer;
-    FSequence: String;
+    FSequence: Integer;
   published
     property Id: Integer read FId write FId;
     [Sequence('MySequence')]
-    property Sequence: String read FSequence write FSequence;
+    property Sequence: Integer read FSequence write FSequence;
   end;
 
   [Entity]
@@ -65,9 +66,9 @@ type
     property PublicField: String read FPublicField write FPublicField;
   published
     property Field: Integer read FField write FField;
-    [FieldInfo(150)]
+    [Size(150)]
     property Name: String read FName write FName;
-    [FieldInfo(15, 7)]
+    [Precision(15, 7)]
     property Value: Double read FValue write FValue;
   end;
 
@@ -226,6 +227,7 @@ type
   published
     property Field1: Integer read FField1 write FField1;
     property Field2: Integer read FField2 write FField2;
+    [Size(150)]
     property Field3: String read FField3 write FField3;
     property Id: Integer read FId write FId;
   end;
@@ -237,6 +239,7 @@ type
     FName: String;
     FValue: Integer;
   published
+    [Size(150)]
     property Name: String read FName write FName;
     property Value: Integer read FValue write FValue;
   end;
@@ -300,6 +303,7 @@ type
     property Id: Integer read FId write FId;
     [Size(100)]
     property Name: String read FName write FName;
+    [Precision(15, 7)]
     property Value: Double read FValue write FValue;
   end;
 
@@ -314,7 +318,9 @@ type
   published
     property AField: Integer read FAField write FAField;
     property Id: Integer read FId write FId;
+    [Size(150)]
     property Name: String read FName write FName;
+    [Precision(15, 7)]
     property Value: Double read FValue write FValue;
   end;
 
@@ -334,7 +340,7 @@ type
     FValue: Double;
   published
     property Id: Integer read FId write FId;
-    [NewUniqueIdentifier]
+    [Precision(15, 7)]
     property Value: Double read FValue write FValue;
   end;
 
@@ -345,7 +351,7 @@ type
     FMyForeignKey: TMyEntityWithPrimaryKey;
     FMyForeignKey2: TMyEntity2;
   published
-    [FieldName('AnotherFieldName')]
+    [FieldName('AnotherFieldName'), Size(150)]
     property Name: String read FName write FName;
     property MyForeignKey: TMyEntityWithPrimaryKey read FMyForeignKey write FMyForeignKey;
     property MyForeignKey2: TMyEntity2 read FMyForeignKey2 write FMyForeignKey2;
@@ -358,7 +364,9 @@ type
     FValue: Double;
   published
     property Id: Integer read FId write FId;
+    [Size(150)]
     property Name: String read FName write FName;
+    [Precision(15, 7)]
     property Value: Double read FValue write FValue;
   end;
 
@@ -388,6 +396,7 @@ type
   private
     FValue: String;
   published
+    [Size(150)]
     property Value: String read FValue write FValue;
   end;
 
@@ -399,6 +408,7 @@ type
   published
     property Id: Integer read FId write FId;
     property ForerignKey: TMyEntityWithoutPrimaryKey read FForerignKey write FForerignKey;
+    [Size(150)]
     property Value: String read FValue write FValue;
   end;
 
@@ -445,6 +455,7 @@ type
   private
     FValue: String;
   published
+    [Size(150)]
     property Value: String read FValue write FValue;
   end;
 
@@ -453,6 +464,7 @@ type
     FId: String;
     FMyForeignKey: TAnotherSingleInherited;
   published
+    [Size(150)]
     property Id: String read FId write FId;
     property MyForeignKey: TAnotherSingleInherited read FMyForeignKey write FMyForeignKey;
   end;
@@ -537,6 +549,7 @@ type
   published
     property Id: Integer read FId write FId;
     property MyChildClass: TMyChildClass read FMyChildClass write FMyChildClass;
+    [Size(150)]
     property Value: String read FValue write FValue;
   end;
 
@@ -551,6 +564,7 @@ type
     property Child: TArray<TMyChildChildClass> read FChild write FChild;
     property Id: Integer read FId write FId;
     property MyClassParent: TMyClassParent read FMyClassParent write FMyClassParent;
+    [Size(150)]
     property Value: String read FValue write FValue;
   end;
 
@@ -596,11 +610,11 @@ type
   [Entity]
   TLazyArrayClassChild = class
   private
-    FId: Integer;
+    FId: String;
     FLazyArrayClass: Lazy<TLazyArrayClass>;
   published
-    [NewUniqueIdentifier]
-    property Id: Integer read FId write FId;
+    [NewUniqueIdentifier, Size(150)]
+    property Id: String read FId write FId;
     property LazyArrayClass: Lazy<TLazyArrayClass> read FLazyArrayClass write FLazyArrayClass;
   end;
 
@@ -643,6 +657,7 @@ type
     FLastField: String;
   published
     property BField: Integer read FBField write FBField;
+    [Size(150)]
     property AField: String read FAField write FAField;
     property Id: Integer read FId write FId;
     [ManyValueAssociationLinkName('BForeignKey')]
@@ -653,6 +668,7 @@ type
     property ALazy: Lazy<TUnorderedClass> read FALazy write FALazy;
     property BForeignKey: TUnorderedClass read FBForeignKey write FBForeignKey;
     property AForeignKey: TUnorderedClass read FAForeignKey write FAForeignKey;
+    [Size(150)]
     property LastField: String read FLastField write FLastField;
   end;
 
@@ -661,11 +677,11 @@ type
   [Entity]
   TManyValueChild = class
   private
-    FId: Integer;
+    FId: String;
     FParent: TManyValueParent;
   published
-    [NewUniqueIdentifier]
-    property Id: Integer read FId write FId;
+    [NewUniqueIdentifier, Size(150)]
+    property Id: String read FId write FId;
     property Parent: TManyValueParent read FParent write FParent;
   end;
 
@@ -718,14 +734,14 @@ type
   [Entity]
   TManyValueParentChildError = class
   private
-    FId: Integer;
+    FId: String;
     FParent: TManyValueParentError;
     FPassCount: Integer;
 
     function GetParent: TManyValueParentError;
   published
-    [NewUniqueIdentifier]
-    property Id: Integer read FId write FId;
+    [NewUniqueIdentifier, Size(150)]
+    property Id: String read FId write FId;
     property ManyValueParentError: TManyValueParentError read GetParent write FParent;
   end;
 
@@ -805,6 +821,7 @@ type
     FMyField2: Integer;
   published
     property Id: Integer read FId write FId;
+    [Size(150)]
     property MyField: String read FMyField write FMyField;
     property MyField2: Integer read FMyField2 write FMyField2;
   end;
@@ -825,7 +842,7 @@ type
     FRequiredObject: TMyClass;
   published
     property Id: Integer read FId write FId;
-    [Required]
+    [Required, Size(150)]
     property RequiredField: String read FRequiredField write FRequiredField;
     [Required]
     property RequiredObject: TMyClass read FRequiredObject write FRequiredObject;
@@ -875,6 +892,7 @@ type
     FValue: String;
   published
     property Id: TMyEnumerator read FId write FId;
+    [Size(150)]
     property Value: String read FValue write FValue;
   end;
 
@@ -891,6 +909,7 @@ type
   private
     FId: String;
   published
+    [Size(150)]
     property Id: String read FId write FId;
   end;
 

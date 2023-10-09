@@ -54,7 +54,6 @@ type
 
   IDatabaseManipulator = interface
     ['{7ED4F3DE-1C13-4CF3-AE3C-B51386EA271F}']
-    function CreateDefaultConstraint(const Field: TField): String;
     function CreateField(const Field: TField): String;
     function CreateForeignKey(const ForeignKey: TForeignKey): String;
     function CreateIndex(const Index: TIndex): String;
@@ -2659,6 +2658,22 @@ var
     SQL.Remove(Pred(SQL.Length), 1);
   end;
 
+  procedure BuildPrimaryKeyConstraint;
+  begin
+    if Assigned(Table.PrimaryKey) then
+    begin
+      SQL.Append(', constraint PK_');
+
+      SQL.Append(Table.Name);
+
+      SQL.Append(' primary key (');
+
+      SQL.Append(Table.PrimaryKey.DatabaseName);
+
+      SQL.Append(')');
+    end;
+  end;
+
   procedure CreateTable;
   begin
     SQL.Append('create table ');
@@ -2668,6 +2683,8 @@ var
     SQL.Append('(');
 
     BuildFieldList;
+
+    BuildPrimaryKeyConstraint;
 
     SQL.Append(')');
 
