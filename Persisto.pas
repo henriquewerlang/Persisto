@@ -1514,7 +1514,7 @@ end;
 
 function TLazyFactoryManyValue.LoadValue: TValue;
 begin
-  FManager.Select.All.From<TObject>(FFilterField.FTable).Where(Field(FFilterField.Name) = FKeyValue.AsVariant).Open;
+  FManager.Select.All.From<TObject>(FFilterField.Table).Where(Field(FFilterField.Name) = FKeyValue.AsVariant).Open;
 
   Result := FManager.FQueryBuilder.FLoader.Load;
 end;
