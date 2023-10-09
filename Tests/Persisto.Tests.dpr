@@ -8,13 +8,6 @@ uses
   TestInsight.DUnitX,
   DUnitX.TestFramework,
   DUnitX.MemoryLeakMonitor.FastMM5,
-  {$IF DEFINED(POSTGRESQL)}
-  Persisto.PostgreSQL.Test in 'Persisto.PostgreSQL.Test.pas',
-  {$ELSEIF DEFINED(SQLSERVER)}
-  Persisto.SQLServer.Test in 'Persisto.SQLServer.Test.pas',
-  {$ELSE}
-  Persisto.SQLite.Test in 'Persisto.SQLite.Test.pas',
-  {$ENDIF }
   Persisto.DataSet.Test in 'Persisto.DataSet.Test.pas',
   Persisto.Classes.Loader.Test in 'Persisto.Classes.Loader.Test.pas',
   Persisto.Mapper.Test in 'Persisto.Mapper.Test.pas',
@@ -23,7 +16,6 @@ uses
   Persisto.Nullable.Test in 'Persisto.Nullable.Test.pas',
   Persisto.Lazy.Test in 'Persisto.Lazy.Test.pas',
   Persisto.Database.Schema.Updater.Test in 'Persisto.Database.Schema.Updater.Test.pas',
-  Persisto.Nullable.Manipulator.Test in 'Persisto.Nullable.Manipulator.Test.pas',
   Persisto.Manager.Test in 'Persisto.Manager.Test.pas',
   Persisto.Test.Connection in 'Persisto.Test.Connection.pas';
 

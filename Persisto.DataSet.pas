@@ -639,11 +639,11 @@ var
   PropertyType: TRttiType;
 
 begin
-  if TNullableManipulator.IsNullable(&Property) then
-    PropertyType := TNullableManipulator.GetNullableType(&Property)
+//  if TNullableManipulator.IsNullable(&Property) then
+//    PropertyType := TNullableManipulator.GetNullableType(&Property)
 //  else if TLazyManipulator.IsLazyLoading(&Property) then
 //    PropertyType := TLazyManipulator.GetLazyLoadingType(&Property)
-  else
+//  else
     PropertyType := &Property.PropertyType;
 
   Result := PropertyType.FieldType;
@@ -1308,11 +1308,11 @@ begin
     if &Property.PropertyType is TRttiEnumerationType then
       Value := TValue.FromOrdinal(&Property.PropertyType.Handle, Value.AsOrdinal);
 
-    if TNullableManipulator.IsNullable(&Property) then
-      TNullableManipulator.GetManipulator(Instance.AsObject, &Property).Value := Value
+//    if TNullableManipulator.IsNullable(&Property) then
+//      TNullableManipulator.GetManipulator(Instance.AsObject, &Property).Value := Value
 //    else if TLazyManipulator.IsLazyLoading(&Property) then
 //      TLazyManipulator.GetManipulator(Instance.AsObject, &Property).Value := Value
-    else
+//    else
       &Property.SetValue(Instance.AsObject, Value);
   end
   else if Field.FieldKind = fkCalculated then

@@ -1104,7 +1104,7 @@ begin
   Table.FFields := Table.FFields + [Field];
 
   Field.FIsLazy := IsLazy(Field.FieldType);
-  Field.FIsNullable := TNullableManipulator.IsNullable(Field.PropertyInfo);
+  Field.FIsNullable := IsNullable(Field.FieldType);
 
 //  if Field.FIsNullable then
 //    Field.FFieldType := TNullableManipulator.GetNullableType(Field.PropertyInfo)
@@ -1421,7 +1421,7 @@ begin
       Value := Lazy.Value;
   end
   else if FIsNullable then
-    Value := TNullableManipulator.GetManipulator(Instance, PropertyInfo).Value
+    Value := PropertyInfo.PropertyType.GetMethod('GetValue').Invoke(GetPropertyValue(Instance), [])
   else
     Value := GetPropertyValue(Instance);
 
@@ -1438,7 +1438,7 @@ end;
 procedure TField.SetValue(const Instance: TObject; const Value: TValue);
 begin
   if FIsNullable then
-    TNullableManipulator.GetManipulator(Instance, PropertyInfo).Value := Value
+    PropertyInfo.PropertyType.GetMethod('SetValue').Invoke(GetPropertyValue(Instance), [Value])
   else if IsLazy then
     LazyValue[Instance].Value := Value
   else
