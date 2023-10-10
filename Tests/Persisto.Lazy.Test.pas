@@ -154,7 +154,7 @@ end;
 
 procedure TLazyFactoryObjectTest.WhenFillTheValueMustCleanUpTheKeyValue;
 begin
-  var LazyFactory := TLazyFactoryManyValue.Create(nil, nil, 10) as ILazyValue;
+  var LazyFactory := TLazyFactory.Create(nil, nil, 10, nil) as ILazyValue;
 
   LazyFactory.Value := 20;
 
@@ -163,7 +163,7 @@ end;
 
 procedure TLazyFactoryObjectTest.WhenFillTheValueMustReturnTheLoadedValueAsExpected;
 begin
-  var LazyFactory := TLazyFactoryManyValue.Create(nil, nil, nil) as ILazyValue;
+  var LazyFactory := TLazyFactory.Create(nil, nil, nil, nil) as ILazyValue;
 
   LazyFactory.Value := 10;
 
@@ -172,14 +172,14 @@ end;
 
 procedure TLazyFactoryObjectTest.WhenGetTheKeyValueFromTheLazyValueFactoryMustReturnTheValueAsExpected;
 begin
-  var LazyFactory := TLazyFactoryObject.Create(nil, nil, 10) as ILazyValue;
+  var LazyFactory := TLazyFactory.Create(nil, nil, 10, nil) as ILazyValue;
 
   Assert.AreEqual(10, LazyFactory.Key.AsInteger);
 end;
 
 procedure TLazyFactoryObjectTest.WhenTheValueIsntLoadedMustLoadTheValueFromDatabase;
 begin
-  var LazyFactory := TLazyFactoryObject.Create(FManager, FManager.Mapper.GetTable(TMyEntity).PrimaryKey, 20) as ILazyValue;
+  var LazyFactory := TLazyFactory.Create(FManager, FManager.Mapper.GetTable(TMyEntity).PrimaryKey, 20, TypeInfo(TMyEntity)) as ILazyValue;
 
   Assert.IsFalse(LazyFactory.Value.IsEmpty);
 
@@ -217,7 +217,7 @@ end;
 
 procedure TLazyFactoryManyValueTest.WhenFillTheValueMustReturnTheLoadedValueAsExpected;
 begin
-  var LazyFactory := TLazyFactoryManyValue.Create(nil, nil, nil) as ILazyValue;
+  var LazyFactory := TLazyFactory.Create(nil, nil, nil, nil) as ILazyValue;
 
   LazyFactory.Value := 20;
 
@@ -226,14 +226,15 @@ end;
 
 procedure TLazyFactoryManyValueTest.WhenGetTheKeyValueFromTheLazyValueFactoryMustReturnTheValueAsExpected;
 begin
-  var LazyFactory := TLazyFactoryManyValue.Create(nil, nil, 20) as ILazyValue;
+  var LazyFactory := TLazyFactory.Create(nil, nil, 20, nil) as ILazyValue;
 
   Assert.AreEqual(20, LazyFactory.Key.AsInteger);
 end;
 
 procedure TLazyFactoryManyValueTest.WhenTheValueIsntLoadedMustLoadTheValueFromDatabase;
 begin
-  var LazyFactory := TLazyFactoryManyValue.Create(FManager, FManager.Mapper.GetTable(TLazyArrayClassChild).Field['LazyArrayClass'], 10) as ILazyValue;
+  var Field := FManager.Mapper.GetTable(TLazyArrayClassChild).Field['LazyArrayClass'];
+  var LazyFactory := TLazyFactory.Create(FManager, Field, 10, TypeInfo(TArray<TObject>)) as ILazyValue;
 
   Assert.IsFalse(LazyFactory.Value.IsEmpty);
 

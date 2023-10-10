@@ -224,10 +224,10 @@ type
     FInPrimaryKey: Boolean;
     FIsForeignKey: Boolean;
     FIsInheritedLink: Boolean;
-    FIsLazy: Boolean;
     FIsManyValueAssociation: Boolean;
     FIsNullable: Boolean;
     FIsReadOnly: Boolean;
+    FLazyType: TRttiType;
     FManyValueAssociation: TManyValueAssociation;
     FName: String;
     FPropertyInfo: TRttiInstanceProperty;
@@ -235,6 +235,7 @@ type
     FScale: Word;
     FSize: Word;
     FSpecialType: TDatabaseSpecialType;
+    function GetIsLazy: Boolean;
   strict private
     function GetLazyValue(const Instance: TObject): ILazyValue;
     function GetNullValue(const Instance: TObject): TValue;
@@ -260,9 +261,10 @@ type
     property InPrimaryKey: Boolean read FInPrimaryKey;
     property IsForeignKey: Boolean read FIsForeignKey write FIsForeignKey;
     property IsInheritedLink: Boolean read FIsInheritedLink;
-    property IsLazy: Boolean read FIsLazy;
+    property IsLazy: Boolean read GetIsLazy;
     property IsManyValueAssociation: Boolean read FIsManyValueAssociation;
     property IsReadOnly: Boolean read FIsReadOnly;
+    property LazyType: TRttiType read FLazyType;
     property LazyValue[const Instance: TObject]: ILazyValue read GetLazyValue write SetLazyValue;
     property ManyValueAssociation: TManyValueAssociation read FManyValueAssociation;
     property Name: String read FName write FName;
@@ -372,31 +374,20 @@ type
     property Tables: TArray<TTable> read GetTables;
   end;
 
-  TLazyFactory = class(TInterfacedObject)
+  TLazyFactory = class(TInterfacedObject, ILazyValue)
   private
     FFilterField: TField;
     FKeyValue: TValue;
     FLazyValue: TValue;
     FManager: TManager;
+    FResultType: PTypeInfo;
 
     function GetKey: TValue;
     function GetValue: TValue;
 
     procedure SetValue(const Value: TValue);
-  protected
-    function LoadValue: TValue; virtual; abstract;
   public
-    constructor Create(const Manager: TManager; const FilterField: TField; const KeyValue: TValue);
-  end;
-
-  TLazyFactoryObject = class(TLazyFactory, ILazyValue)
-  protected
-    function LoadValue: TValue; override;
-  end;
-
-  TLazyFactoryManyValue = class(TLazyFactory, ILazyValue)
-  protected
-    function LoadValue: TValue; override;
+    constructor Create(const Manager: TManager; const FilterField: TField; const KeyValue: TValue; const ResultType: PTypeInfo);
   end;
 
   TClassLoader = class
@@ -407,7 +398,7 @@ type
   public
     constructor Create(const QueryBuilder: TQueryBuilder);
 
-    function Load: TValue;
+    function Load(const ResultType: PTypeInfo): TValue;
   end;
 
   TQueryBuilderTableField = class
@@ -1100,14 +1091,15 @@ begin
   Field.FTable := Table;
   Table.FFields := Table.FFields + [Field];
 
-  Field.FIsLazy := IsLazy(Field.FieldType);
   Field.FIsNullable := IsNullable(Field.FieldType);
 
   if Field.FIsNullable then
     Field.FFieldType := GetNullableType(Field.FieldType)
-  else
-  if Field.IsLazy then
+  else if IsLazy(Field.FieldType) then
+  begin
     Field.FFieldType := GetLazyType(Field.FieldType);
+    Field.FLazyType := Field.FFieldType;
+  end;
 
   Field.FIsForeignKey := Field.FieldType.IsInstance;
   Field.FIsManyValueAssociation := Field.FieldType.IsArray;
@@ -1392,6 +1384,11 @@ begin
   inherited;
 end;
 
+function TField.GetIsLazy: Boolean;
+begin
+  Result := Assigned(FLazyType);
+end;
+
 function TField.GetLazyValue(const Instance: TObject): ILazyValue;
 begin
   Result := PropertyInfo.PropertyType.GetMethod('GetLazyValue').Invoke(GetPropertyValue(Instance), []).AsType<ILazyValue>;
@@ -1475,13 +1472,14 @@ end;
 
 { TLazyFactory }
 
-constructor TLazyFactory.Create(const Manager: TManager; const FilterField: TField; const KeyValue: TValue);
+constructor TLazyFactory.Create(const Manager: TManager; const FilterField: TField; const KeyValue: TValue; const ResultType: PTypeInfo);
 begin
   inherited Create;
 
   FFilterField := FilterField;
   FKeyValue := KeyValue;
   FManager := Manager;
+  FResultType := ResultType;
 end;
 
 function TLazyFactory.GetKey: TValue;
@@ -1492,7 +1490,11 @@ end;
 function TLazyFactory.GetValue: TValue;
 begin
   if FLazyValue.IsEmpty then
-    FLazyValue := LoadValue;
+  begin
+    FManager.Select.All.From<TObject>(FFilterField.Table).Where(Field(FFilterField.Name) = FKeyValue.AsVariant).Open;
+
+    FLazyValue := FManager.FQueryBuilder.FLoader.Load(FResultType);
+  end;
 
   Result := FLazyValue;
 end;
@@ -1501,22 +1503,6 @@ procedure TLazyFactory.SetValue(const Value: TValue);
 begin
   FKeyValue := TValue.Empty;
   FLazyValue := Value;
-end;
-
-{ TLazyFactoryObject }
-
-function TLazyFactoryObject.LoadValue: TValue;
-begin
-  Result := FManager.Select.All.From<TObject>(FFilterField.Table).Where(Field(FFilterField.Name) = FKeyValue.AsVariant).Open.One;
-end;
-
-{ TLazyFactoryManyValue }
-
-function TLazyFactoryManyValue.LoadValue: TValue;
-begin
-  FManager.Select.All.From<TObject>(FFilterField.Table).Where(Field(FFilterField.Name) = FKeyValue.AsVariant).Open;
-
-  Result := FManager.FQueryBuilder.FLoader.Load;
 end;
 
 { TClassLoader }
@@ -1530,13 +1516,17 @@ end;
 
 function TClassLoader.CreateLazyFactory(const LazyField: TField; const KeyValue: TValue): ILazyValue;
 begin
+  var FilterField: TField;
+
   if LazyField.IsManyValueAssociation then
-    Result := TLazyFactoryManyValue.Create(FQueryBuilder.FManager, LazyField.ManyValueAssociation.ChildField, KeyValue)
+    FilterField := LazyField.ManyValueAssociation.ChildField
   else
-    Result := TLazyFactoryObject.Create(FQueryBuilder.FManager, LazyField.ForeignKey.Field, KeyValue);
+    FilterField := LazyField.ForeignKey.ParentTable.PrimaryKey;
+
+  Result := TLazyFactory.Create(FQueryBuilder.FManager, FilterField, KeyValue, LazyField.LazyType.Handle);
 end;
 
-function TClassLoader.Load: TValue;
+function TClassLoader.Load(const ResultType: PTypeInfo): TValue;
 var
   LoadedObjects: TDictionary<String, Boolean>;
 
@@ -1595,14 +1585,13 @@ var
       if QueryField.DataSetField.IsNull then
         FieldValue := TValue.Empty
       else
-      begin
         FieldValue := TValue.FromVariant(QueryField.DataSetField.AsVariant);
 
-        if Field.IsLazy then
-          Field.LazyValue[StateObject.&Object] := CreateLazyFactory(Field, FieldValue);
-      end;
+      if Field.IsLazy then
+        Field.LazyValue[StateObject.&Object] := CreateLazyFactory(Field, FieldValue)
+      else
+        Field.Value[StateObject.&Object] := FieldValue;
 
-      Field.Value[StateObject.&Object] := FieldValue;
       StateObject.OldValue[Field] := FieldValue;
     end;
 
@@ -1656,7 +1645,12 @@ begin
     LoadFieldValues(FQueryBuilder.FQueryTable, StateObject);
   end;
 
-  Result := TValue.From<TArray<TObject>>(Objects);
+  if Length(Objects) = 0 then
+    TValue.Make(nil, ResultType, Result)
+  else if ResultType.Kind = tkClass then
+    TValue.Make(@Objects[0], ResultType, Result)
+  else
+    TValue.Make(@Objects, ResultType, Result);
 
   LoadedObjects.Free;
 end;
@@ -2142,7 +2136,7 @@ end;
 
 function TQueryBuilderOpen<T>.All: TArray<T>;
 begin
-  Result := TArray<T>(FQueryBuilder.FLoader.Load.AsType<TArray<TObject>>);
+  Result := FQueryBuilder.FLoader.Load(TypeInfo(TArray<T>)).AsType<TArray<T>>;
 end;
 
 constructor TQueryBuilderOpen<T>.Create(const QueryBuilder: TQueryBuilder);
@@ -2156,12 +2150,7 @@ end;
 
 function TQueryBuilderOpen<T>.One: T;
 begin
-  var Objects := All;
-
-  if Length(Objects) > 0 then
-    Result := Objects[0]
-  else
-    Result := nil;
+  Result := FQueryBuilder.FLoader.Load(TypeInfo(T)).AsType<T>;
  end;
 
 { TQueryBuilderComparison }

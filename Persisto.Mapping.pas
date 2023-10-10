@@ -135,17 +135,13 @@ type
     property Name: String read FName write FName;
   end;
 
-  ILazyValue = {$IFDEF DCC}interface{$ELSE}class
-  public
-{$ENDIF}
-    function GetKey: TValue;{$IFDEF PAS2JS} virtual; abstract;{$ENDIF}
-    function GetValue: TValue;{$IFDEF PAS2JS} virtual; abstract;{$ENDIF}
+  ILazyValue = {$IFDEF DCC} interface{$ELSE} class public {$ENDIF}
+    function GetKey: TValue; {$IFDEF PAS2JS} virtual; abstract; {$ENDIF}
+    function GetValue: TValue; {$IFDEF PAS2JS} virtual; abstract; {$ENDIF}
 {$IFDEF PAS2JS}
     function GetValueAsync: TValue; virtual; abstract; async;
 {$ENDIF}
-
-    procedure SetValue(const Value: TValue);{$IFDEF PAS2JS} virtual; abstract;{$ENDIF}
-
+    procedure SetValue(const Value: TValue); {$IFDEF PAS2JS} virtual; abstract; {$ENDIF}
     property Key: TValue read GetKey;
     property Value: TValue read GetValue write SetValue;
   end;
@@ -161,7 +157,6 @@ type
 {$IFDEF PAS2JS}
     function GetValueAsync: T; async;
 {$ENDIF}
-
 {$IFDEF DCC}
     class operator Implicit(const Value: Lazy<T>): T;
     class operator Implicit(const Value: T): Lazy<T>;
@@ -175,13 +170,12 @@ type
   private
     FValue: TValue;
   protected
-    function GetKey: TValue;{$IFDEF PAS2JS} override;{$ENDIF}
-    function GetValue: TValue;{$IFDEF PAS2JS} override;{$ENDIF}
+    function GetKey: TValue; {$IFDEF PAS2JS} override; {$ENDIF}
+    function GetValue: TValue; {$IFDEF PAS2JS} override; {$ENDIF}
 {$IFDEF PAS2JS}
     function GetValueAsync: TValue; override; async;
 {$ENDIF}
-
-    procedure SetValue(const Value: TValue);{$IFDEF PAS2JS} override;{$ENDIF}
+    procedure SetValue(const Value: TValue); {$IFDEF PAS2JS} override; {$ENDIF}
   end;
 
   Nullable<T> = record
@@ -295,12 +289,12 @@ begin
 end;
 
 {$IFDEF PAS2JS}
+
 function TLazyValue.GetValueAsync: TValue;
 begin
   Result := GetValue;
 end;
 {$ENDIF}
-
 { Lazy<T> }
 
 function Lazy<T>.GetLazyValue: ILazyValue;
@@ -317,13 +311,14 @@ begin
 end;
 
 {$IFDEF PAS2JS}
+
 function Lazy<T>.GetValueAsync: T;
 begin
   Result := LazyValue.GetValueAsync.AsType<T>;
 end;
 {$ENDIF}
-
 {$IFDEF DCC}
+
 class operator Lazy<T>.Implicit(const Value: T): Lazy<T>;
 begin
   Result.Value := Value;
@@ -477,6 +472,7 @@ end;
 { Nullable<T> }
 
 {$IFDEF DCC}
+
 class operator Nullable<T>.Implicit(const Value: Nullable<T>): T;
 begin
   Result := Value.Value;
@@ -562,12 +558,10 @@ begin
 
   case TypeKind of
 {$IFDEF DCC}
-    tkLString,
-    tkUString,
-    tkWChar,
+    tkLString, tkUString, tkWChar,
 {$ENDIF}
-    tkChar,
-    tkString: Result := ftString;
+    tkChar, tkString:
+      Result := ftString;
 {$IFDEF PAS2JS}
     tkBool,
 {$ENDIF}
@@ -586,10 +580,14 @@ begin
       else
 {$IFDEF DCC}
         case Handle.TypeData.FloatType of
-          ftCurr: Result := ftCurrency;
-          ftDouble: Result := ftFloat;
-          System.TypInfo.ftExtended: Result := ftExtended;
-          System.TypInfo.ftSingle: Result := ftSingle;
+          ftCurr:
+            Result := ftCurrency;
+          ftDouble:
+            Result := ftFloat;
+          System.TypInfo.ftExtended:
+            Result := ftExtended;
+          System.TypInfo.ftSingle:
+            Result := ftSingle;
         end;
 {$ELSE}
         Result := TFieldType.ftFloat;
@@ -597,22 +595,30 @@ begin
     tkInteger:
 {$IFDEF DCC}
       case Handle.TypeData.OrdType of
-        otSByte,
-        otUByte: Result := ftByte;
-        otSWord: Result := ftInteger;
-        otUWord: Result := ftWord;
-        otSLong: Result := ftInteger;
-        otULong: Result := ftLongWord;
+        otSByte, otUByte:
+          Result := ftByte;
+        otSWord:
+          Result := ftInteger;
+        otUWord:
+          Result := ftWord;
+        otSLong:
+          Result := ftInteger;
+        otULong:
+          Result := ftLongWord;
       end;
 {$ELSE}
       Result := ftInteger;
 {$ENDIF}
-    tkClass: Result := ftVariant;
+    tkClass:
+      Result := ftVariant;
 {$IFDEF DCC}
-    tkInt64: Result := ftLargeint;
-    tkWString: Result := ftWideString;
+    tkInt64:
+      Result := ftLargeint;
+    tkWString:
+      Result := ftWideString;
 {$ENDIF}
-    tkDynArray: Result := ftDataSet;
+    tkDynArray:
+      Result := ftDataSet;
   end;
 end;
 
@@ -624,4 +630,3 @@ begin
 end;
 
 end.
-

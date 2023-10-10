@@ -305,6 +305,8 @@ type
     procedure WhenGetTheLazyValueFromAFieldMustReturnTheInternalInstanceOfTheInterface;
     [Test]
     procedure WhenFillTheLazyValueFromAFieldMustLoadTheFieldValueOfTheLazyRecord;
+    [Test]
+    procedure WhenLoadALazyFieldMustLoadTheLazyTypeInfoAsExpected;
   end;
 
 implementation
@@ -874,7 +876,7 @@ begin
   var MyClass := TLazyClass.Create;
   var Table := FMapper.GetTable(MyClass.ClassType);
 
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyFactoryObject.Create(nil, nil, 1234);
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyFactory.Create(nil, nil, 1234, nil);
 
   Assert.AreEqual(1234, MyClass.Lazy.LazyValue.Key.AsInteger);
 
@@ -930,6 +932,15 @@ begin
   var Table := FMapper.GetTable(TClassWithNullableProperty);
 
   Assert.AreEqual(IntegerType, Table.Fields[0].FieldType);
+end;
+
+procedure TMapperTest.WhenLoadALazyFieldMustLoadTheLazyTypeInfoAsExpected;
+begin
+  var Table := FMapper.GetTable(TLazyClass);
+
+  Assert.IsNotNull(Table.Field['Lazy'].LazyType);
+
+  Assert.AreEqual<PTypeInfo>(TypeInfo(TMyEntity), Table.Field['Lazy'].LazyType.Handle);
 end;
 
 procedure TMapperTest.WhenLoadAnInheritedTableTheAllFieldCountPropertyMustCountTheFieldFromBaseClassesToo;
@@ -1377,7 +1388,7 @@ begin
   var MyClass := TLazyClass.Create;
   var Table := FMapper.GetTable(MyClass.ClassType);
 
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyFactoryObject.Create(nil, nil, 1234);
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyFactory.Create(nil, nil, 1234, nil);
 
   Assert.AreEqual(1234, Table.Field['Lazy'].Value[MyClass].AsInteger);
 
