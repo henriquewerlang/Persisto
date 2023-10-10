@@ -84,12 +84,7 @@ end;
 
 function TDatabaseCursorFireDAC.GetFieldValue(const FieldIndex: Integer): Variant;
 begin
-  var Field := FQuery.Fields[FieldIndex];
-
-  if Field is TSQLTimeStampField then
-    Result := Field.AsDateTime
-  else
-    Result := Field.AsVariant;
+  Result := FQuery.Fields[FieldIndex].AsVariant;
 end;
 
 function TDatabaseCursorFireDAC.Next: Boolean;

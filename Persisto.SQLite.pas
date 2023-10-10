@@ -76,12 +76,12 @@ end;
 function TDatabaseManipulatorSQLite.GetSchemaTablesScripts: TArray<String>;
 begin
   Result := [
-    'create table if not exists PersistoDatabaseTable (name varchar(250))',
-    'create table if not exists PersistoDatabaseTableField (name varchar(250), IdTable varchar(250))',
+    'create table if not exists PersistoDatabaseTable (id varchar(250), name varchar(250))',
+    'create table if not exists PersistoDatabaseTableField (id varchar(250), name varchar(250), IdTable varchar(250))',
     'delete from PersistoDatabaseTable',
     'delete from PersistoDatabaseTableField',
-    'insert into PersistoDatabaseTable (name) select name from sqlite_master where type = ''table''',
-    'insert into PersistoDatabaseTableField (name, IdTable) select C.name, T.name from sqlite_master T, pragma_table_info(T.name) C where T.type = ''table'''
+    'insert into PersistoDatabaseTable (id, name) select name, name from sqlite_master where type = ''table''',
+    'insert into PersistoDatabaseTableField (id, name, IdTable) select T.name || ''#'' || C.name, C.name, T.name from sqlite_master T, pragma_table_info(T.name) C where T.type = ''table'''
     ];
 end;
 

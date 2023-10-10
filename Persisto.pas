@@ -585,42 +585,38 @@ type
     function Where(const Condition: TQueryBuilderComparisonHelper): TQueryBuilderWhere<T>;
   end;
 
-  [SingleTableInheritance]
-  TDatabaseObject = class
-  private
-    FName: String;
-  published
-    property Name: String read FName write FName;
-  end;
-
-  [PrimaryKey('Name')]
   [TableName('PersistoDatabaseTable')]
-  TDatabaseTable = class(TDatabaseObject)
+  TDatabaseTable = class
   private
     FFields: TArray<TDatabaseField>;
     FForeignKeys: Lazy<TArray<TDatabaseForeignKey>>;
+    FId: String;
     FIndexes: Lazy<TArray<TDatabaseIndex>>;
+    FName: String;
   public
     property ForeignKeys: Lazy<TArray<TDatabaseForeignKey>> read FForeignKeys write FForeignKeys;
     property Indexes: Lazy<TArray<TDatabaseIndex>> read FIndexes write FIndexes;
   published
     [ManyValueAssociationLinkName('Table')]
     property Fields: TArray<TDatabaseField> read FFields write FFields;
+    property Id: String read FId write FId;
+    property Name: String read FName write FName;
   end;
 
-  [PrimaryKey('Name')]
   [TableName('PersistoDatabaseTableField')]
-  TDatabaseField = class(TDatabaseObject)
+  TDatabaseField = class
   private
     FCheck: TDatabaseCheckConstraint;
     FCollation: String;
     FDefaultConstraint: TDatabaseDefaultConstraint;
     FFieldType: TTypeKind;
+    FId: String;
     FRequired: Boolean;
     FTable: TDatabaseTable;
     FScale: Word;
     FSize: Word;
     FSpecialType: TDatabaseSpecialType;
+    FName: String;
   public
     property Check: TDatabaseCheckConstraint read FCheck write FCheck;
     property Collation: String read FCollation write FCollation;
@@ -631,52 +627,66 @@ type
     property Size: Word read FSize write FSize;
     property SpecialType: TDatabaseSpecialType read FSpecialType write FSpecialType;
   published
+    property Id: String read FId write FId;
+    property Name: String read FName write FName;
     property Table: TDatabaseTable read FTable write FTable;
   end;
 
-  TDatabaseIndex = class(TDatabaseObject)
+  TDatabaseIndex = class
   private
     FFields: TArray<TDatabaseField>;
     FPrimaryKey: Boolean;
     FTable: TDatabaseTable;
     FUnique: Boolean;
+    FName: String;
   public
     property Fields: TArray<TDatabaseField> read FFields write FFields;
     property PrimaryKey: Boolean read FPrimaryKey write FPrimaryKey;
     property Unique: Boolean read FUnique write FUnique;
   published
+    property Name: String read FName write FName;
     property Table: TDatabaseTable read FTable write FTable;
   end;
 
-  TDatabaseForeignKey = class(TDatabaseObject)
+  TDatabaseForeignKey = class
   private
     FFields: TArray<TDatabaseField>;
     FFieldsReference: TArray<TDatabaseField>;
     FReferenceTable: TDatabaseTable;
     FTable: TDatabaseTable;
+    FName: String;
   public
     property Fields: TArray<TDatabaseField> read FFields write FFields;
     property FieldsReference: TArray<TDatabaseField> read FFieldsReference write FFieldsReference;
     property ReferenceTable: TDatabaseTable read FReferenceTable write FReferenceTable;
   published
+    property Name: String read FName write FName;
     property Table: TDatabaseTable read FTable write FTable;
   end;
 
-  TDatabaseDefaultConstraint = class(TDatabaseObject)
+  TDatabaseDefaultConstraint = class
   private
     FValue: String;
+    FName: String;
   public
+    property Name: String read FName write FName;
     property Value: String read FValue write FValue;
   end;
 
-  TDatabaseCheckConstraint = class(TDatabaseObject)
+  TDatabaseCheckConstraint = class
   private
     FCheck: String;
+    FName: String;
   public
+    property Name: String read FName write FName;
     property Check: String read FCheck write FCheck;
   end;
 
-  TDatabaseSequence = class(TDatabaseObject)
+  TDatabaseSequence = class
+  private
+    FName: String;
+  published
+    property Name: String read FName write FName;
   end;
 
   TDatabaseSchemaUpdater = class
@@ -689,7 +699,6 @@ type
     function FieldInTheList(const DatabaseField: TDatabaseField; const DatabaseFields: TArray<TDatabaseField>): Boolean;
 
     procedure CheckChangingTheList<T>(const List: Lazy<TArray<T>>; const Func: TFunc<T, Boolean>);
-    procedure CreateField(const Field: TField);
     procedure DropField(const DatabaseField: TDatabaseField);
     procedure DropForeignKey(const DatabaseForeignKey: TDatabaseForeignKey);
     procedure DropIndex(const DatabaseIndex: TDatabaseIndex);
@@ -2382,11 +2391,6 @@ begin
   Randomize;
 end;
 
-procedure TDatabaseSchemaUpdater.CreateField(const Field: TField);
-begin
-  FDatabaseManipulator.CreateField(Field);
-end;
-
 destructor TDatabaseSchemaUpdater.Destroy;
 begin
   FManagerSchema.Free;
@@ -2509,7 +2513,9 @@ var
   DatabaseIndex: TDatabaseIndex;
   DatabaseSequence: TDatabaseSequence;
   DatabaseTable: TDatabaseTable;
+  DatabaseTableFields: TDictionary<String, TDatabaseField>;
   DatabaseTables: TDictionary<String, TDatabaseTable>;
+  Field: TField;
   ForeignKey: TForeignKey;
   Index: TIndex;
   Sequence: TSequence;
@@ -2650,37 +2656,42 @@ var
     end;
   end;
 
+  procedure BuildFieldDefinition(const Field: TField);
+  begin
+    SQL.Append(Field.DatabaseName);
+
+    SQL.Append(' ');
+
+    if IsSpecialType(Field) then
+      SQL.Append(FDatabaseManipulator.GetSpecialFieldType(Field))
+    else
+      SQL.Append(FDatabaseManipulator.GetFieldType(Field));
+
+    if FieldNeedSize(Field) then
+    begin
+      SQL.Append('(');
+
+      SQL.Append(Field.Size);
+
+      if FieldNeedPrecision(Field) then
+      begin
+        SQL.Append(',');
+
+        SQL.Append(Field.Scale);
+      end;
+
+      SQL.Append(')');
+    end;
+
+    AppendDefaultConstraint(Field);
+  end;
+
   procedure BuildFieldList;
   begin
     for var Field in Table.Fields do
       if not Field.IsManyValueAssociation then
       begin
-        SQL.Append(Field.DatabaseName);
-
-        SQL.Append(' ');
-
-        if IsSpecialType(Field) then
-          SQL.Append(FDatabaseManipulator.GetSpecialFieldType(Field))
-        else
-          SQL.Append(FDatabaseManipulator.GetFieldType(Field));
-
-        if FieldNeedSize(Field) then
-        begin
-          SQL.Append('(');
-
-          SQL.Append(Field.Size);
-
-          if FieldNeedPrecision(Field) then
-          begin
-            SQL.Append(',');
-
-            SQL.Append(Field.Scale);
-          end;
-
-          SQL.Append(')');
-        end;
-
-        AppendDefaultConstraint(Field);
+        BuildFieldDefinition(Field);
 
         SQL.Append(',');
       end;
@@ -2721,8 +2732,30 @@ var
     ExecuteSQL;
   end;
 
+  procedure CreateField;
+  begin
+    SQL.Append('alter table ');
+
+    SQL.Append(Table.DatabaseName);
+
+    SQL.Append(' add column ');
+
+    BuildFieldDefinition(Field);
+
+    ExecuteSQL;
+  end;
+
+  procedure LoadDatabaseTableFields;
+  begin
+    DatabaseTableFields.Clear;
+
+    for var DatabaseField in DatabaseTable.Fields do
+      DatabaseTableFields.Add(DatabaseField.Name, DatabaseField);
+  end;
+
   procedure LoadDatabaseTables;
   begin
+    DatabaseTableFields := TDictionary<String, TDatabaseField>.Create(Comparer);
     DatabaseTables := TDictionary<String, TDatabaseTable>.Create(Comparer);
 
     for var DatabaseTable in FManagerSchema.Select.All.From<TDatabaseTable>.Open.All do
@@ -2746,12 +2779,18 @@ begin
       CreateTable;
 
   for Table in FManager.Mapper.Tables do
-  begin
-//      for Field in Table.Fields do
+    if DatabaseTables.TryGetValue(Table.DatabaseName, DatabaseTable) then
+    begin
+      LoadDatabaseTableFields;
+
+      for Field in Table.Fields do
+        if not DatabaseTableFields.TryGetValue(Field.DatabaseName, DatabaseField) then
+        begin
+          CreateField;
+        end;
+
 //        if not Field.IsManyValueAssociation then
 //        begin
-//          DatabaseField := DatabaseTable.Field[Field.DatabaseName];
-//
 //          if not Assigned(DatabaseField) then
 //            CreateField(Field)
 //          else if FieldChanged then
@@ -2775,7 +2814,7 @@ begin
 //            end;
 //          end;
 //        end;
-  end;
+    end;
 //
 //  for Table in FManager.Mapper.Tables do
 //    if Table.DefaultRecords.Count > 0 then
@@ -2857,6 +2896,8 @@ begin
 //      FDatabaseManipulator.DropSequence(DatabaseSequence);
 //
   DatabaseTables.Free;
+
+  DatabaseTableFields.Free;
 
   SQL.Free;
 
