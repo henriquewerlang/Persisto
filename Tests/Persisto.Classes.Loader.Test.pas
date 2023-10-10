@@ -71,6 +71,8 @@ type
     procedure WhenLoadAnObjectWithALazyPropertyMustCreateTheLazyFactoryToLoadTheLazyValue;
     [Test]
     procedure WhenLoadAnObjectWithNullableFieldMustLoadTheFieldAsExpected;
+    [Test]
+    procedure WhenLoadAClassWithAllTypeOfFieldMustLoadTheValuesWithoutAnyError;
   end;
 
 implementation
@@ -133,7 +135,10 @@ var
     var Object12 := TClassWithNullableProperty.Create;
     Object12.Id := 20;
 
-    Objects := [Object1, Object2, Object3, Object7, Object11, Object12];
+    var Object13 := TMyEntityWithAllTypeOfFields.Create;
+    Object13.Integer := 1;
+
+    Objects := [Object1, Object2, Object3, Object7, Object11, Object12, Object13];
   end;
 
 begin
@@ -173,6 +178,15 @@ begin
   var &Object := FManager.Select.All.From<TMyManyValue>.Open.One;
 
   Assert.AreEqual<NativeInt>(3, Length(&Object.Childs[0].ManyValueAssociation.ManyValueAssociationList));
+end;
+
+procedure TClassLoaderTest.WhenLoadAClassWithAllTypeOfFieldMustLoadTheValuesWithoutAnyError;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Select.All.From<TMyEntityWithAllTypeOfFields>.Where(Field('Integer') = 1).Open.One;
+    end);
 end;
 
 procedure TClassLoaderTest.WhenLoadAllObjectsFromAManyValueAssociationMustReturnAUniqueInstanceOfEachObject;

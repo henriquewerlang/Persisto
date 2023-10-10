@@ -1576,16 +1576,42 @@ var
     ForeignObject: TStateObject;
     ManyValueAssociationTable: TQueryBuilderTable;
     ManyValueObject: TStateObject;
+    QueryField: TQueryBuilderTableField;
+
+    procedure LoadFieldValue;
+    begin
+      case QueryField.DataSetField.DataType of
+        ftFMTBcd, ftBCD:
+          FieldValue := QueryField.DataSetField.AsFloat
+        else
+          case Field.FieldType.TypeKind of
+            tkChar,
+            tkWChar:
+            begin
+              var Value := QueryField.DataSetField.AsString;
+
+              if Value.IsEmpty then
+                FieldValue := #0
+              else
+                FieldValue := Value[1]
+            end;
+            tkEnumeration:
+              FieldValue := TValue.FromOrdinal(Field.FFieldType.Handle, QueryField.DataSetField.AsVariant);
+            else
+              FieldValue := TValue.FromVariant(QueryField.DataSetField.AsVariant);
+          end;
+      end;
+    end;
 
   begin
-    for var QueryField in QueryTable.DatabaseFields do
+    for QueryField in QueryTable.DatabaseFields do
     begin
       Field := QueryField.Field;
 
       if QueryField.DataSetField.IsNull then
         FieldValue := TValue.Empty
       else
-        FieldValue := TValue.FromVariant(QueryField.DataSetField.AsVariant);
+        LoadFieldValue;
 
       if Field.IsLazy then
         Field.LazyValue[StateObject.&Object] := CreateLazyFactory(Field, FieldValue)
