@@ -94,7 +94,7 @@ var
       FManagerInsert.Insert(AObject);
   end;
 
-  procedure InsertObjects;
+  procedure LoadObjects;
   begin
     var Object1 := TClassWithPrimaryKey.Create;
     Object1.Id := 35;
@@ -143,7 +143,7 @@ begin
 
   FManagerInsert.Mapper.GetTable(TManyValueAssociationParent);
 
-  InsertObjects;
+  LoadObjects;
 
   UpdateDatabase;
 end;
