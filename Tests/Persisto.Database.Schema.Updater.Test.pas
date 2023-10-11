@@ -2,13 +2,15 @@
 
 interface
 
-uses System.SysUtils, System.Generics.Collections, DUnitX.TestFramework, Persisto, Persisto.Mapping;
+uses System.SysUtils, System.Generics.Collections, Data.DB, DUnitX.TestFramework, Persisto, Persisto.Mapping;
 
 type
   [TestFixture]
   TDatabaseSchemaUpdaterTest = class
   private
     FManager: TManager;
+
+    procedure LoadSchemaTables;
   public
     [Setup]
     procedure Setup;
@@ -162,109 +164,28 @@ type
     procedure WhenAnIndexBecameUniqueMustRecreateTheIndex;
   end;
 
-  TMyForeignKeyClass = class
+  TDatabaseManiupulatorMock = class(TInterfacedObject, IDatabaseManipulator)
   private
-    FId: String;
-  published
-    [Size(50)]
-    property Id: String read FId write FId;
-  end;
+    FFunctionDefaultValueCalled: Boolean;
+    FFunctionFieldTypeCalled: Boolean;
+    FFunctionSpecialTypeCalled: Boolean;
+    FManipulador: IDatabaseManipulator;
 
-  TMyAnotherForeignKeyClass = class
-  private
-    FId: Integer;
-  published
-    property Id: Integer read FId write FId;
-  end;
-
-  [Index('MyIndex', 'AnotherForeignKey')]
-  [Index('MyIndex2', 'AnotherForeignKey')]
-  [Index('MyIndex3', 'ForeignKey;AnotherForeignKey')]
-  [Index('MyIndex4', 'ForeignKey')]
-  [UniqueKey('UniqueKey', 'Id')]
-  TMyClass = class
-  private
-    FAnotherForeignKey: TMyAnotherForeignKeyClass;
-    FForeignKey: TMyForeignKeyClass;
-    FForeignKey2: TMyForeignKeyClass;
-    FId: String;
-  published
-    property AnotherForeignKey: TMyAnotherForeignKeyClass read FAnotherForeignKey write FAnotherForeignKey;
-    property Id: String read FId write FId;
-    property ForeignKey: TMyForeignKeyClass read FForeignKey write FForeignKey;
-    property ForeignKey2: TMyForeignKeyClass read FForeignKey2 write FForeignKey2;
-  end;
-
-  TMyEnumerator = (meOne, meTwo, meThree);
-
-  TMyClassWithAllFieldsType = class
-  private
-    FBigint: Int64;
-    FBoolean: Boolean;
-    FByte: Byte;
-    FChar: Char;
-    FDate: TDate;
-    FDateTime: TDateTime;
-    FDefaultField: String;
-    FEnumerator: TMyEnumerator;
-    FFloat: Double;
-    FInteger: Integer;
-    FSmallint: Word;
-    FText: String;
-    FTime: TTime;
-    FUniqueIdentifier: String;
-    FVarChar: String;
-    FNullField: Nullable<Integer>;
-    FDefaultInternalFunction: String;
-  published
-    property Boolean: Boolean read FBoolean write FBoolean;
-    property Bigint: Int64 read FBigint write FBigint;
-    property Byte: Byte read FByte write FByte;
-    property Char: Char read FChar write FChar;
-    [CurrentDate]
-    property Date: TDate read FDate write FDate;
-    [CurrentDateTime]
-    property DateTime: TDateTime read FDateTime write FDateTime;
-    [FieldInfo(10)]
-    [NewGuid]
-    property DefaultField: String read FDefaultField write FDefaultField;
-    [FieldInfo(10)]
-    [NewUniqueIdentifier]
-    property DefaultInternalFunction: String read FDefaultInternalFunction write FDefaultInternalFunction;
-    property Enumerator: TMyEnumerator read FEnumerator write FEnumerator;
-    [FieldInfo(10, 5)]
-    property Float: Double read FFloat write FFloat;
-    [Sequence('Integer')]
-    property Integer: Integer read FInteger write FInteger;
-    property NullField: Nullable<Integer> read FNullField write FNullField;
-    property Smallint: Word read FSmallint write FSmallint;
-    [FieldInfo(stText)]
-    property Text: String read FText write FText;
-    [CurrentTime]
-    property Time: TTime read FTime write FTime;
-    [FieldInfo(stUniqueIdentifier)]
-    [NewUniqueIdentifier]
-    property UniqueIdentifier: String read FUniqueIdentifier write FUniqueIdentifier;
-    [FieldInfo(150)]
-    [NewUniqueIdentifier]
-    property VarChar: String read FVarChar write FVarChar;
-  end;
-
-  TClassWithSequence = class
-  private
-    FId: Integer;
-    FSequence: String;
-  published
-    property Id: Integer read FId write FId;
-    [Sequence('MySequence')]
-    property Sequence: String read FSequence write FSequence;
-    [Sequence('AnotherSequence')]
-    property AnotherSequence: String read FSequence write FSequence;
+    function CreateSequence(const Sequence: TSequence): String;
+    function DropSequence(const Sequence: TDatabaseSequence): String;
+    function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
+    function GetFieldType(const Field: TField): String;
+    function GetSchemaTablesScripts: TArray<String>;
+    function GetSpecialFieldType(const Field: TField): String;
+    function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
+    function MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
+  public
+    constructor Create;
   end;
 
 implementation
 
-uses System.Rtti, Translucent, Translucent.Intf, Persisto.Test.Entity, Persisto.Test.Connection;
+uses System.Rtti, Persisto.Test.Entity, Persisto.Test.Connection;
 
 { TDatabaseSchemaUpdaterTest }
 
@@ -559,6 +480,14 @@ begin
     end);
 end;
 
+procedure TDatabaseSchemaUpdaterTest.LoadSchemaTables;
+begin
+  var Manipulator := CreateDatabaseManipulator;
+
+  for var SQL in Manipulator.GetSchemaTablesScripts do
+    FManager.ExectDirect(SQL);
+end;
+
 procedure TDatabaseSchemaUpdaterTest.OnlyTheFieldThatTheSizeMatterMustBeRecreated;
 begin
 //  FOnSchemaLoad :=
@@ -737,47 +666,16 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenCreateAFieldMustLoadTheFieldInfoTypeFromTheManipulador;
 begin
-  var FunctionDefaultValueCalled := False;
-  var FunctionFieldTypeCalled := False;
-  var FunctionSpecialTypeCalled := False;
-  var Manipulator := CreateDatabaseManipulator;
-  var ManipulatorMock := TMock.CreateInterface<IDatabaseManipulator>;
+  var Manipulator := TDatabaseManiupulatorMock.Create;
+  var Manager := TManager.Create(CreateConnection, Manipulator);
 
-  var Manager := TManager.Create(CreateConnection, ManipulatorMock.Instance);
   Manager.Mapper.GetTable(TMyClassWithAllFieldsType);
-
-  ManipulatorMock.Setup.WillExecute(
-    function(const Args: TArray<TValue>): TValue
-    begin
-      FunctionFieldTypeCalled := True;
-      Result := Manipulator.GetFieldType(Args[1].AsType<TField>);
-    end).When.GetFieldType(It.IsAny<TField>);
-
-  ManipulatorMock.Setup.WillExecute(
-    function(const Args: TArray<TValue>): TValue
-    begin
-      FunctionSpecialTypeCalled := True;
-      Result := Manipulator.GetSpecialFieldType(Args[1].AsType<TField>);
-    end).When.GetSpecialFieldType(It.IsAny<TField>);
-
-  ManipulatorMock.Setup.WillExecute(
-    function(const Args: TArray<TValue>): TValue
-    begin
-      FunctionDefaultValueCalled := True;
-      Result := Manipulator.GetDefaultValue(Args[1].AsType<TDefaultConstraint>);
-    end).When.GetDefaultValue(It.IsAny<TDefaultConstraint>);
-
-  ManipulatorMock.Setup.WillExecute(
-    function: TValue
-    begin
-      Result := TValue.From(Manipulator.GetSchemaTablesScripts);
-    end).When.GetSchemaTablesScripts;
 
   Manager.UpdateDatabaseSchema;
 
-  Assert.IsTrue(FunctionFieldTypeCalled, 'Field Type Isn''t Called');
-  Assert.IsTrue(FunctionSpecialTypeCalled, 'Special Field Type Isn''t Called');
-  Assert.IsTrue(FunctionDefaultValueCalled, 'Default Value Isn''t Called');
+  Assert.IsTrue(Manipulator.FFunctionFieldTypeCalled, 'Field Type Isn''t Called');
+  Assert.IsTrue(Manipulator.FFunctionSpecialTypeCalled, 'Special Field Type Isn''t Called');
+  Assert.IsTrue(Manipulator.FFunctionDefaultValueCalled, 'Default Value Isn''t Called');
 
   Manager.Free;
 end;
@@ -1426,32 +1324,34 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheSequenceNotExistsInDatabaseMustBeCreated;
 begin
-//  FOnSchemaLoad :=
-//    procedure
-//    begin
-//      FDatabaseSchema.Sequences.Remove(FDatabaseSchema.Sequence['MySequence']);
-//    end;
-//
-//  FMetadataManipulator.Expect.Once.When.CreateSequence(It.IsAny<TSequence>);
-//
-//  FDatabaseMetadataUpdate.UpdateDatabase;
-//
-//  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+  FManager.UpdateDatabaseSchema;
+
+  LoadSchemaTables;
+
+  var Sequence := FManager.Select.All.From<TDatabaseSequence>.Where(Field('Name') = 'MySequence').Open.One;
+
+  Assert.IsNotNull(Sequence);
+
+  Assert.AreEqual('MySequence', Sequence.Name)
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheSequenceNotExistsInTheMapperMustBeDroped;
 begin
-//  FOnSchemaLoad :=
-//    procedure
-//    begin
-//      FDatabaseSchema.Sequences.Add(TDatabaseSequence.Create('AnySequence'));
-//    end;
-//
-//  FMetadataManipulator.Expect.Once.When.DropSequence(It.IsAny<TDatabaseSequence>);
-//
-//  FDatabaseMetadataUpdate.UpdateDatabase;
-//
-//  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+  FManager.UpdateDatabaseSchema;
+
+  var Sequence := TSequence.Create('AnySequence');
+
+  FManager.ExectDirect(CreateDatabaseManipulator.CreateSequence(Sequence));
+
+  Sequence.Free;
+
+  FManager.UpdateDatabaseSchema;
+
+  LoadSchemaTables;
+
+  var DatabaseSequence := FManager.Select.All.From<TDatabaseSequence>.Where(Field('Name') = 'AnySequence').Open.One;
+
+  Assert.IsNull(DatabaseSequence);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheSizeOfTheFieldWasChangedMustRecreateTheField;
@@ -1533,6 +1433,58 @@ begin
 //  Assert.IsNull(MySchema.Table['Any Table Name']);
 //
 //  MySchema.Free;
+end;
+
+{ TDatabaseManiupulatorMock }
+
+constructor TDatabaseManiupulatorMock.Create;
+begin
+  inherited;
+
+  FManipulador := CreateDatabaseManipulator;
+end;
+
+function TDatabaseManiupulatorMock.CreateSequence(const Sequence: TSequence): String;
+begin
+  Result := FManipulador.CreateSequence(Sequence);
+end;
+
+function TDatabaseManiupulatorMock.DropSequence(const Sequence: TDatabaseSequence): String;
+begin
+  Result := FManipulador.DropSequence(Sequence);
+end;
+
+function TDatabaseManiupulatorMock.GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
+begin
+  FFunctionDefaultValueCalled := True;
+  Result := FManipulador.GetDefaultValue(DefaultConstraint);
+end;
+
+function TDatabaseManiupulatorMock.GetFieldType(const Field: TField): String;
+begin
+  FFunctionFieldTypeCalled := True;
+  Result := FManipulador.GetFieldType(Field);
+end;
+
+function TDatabaseManiupulatorMock.GetSchemaTablesScripts: TArray<String>;
+begin
+  Result := FManipulador.GetSchemaTablesScripts;
+end;
+
+function TDatabaseManiupulatorMock.GetSpecialFieldType(const Field: TField): String;
+begin
+  FFunctionSpecialTypeCalled := True;
+  Result := FManipulador.GetSpecialFieldType(Field);
+end;
+
+function TDatabaseManiupulatorMock.MakeInsertStatement(const Table: TTable; const Params: TParams): String;
+begin
+  Result := FManipulador.MakeInsertStatement(Table, Params);
+end;
+
+function TDatabaseManiupulatorMock.MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
+begin
+  Result := FManipulador.MakeUpdateStatement(Table, Params);
 end;
 
 end.

@@ -7,7 +7,6 @@ uses Persisto, Persisto.Mapping;
 type
   TDatabaseManipulatorPostgreSQL = class(TDatabaseManipulator, IDatabaseManipulator)
   private
-    function CreateSequence(const Sequence: TSequence): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
     function GetFieldType(const Field: TField): String;
     function GetSchemaTablesScripts: TArray<String>;
@@ -20,11 +19,6 @@ implementation
 uses System.SysUtils;
 
 { TDatabaseManipulatorPostgreSQL }
-
-function TDatabaseManipulatorPostgreSQL.CreateSequence(const Sequence: TSequence): String;
-begin
-
-end;
 
 function TDatabaseManipulatorPostgreSQL.GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
 const
@@ -59,6 +53,7 @@ end;
 function TDatabaseManipulatorPostgreSQL.GetSchemaTablesScripts: TArray<String>;
 begin
   Result := [
+      'create or replace temp view PersistoDatabaseSequence as (select sequence_name Id, sequence_name Name from information_schema.sequences)',
       'create or replace temp view PersistoDatabaseTable as (select table_name Id, table_name Name from information_schema.tables)',
       'create or replace temp view PersistoDatabaseTableField as (select table_name || ''#'' || column_name Id, table_name IdTable, column_name Name from information_schema.columns)'
     ];

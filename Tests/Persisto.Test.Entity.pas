@@ -51,6 +51,8 @@ type
     FSequence: Integer;
   published
     property Id: Integer read FId write FId;
+    [Sequence('AnotherSequence')]
+    property AnotherSequence: Integer read FSequence write FSequence;
     [Sequence('MySequence')]
     property Sequence: Integer read FSequence write FSequence;
   end;
@@ -1017,6 +1019,59 @@ type
     [NewUniqueIdentifier, Size(50)]
     property Id: String read FId write FId;
     property CallBack: TStackOverflowClass read GetCallBack write FCallBack;
+  end;
+
+  TMyClassWithAllFieldsType = class
+  private
+    FBigint: Int64;
+    FBoolean: Boolean;
+    FByte: Byte;
+    FChar: Char;
+    FDate: TDate;
+    FDateTime: TDateTime;
+    FDefaultField: String;
+    FEnumerator: TMyEnumerator;
+    FFloat: Double;
+    FInteger: Integer;
+    FSmallint: Word;
+    FText: String;
+    FTime: TTime;
+    FUniqueIdentifier: String;
+    FVarChar: String;
+    FNullField: Nullable<Integer>;
+    FDefaultInternalFunction: String;
+  published
+    property Boolean: Boolean read FBoolean write FBoolean;
+    property Bigint: Int64 read FBigint write FBigint;
+    property Byte: Byte read FByte write FByte;
+    property Char: Char read FChar write FChar;
+    [CurrentDate]
+    property Date: TDate read FDate write FDate;
+    [CurrentDateTime]
+    property DateTime: TDateTime read FDateTime write FDateTime;
+    [FieldInfo(10)]
+    [NewGuid]
+    property DefaultField: String read FDefaultField write FDefaultField;
+    [FieldInfo(10)]
+    [NewUniqueIdentifier]
+    property DefaultInternalFunction: String read FDefaultInternalFunction write FDefaultInternalFunction;
+    property Enumerator: TMyEnumerator read FEnumerator write FEnumerator;
+    [FieldInfo(10, 5)]
+    property Float: Double read FFloat write FFloat;
+    [Sequence('Integer')]
+    property Integer: Integer read FInteger write FInteger;
+    property NullField: Nullable<Integer> read FNullField write FNullField;
+    property Smallint: Word read FSmallint write FSmallint;
+    [FieldInfo(stText)]
+    property Text: String read FText write FText;
+    [CurrentTime]
+    property Time: TTime read FTime write FTime;
+    [FieldInfo(stUniqueIdentifier)]
+    [NewUniqueIdentifier]
+    property UniqueIdentifier: String read FUniqueIdentifier write FUniqueIdentifier;
+    [FieldInfo(150)]
+    [NewUniqueIdentifier]
+    property VarChar: String read FVarChar write FVarChar;
   end;
 
 implementation

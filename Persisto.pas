@@ -54,25 +54,24 @@ type
 
   IDatabaseManipulator = interface
     ['{7ED4F3DE-1C13-4CF3-AE3C-B51386EA271F}']
-    function CreateField(const Field: TField): String;
-    function CreateForeignKey(const ForeignKey: TForeignKey): String;
-    function CreateIndex(const Index: TIndex): String;
+//    function CreateField(const Field: TField): String;
+//    function CreateForeignKey(const ForeignKey: TForeignKey): String;
+//    function CreateIndex(const Index: TIndex): String;
     function CreateSequence(const Sequence: TSequence): String;
-    function CreateTempField(const Field: TField): String;
-    function DropDefaultConstraint(const Field: TDatabaseField): String;
-    function DropField(const Field: TDatabaseField): String;
-    function DropForeignKey(const ForeignKey: TDatabaseForeignKey): String;
-    function DropIndex(const Index: TDatabaseIndex): String;
+//    function CreateTempField(const Field: TField): String;
+//    function DropDefaultConstraint(const Field: TDatabaseField): String;
+//    function DropField(const Field: TDatabaseField): String;
+//    function DropForeignKey(const ForeignKey: TDatabaseForeignKey): String;
+//    function DropIndex(const Index: TDatabaseIndex): String;
     function DropSequence(const Sequence: TDatabaseSequence): String;
-    function DropTable(const Table: TDatabaseTable): String;
+//    function DropTable(const Table: TDatabaseTable): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
     function GetFieldType(const Field: TField): String;
     function GetSchemaTablesScripts: TArray<String>;
     function GetSpecialFieldType(const Field: TField): String;
     function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
     function MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
-    function RenameField(const Current, Destiny: TField): String;
-    function UpdateField(const SourceField, DestinyField: TField): String;
+//    function UpdateField(const SourceField, DestinyField: TField): String;
   end;
 
   EFieldNotInCurrentSelection = class(Exception)
@@ -682,10 +681,13 @@ type
     property Check: String read FCheck write FCheck;
   end;
 
+  [TableName('PersistoDatabaseSequence')]
   TDatabaseSequence = class
   private
     FName: String;
+    FId: String;
   published
+    property Id: String read FId write FId;
     property Name: String read FName write FName;
   end;
 
@@ -717,6 +719,7 @@ type
     function CreateField(const Field: TField): String;
     function CreateForeignKey(const ForeignKey: TForeignKey): String;
     function CreateIndex(const Index: TIndex): String;
+    function CreateSequence(const Sequence: TSequence): String;
     function CreateTempField(const Field: TField): String;
     function DropDefaultConstraint(const Field: TDatabaseField): String;
     function DropField(const Field: TDatabaseField): String;
@@ -1083,9 +1086,8 @@ begin
     Field.FDefaultConstraint.DatabaseName := Format('DF_%s_%s', [Field.Table.DatabaseName, Field.DatabaseName]);
 
     if Attribute is SequenceAttribute then
-      Field.FDefaultConstraint.Sequence := CreateSequence(SequenceAttribute(Attribute).Name);
-
-    if Attribute is FixedValueAttribute then
+      Field.FDefaultConstraint.Sequence := CreateSequence(SequenceAttribute(Attribute).Name)
+    else if Attribute is FixedValueAttribute then
       Field.FDefaultConstraint.FixedValue := FixedValueAttribute(Attribute).Value;
   end;
 end;
@@ -2429,7 +2431,7 @@ end;
 
 procedure TDatabaseSchemaUpdater.DropForeignKey(const DatabaseForeignKey: TDatabaseForeignKey);
 begin
-  FDatabaseManipulator.DropForeignKey(DatabaseForeignKey);
+//  FDatabaseManipulator.DropForeignKey(DatabaseForeignKey);
 //
 //  DatabaseForeignKey.Table.ForeignKeys.Remove(DatabaseForeignKey);
 end;
@@ -2490,13 +2492,13 @@ begin
     TempField.Size := Field.Size;
     TempField.SpecialType := Field.SpecialType;
 
-    FDatabaseManipulator.CreateTempField(TempField);
+//    FDatabaseManipulator.CreateTempField(TempField);
+//
+//    FDatabaseManipulator.UpdateField(Field, TempField);
+//
+//    DropField(DatabaseField);
 
-    FDatabaseManipulator.UpdateField(Field, TempField);
-
-    DropField(DatabaseField);
-
-    FDatabaseManipulator.RenameField(TempField, Field);
+//    FDatabaseManipulator.RenameField(TempField, Field);
 
     TempField.Free;
   except
@@ -2509,18 +2511,17 @@ procedure TDatabaseSchemaUpdater.UpdateDatabase;
 var
   Comparer: TOrdinalIStringComparer;
   DatabaseField: TDatabaseField;
-  DatabaseForeignKey: TDatabaseForeignKey;
-  DatabaseIndex: TDatabaseIndex;
   DatabaseSequence: TDatabaseSequence;
+  DatabaseSequences: TDictionary<String, TDatabaseSequence>;
   DatabaseTable: TDatabaseTable;
   DatabaseTableFields: TDictionary<String, TDatabaseField>;
   DatabaseTables: TDictionary<String, TDatabaseTable>;
   Field: TField;
-  ForeignKey: TForeignKey;
-  Index: TIndex;
   Sequence: TSequence;
+  Sequences: TDictionary<String, TSequence>;
   SQL: TStringBuilder;
   Table: TTable;
+  Tables: TDictionary<String, TTable>;
 
   procedure ExecuteDirect(const SQL: String);
   begin
@@ -2626,7 +2627,7 @@ var
     if Assigned(DatabaseIndex) then
       DropIndex(DatabaseIndex);
 
-    FDatabaseManipulator.CreateIndex(Index);
+//    FDatabaseManipulator.CreateIndex(Index);
   end;
 
   function GetPrimaryKeyDatabaseIndex: TDatabaseIndex;
@@ -2745,6 +2746,16 @@ var
     ExecuteSQL;
   end;
 
+  procedure CreateSequence;
+  begin
+    ExecuteDirect(FDatabaseManipulator.CreateSequence(Sequence));
+  end;
+
+  procedure DropSequence;
+  begin
+    ExecuteDirect(FDatabaseManipulator.DropSequence(DatabaseSequence));
+  end;
+
   procedure LoadDatabaseTableFields;
   begin
     DatabaseTableFields.Clear;
@@ -2757,9 +2768,22 @@ var
   begin
     DatabaseTableFields := TDictionary<String, TDatabaseField>.Create(Comparer);
     DatabaseTables := TDictionary<String, TDatabaseTable>.Create(Comparer);
+    Tables := TDictionary<String, TTable>.Create(Comparer);
 
     for var DatabaseTable in FManagerSchema.Select.All.From<TDatabaseTable>.Open.All do
       DatabaseTables.Add(DatabaseTable.Name, DatabaseTable);
+  end;
+
+  procedure LoadSequences;
+  begin
+    DatabaseSequences := TDictionary<String, TDatabaseSequence>.Create(Comparer);
+    Sequences := TDictionary<String, TSequence>.Create(Comparer);
+
+    for var DatabaseSequence in FManagerSchema.Select.All.From<TDatabaseSequence>.Open.All do
+      DatabaseSequences.Add(DatabaseSequence.Name, DatabaseSequence);
+
+    for var Sequence in FManager.Mapper.Sequences do
+      Sequences.Add(Sequence.Name, Sequence);
   end;
 
 begin
@@ -2770,9 +2794,11 @@ begin
 
   LoadDatabaseTables;
 
-//  for Sequence in FManager.Mapper.Sequences do
-//    if not Assigned(Schema.Sequence[Sequence.Name]) then
-//      FDatabaseManipulator.CreateSequence(Sequence);
+  LoadSequences;
+
+  for Sequence in Sequences.Values do
+    if not DatabaseSequences.TryGetValue(Sequence.Name, DatabaseSequence) then
+      CreateSequence;
 
   for Table in FManager.Mapper.Tables do
     if not DatabaseTables.TryGetValue(Table.DatabaseName, DatabaseTable) then
@@ -2785,9 +2811,7 @@ begin
 
       for Field in Table.Fields do
         if not DatabaseTableFields.TryGetValue(Field.DatabaseName, DatabaseField) then
-        begin
           CreateField;
-        end;
 
 //        if not Field.IsManyValueAssociation then
 //        begin
@@ -2892,12 +2916,20 @@ begin
 //    else
 //      DropTable(DatabaseTable);
 //
-//    if not Assigned(FManager.Mapper.FindSequence(DatabaseSequence.Name)) then
-//      FDatabaseManipulator.DropSequence(DatabaseSequence);
-//
+
+  for DatabaseSequence in DatabaseSequences.Values do
+    if not Sequences.ContainsKey(DatabaseSequence.Name) then
+      DropSequence;
+
   DatabaseTables.Free;
 
   DatabaseTableFields.Free;
+
+  DatabaseSequences.Free;
+
+  Sequences.Free;
+
+  Tables.Free;
 
   SQL.Free;
 
@@ -2934,6 +2966,11 @@ begin
 //    ExecuteDirect(Format('create %sindex %s on %s (%s)', [CheckUniqueIndex, Index.DatabaseName, Index.Table.DatabaseName, GetFieldList(Index.Fields)]));
 end;
 
+function TDatabaseManipulator.CreateSequence(const Sequence: TSequence): String;
+begin
+  Result := Format('create sequence %s', [Sequence.Name]);
+end;
+
 function TDatabaseManipulator.CreateTempField(const Field: TField): String;
 begin
   CreateField(Field);
@@ -2961,7 +2998,7 @@ end;
 
 function TDatabaseManipulator.DropSequence(const Sequence: TDatabaseSequence): String;
 begin
-//  ExecuteDirect(Format('drop sequence %s', [Sequence.Name]));
+  Result := Format('drop sequence %s', [Sequence.Name]);
 end;
 
 function TDatabaseManipulator.DropTable(const Table: TDatabaseTable): String;
