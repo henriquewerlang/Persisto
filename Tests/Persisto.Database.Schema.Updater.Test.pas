@@ -33,6 +33,8 @@ type
     [Test]
     procedure IfTheTableExistsInTheDatabaseMustCreateTheFieldThatDontExists;
     [Test]
+    procedure WhenAddAFieldToATableCantAddTheManyValueAssociationField;
+    [Test]
     procedure IfTheForeignKeyNotExistsInTheDatabaseMustBeCreated;
     [Test]
     procedure IfTheForeignKeyExistsInDatabaseButTheFieldHasADifferentNameMustRecreateTheForeignKey;
@@ -124,8 +126,6 @@ type
     procedure OnlyTheFloatFieldMustCheckThePrecisionChange;
     [Test]
     procedure WhenRemoveTheDefualtConstraintOfAFieldCantTryToCreateTheDefualtConstraintAgain;
-    [Test]
-    procedure WhenTheFieldIsManyValueAssociationCantCreateThisTypeOfField;
     [Test]
     procedure WhenTheFieldIsBooleanTypeCantBeRecreatedAllTheTime;
     [Test]
@@ -615,6 +615,19 @@ begin
 //  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
 end;
 
+procedure TDatabaseSchemaUpdaterTest.WhenAddAFieldToATableCantAddTheManyValueAssociationField;
+begin
+  FManager.ExectDirect('create table ManyValueParentError (Id int)');
+
+  FManager.UpdateDatabaseSchema;
+
+  var Cursor := FManager.OpenCursor('select * from ManyValueParentError');
+
+  Cursor.Next;
+
+  Assert.IsNull(Cursor.GetDataSet.FindField('Childs'));
+end;
+
 procedure TDatabaseSchemaUpdaterTest.WhenAnIndexBecameUniqueMustRecreateTheIndex;
 begin
 //  FOnSchemaLoad :=
@@ -655,7 +668,7 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenComparingNamesOfTablesMustBeCaseInsensitivityTheComparision;
 begin
-  FManager.ExectDirect('create table manyvalueparenterror (id varchar(10))');
+  FManager.ExectDirect('create table manyvalueparenterror (id int)');
 
   Assert.WillNotRaise(
     procedure
@@ -1167,15 +1180,6 @@ end;
 procedure TDatabaseSchemaUpdaterTest.WhenTheFieldIsBooleanTypeCantBeRecreatedAllTheTime;
 begin
 //  FMetadataManipulator.Expect.Never.When.UpdateField(It.IsAny<TField>, It.IsEqualTo(FMapper.GetTable(TMyClassWithAllFieldsType).Field['Boolean']));
-//
-//  FDatabaseMetadataUpdate.UpdateDatabase;
-//
-//  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
-end;
-
-procedure TDatabaseSchemaUpdaterTest.WhenTheFieldIsManyValueAssociationCantCreateThisTypeOfField;
-begin
-//  FMetadataManipulator.Expect.Never.When.CreateField(It.IsEqualTo(FMapper.GetTable(TMyEntityWithManyValueAssociation).Field['ManyValueAssociationList']));
 //
 //  FDatabaseMetadataUpdate.UpdateDatabase;
 //

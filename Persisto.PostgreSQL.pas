@@ -54,8 +54,8 @@ function TDatabaseManipulatorPostgreSQL.GetSchemaTablesScripts: TArray<String>;
 begin
   Result := [
       'create or replace temp view PersistoDatabaseSequence as (select sequence_name Id, sequence_name Name from information_schema.sequences)',
-      'create or replace temp view PersistoDatabaseTable as (select table_name Id, table_name Name from information_schema.tables)',
-      'create or replace temp view PersistoDatabaseTableField as (select table_name || ''#'' || column_name Id, table_name IdTable, column_name Name from information_schema.columns)'
+      'create or replace temp view PersistoDatabaseTable as (select table_name Id, table_name Name from information_schema.tables where table_schema = ''public'')',
+      'create or replace temp view PersistoDatabaseTableField as (select cast(table_name || ''#'' || column_name as varchar(500)) Id, table_name IdTable, column_name Name from information_schema.columns where table_schema = ''public'')'
     ];
 end;
 
