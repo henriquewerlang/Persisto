@@ -766,7 +766,7 @@ begin
 
   FMapper.AddDefaultRecord(MyClass);
 
-  Assert.AreEqual(1, Table.DefaultRecords.Count);
+  Assert.AreEqual<NativeInt>(1, Table.DefaultRecords.Count);
 
   MyClass.Free;
 end;
