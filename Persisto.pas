@@ -2712,7 +2712,7 @@ var
 
     SQL.Append(Table.DatabaseName);
 
-    SQL.Append(' add column ');
+    SQL.Append(' add ');
 
     BuildFieldDefinition(Field);
 

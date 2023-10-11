@@ -70,7 +70,8 @@ begin
   Connection.Connection.Params.Password := GetEnvironmentVariable('SQLSERVER_PASSWORD');
   Connection.Connection.Params.UserName := GetEnvironmentVariable('SQLSERVER_USERNAME');
 
-//  Connection.Connection.Params.AddPair(S_FD_ConnParam_Common_OSAuthent, BoolToStr(GetEnvironmentVariable('SQLSERVER_OSAUTHENTICATION').ToLower.StartsWith('true'), True));
+  Connection.Connection.Params.AddPair(S_FD_ConnParam_Common_Server, GetEnvironmentVariable('SQLSERVER_HOST'));
+  Connection.Connection.Params.AddPair(S_FD_ConnParam_Common_OSAuthent, GetEnvironmentVariable('SQLSERVER_OSAUTHENTICATION'));
 
   if Connection.Connection.Params.UserName.IsEmpty and Connection.Connection.Params.Password.IsEmpty then
     raise ESQLServerConfigurationError.Create;
@@ -167,7 +168,7 @@ end;
 
 constructor ESQLServerConfigurationError.Create;
 begin
-  inherited Create('To the SQL Server connection work, you must create a environment SQLSERVER_USERNAME, SQLSERVER_PASSWORD and SQLSERVER_OSAUTHENTICATION and fill with login information!');
+  inherited Create('To the SQL Server connection work, you must create a environment SQLSERVER_HOST, SQLSERVER_USERNAME, SQLSERVER_PASSWORD and SQLSERVER_OSAUTHENTICATION and fill with login information!');
 end;
 {$ENDIF}
 

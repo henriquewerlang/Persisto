@@ -33,9 +33,9 @@ type
     FSequence: Integer;
     FValue: String;
   published
-    [NewUniqueIdentifier, Size(150)]
+    [NewUniqueIdentifier, UniqueIdentifier]
     property Id: String read FId write FId;
-    [NewUniqueIdentifier, Size(150)]
+    [NewUniqueIdentifier, UniqueIdentifier]
     property AnotherField: String read FAnotherField write FAnotherField;
     [FixedValue('''MyValue'''), Size(150)]
     property FixedValue: String read FFixedValue write FFixedValue;
@@ -610,7 +610,7 @@ type
     FId: String;
     FLazyArrayClass: Lazy<TLazyArrayClass>;
   published
-    [NewUniqueIdentifier, Size(150)]
+    [NewUniqueIdentifier, UniqueIdentifier]
     property Id: String read FId write FId;
     property LazyArrayClass: Lazy<TLazyArrayClass> read FLazyArrayClass write FLazyArrayClass;
   end;
@@ -677,7 +677,7 @@ type
     FId: String;
     FParent: TManyValueParent;
   published
-    [NewUniqueIdentifier, Size(150)]
+    [NewUniqueIdentifier, UniqueIdentifier]
     property Id: String read FId write FId;
     property Parent: TManyValueParent read FParent write FParent;
   end;
@@ -737,7 +737,7 @@ type
 
     function GetParent: TManyValueParentError;
   published
-    [NewUniqueIdentifier, Size(150)]
+    [NewUniqueIdentifier, UniqueIdentifier]
     property Id: String read FId write FId;
     property ManyValueParentError: TManyValueParentError read GetParent write FParent;
   end;
@@ -1018,7 +1018,7 @@ type
 
     function GetCallBack: TStackOverflowClass;
   published
-    [NewUniqueIdentifier, Size(50)]
+    [NewUniqueIdentifier, UniqueIdentifier]
     property Id: String read FId write FId;
     property CallBack: TStackOverflowClass read GetCallBack write FCallBack;
   end;
@@ -1051,28 +1051,24 @@ type
     property Date: TDate read FDate write FDate;
     [CurrentDateTime]
     property DateTime: TDateTime read FDateTime write FDateTime;
-    [FieldInfo(10)]
-    [NewGuid]
+    [NewGuid, Size(30)]
     property DefaultField: String read FDefaultField write FDefaultField;
-    [FieldInfo(10)]
-    [NewUniqueIdentifier]
+    [NewUniqueIdentifier, UniqueIdentifier]
     property DefaultInternalFunction: String read FDefaultInternalFunction write FDefaultInternalFunction;
     property Enumerator: TMyEnumerator read FEnumerator write FEnumerator;
-    [FieldInfo(10, 5)]
+    [Precision(10, 5)]
     property Float: Double read FFloat write FFloat;
     [Sequence('Integer')]
     property Integer: Integer read FInteger write FInteger;
     property NullField: Nullable<Integer> read FNullField write FNullField;
     property Smallint: Word read FSmallint write FSmallint;
-    [FieldInfo(stText)]
+    [Text]
     property Text: String read FText write FText;
     [CurrentTime]
     property Time: TTime read FTime write FTime;
-    [FieldInfo(stUniqueIdentifier)]
-    [NewUniqueIdentifier]
+    [NewUniqueIdentifier, UniqueIdentifier]
     property UniqueIdentifier: String read FUniqueIdentifier write FUniqueIdentifier;
-    [FieldInfo(150)]
-    [NewUniqueIdentifier]
+    [NewUniqueIdentifier, UniqueIdentifier]
     property VarChar: String read FVarChar write FVarChar;
   end;
 
