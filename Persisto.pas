@@ -1401,7 +1401,7 @@ end;
 
 function TField.GetLazyValue(const Instance: TObject): ILazyValue;
 begin
-  Result := PropertyInfo.PropertyType.GetMethod('GetLazyValue').Invoke(GetPropertyValue(Instance), []).AsType<ILazyValue>;
+  Result := PropertyInfo.PropertyType.GetMethod('GetLazyValue').Invoke(TValue.From(GetRawPointerOfProperty(Instance)), []).AsType<ILazyValue>;
 end;
 
 function TField.GetNullValue(const Instance: TObject): TValue;

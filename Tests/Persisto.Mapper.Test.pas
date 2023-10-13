@@ -307,6 +307,8 @@ type
     procedure WhenFillTheLazyValueFromAFieldMustLoadTheFieldValueOfTheLazyRecord;
     [Test]
     procedure WhenLoadALazyFieldMustLoadTheLazyTypeInfoAsExpected;
+    [Test]
+    procedure WhenFillTheObjectOfALazyFieldMustReturnTheValueWhenGetTheValueAgain;
   end;
 
 implementation
@@ -881,6 +883,25 @@ begin
   Assert.AreEqual(1234, MyClass.Lazy.LazyValue.Key.AsInteger);
 
   MyClass.Free;
+end;
+
+procedure TMapperTest.WhenFillTheObjectOfALazyFieldMustReturnTheValueWhenGetTheValueAgain;
+begin
+  var MyClass := TLazyClass.Create;
+  var MyEntity := TMyEntity.Create;
+  var Table := FMapper.GetTable(MyClass.ClassType);
+
+  var LazyValue := Table.Field['Lazy'].LazyValue[MyClass];
+
+  LazyValue.Value := MyEntity;
+
+  LazyValue := nil;
+
+  Assert.AreEqual<TObject>(MyEntity, Table.Field['Lazy'].LazyValue[MyClass].Value.AsObject);
+
+  MyClass.Free;
+
+  MyEntity.Free;
 end;
 
 procedure TMapperTest.WhenGetTheLazyValueFromAFieldMustReturnTheInternalInstanceOfTheInterface;
