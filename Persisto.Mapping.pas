@@ -142,6 +142,7 @@ type
     function GetValueAsync: TValue; virtual; abstract; async;
 {$ENDIF}
     procedure SetValue(const Value: TValue); {$IFDEF PAS2JS} virtual; abstract; {$ENDIF}
+
     property Key: TValue read GetKey;
     property Value: TValue read GetValue write SetValue;
   end;

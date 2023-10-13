@@ -612,6 +612,7 @@ type
   published
     [NewUniqueIdentifier, UniqueIdentifier]
     property Id: String read FId write FId;
+    [Required]
     property LazyArrayClass: Lazy<TLazyArrayClass> read FLazyArrayClass write FLazyArrayClass;
   end;
 
