@@ -7,15 +7,12 @@ uses Persisto, Persisto.Mapping;
 type
   TDatabaseManipulatorSQLite = class(TDatabaseManipulator, IDatabaseManipulator)
   private
-    function CreateForeignKey(const ForeignKey: TForeignKey): String;
-    function CreateIndex(const Index: TIndex): String;
     function CreateSequence(const Sequence: TSequence): String;
     function DropSequence(const Sequence: TDatabaseSequence): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
     function GetFieldType(const Field: TField): String;
     function GetSchemaTablesScripts: TArray<String>;
     function GetSpecialFieldType(const Field: TField): String;
-    function RenameField(const Current, Destiny: TField): String;
   end;
 
 implementation
@@ -23,16 +20,6 @@ implementation
 uses System.SysUtils;
 
 { TDatabaseManipulatorSQLite }
-
-function TDatabaseManipulatorSQLite.CreateForeignKey(const ForeignKey: TForeignKey): String;
-begin
-
-end;
-
-function TDatabaseManipulatorSQLite.CreateIndex(const Index: TIndex): String;
-begin
-
-end;
 
 function TDatabaseManipulatorSQLite.CreateSequence(const Sequence: TSequence): String;
 begin
@@ -81,21 +68,27 @@ end;
 
 function TDatabaseManipulatorSQLite.GetSchemaTablesScripts: TArray<String>;
 const
-  TABLE_FILTER = 'T.type = ''table'' and not T.name like ''sqlite_%''';
+  FOREIGN_KEY_ID = '''FK_'' || T.name || ''_'' || FK."table" || ''_'' || FK."from"';
 
 begin
   Result := [
     'create table if not exists PersistoDatabaseSequence (id varchar(250), name varchar(250), sequence integer primary key autoincrement)',
+    'create table if not exists PersistoDatabaseForeignKey (id varchar(250), name varchar(250), IdTable varchar(250), IdReferenceTable varchar(250))',
+    'create table if not exists PersistoDatabaseForeignKeyField (id varchar(250), name varchar(250), IdForeignKey varchar(250))',
     'create table if not exists PersistoDatabaseTable (id varchar(250), name varchar(250))',
     'create table if not exists PersistoDatabaseTableField (id varchar(250), name varchar(250), IdTable varchar(250))',
 
     'delete from PersistoDatabaseSequence',
+    'delete from PersistoDatabaseForeignKey',
+    'delete from PersistoDatabaseForeignKeyField',
     'delete from PersistoDatabaseTable',
     'delete from PersistoDatabaseTableField',
 
     'insert into PersistoDatabaseSequence (name) select name from sqlite_sequence',
-    'insert into PersistoDatabaseTable (id, name) select name, name from sqlite_master T where ' + TABLE_FILTER,
-    'insert into PersistoDatabaseTableField (id, name, IdTable) select T.name || ''#'' || C.name, C.name, T.name from sqlite_master T, pragma_table_info(T.name) C where ' + TABLE_FILTER
+    'insert into PersistoDatabaseTable (id, name) select name, name from sqlite_master T where T.type = ''table'' and not T.name like ''sqlite_%''',
+    'insert into PersistoDatabaseTableField (id, name, IdTable) select T.name || ''#'' || C.name, C.name, T.name from PersistoDatabaseTable T, pragma_table_info(T.name) C',
+
+    Format('insert into PersistoDatabaseForeignKey (id, name, idReferenceTable, IdTable) select %0:s Id, %0:s name, FK."table" IdReferenceTable, T.name IdTable from PersistoDatabaseTable T, pragma_foreign_key_list(T.name) FK', [FOREIGN_KEY_ID])
   ];
 end;
 
@@ -105,11 +98,6 @@ const
 
 begin
   Result := SPECIAL_TYPE_MAPPING[Field.SpecialType];
-end;
-
-function TDatabaseManipulatorSQLite.RenameField(const Current, Destiny: TField): String;
-begin
-
 end;
 
 end.

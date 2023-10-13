@@ -11,7 +11,6 @@ type
     function GetFieldType(const Field: TField): String;
     function GetSchemaTablesScripts: TArray<String>;
     function GetSpecialFieldType(const Field: TField): String;
-    function RenameField(const Current, Destiny: TField): String;
   end;
 
 implementation
@@ -65,11 +64,6 @@ const
 
 begin
   Result := SPECIAL_TYPE_MAPPING[Field.SpecialType];
-end;
-
-function TDatabaseManipulatorPostgreSQL.RenameField(const Current, Destiny: TField): String;
-begin
-
 end;
 
 end.

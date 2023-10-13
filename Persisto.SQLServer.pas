@@ -12,7 +12,6 @@ type
     function GetSchemaTablesScripts: TArray<String>;
     function GetSpecialFieldType(const Field: TField): String;
     function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
-    function RenameField(const Current, Destiny: TField): String;
   end;
 
 implementation
@@ -106,11 +105,6 @@ begin
   Result := Result + 'values(%s)';
 
   Result := Format(Result, [Table.DatabaseName, FieldNames, ParamNames]);
-end;
-
-function TDatabaseManipulatorSQLServer.RenameField(const Current, Destiny: TField): String;
-begin
-  // ExecuteDirect(Format('exec sp_rename ''%s.%s'', ''%s'', ''column''', [Current.Table.DatabaseName, Current.DatabaseName, Destiny.DatabaseName]));
 end;
 
 end.

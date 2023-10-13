@@ -405,20 +405,15 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.IfTheForeignKeyNotExistsInTheDatabaseMustBeCreated;
 begin
-//  FOnSchemaLoad :=
-//    procedure
-//    begin
-//      RemoveForeignKey('MyClass', 'FK_MyClass_MyForeignKeyClass_IdForeignKey');
-//    end;
-//  var Table := FMapper.GetTable(TMyClass);
-//
-//  FMetadataManipulator.Expect.Never.When.CreateForeignKey(It.IsEqualTo(Table.ForeignKeys[0]));
-//
-//  FMetadataManipulator.Expect.Once.When.CreateForeignKey(It.IsEqualTo(Table.ForeignKeys[1]));
-//
-//  FDatabaseMetadataUpdate.UpdateDatabase;
-//
-//  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+  FManager.ExectDirect('create table InsertTestWithForeignKey (AnyField varchar(10))');
+
+  FManager.UpdateDatabaseSchema;
+
+  LoadSchemaTables;
+
+  var ForeignKeys := FManager.Select.All.From<TDatabaseForeignKey>.Where(Field('Table.Name') = 'InsertTestWithForeignKey').Open.All;
+
+  Assert.AreEqual<NativeInt>(2, Length(ForeignKeys));
 end;
 
 procedure TDatabaseSchemaUpdaterTest.IfTheIndexDontExistsInTheMappingClassesMustBeDropped;
