@@ -2828,11 +2828,13 @@ begin
     if not Sequences.ContainsKey(DatabaseSequence.Name) then
       DropSequence;
 
+  DatabaseForeignKeys.Free;
+
+  DatabaseSequences.Free;
+
   DatabaseTables.Free;
 
   DatabaseTableFields.Free;
-
-  DatabaseSequences.Free;
 
   Sequences.Free;
 
