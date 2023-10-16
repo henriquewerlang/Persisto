@@ -55,11 +55,51 @@ begin
 end;
 
 function TDatabaseManipulatorSQLServer.GetSchemaTablesScripts: TArray<String>;
+const
+  FOREING_KEY_SQL =
+      'select cast(object_id as varchar(20)) Id,' +
+             'name,' +
+             'cast(parent_object_id as varchar(20)) IdTable,' +
+             'cast(referenced_object_id as varchar(20)) IdReferenceTable ' +
+        'from sys.foreign_keys FK';
+
+  FOREING_KEY_COLUMS_SQL =
+      'select cast(FKC.constraint_column_id as varchar(20)) + ''.'' + cast(constraint_column_id as varchar(20)) Id,' +
+             'cast(FKC.constraint_column_id as varchar(20)) IdForeignKey,' +
+             'RC.name ' +
+        'from sys.foreign_keys FK ' +
+        'join sys.foreign_key_columns FKC ' +
+          'on FKC.constraint_object_id = FK.object_id ' +
+        'join sys.columns RC ' +
+          'on RC.object_id = FKC.referenced_object_id ' +
+         'and RC.column_id = FKC.referenced_column_id';
+
+  SEQUENCES_SQL =
+    'select cast(object_id as varchar(20)) Id,' +
+            'name ' +
+      'from sys.sequences';
+
+  TABLE_SQL =
+    'select cast(object_id as varchar(20)) Id,' +
+           'Name ' +
+      'from sys.tables';
+
+  COLUMNS_SQL =
+    'select cast(T.object_id as varchar(20)) + ''.'' + cast(column_id as varchar(500)) Id,' +
+           'cast(T.object_id as varchar(20)) IdTable,' +
+           'C.Name ' +
+      'from sys.all_columns C ' +
+      'join sys.tables T ' +
+        'on T.object_id = C.object_id';
+
+  function CreateView(const Name, SQL: String): String;
+  begin
+    Result := Format('create or alter view %s as (%s)', [Name, SQL]);
+  end;
+
 begin
-  Result := [
-    'create or alter view PersistoDatabaseSequence as (select cast(object_id as varchar(20)) Id, Name from sys.sequences)',
-    'create or alter view PersistoDatabaseTable as (select cast(object_id as varchar(20)) Id, Name from sys.tables)',
-    'create or alter view PersistoDatabaseTableField as (select cast(column_id as varchar(500)) Id, cast(T.object_id as varchar(20)) IdTable, C.Name from sys.all_columns C, sys.tables T where T.object_id = C.object_id)'
+  Result := [CreateView('PersistoDatabaseForeignKey', FOREING_KEY_SQL), CreateView('PersistoDatabaseForeignKeyField', FOREING_KEY_COLUMS_SQL),
+    CreateView('PersistoDatabaseSequence', SEQUENCES_SQL), CreateView('PersistoDatabaseTable', TABLE_SQL), CreateView('PersistoDatabaseTableField', COLUMNS_SQL)
     ];
 end;
 
