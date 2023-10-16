@@ -36,20 +36,26 @@ uses
   FireDAC.Phys.MSSQL,
   FireDAC.Stan.Consts,
   Persisto.SQLServer,
-{$ELSE}
+{$ELSEIF DEFINED(SQLITE)}
   Persisto.SQLite,
   Persisto.SQLite.Firedac.Drive,
   Persisto.SQLite.Firedac.Functions,
+{$ELSE}
+  FireDAC.Phys.IB,
+  FireDAC.Stan.Consts,
+  Persisto.Interbase,
 {$ENDIF}
   Persisto.Connection.Firedac;
 
 const
   DATABASE_NAME = 'PersistoDatabaseTest';
 
+{$IFDEF SQLITE}
 function FormatSQLiteDatabaseName(const DatabaseName: String): String;
 begin
   Result := Format('.\%s.sqlite3', [DatabaseName]);
 end;
+{$ENDIF}
 
 procedure ConfigureConnection(const Connection: TDatabaseConnectionFireDAC; const DatabaseName: String);
 begin
@@ -75,9 +81,14 @@ begin
 
   if Connection.Connection.Params.UserName.IsEmpty and Connection.Connection.Params.Password.IsEmpty then
     raise ESQLServerConfigurationError.Create;
-{$ELSE}
+{$ELSEIF DEFINED(SQLITE)}
   Connection.Connection.DriverName := 'SQLite';
   Connection.Connection.Params.Database := FormatSQLiteDatabaseName(DatabaseName);
+{$ELSE}
+  Connection.Connection.DriverName := 'IBLite';
+  Connection.Connection.Params.Database := Format('.\%s.ib', [DatabaseName]);
+
+  Connection.Connection.Params.AddPair(S_FD_ConnParam_IB_OpenMode, 'Create');
 {$ENDIF}
 end;
 
@@ -101,8 +112,10 @@ begin
   Result := TDatabaseManipulatorPostgreSQL.Create;
 {$ELSEIF DEFINED(SQLSERVER)}
   Result := TDatabaseManipulatorSQLServer.Create;
-{$ELSE}
+{$ELSEIF DEFINED(SQLITE)}
   Result := TDatabaseManipulatorSQLite.Create;
+{$ELSE}
+  Result := TDatabaseManipulatorInterbase.Create;
 {$ENDIF}
 end;
 
@@ -114,6 +127,10 @@ begin
   Connection.ExecuteDirect(Format('create database %s', [DatabaseName]));
 {$ELSEIF DEFINED(SQLSERVER)}
   var Connection := CreateConnectionNamed('master');
+
+  Connection.ExecuteDirect(Format('create database %s', [DatabaseName]));
+{$ELSE}
+  var Connection := CreateConnectionNamed(DatabaseName);
 
   Connection.ExecuteDirect(Format('create database %s', [DatabaseName]));
 {$ENDIF}
@@ -134,9 +151,13 @@ begin
   var Connection := CreateConnectionNamed('master');
 
   Connection.ExecuteDirect(Format('drop database if exists %s', [DatabaseName]));
-{$ELSE}
+{$ELSEIF DEFINED(SQLITE)}
   if TFile.Exists(FormatSQLiteDatabaseName(DatabaseName)) then
     TFile.Delete(FormatSQLiteDatabaseName(DatabaseName));
+{$ELSE}
+  var Connection := CreateConnectionNamed(DatabaseName);
+
+  Connection.ExecuteDirect(Format('drop database %s', [DatabaseName]));
 {$ENDIF}
 end;
 
