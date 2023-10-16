@@ -64,8 +64,8 @@ const
         'from sys.foreign_keys FK';
 
   FOREING_KEY_COLUMS_SQL =
-      'select cast(FKC.constraint_column_id as varchar(20)) + ''.'' + cast(constraint_column_id as varchar(20)) Id,' +
-             'cast(FKC.constraint_column_id as varchar(20)) IdForeignKey,' +
+      'select cast(FKC.constraint_object_id as varchar(20)) + ''.'' + cast(constraint_column_id as varchar(20)) Id,' +
+             'cast(FKC.constraint_object_id as varchar(20)) IdForeignKey,' +
              'RC.name ' +
         'from sys.foreign_keys FK ' +
         'join sys.foreign_key_columns FKC ' +

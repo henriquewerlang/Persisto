@@ -37,6 +37,8 @@ type
     [Test]
     procedure IfTheForeignKeyNotExistsInTheDatabaseMustBeCreated;
     [Test]
+    procedure IfTheTableDoesntExistsMustCreateAllForeignKeysOfTheTable;
+    [Test]
     procedure IfTheForeignKeyExistsInDatabaseButTheFieldHasADifferentNameMustRecreateTheForeignKey;
     [Test]
     procedure IfTheForeignKeyExistsInDatabaseButNotExistsInTheMapperTheForeignKeyMustBeRemoved;
@@ -382,25 +384,26 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.IfTheForeignKeyExistsInDatabaseButTheFieldHasADifferentNameMustRecreateTheForeignKey;
 begin
-//  var ForeignKey: TDatabaseForeignKey;
-//  var Table := FMapper.GetTable(TMyClass);
-//
-//  FOnSchemaLoad :=
-//    procedure
-//    begin
-//      var Table := FDatabaseSchema.Table['MyClass'];
-//
-//      ForeignKey := Table.ForeignKeys[0];
-//      ForeignKey.Fields[0] := Table.Field['IdForeignKey'];
-//
-//      FMetadataManipulator.Expect.Once.When.DropForeignKey(It.IsEqualTo(ForeignKey));
-//    end;
-//
-//  FMetadataManipulator.Expect.Once.When.CreateForeignKey(It.IsEqualTo(Table.ForeignKeys[0]));
-//
-//  FDatabaseMetadataUpdate.UpdateDatabase;
-//
-//  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+  var ForeignKey: TForeignKey := nil;
+
+  for var FK in FManager.Mapper.GetTable(TInsertTestWithForeignKey).ForeignKeys do
+    if FK.Field.Name = 'FK1' then
+      ForeignKey := FK;
+
+  FManager.UpdateDatabaseSchema;
+
+  FManager.ExectDirect(Format('alter table InsertTestWithForeignKey drop constraint %s', [ForeignKey.DatabaseName]));
+
+  FManager.ExectDirect(Format('alter table InsertTestWithForeignKey add constraint %s foreign key (IdFK2) references %s (%s) ',
+    [ForeignKey.DatabaseName, ForeignKey.ParentTable.DatabaseName, ForeignKey.ParentTable.PrimaryKey.DatabaseName]));
+
+  LoadSchemaTables;
+
+  FManager.UpdateDatabaseSchema;
+
+  var NewForeignKey := FManager.Select.All.From<TDatabaseForeignKey>.Where((Field('Table.Name') = 'InsertTestWithForeignKey') and (Field('Name') = ForeignKey.DatabaseName)).Open.One;
+
+  Assert.AreEqual('IdFK1', NewForeignKey.ReferenceFields[0].Name);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.IfTheForeignKeyNotExistsInTheDatabaseMustBeCreated;
@@ -445,6 +448,17 @@ begin
 //  FDatabaseMetadataUpdate.UpdateDatabase;
 //
 //  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+end;
+
+procedure TDatabaseSchemaUpdaterTest.IfTheTableDoesntExistsMustCreateAllForeignKeysOfTheTable;
+begin
+  FManager.UpdateDatabaseSchema;
+
+  LoadSchemaTables;
+
+  var ForeignKeys := FManager.Select.All.From<TDatabaseForeignKey>.Where(Field('Table.Name') = 'InsertTestWithForeignKey').Open.All;
+
+  Assert.AreEqual<NativeInt>(2, Length(ForeignKeys));
 end;
 
 procedure TDatabaseSchemaUpdaterTest.IfTheTableDontExistsInTheDatabaseMustCreateTheTable;
