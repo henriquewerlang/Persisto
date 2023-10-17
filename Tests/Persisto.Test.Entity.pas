@@ -1069,7 +1069,7 @@ type
     property Time: TTime read FTime write FTime;
     [NewUniqueIdentifier, UniqueIdentifier]
     property UniqueIdentifier: String read FUniqueIdentifier write FUniqueIdentifier;
-    [NewUniqueIdentifier, UniqueIdentifier]
+    [Size(250)]
     property VarChar: String read FVarChar write FVarChar;
   end;
 

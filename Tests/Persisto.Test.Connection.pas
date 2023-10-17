@@ -129,6 +129,7 @@ begin
   var Connection := CreateConnectionNamed('master');
 
   Connection.ExecuteDirect(Format('create database %s', [DatabaseName]));
+{$ELSEIF DEFINED(SQLITE)}
 {$ELSE}
   var Connection := CreateConnectionNamed(DatabaseName);
 

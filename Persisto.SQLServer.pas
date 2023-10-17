@@ -85,10 +85,42 @@ const
       'from sys.tables';
 
   COLUMNS_SQL =
-    'select cast(T.object_id as varchar(20)) + ''.'' + cast(column_id as varchar(500)) Id,' +
+    'select cast(T.object_id as varchar(20)) + ''.'' + cast(column_id as varchar(20)) Id,' +
            'cast(T.object_id as varchar(20)) IdTable,' +
-           'C.Name ' +
-      'from sys.all_columns C ' +
+           'case system_type_id ' +
+              // String
+              'when 167 then 5 ' +
+              // Integer
+              'when 56 then 1 ' +
+              // Char
+              'when 175 then 2 ' +
+              // Enumeration
+              'when 48 then 3 ' +
+              // Float
+              'when 108 then 4 ' +
+              // Int64
+              'when 127 then 16 ' +
+              'else 0 ' +
+           'end FieldType,'+
+           'C.name,' +
+           'C.scale Scale,' +
+           'C.max_length Size,' +
+           'case system_type_id ' +
+              // Date
+              'when 40 then 1 ' +
+              // DateTime
+              'when 61 then 2 ' +
+              // Time
+              'when 41 then 3 ' +
+              // Text
+              'when 167 then iif(max_length = -1, 4, 0)  ' +
+              // Unique Identifier
+              'when 36 then 5 ' +
+              // Boolean
+              'when 104 then 6 ' +
+              'else 0 ' +
+           'end SpecialType '+
+      'from sys.columns C ' +
       'join sys.tables T ' +
         'on T.object_id = C.object_id';
 

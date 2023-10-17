@@ -7,14 +7,19 @@ uses System.TypInfo, System.Rtti, System.SysUtils, System.Generics.Collections, 
 type
   TBuilderOptions = set of (boBeautifyQuery, boJoinMapping);
 
+{$M+}
   TDatabaseCheckConstraint = class;
   TDatabaseDefaultConstraint = class;
   TDatabaseField = class;
   TDatabaseForeignKey = class;
   TDatabaseForeignKeyField = class;
   TDatabaseIndex = class;
+  TDatabasePrimaryKeyConstraint = class;
+  TDatabasePrimaryKeyConstraintField = class;
   TDatabaseSequence = class;
   TDatabaseTable = class;
+{$M-}
+
   TDefaultConstraint = class;
   TField = class;
   TForeignKey = class;
@@ -614,14 +619,14 @@ type
     property Check: TDatabaseCheckConstraint read FCheck write FCheck;
     property Collation: String read FCollation write FCollation;
     property DefaultConstraint: TDatabaseDefaultConstraint read FDefaultConstraint write FDefaultConstraint;
-    property FieldType: TTypeKind read FFieldType write FFieldType;
     property Required: Boolean read FRequired write FRequired;
+  published
+    property FieldType: TTypeKind read FFieldType write FFieldType;
+    property Id: String read FId write FId;
+    property Name: String read FName write FName;
     property Scale: Word read FScale write FScale;
     property Size: Word read FSize write FSize;
     property SpecialType: TDatabaseSpecialType read FSpecialType write FSpecialType;
-  published
-    property Id: String read FId write FId;
-    property Name: String read FName write FName;
     property Table: TDatabaseTable read FTable write FTable;
   end;
 
@@ -670,22 +675,57 @@ type
     property Name: String read FName write FName;
   end;
 
-  TDatabaseDefaultConstraint = class
+  TDatabaseCheckConstraint = class
   private
-    FValue: String;
+    FCheck: String;
+    FId: String;
     FName: String;
   public
+    property Check: String read FCheck write FCheck;
+    property Id: String read FId write FId;
+    property Name: String read FName write FName;
+  end;
+
+  TDatabaseDefaultConstraint = class
+  private
+    FId: String;
+    FName: String;
+    FValue: String;
+  public
+    property Id: String read FId write FId;
     property Name: String read FName write FName;
     property Value: String read FValue write FValue;
   end;
 
-  TDatabaseCheckConstraint = class
+  TDatabaseNotNullConstraint = class
   private
-    FCheck: String;
+    FId: String;
     FName: String;
   public
+    property Id: String read FId write FId;
     property Name: String read FName write FName;
-    property Check: String read FCheck write FCheck;
+  end;
+
+  TDatabasePrimaryKeyConstraint = class
+  private
+    FFields: TArray<TDatabasePrimaryKeyConstraintField>;
+    FId: String;
+    FName: String;
+  public
+    property Fields: TArray<TDatabasePrimaryKeyConstraintField> read FFields write FFields;
+    property Id: String read FId write FId;
+    property Name: String read FName write FName;
+  end;
+
+  TDatabasePrimaryKeyConstraintField = class
+  private
+    FId: String;
+    FName: String;
+    FPrimaryKey: TDatabasePrimaryKeyConstraint;
+  public
+    property Id: String read FId write FId;
+    property Name: String read FName write FName;
+    property PrimaryKey: TDatabasePrimaryKeyConstraint read FPrimaryKey write FPrimaryKey;
   end;
 
   [TableName('PersistoDatabaseSequence')]

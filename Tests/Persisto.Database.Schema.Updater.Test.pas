@@ -27,6 +27,24 @@ type
     [Test]
     procedure WhenCreateAFieldMustLoadTheFieldInfoTypeFromTheManipulador;
     [Test]
+    procedure WhenAFieldWithASizeMustCreateTheFieldWithTheSizeOfTheAttribute;
+    [Test]
+    procedure WhenAFieldWithAPrecisionMustCreateTheFieldWithThePrecisionOfTheAttribute;
+    [TestCase('String', 'VarChar,tkString')]
+    [TestCase('Integer', 'Integer,tkInteger')]
+    [TestCase('Char', 'Char,tkChar')]
+    [TestCase('Enumeration', 'Enumerator,tkEnumeration')]
+    [TestCase('Float', 'Float,tkFloat')]
+    [TestCase('Int64', 'Bigint,tkInt64')]
+    procedure WhenCreateANormalFieldMustLoadTheFieldKindInfoAsExpected(const FieldName: String; const FieldKind: TTypeKind);
+    [TestCase('Date', 'Date,stDate')]
+    [TestCase('DateTime', 'DateTime,stDateTime')]
+    [TestCase('Time', 'Time,stTime')]
+    [TestCase('Text', 'Text,stText')]
+    [TestCase('Unique Identifier', 'UniqueIdentifier,stUniqueIdentifier')]
+    [TestCase('Boolean', 'Boolean,stBoolean')]
+    procedure WhenCreateASpecialTypeFieldMustLoadTheSpecialTypeInfoAsExpected(const FieldName: String; const SpecialType: TDatabaseSpecialType);
+    [Test]
     procedure WhenComparingNamesOfTablesMustBeCaseInsensitivityTheComparision;
     [Test]
     procedure WhenCreateATableMustCreateThePrimaryKeyToo;
@@ -611,6 +629,32 @@ begin
   Assert.IsNull(Cursor.GetDataSet.FindField('Childs'));
 end;
 
+procedure TDatabaseSchemaUpdaterTest.WhenAFieldWithAPrecisionMustCreateTheFieldWithThePrecisionOfTheAttribute;
+begin
+  FManager.Mapper.GetTable(TMyClassWithAllFieldsType);
+
+  FManager.UpdateDatabaseSchema;
+
+  LoadSchemaTables;
+
+  var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyClassWithAllFieldsType') and (Field('Name') = 'Float')).Open.One;
+
+  Assert.AreEqual(5, Field.Scale);
+end;
+
+procedure TDatabaseSchemaUpdaterTest.WhenAFieldWithASizeMustCreateTheFieldWithTheSizeOfTheAttribute;
+begin
+  FManager.Mapper.GetTable(TMyClassWithAllFieldsType);
+
+  FManager.UpdateDatabaseSchema;
+
+  LoadSchemaTables;
+
+  var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyClassWithAllFieldsType') and (Field('Name') = 'DefaultField')).Open.One;
+
+  Assert.AreEqual(30, Field.Size);
+end;
+
 procedure TDatabaseSchemaUpdaterTest.WhenAnIndexBecameUniqueMustRecreateTheIndex;
 begin
 //  FOnSchemaLoad :=
@@ -674,6 +718,32 @@ begin
   Assert.IsTrue(Manipulator.FFunctionDefaultValueCalled, 'Default Value Isn''t Called');
 
   Manager.Free;
+end;
+
+procedure TDatabaseSchemaUpdaterTest.WhenCreateANormalFieldMustLoadTheFieldKindInfoAsExpected(const FieldName: String; const FieldKind: TTypeKind);
+begin
+  FManager.Mapper.GetTable(TMyClassWithAllFieldsType);
+
+  FManager.UpdateDatabaseSchema;
+
+  LoadSchemaTables;
+
+  var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyClassWithAllFieldsType') and (Field('Name') = FieldName)).Open.One;
+
+  Assert.AreEqual(FieldKind, Field.FieldType);
+end;
+
+procedure TDatabaseSchemaUpdaterTest.WhenCreateASpecialTypeFieldMustLoadTheSpecialTypeInfoAsExpected(const FieldName: String; const SpecialType: TDatabaseSpecialType);
+begin
+  FManager.Mapper.GetTable(TMyClassWithAllFieldsType);
+
+  FManager.UpdateDatabaseSchema;
+
+  LoadSchemaTables;
+
+  var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyClassWithAllFieldsType') and (Field('Name') = FieldName)).Open.One;
+
+  Assert.AreEqual(SpecialType, Field.SpecialType);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenCreateATableMustCreateAllFieldsOfTheTableToo;
