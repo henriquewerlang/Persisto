@@ -2638,7 +2638,7 @@ var
   begin
     AddTable;
 
-    SQL.Append(' constraint ');
+    SQL.Append('constraint ');
 
     SQL.Append(ForeignKey.DatabaseName);
 
