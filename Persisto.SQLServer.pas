@@ -16,7 +16,7 @@ type
 
 implementation
 
-uses System.SysUtils, Persisto.Mapping;
+uses System.SysUtils, System.Classes, Persisto.Mapping;
 
 { TDatabaseManipulatorSQLServer }
 
