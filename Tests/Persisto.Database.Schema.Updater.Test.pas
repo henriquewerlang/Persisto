@@ -45,6 +45,10 @@ type
     [TestCase('Boolean', 'Boolean,stBoolean')]
     procedure WhenCreateASpecialTypeFieldMustLoadTheSpecialTypeInfoAsExpected(const FieldName: String; const SpecialType: TDatabaseSpecialType);
     [Test]
+    procedure WhenCreateARequiredFieldMustCreateTheFieldNotNull;
+    [Test]
+    procedure WhenCreateANotRequiredFieldMustCreateTheFieldNull;
+    [Test]
     procedure WhenComparingNamesOfTablesMustBeCaseInsensitivityTheComparision;
     [Test]
     procedure WhenCreateATableMustCreateThePrimaryKeyToo;
@@ -731,6 +735,32 @@ begin
   var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyClassWithAllFieldsType') and (Field('Name') = FieldName)).Open.One;
 
   Assert.AreEqual(FieldKind, Field.FieldType);
+end;
+
+procedure TDatabaseSchemaUpdaterTest.WhenCreateANotRequiredFieldMustCreateTheFieldNull;
+begin
+  FManager.Mapper.GetTable(TMyClassWithAllFieldsType);
+
+  FManager.UpdateDatabaseSchema;
+
+  LoadSchemaTables;
+
+  var NullableField := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyClassWithAllFieldsType') and (Field('Name') = 'NullField')).Open.One;
+
+  Assert.IsFalse(NullableField.Required);
+end;
+
+procedure TDatabaseSchemaUpdaterTest.WhenCreateARequiredFieldMustCreateTheFieldNotNull;
+begin
+  FManager.Mapper.GetTable(TMyClassWithAllFieldsType);
+
+  FManager.UpdateDatabaseSchema;
+
+  LoadSchemaTables;
+
+  var RequiredField := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyClassWithAllFieldsType') and (Field('Name') = 'Float')).Open.One;
+
+  Assert.IsTrue(RequiredField.Required);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenCreateASpecialTypeFieldMustLoadTheSpecialTypeInfoAsExpected(const FieldName: String; const SpecialType: TDatabaseSpecialType);

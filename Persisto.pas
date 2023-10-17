@@ -609,21 +609,21 @@ type
     FDefaultConstraint: TDatabaseDefaultConstraint;
     FFieldType: TTypeKind;
     FId: String;
+    FName: String;
     FRequired: Boolean;
-    FTable: TDatabaseTable;
     FScale: Word;
     FSize: Word;
     FSpecialType: TDatabaseSpecialType;
-    FName: String;
+    FTable: TDatabaseTable;
   public
     property Check: TDatabaseCheckConstraint read FCheck write FCheck;
     property Collation: String read FCollation write FCollation;
     property DefaultConstraint: TDatabaseDefaultConstraint read FDefaultConstraint write FDefaultConstraint;
-    property Required: Boolean read FRequired write FRequired;
   published
     property FieldType: TTypeKind read FFieldType write FFieldType;
     property Id: String read FId write FId;
     property Name: String read FName write FName;
+    property Required: Boolean read FRequired write FRequired;
     property Scale: Word read FScale write FScale;
     property Size: Word read FSize write FSize;
     property SpecialType: TDatabaseSpecialType read FSpecialType write FSpecialType;
@@ -695,15 +695,6 @@ type
     property Id: String read FId write FId;
     property Name: String read FName write FName;
     property Value: String read FValue write FValue;
-  end;
-
-  TDatabaseNotNullConstraint = class
-  private
-    FId: String;
-    FName: String;
-  public
-    property Id: String read FId write FId;
-    property Name: String read FName write FName;
   end;
 
   TDatabasePrimaryKeyConstraint = class
@@ -2549,6 +2540,12 @@ var
     end;
   end;
 
+  procedure AppendNotNullConstraint(const Field: TField);
+  begin
+    if Field.Required then
+      SQL.Append(' not null');
+  end;
+
   procedure BuildFieldDefinition(const Field: TField);
   begin
     SQL.Append(Field.DatabaseName);
@@ -2575,6 +2572,8 @@ var
 
       SQL.Append(')');
     end;
+
+    AppendNotNullConstraint(Field);
 
     AppendDefaultConstraint(Field);
   end;

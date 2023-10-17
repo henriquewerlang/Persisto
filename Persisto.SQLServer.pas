@@ -103,6 +103,7 @@ const
               'else 0 ' +
            'end FieldType,'+
            'C.name,' +
+           'iif(C.is_nullable = 0, 1, 0) Required,'+
            'C.scale Scale,' +
            'C.max_length Size,' +
            'case system_type_id ' +
