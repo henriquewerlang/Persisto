@@ -950,7 +950,7 @@ procedure TMapper.AddTableForeignKey(const Table: TTable; const Field: TField; c
   function GetForeignKeyName: String;
   begin
     if not GetNameAttribute<ForeignKeyNameAttribute>(Field.PropertyInfo, Result) then
-      Result := Format('FK_%s_%s_%s', [Table.DatabaseName, ForeignTable.DatabaseName, Field.DatabaseName]);
+      Result := Format('FK_%s_%s', [Table.DatabaseName, Field.DatabaseName]);
   end;
 
 begin

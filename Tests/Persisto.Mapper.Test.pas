@@ -607,7 +607,7 @@ procedure TMapperTest.TheForeignKeyDatabaseNameMustBeTheConcatenationOfTheTables
 begin
   var Table := FMapper.GetTable(TMyEntityForeignKeyAlias);
 
-  Assert.AreEqual('FK_MyEntityForeignKeyAlias_MyEntityInheritedFromSimpleClass_IdForeignKey', Table.ForeignKeys[0].DatabaseName);
+  Assert.AreEqual('FK_MyEntityForeignKeyAlias_IdForeignKey', Table.ForeignKeys[0].DatabaseName);
 end;
 
 procedure TMapperTest.TheFunctionGetValueFromFieldMustReturnTheValueOfThePropertyOfTheField;
