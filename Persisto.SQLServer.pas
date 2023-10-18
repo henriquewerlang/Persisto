@@ -56,23 +56,29 @@ end;
 
 function TDatabaseManipulatorSQLServer.GetSchemaTablesScripts: TArray<String>;
 const
+  DEFAULT_CONSTRAINT_SQL =
+    'select cast(parent_object_id as varchar(20)) + ''.'' + cast(parent_column_id as varchar(20)) Id,' +
+           'name,' +
+           'substring(definition, 2, len(definition) - 2) Value ' +
+      'from sys.default_constraints';
+
   FOREING_KEY_SQL =
-      'select cast(object_id as varchar(20)) Id,' +
-             'name,' +
-             'cast(parent_object_id as varchar(20)) IdTable,' +
-             'cast(referenced_object_id as varchar(20)) IdReferenceTable ' +
-        'from sys.foreign_keys FK';
+    'select cast(object_id as varchar(20)) Id,' +
+           'name,' +
+           'cast(parent_object_id as varchar(20)) IdTable,' +
+           'cast(referenced_object_id as varchar(20)) IdReferenceTable ' +
+      'from sys.foreign_keys FK';
 
   FOREING_KEY_COLUMS_SQL =
-      'select cast(FKC.constraint_object_id as varchar(20)) + ''.'' + cast(constraint_column_id as varchar(20)) Id,' +
-             'cast(FKC.constraint_object_id as varchar(20)) IdForeignKey,' +
-             'RC.name ' +
-        'from sys.foreign_keys FK ' +
-        'join sys.foreign_key_columns FKC ' +
-          'on FKC.constraint_object_id = FK.object_id ' +
-        'join sys.columns RC ' +
-          'on RC.object_id = FKC.referenced_object_id ' +
-         'and RC.column_id = FKC.referenced_column_id';
+    'select cast(FKC.constraint_object_id as varchar(20)) + ''.'' + cast(constraint_column_id as varchar(20)) Id,' +
+           'cast(FKC.constraint_object_id as varchar(20)) IdForeignKey,' +
+           'RC.name ' +
+      'from sys.foreign_keys FK ' +
+      'join sys.foreign_key_columns FKC ' +
+        'on FKC.constraint_object_id = FK.object_id ' +
+      'join sys.columns RC ' +
+        'on RC.object_id = FKC.referenced_object_id ' +
+       'and RC.column_id = FKC.referenced_column_id';
 
   SEQUENCES_SQL =
     'select cast(object_id as varchar(20)) Id,' +
@@ -85,7 +91,11 @@ const
       'from sys.tables';
 
   COLUMNS_SQL =
-    'select cast(T.object_id as varchar(20)) + ''.'' + cast(column_id as varchar(20)) Id,' +
+    'select cast(C.object_id as varchar(20)) + ''.'' + cast(C.column_id as varchar(20)) Id,' +
+           '(select cast(DF.parent_object_id as varchar(20)) + ''.'' + cast(DF.parent_column_id as varchar(20)) ' +
+              'from sys.default_constraints DF ' +
+             'where DF.parent_object_id = C.object_id ' +
+               'and DF.parent_column_id = C.column_id) IdDefaultConstraint,' +
            'cast(T.object_id as varchar(20)) IdTable,' +
            'case system_type_id ' +
               // String
@@ -131,8 +141,9 @@ const
   end;
 
 begin
-  Result := [CreateView('PersistoDatabaseForeignKey', FOREING_KEY_SQL), CreateView('PersistoDatabaseForeignKeyField', FOREING_KEY_COLUMS_SQL),
-    CreateView('PersistoDatabaseSequence', SEQUENCES_SQL), CreateView('PersistoDatabaseTable', TABLE_SQL), CreateView('PersistoDatabaseTableField', COLUMNS_SQL)
+  Result := [CreateView('PersistoDatabaseDefaultConstraint', DEFAULT_CONSTRAINT_SQL), CreateView('PersistoDatabaseForeignKey', FOREING_KEY_SQL),
+    CreateView('PersistoDatabaseForeignKeyField', FOREING_KEY_COLUMS_SQL), CreateView('PersistoDatabaseSequence', SEQUENCES_SQL), CreateView('PersistoDatabaseTable', TABLE_SQL),
+    CreateView('PersistoDatabaseTableField', COLUMNS_SQL)
     ];
 end;
 
@@ -170,12 +181,18 @@ begin
     ReturningFields := ReturningFields + Format('Inserted.%s', [Field.DatabaseName]);
   end;
 
-  Result := 'insert into %s(%s)';
+  Result := 'insert into %0:s';
+
+  if Params.Count > 0 then
+    Result := Result + '(%1:s)';
 
   if not ReturningFields.IsEmpty then
-    Result := Result + Format('output %s ', [ReturningFields]);
+    Result := Result + Format(' output %s ', [ReturningFields]);
 
-  Result := Result + 'values(%s)';
+  if Params.Count = 0 then
+    Result := Result + 'default values'
+  else
+    Result := Result + 'values(%2:s)';
 
   Result := Format(Result, [Table.DatabaseName, FieldNames, ParamNames]);
 end;

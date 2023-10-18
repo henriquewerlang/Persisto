@@ -928,7 +928,7 @@ type
     [Size(20)]
     property Id: String read FId write FId;
     property IntegerValue: Integer read FIntegerValue write FIntegerValue;
-    [Precision(5, 3)]
+    [Precision(10, 3)]
     property Value: Double read FValue write FValue;
   end;
 

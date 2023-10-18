@@ -36,40 +36,6 @@ type
   TSequence = class;
   TTable = class;
 
-  IDatabaseCursor = interface
-    ['{19CBD0F4-8766-4F1D-8E88-F7E03E6A5E28}']
-    function GetDataSet: TDataSet;
-    function GetFieldValue(const FieldIndex: Integer): Variant;
-    function Next: Boolean;
-  end;
-
-  IDatabaseTransaction = interface
-    ['{218FA473-10BD-406B-B01B-79AF603570FE}']
-    procedure Commit;
-    procedure Rollback;
-  end;
-
-  IDatabaseConnection = interface
-    ['{7FF2A2F4-0440-447D-9E64-C61A92E94800}']
-    function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
-    function OpenCursor(const SQL: String): IDatabaseCursor;
-    function StartTransaction: IDatabaseTransaction;
-
-    procedure ExecuteDirect(const SQL: String);
-  end;
-
-  IDatabaseManipulator = interface
-    ['{7ED4F3DE-1C13-4CF3-AE3C-B51386EA271F}']
-    function CreateSequence(const Sequence: TSequence): String;
-    function DropSequence(const Sequence: TDatabaseSequence): String;
-    function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
-    function GetFieldType(const Field: TField): String;
-    function GetSchemaTablesScripts: TArray<String>;
-    function GetSpecialFieldType(const Field: TField): String;
-    function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
-    function MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
-  end;
-
   EFieldNotInCurrentSelection = class(Exception)
   public
     constructor Create(const Field: TQueryBuilderFieldSearch);
@@ -131,6 +97,40 @@ type
     constructor Create(const RecursionTree: String);
 
     property RecursionTree: String read FRecursionTree write FRecursionTree;
+  end;
+
+  IDatabaseCursor = interface
+    ['{19CBD0F4-8766-4F1D-8E88-F7E03E6A5E28}']
+    function GetDataSet: TDataSet;
+    function GetFieldValue(const FieldIndex: Integer): Variant;
+    function Next: Boolean;
+  end;
+
+  IDatabaseTransaction = interface
+    ['{218FA473-10BD-406B-B01B-79AF603570FE}']
+    procedure Commit;
+    procedure Rollback;
+  end;
+
+  IDatabaseConnection = interface
+    ['{7FF2A2F4-0440-447D-9E64-C61A92E94800}']
+    function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
+    function OpenCursor(const SQL: String): IDatabaseCursor;
+    function StartTransaction: IDatabaseTransaction;
+
+    procedure ExecuteDirect(const SQL: String);
+  end;
+
+  IDatabaseManipulator = interface
+    ['{7ED4F3DE-1C13-4CF3-AE3C-B51386EA271F}']
+    function CreateSequence(const Sequence: TSequence): String;
+    function DropSequence(const Sequence: TDatabaseSequence): String;
+    function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
+    function GetFieldType(const Field: TField): String;
+    function GetSchemaTablesScripts: TArray<String>;
+    function GetSpecialFieldType(const Field: TField): String;
+    function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
+    function MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
   end;
 
   TTableObject = class
@@ -618,8 +618,8 @@ type
   public
     property Check: TDatabaseCheckConstraint read FCheck write FCheck;
     property Collation: String read FCollation write FCollation;
-    property DefaultConstraint: TDatabaseDefaultConstraint read FDefaultConstraint write FDefaultConstraint;
   published
+    property DefaultConstraint: TDatabaseDefaultConstraint read FDefaultConstraint write FDefaultConstraint;
     property FieldType: TTypeKind read FFieldType write FFieldType;
     property Id: String read FId write FId;
     property Name: String read FName write FName;
@@ -686,12 +686,13 @@ type
     property Name: String read FName write FName;
   end;
 
+  [TableName('PersistoDatabaseDefaultConstraint')]
   TDatabaseDefaultConstraint = class
   private
     FId: String;
     FName: String;
     FValue: String;
-  public
+  published
     property Id: String read FId write FId;
     property Name: String read FName write FName;
     property Value: String read FValue write FValue;
@@ -1861,7 +1862,9 @@ var
 
     for ForeignKeyTable in QueryTable.ForeignKeyTables do
       try
-        LoadFieldList(ForeignKeyTable, nil);
+        LoadFieldList(ForeignKeyTable, ForeignKeyTable.ForeignKeyField.Field);
+
+        RecursiveControl.Remove(ForeignKeyTable.ForeignKeyField.Field);
       except
         on E: ERecursionSelectionError do
           raise ERecursionSelectionError.Create(Format('%s.%s->%s', [ForeignKeyTable.Table.Name, ForeignKeyTable.ForeignKeyField.Field.Name, E.RecursionTree]));
