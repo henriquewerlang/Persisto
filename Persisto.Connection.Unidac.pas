@@ -12,7 +12,6 @@ type
     FQuery: TUniQuery;
 
     function GetDataSet: TDataSet;
-    function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
   public
     constructor Create(const Connection: TUniConnection; const SQL: String); overload;
@@ -35,7 +34,6 @@ type
   private
     FConnection: TUniConnection;
 
-    function ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
     function OpenCursor(const SQL: String): IDatabaseCursor;
     function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
     function StartTransaction: IDatabaseTransaction;
@@ -86,11 +84,6 @@ begin
   Result := FQuery;
 end;
 
-function TDatabaseCursorUnidac.GetFieldValue(const FieldIndex: Integer): Variant;
-begin
-  Result := FQuery.Fields[FieldIndex].AsVariant;
-end;
-
 function TDatabaseCursorUnidac.Next: Boolean;
 begin
   if FQuery.Active then
@@ -127,11 +120,6 @@ end;
 procedure TDatabaseConnectionUnidac.ExecuteDirect(const SQL: String);
 begin
   FConnection.ExecSQL(SQL);
-end;
-
-function TDatabaseConnectionUnidac.ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
-begin
-  Result := nil;
 end;
 
 function TDatabaseConnectionUnidac.OpenCursor(const SQL: String): IDatabaseCursor;

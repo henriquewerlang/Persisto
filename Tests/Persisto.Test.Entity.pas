@@ -197,11 +197,13 @@ type
     FId: String;
     FManyValueAssociation: TMyEntityWithManyValueAssociation;
     FMyManyValue: TMyManyValue;
+    FValue: Integer;
   published
     [NewUniqueIdentifier, UniqueIdentifier]
     property Id: String read FId write FId;
     property ManyValueAssociation: TMyEntityWithManyValueAssociation read FManyValueAssociation write FManyValueAssociation;
     property MyManyValue: TMyManyValue read FMyManyValue write FMyManyValue;
+    property Value: Integer read FValue write FValue;
   end;
 
   [Entity]
@@ -209,10 +211,12 @@ type
   private
     FChilds: TArray<TMyChildLink>;
     FId: String;
+    FValue: Integer;
   published
     [NewUniqueIdentifier, UniqueIdentifier]
     property Id: String read FId write FId;
     property Childs: TArray<TMyChildLink> read FChilds write FChilds;
+    property Value: Integer read FValue write FValue;
   end;
 
   [Entity]
@@ -530,7 +534,7 @@ type
     [Text]
     property Text: String read FText write FText;
     property Time: TTime read FTime write FTime;
-    [UniqueIdentifier]
+    [UniqueIdentifier, NewUniqueIdentifier]
     property UniqueIdentifier: String read FUniqueIdentifier write FUniqueIdentifier;
   end;
 

@@ -10,7 +10,6 @@ type
     FQuery: TZReadOnlyQuery;
 
     function GetDataSet: TDataSet;
-    function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
   public
     constructor Create(const Connection: TZConnection; const SQL: String); overload;
@@ -33,7 +32,6 @@ type
   private
     FConnection: TZConnection;
 
-    function ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
     function OpenCursor(const SQL: String): IDatabaseCursor;
     function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
     function StartTransaction: IDatabaseTransaction;
@@ -70,11 +68,6 @@ end;
 procedure TDatabaseConnectionZeosLib.ExecuteDirect(const SQL: String);
 begin
   FConnection.ExecuteDirect(SQL);
-end;
-
-function TDatabaseConnectionZeosLib.ExecuteInsert(const SQL: String; const OutputFields: TArray<String>): IDatabaseCursor;
-begin
-  Result := nil;
 end;
 
 function TDatabaseConnectionZeosLib.OpenCursor(const SQL: String): IDatabaseCursor;
@@ -123,11 +116,6 @@ end;
 function TDatabaseCursorZeosLib.GetDataSet: TDataSet;
 begin
   Result := FQuery;
-end;
-
-function TDatabaseCursorZeosLib.GetFieldValue(const FieldIndex: Integer): Variant;
-begin
-  Result := FQuery.Fields[FieldIndex].Value;
 end;
 
 function TDatabaseCursorZeosLib.Next: Boolean;

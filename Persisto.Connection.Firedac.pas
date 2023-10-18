@@ -10,7 +10,6 @@ type
     FQuery: TFDQuery;
 
     function GetDataSet: TDataSet;
-    function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
   public
     constructor Create(const Connection: TFDConnection; const SQL: String); overload;
@@ -48,7 +47,7 @@ type
 
 implementation
 
-uses FireDAC.Stan.Option, FireDAC.Stan.Def, FireDAC.Stan.Async, FireDAC.DApt, FireDAC.Phys.Intf, FireDAC.Stan.Intf;
+uses System.SysUtils, FireDAC.Stan.Option, FireDAC.Stan.Def, FireDAC.Stan.Async, FireDAC.DApt, FireDAC.Phys.Intf, FireDAC.Stan.Intf;
 
 { TDatabaseCursorFireDAC }
 
@@ -82,16 +81,11 @@ begin
   Result := FQuery;
 end;
 
-function TDatabaseCursorFireDAC.GetFieldValue(const FieldIndex: Integer): Variant;
-begin
-  Result := FQuery.Fields[FieldIndex].AsVariant;
-end;
-
 function TDatabaseCursorFireDAC.Next: Boolean;
 begin
   if FQuery.Active then
     FQuery.Next
-  else if FQuery.Command.CommandKind in [skDelete, skInsert, skUpdate] then
+  else if (FQuery.Command.CommandKind in [skDelete, skInsert, skUpdate]) and not FQuery.SQL.Text.Contains(' output ') then
     FQuery.ExecSQL
   else
     FQuery.Open;

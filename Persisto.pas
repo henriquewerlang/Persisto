@@ -102,7 +102,6 @@ type
   IDatabaseCursor = interface
     ['{19CBD0F4-8766-4F1D-8E88-F7E03E6A5E28}']
     function GetDataSet: TDataSet;
-    function GetFieldValue(const FieldIndex: Integer): Variant;
     function Next: Boolean;
   end;
 
@@ -827,6 +826,7 @@ type
   end;
 
 function Field(const Name: String): TQueryBuilderComparisonHelper;
+function GetFieldValue(const Field: TField; const DataSetField: Data.DB.TField): TValue;
 
 implementation
 
@@ -835,6 +835,36 @@ uses System.Variants, System.SysConst, System.Math;
 function Field(const Name: String): TQueryBuilderComparisonHelper;
 begin
   Result := TQueryBuilderComparisonHelper.Create(TQueryBuilderFieldSearch.Create(Name));
+end;
+
+function GetFieldValue(const Field: TField; const DataSetField: Data.DB.TField): TValue;
+begin
+  if DataSetField.IsNull then
+    Result := TValue.Empty
+  else
+    case DataSetField.DataType of
+      ftFMTBcd, ftBCD:
+        Result := DataSetField.AsFloat;
+      ftTimeStamp, ftOraTimeStamp, ftTimeStampOffset:
+        Result := DataSetField.AsDateTime;
+      else
+        case Field.FieldType.TypeKind of
+          tkChar,
+          tkWChar:
+          begin
+            var Value := DataSetField.AsString;
+
+            if Value.IsEmpty then
+              Result := #0
+            else
+              Result := Value[1]
+          end;
+          tkEnumeration:
+            Result := TValue.FromOrdinal(Field.FFieldType.Handle, DataSetField.AsVariant);
+          else
+            Result := TValue.FromVariant(DataSetField.AsVariant);
+        end;
+    end;
 end;
 
 { EFieldNotInCurrentSelection }
@@ -1618,40 +1648,11 @@ var
     ManyValueObject: TStateObject;
     QueryField: TQueryBuilderTableField;
 
-    procedure LoadFieldValue;
-    begin
-      case QueryField.DataSetField.DataType of
-        ftFMTBcd, ftBCD:
-          FieldValue := QueryField.DataSetField.AsFloat
-        else
-          case Field.FieldType.TypeKind of
-            tkChar,
-            tkWChar:
-            begin
-              var Value := QueryField.DataSetField.AsString;
-
-              if Value.IsEmpty then
-                FieldValue := #0
-              else
-                FieldValue := Value[1]
-            end;
-            tkEnumeration:
-              FieldValue := TValue.FromOrdinal(Field.FFieldType.Handle, QueryField.DataSetField.AsVariant);
-            else
-              FieldValue := TValue.FromVariant(QueryField.DataSetField.AsVariant);
-          end;
-      end;
-    end;
-
   begin
     for QueryField in QueryTable.DatabaseFields do
     begin
       Field := QueryField.Field;
-
-      if QueryField.DataSetField.IsNull then
-        FieldValue := TValue.Empty
-      else
-        LoadFieldValue;
+      FieldValue := GetFieldValue(Field, QueryField.DataSetField);
 
       if Field.IsLazy then
         Field.LazyValue[StateObject.&Object] := CreateLazyFactory(Field, FieldValue)
@@ -3185,7 +3186,7 @@ var
 
       for Field in Table.ReturningFields do
       begin
-        FieldValue := TValue.FromVariant(Cursor.GetFieldValue(FieldIndex));
+        FieldValue := GetFieldValue(Field, Cursor.GetDataSet.Fields[FieldIndex]);
 
         Field.Value[&Object] := FieldValue;
         StateObject.OldValue[Field] := FieldValue;
