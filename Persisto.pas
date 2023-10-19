@@ -1865,7 +1865,7 @@ var
         LoadFieldList(ForeignKeyTable);
       except
         on E: ERecursionSelectionError do
-          raise ERecursionSelectionError.Create(Format('%s->%s.%s', [E.RecursionTree, ForeignKeyTable.ForeignKeyField.Table.Name, ForeignKeyTable.ForeignKeyField.Field.Name]));
+          raise ERecursionSelectionError.Create(Format('%s.%s->%s', [ForeignKeyTable.ForeignKeyField.Table.Name, ForeignKeyTable.ForeignKeyField.Field.Name, E.RecursionTree]));
       end;
 
       RecursiveControl.Remove(ForeignKeyTable.ForeignKeyField.Field);

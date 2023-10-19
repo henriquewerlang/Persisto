@@ -745,11 +745,11 @@ procedure TManagerTest.WhenInsertARecursiveObjectAndCantReciveThePrimaryKeyFromA
 begin
   var &Object := TClassRecursiveThird.Create;
   &Object.Id := 10;
-  &Object.Recursive := TClassRecursiveSecond.Create;
-  &Object.Recursive.Id := 10;
-  &Object.Recursive.Recursive := TClassRecursiveFirst.Create;
-  &Object.Recursive.Recursive.Id := 10;
-  &Object.Recursive.Recursive.Recursive := &Object;
+  &Object.GoingSecond := TClassRecursiveSecond.Create;
+  &Object.GoingSecond.Id := 10;
+  &Object.GoingSecond.GoingFirst := TClassRecursiveFirst.Create;
+  &Object.GoingSecond.GoingFirst.Id := 10;
+  &Object.GoingSecond.GoingFirst.GoingThird := &Object;
 
   Assert.WillRaise(
     procedure
@@ -762,11 +762,11 @@ procedure TManagerTest.WhenInsertARecursiveRequiredObjectMustInsertTheForeignKey
 begin
   var &Object := TClassRecursiveFirst.Create;
   &Object.Id := 20;
-  &Object.Recursive := TClassRecursiveThird.Create;
-  &Object.Recursive.Id := 20;
-  &Object.Recursive.Recursive := TClassRecursiveSecond.Create;
-  &Object.Recursive.Recursive.Id := 20;
-  &Object.Recursive.Recursive.Recursive := &Object;
+  &Object.GoingThird := TClassRecursiveThird.Create;
+  &Object.GoingThird.Id := 20;
+  &Object.GoingThird.GoingSecond := TClassRecursiveSecond.Create;
+  &Object.GoingThird.GoingSecond.Id := 20;
+  &Object.GoingThird.GoingSecond.GoingFirst := &Object;
 
   Assert.WillNotRaise(
     procedure
@@ -774,7 +774,7 @@ begin
       FManager.Insert(&Object);
     end);
 
-  var Cursor := FManager.OpenCursor('select IdRecursive from ClassRecursiveThird where Id = 20');
+  var Cursor := FManager.OpenCursor('select IdGoingSecond from ClassRecursiveThird where Id = 20');
 
   Assert.IsTrue(Cursor.Next);
   Assert.AreEqual(20, Cursor.GetDataSet.Fields[0].AsInteger);

@@ -134,32 +134,32 @@ type
   [Entity]
   TClassRecursiveFirst = class
   private
+    FGoingThird: TClassRecursiveThird;
     FId: Integer;
-    FRecursive: TClassRecursiveThird;
   published
+    property GoingThird: TClassRecursiveThird read FGoingThird write FGoingThird;
     property Id: Integer read FId write FId;
-    property Recursive: TClassRecursiveThird read FRecursive write FRecursive;
   end;
 
   [Entity]
   TClassRecursiveSecond = class
   private
+    FGoingFirst: TClassRecursiveFirst;
     FId: Integer;
-    FRecursive: TClassRecursiveFirst;
   published
+    property GoingFirst: TClassRecursiveFirst read FGoingFirst write FGoingFirst;
     property Id: Integer read FId write FId;
-    property Recursive: TClassRecursiveFirst read FRecursive write FRecursive;
   end;
 
   [Entity]
   TClassRecursiveThird = class
   private
+    FGoingSecond: TClassRecursiveSecond;
     FId: Integer;
-    FRecursive: TClassRecursiveSecond;
   published
-    property Id: Integer read FId write FId;
     [Required]
-    property Recursive: TClassRecursiveSecond read FRecursive write FRecursive;
+    property GoingSecond: TClassRecursiveSecond read FGoingSecond write FGoingSecond;
+    property Id: Integer read FId write FId;
   end;
 
   TManyValueRecursive = class;
@@ -167,10 +167,10 @@ type
   TManyValueRecursiveChild = class
   private
     FManyValueRecursive: TManyValueRecursive;
-    FRecursiveClass: TClassRecursiveThird;
+    FRecursiveClass: TClassRecursiveFirst;
   published
     property ManyValueRecursive: TManyValueRecursive read FManyValueRecursive write FManyValueRecursive;
-    property RecursiveClass: TClassRecursiveThird read FRecursiveClass write FRecursiveClass;
+    property RecursiveClass: TClassRecursiveFirst read FRecursiveClass write FRecursiveClass;
   end;
 
   TManyValueRecursive = class

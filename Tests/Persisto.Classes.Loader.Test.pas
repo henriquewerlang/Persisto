@@ -375,7 +375,7 @@ begin
     FManager.Select.All.From<TClassRecursiveFirst>.Open.One;
   except
     on Erro: ERecursionSelectionError do
-      Assert.AreEqual('ClassRecursiveFirst.Recursive->ClassRecursiveSecond.Recursive->ClassRecursiveThird.Recursive->ClassRecursiveFirst.Recursive', Erro.RecursionTree);
+      Assert.AreEqual('ClassRecursiveFirst.GoingThird->ClassRecursiveThird.GoingSecond->ClassRecursiveSecond.GoingFirst->ClassRecursiveFirst.GoingThird', Erro.RecursionTree);
   end;
 end;
 
@@ -482,7 +482,8 @@ begin
     FManager.Select.All.From<TManyValueRecursiveChild>.Open.One;
   except
     on Erro: ERecursionSelectionError do
-      Assert.AreEqual('ManyValueRecursiveChild.ManyValueRecursive->ManyValueRecursive.Childs->ClassRecursiveThird.RecursiveClass', Erro.RecursionTree);
+      Assert.AreEqual('ManyValueRecursiveChild.ManyValueRecursive->ManyValueRecursive.Childs->ManyValueRecursiveChild.RecursiveClass->' +
+        'ClassRecursiveFirst.GoingThird->ClassRecursiveThird.GoingSecond->ClassRecursiveSecond.GoingFirst->ClassRecursiveFirst.GoingThird', Erro.RecursionTree);
   end;
 end;
 
