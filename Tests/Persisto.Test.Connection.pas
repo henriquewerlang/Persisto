@@ -36,25 +36,23 @@ uses
   FireDAC.Phys.MSSQL,
   FireDAC.Stan.Consts,
   Persisto.SQLServer,
-{$ELSEIF DEFINED(SQLITE)}
-  Persisto.SQLite,
-  Persisto.SQLite.Firedac.Functions,
-{$ELSE}
+{$ELSEIF DEFINED(INTERBASE)}
   FireDAC.Phys.IB,
   FireDAC.Stan.Consts,
   Persisto.Interbase,
+{$ELSE}
+  Persisto.SQLite,
+  Persisto.SQLite.Firedac.Functions,
 {$ENDIF}
   Persisto.Connection.Firedac;
 
 const
   DATABASE_NAME = 'PersistoDatabaseTest';
 
-{$IFDEF SQLITE}
 function FormatSQLiteDatabaseName(const DatabaseName: String): String;
 begin
   Result := Format('.\%s.sqlite3', [DatabaseName]);
 end;
-{$ENDIF}
 
 procedure ConfigureConnection(const Connection: TDatabaseConnectionFireDAC; const DatabaseName: String);
 begin
@@ -81,14 +79,14 @@ begin
   if Connection.Connection.Params.Values[S_FD_ConnParam_Common_Server].IsEmpty or Connection.Connection.Params.UserName.IsEmpty and Connection.Connection.Params.Password.IsEmpty
     and Connection.Connection.Params.Values[S_FD_ConnParam_Common_OSAuthent].IsEmpty then
     raise ESQLServerConfigurationError.Create;
-{$ELSEIF DEFINED(SQLITE)}
-  Connection.Connection.DriverName := 'SQLite';
-  Connection.Connection.Params.Database := FormatSQLiteDatabaseName(DatabaseName);
-{$ELSE}
+{$ELSEIF DEFINED(INTERBASE)}
   Connection.Connection.DriverName := 'IBLite';
   Connection.Connection.Params.Database := Format('.\%s.ib', [DatabaseName]);
 
   Connection.Connection.Params.AddPair(S_FD_ConnParam_IB_OpenMode, 'Create');
+{$ELSE}
+  Connection.Connection.DriverName := 'SQLite';
+  Connection.Connection.Params.Database := FormatSQLiteDatabaseName(DatabaseName);
 {$ENDIF}
 end;
 
@@ -112,10 +110,10 @@ begin
   Result := TDatabaseManipulatorPostgreSQL.Create;
 {$ELSEIF DEFINED(SQLSERVER)}
   Result := TDatabaseManipulatorSQLServer.Create;
-{$ELSEIF DEFINED(SQLITE)}
-  Result := TDatabaseManipulatorSQLite.Create;
-{$ELSE}
+{$ELSEIF DEFINED(INTERBASE)}
   Result := TDatabaseManipulatorInterbase.Create;
+{$ELSE}
+  Result := TDatabaseManipulatorSQLite.Create;
 {$ENDIF}
 end;
 
@@ -129,11 +127,11 @@ begin
   var Connection := CreateConnectionNamed('master');
 
   Connection.ExecuteDirect(Format('create database %s', [DatabaseName]));
-{$ELSEIF DEFINED(SQLITE)}
-{$ELSE}
+{$ELSEIF DEFINED(INTERBASE)}
   var Connection := CreateConnectionNamed(DatabaseName);
 
   Connection.ExecuteDirect(Format('create database %s', [DatabaseName]));
+{$ELSE}
 {$ENDIF}
 end;
 
@@ -152,13 +150,13 @@ begin
   var Connection := CreateConnectionNamed('master');
 
   Connection.ExecuteDirect(Format('drop database if exists %s', [DatabaseName]));
-{$ELSEIF DEFINED(SQLITE)}
-  if TFile.Exists(FormatSQLiteDatabaseName(DatabaseName)) then
-    TFile.Delete(FormatSQLiteDatabaseName(DatabaseName));
-{$ELSE}
+{$ELSEIF DEFINED(INTERBASE)}
   var Connection := CreateConnectionNamed(DatabaseName);
 
   Connection.ExecuteDirect(Format('drop database %s', [DatabaseName]));
+{$ELSE}
+  if TFile.Exists(FormatSQLiteDatabaseName(DatabaseName)) then
+    TFile.Delete(FormatSQLiteDatabaseName(DatabaseName));
 {$ENDIF}
 end;
 
