@@ -79,7 +79,8 @@ begin
   Connection.Connection.Params.AddPair(S_FD_ConnParam_Common_Server, GetEnvironmentVariable('SQLSERVER_HOST'));
   Connection.Connection.Params.AddPair(S_FD_ConnParam_Common_OSAuthent, GetEnvironmentVariable('SQLSERVER_OSAUTHENTICATION'));
 
-  if Connection.Connection.Params.UserName.IsEmpty and Connection.Connection.Params.Password.IsEmpty then
+  if Connection.Connection.Params.Values[S_FD_ConnParam_Common_Server].IsEmpty or Connection.Connection.Params.UserName.IsEmpty and Connection.Connection.Params.Password.IsEmpty
+    and Connection.Connection.Params.Values[S_FD_ConnParam_Common_OSAuthent].IsEmpty then
     raise ESQLServerConfigurationError.Create;
 {$ELSEIF DEFINED(SQLITE)}
   Connection.Connection.DriverName := 'SQLite';
