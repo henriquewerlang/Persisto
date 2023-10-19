@@ -78,14 +78,29 @@ const
     'select null Id, null Name, null IdForeignKey';
 
   SEQUENCES_SQL =
-    'select Name ' +
+    'select Name Id,' +
+           'Name ' +
       'from sqlite_sequence';
 
   TABLE_SQL =
-    'select null Id, null Name';
+    'select name Id,' +
+           'name Name ' +
+      'from sqlite_master ' +
+     'where type = ''table'' ' +
+       'and not name like ''sqlite_%''';
 
   COLUMNS_SQL =
-    'select null Id, null IdDefaultConstraint, null IdTable, null FieldType, null Name, null Required, null Scale, null Size, null SpecialType';
+    'select T.name || ''#'' || C.name Id,' +
+           'null IdDefaultConstraint,' +
+           'T.name IdTable,' +
+           '0 FieldType,' +
+           'C.name Name,' +
+           '0 Required,' +
+           '0 Scale,' +
+           '0 Size,' +
+           '0 SpecialType ' +
+      'from PersistoDatabaseTable T,' +
+           'pragma_table_info(T.name) C';
 
   function CreateTable(const Name: String; const Fields: TArray<String>; const SQL: String): TArray<String>;
 
@@ -94,7 +109,7 @@ const
       Result := EmptyStr;
 
       for var Field in Fields do
-        Result := Result + Format('%s,', [Field]);
+        Result := Result + Format('%s,', [Field.Split([' '])[0]]);
 
       Result := Result.Substring(0, Pred(Result.Length));
     end;
@@ -104,7 +119,7 @@ const
       Result := EmptyStr;
 
       for var Field in Fields do
-        Result := Result + Format('%s varchar(250),', [Field]);
+        Result := Result + Format('%s,', [Field]);
 
       Result := Result.Substring(0, Pred(Result.Length));
     end;
@@ -119,12 +134,13 @@ const
 
 begin
   Result := ['create table if not exists PersistoDatabaseSequenceWorkArround (sequence integer primary key autoincrement)']
-    + CreateTable('DefaultConstraint', ['Id', 'Name', 'Value'], DEFAULT_CONSTRAINT_SQL)
-    + CreateTable('ForeignKey', ['Id', 'Name', 'IdTable', 'IdReferenceTable'], FOREING_KEY_SQL)
-    + CreateTable('ForeignKeyField', ['Id', 'Name', 'IdForeignKey'], FOREING_KEY_COLUMS_SQL)
-    + CreateTable('Sequence', ['Id', 'Name'], SEQUENCES_SQL)
-    + CreateTable('Table', ['Id', 'Name'], TABLE_SQL)
-    + CreateTable('TableField', ['Id', 'IdDefaultConstraint', 'IdTable', 'FieldType', 'Name', 'Required', 'Scale', 'Size', 'SpecialType'], COLUMNS_SQL);
+    + CreateTable('DefaultConstraint', ['Id varchar(250)', 'Name varchar(250)', 'Value varchar(250)'], DEFAULT_CONSTRAINT_SQL)
+    + CreateTable('ForeignKey', ['Id varchar(250)', 'Name varchar(250)', 'IdTable varchar(250)', 'IdReferenceTable varchar(250)'], FOREING_KEY_SQL)
+    + CreateTable('ForeignKeyField', ['Id varchar(250)', 'Name varchar(250)', 'IdForeignKey varchar(250)'], FOREING_KEY_COLUMS_SQL)
+    + CreateTable('Sequence', ['Id varchar(250)', 'Name varchar(250)'], SEQUENCES_SQL)
+    + CreateTable('Table', ['Id varchar(250)', 'Name varchar(250)'], TABLE_SQL)
+    + CreateTable('TableField', ['Id varchar(250)', 'IdDefaultConstraint varchar(250)', 'IdTable varchar(250)', 'FieldType int', 'Name varchar(250)', 'Required int', 'Scale int',
+      'Size int', 'SpecialType int'], COLUMNS_SQL);
 end;
 
 function TDatabaseManipulatorSQLite.GetSpecialFieldType(const Field: TField): String;
