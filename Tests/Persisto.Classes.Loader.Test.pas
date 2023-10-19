@@ -36,8 +36,6 @@ type
     [Test]
     procedure WhenLoadAnObjectWithForeignKeyMustLoadAllLevelsOfForeignKey;
     [Test]
-    procedure WhenLoadAnObjectWithCircularReferenceMustRaiseAnError;
-    [Test]
     procedure WhenTheLoadedObjectAsTheSameKeyMustKeepTheSameObjectInstance;
     [Test]
     procedure WhenLoadAnObjectAndTryToUpdateTheObjectCantRaiseErrorOfForeignKeyObject;
@@ -73,6 +71,14 @@ type
     procedure WhenLoadAnObjectWithNullableFieldMustLoadTheFieldAsExpected;
     [Test]
     procedure WhenLoadAClassWithAllTypeOfFieldMustLoadTheValuesWithoutAnyError;
+    [Test]
+    procedure WhenLoadAnObjectWithCircularReferenceMustRaiseAnError;
+    [Test]
+    procedure WhenLoadAnObjectWithCircularReferenceMustRaiseTheCircularReferenceTreeWithThePathOfThError;
+    [Test]
+    procedure WhenSelectingAChildTableWithAForeignKeyCantRaiseRecursionErrorThatNotReal;
+    [Test]
+    procedure WhenSelectingAClassWithManyValueAssociationWithCircularReferenteMustLoadTheReferenceCircularTreeWithTheManyValueInformationToo;
   end;
 
 implementation
@@ -147,6 +153,8 @@ begin
   FManagerInsert.Mapper.GetTable(TInsertTestWithForeignKeyMoreOne);
 
   FManagerInsert.Mapper.GetTable(TManyValueAssociationParent);
+
+  FManagerInsert.Mapper.GetTable(TMyManyValue);
 
   LoadObjects;
 
@@ -271,8 +279,8 @@ begin
 
   NullStrictConvert := False;
 
-  Assert.IsEmpty(EmptyStr, String(Cursor.GetFieldValue(0)));
-  Assert.AreEqual(ForeignKeyValue, String(Cursor.GetFieldValue(1)));
+  Assert.IsEmpty(EmptyStr, Cursor.GetDataSet.Fields[0].AsString);
+  Assert.AreEqual(ForeignKeyValue, Cursor.GetDataSet.Fields[1].AsString);
 end;
 
 procedure TClassLoaderTest.WhenLoadAnObjectAndTryToUpdateTheObjectCantRaiseErrorOfForeignKeyObject;
@@ -308,7 +316,7 @@ begin
 
   Cursor.Next;
 
-  Assert.AreEqual(222, Integer(Cursor.GetFieldValue(0)));
+  Assert.AreEqual(222, Cursor.GetDataSet.Fields[0].AsInteger);
 end;
 
 procedure TClassLoaderTest.WhenLoadAnObjectInheritedFromAnotherMustLoadTheFieldValueOfAllClassLevel;
@@ -359,6 +367,16 @@ begin
     begin
       FManager.Select.All.From<TClassRecursiveFirst>.Open.One;
     end, ERecursionSelectionError);
+end;
+
+procedure TClassLoaderTest.WhenLoadAnObjectWithCircularReferenceMustRaiseTheCircularReferenceTreeWithThePathOfThError;
+begin
+  try
+    FManager.Select.All.From<TClassRecursiveFirst>.Open.One;
+  except
+    on Erro: ERecursionSelectionError do
+      Assert.AreEqual('ClassRecursiveFirst.Recursive->ClassRecursiveSecond.Recursive->ClassRecursiveThird.Recursive->ClassRecursiveFirst.Recursive', Erro.RecursionTree);
+  end;
 end;
 
 procedure TClassLoaderTest.WhenLoadAnObjectWithForeignKeyCantRaiseAnyError;
@@ -447,6 +465,25 @@ begin
   var &Object := FManager.Select.All.From<TClassWithNullableProperty>.Open.One;
 
   Assert.IsTrue(&Object.Nullable.IsNull);
+end;
+
+procedure TClassLoaderTest.WhenSelectingAChildTableWithAForeignKeyCantRaiseRecursionErrorThatNotReal;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Select.All.From<TMyChildLink>.Open.One;
+    end);
+end;
+
+procedure TClassLoaderTest.WhenSelectingAClassWithManyValueAssociationWithCircularReferenteMustLoadTheReferenceCircularTreeWithTheManyValueInformationToo;
+begin
+  try
+    FManager.Select.All.From<TManyValueRecursiveChild>.Open.One;
+  except
+    on Erro: ERecursionSelectionError do
+      Assert.AreEqual('ManyValueRecursiveChild.ManyValueRecursive->ManyValueRecursive.Childs->ClassRecursiveThird.RecursiveClass', Erro.RecursionTree);
+  end;
 end;
 
 procedure TClassLoaderTest.WhenSelectToOpenAnObjectFromDatabaseCantRaiseAnyError;

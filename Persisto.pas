@@ -1804,7 +1804,7 @@ var
     SQL.Append(QueryTable.Alias).Append('.').Append(Field.DatabaseName);
   end;
 
-  procedure LoadFieldList(const QueryTable: TQueryBuilderTable; const FieldToIgnore: TField);
+  procedure LoadFieldList(const QueryTable: TQueryBuilderTable; const ForeignFieldToIgnore: TField = nil);
   var
     DatabaseField: TQueryBuilderTableField;
 
@@ -1827,13 +1827,8 @@ var
           QueryTable.ManyValueAssociationTables.Add(TQueryBuilderTable.Create(Field.ManyValueAssociation))
       else if Field.IsForeignKey and not Field.IsLazy then
       begin
-        if Field <> FieldToIgnore then
-        begin
-          if not RecursiveControl.TryAdd(Field, False) then
-            raise ERecursionSelectionError.Create(Format('%s.%s', [Field.Table.Name, Field.Name]));
-
+        if ForeignFieldToIgnore <> Field then
           QueryTable.ForeignKeyTables.Add(TQueryBuilderTable.Create(Field.ForeignKey));
-        end;
       end
       else
       begin
@@ -1856,23 +1851,33 @@ var
 
     if Assigned(QueryTable.InheritedTable) then
     begin
-      LoadFieldList(QueryTable.InheritedTable, nil);
+      LoadFieldList(QueryTable.InheritedTable);
 
       QueryTable.PrimaryKeyField := QueryTable.InheritedTable.PrimaryKeyField;
     end;
 
     for ForeignKeyTable in QueryTable.ForeignKeyTables do
-      try
-        LoadFieldList(ForeignKeyTable, ForeignKeyTable.ForeignKeyField.Field);
+    begin
+      if not RecursiveControl.TryAdd(ForeignKeyTable.ForeignKeyField.Field, False) then
+        raise ERecursionSelectionError.Create(Format('%s.%s', [ForeignKeyTable.ForeignKeyField.Table.Name, ForeignKeyTable.ForeignKeyField.Field.Name]));
 
-        RecursiveControl.Remove(ForeignKeyTable.ForeignKeyField.Field);
+      try
+        LoadFieldList(ForeignKeyTable);
       except
         on E: ERecursionSelectionError do
-          raise ERecursionSelectionError.Create(Format('%s.%s->%s', [ForeignKeyTable.Table.Name, ForeignKeyTable.ForeignKeyField.Field.Name, E.RecursionTree]));
+          raise ERecursionSelectionError.Create(Format('%s->%s.%s', [E.RecursionTree, ForeignKeyTable.ForeignKeyField.Table.Name, ForeignKeyTable.ForeignKeyField.Field.Name]));
       end;
 
+      RecursiveControl.Remove(ForeignKeyTable.ForeignKeyField.Field);
+    end;
+
     for ManyValueAssociationTable in QueryTable.ManyValueAssociationTables do
-      LoadFieldList(ManyValueAssociationTable, ManyValueAssociationTable.ManyValueAssociationField.ChildField);
+      try
+        LoadFieldList(ManyValueAssociationTable, ManyValueAssociationTable.ManyValueAssociationField.ChildField);
+      except
+        on E: ERecursionSelectionError do
+          raise ERecursionSelectionError.Create(Format('%s.%s->%s', [QueryTable.Table.Name, ManyValueAssociationTable.ManyValueAssociationField.Field.Name, E.RecursionTree]));
+      end;
   end;
 
   procedure BuildJoin(const QueryTable: TQueryBuilderTable);
@@ -2125,7 +2130,7 @@ begin
   try
     SQL.Append('select ');
 
-    LoadFieldList(FQueryTable, nil);
+    LoadFieldList(FQueryTable);
 
     SQL.Append(' from ').Append(FQueryTable.Table.DatabaseName).Append(' ').Append(FQueryTable.Alias);
 

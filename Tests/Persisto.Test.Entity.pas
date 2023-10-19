@@ -162,6 +162,26 @@ type
     property Recursive: TClassRecursiveSecond read FRecursive write FRecursive;
   end;
 
+  TManyValueRecursive = class;
+
+  TManyValueRecursiveChild = class
+  private
+    FManyValueRecursive: TManyValueRecursive;
+    FRecursiveClass: TClassRecursiveThird;
+  published
+    property ManyValueRecursive: TManyValueRecursive read FManyValueRecursive write FManyValueRecursive;
+    property RecursiveClass: TClassRecursiveThird read FRecursiveClass write FRecursiveClass;
+  end;
+
+  TManyValueRecursive = class
+  private
+    FChilds: TArray<TManyValueRecursiveChild>;
+    FId: Integer;
+  published
+    property Childs: TArray<TManyValueRecursiveChild> read FChilds write FChilds;
+    property Id: Integer read FId write FId;
+  end;
+
   TMyEntityWithManyValueAssociation = class;
 
   [Entity]
