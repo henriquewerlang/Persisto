@@ -85,8 +85,15 @@ function TDatabaseCursorFireDAC.Next: Boolean;
 begin
   if FQuery.Active then
     FQuery.Next
-  else if (FQuery.Command.CommandKind in [skDelete, skInsert, skUpdate]) and not FQuery.SQL.Text.Contains(' output ') then
-    FQuery.ExecSQL
+  else if (FQuery.Command.CommandKind in [skDelete, skInsert, skUpdate]) then
+    if FQuery.SQL.Text.Contains(' output ') or FQuery.SQL.Text.Contains('returning ') then
+    begin
+      FQuery.Command.CommandKind := skSelectForLock;
+
+      FQuery.Open;
+    end
+    else
+      FQuery.ExecSQL
   else
     FQuery.Open;
 

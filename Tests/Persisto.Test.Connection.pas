@@ -38,7 +38,6 @@ uses
   Persisto.SQLServer,
 {$ELSEIF DEFINED(SQLITE)}
   Persisto.SQLite,
-  Persisto.SQLite.Firedac.Drive,
   Persisto.SQLite.Firedac.Functions,
 {$ELSE}
   FireDAC.Phys.IB,
