@@ -50,7 +50,7 @@ function TDatabaseManipulatorSQLite.GetFieldType(const Field: TField): String;
 begin
   case Field.FieldType.TypeKind of
     tkInteger:
-      Result := 'int';
+      Result := 'integer';
     tkEnumeration:
       Result := 'smallint';
     tkFloat:
@@ -93,12 +93,34 @@ const
     'select T.name || ''#'' || C.name Id,' +
            'null IdDefaultConstraint,' +
            'T.name IdTable,' +
-           '0 FieldType,' +
+           'case substr(type, 1, iif(instr(type, ''('') > 0, 7, length(type))) ' +
+              'when ''varchar'' then 5 ' +
+              'when ''integer'' then 1 ' +
+              'when ''char'' then 2 ' +
+              'when ''smallint'' then 3 ' +
+              'when ''numeric'' then 4 ' +
+              'when ''bigint'' then 16 ' +
+              'else 0 ' +
+           'end FieldType,' +
            'C.name Name,' +
-           '0 Required,' +
-           '0 Scale,' +
-           '0 Size,' +
-           '0 SpecialType ' +
+           '"notnull" Required,' +
+           'cast(substr(type, instr(type, '','') + 1, length(type) - instr(type, '','') - 1) as integer) Scale,' +
+           'cast(substr(type, instr(type, ''('') + 1, coalesce(nullif(instr(type, '',''), 0), length(type)) - instr(type, ''('') - 1) as integer) Size,' +
+           'case type ' +
+              // Date
+              'when ''date'' then 1 ' +
+              // DateTime
+              'when ''datetime'' then 2 ' +
+              // Time
+              'when ''time'' then 3 ' +
+              // Text
+              'when ''text'' then 4 ' +
+              // Unique Identifier
+              'when ''uniqueidentifier'' then 5 ' +
+              // Boolean
+              'when ''boolean'' then 6 ' +
+              'else 0 ' +
+           'end SpecialType ' +
       'from PersistoDatabaseTable T,' +
            'pragma_table_info(T.name) C';
 
@@ -139,13 +161,13 @@ begin
     + CreateTable('ForeignKeyField', ['Id varchar(250)', 'Name varchar(250)', 'IdForeignKey varchar(250)'], FOREING_KEY_COLUMS_SQL)
     + CreateTable('Sequence', ['Id varchar(250)', 'Name varchar(250)'], SEQUENCES_SQL)
     + CreateTable('Table', ['Id varchar(250)', 'Name varchar(250)'], TABLE_SQL)
-    + CreateTable('TableField', ['Id varchar(250)', 'IdDefaultConstraint varchar(250)', 'IdTable varchar(250)', 'FieldType int', 'Name varchar(250)', 'Required int', 'Scale int',
-      'Size int', 'SpecialType int'], COLUMNS_SQL);
+    + CreateTable('TableField', ['Id varchar(250)', 'IdDefaultConstraint varchar(250)', 'IdTable varchar(250)', 'FieldType integer', 'Name varchar(250)', 'Required integer',
+      'Scale integer', 'Size integer', 'SpecialType integer'], COLUMNS_SQL);
 end;
 
 function TDatabaseManipulatorSQLite.GetSpecialFieldType(const Field: TField): String;
 const
-  SPECIAL_TYPE_MAPPING: array [TDatabaseSpecialType] of String = ('', 'date', 'datetime', 'time', 'text', 'varchar(38)', 'boolean');
+  SPECIAL_TYPE_MAPPING: array [TDatabaseSpecialType] of String = ('', 'date', 'datetime', 'time', 'text', 'uniqueidentifier', 'boolean');
 
 begin
   Result := SPECIAL_TYPE_MAPPING[Field.SpecialType];
