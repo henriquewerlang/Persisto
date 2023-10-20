@@ -128,6 +128,7 @@ type
     function GetFieldType(const Field: TField): String;
     function GetSchemaTablesScripts: TArray<String>;
     function GetSpecialFieldType(const Field: TField): String;
+    function IsSQLite: Boolean;
     function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
     function MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
   end;
@@ -744,20 +745,11 @@ type
 
   TDatabaseManipulator = class(TInterfacedObject)
   protected
-    function CreateField(const Field: TField): String;
-    function CreateForeignKey(const ForeignKey: TForeignKey): String;
-    function CreateIndex(const Index: TIndex): String;
     function CreateSequence(const Sequence: TSequence): String;
-    function CreateTempField(const Field: TField): String;
-    function DropDefaultConstraint(const Field: TDatabaseField): String;
-    function DropField(const Field: TDatabaseField): String;
-    function DropForeignKey(const ForeignKey: TDatabaseForeignKey): String;
-    function DropIndex(const Index: TDatabaseIndex): String;
     function DropSequence(const Sequence: TDatabaseSequence): String;
-    function DropTable(const Table: TDatabaseTable): String;
+    function IsSQLite: Boolean;
     function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
     function MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
-    function UpdateField(const SourceField, DestinyField: TField): String;
   end;
 
   TDatabaseClassGenerator = class
@@ -2531,6 +2523,11 @@ var
         Exit(DatabaseIndex);
   end;
 
+  procedure RemoveLastSQLChar;
+  begin
+    SQL.Length := Pred(SQL.Length);
+  end;
+
   procedure AppendDefaultConstraint(const Field: TField);
   begin
     if Assigned(Field.DefaultConstraint) then
@@ -2597,7 +2594,7 @@ var
         SQL.Append(',');
       end;
 
-    SQL.Length := Pred(SQL.Length);
+    RemoveLastSQLChar;
   end;
 
   procedure BuildPrimaryKeyConstraint;
@@ -2616,6 +2613,27 @@ var
     end;
   end;
 
+  procedure BuildForeignKeyConstraint;
+  begin
+    SQL.Append('constraint ');
+
+    SQL.Append(ForeignKey.DatabaseName);
+
+    SQL.Append(' foreign key (');
+
+    SQL.Append(ForeignKey.Field.DatabaseName);
+
+    SQL.Append(') references ');
+
+    SQL.Append(ForeignKey.ParentTable.DatabaseName);
+
+    SQL.Append('(');
+
+    SQL.Append(ForeignKey.ParentTable.PrimaryKey.DatabaseName);
+
+    SQL.Append(')');
+  end;
+
   procedure CreateTable;
   begin
     SQL.Append('create table ');
@@ -2627,6 +2645,16 @@ var
     BuildFieldList;
 
     BuildPrimaryKeyConstraint;
+
+    if FDatabaseManipulator.IsSQLite then
+      for var FK in Table.ForeignKeys do
+      begin
+        ForeignKey := FK;
+
+        SQL.Append(',');
+
+        BuildForeignKeyConstraint;
+      end;
 
     SQL.Append(')');
 
@@ -2656,55 +2684,16 @@ var
     ExecuteSQL;
   end;
 
-  procedure RecreateField;
-  begin
-//    try
-//      var TempField := TField.Create(Field.Table);
-//      TempField.FDatabaseName := 'TempField' + Trunc(Random * 1000000).ToString;
-//      TempField.FFieldType := Field.FieldType;
-//      TempField.FRequired := Field.Required;
-//      TempField.FScale := Field.Scale;
-//      TempField.FSize := Field.Size;
-//      TempField.FSpecialType := Field.SpecialType;
-//
-//      FDatabaseManipulator.CreateTempField(TempField);
-//
-//      FDatabaseManipulator.UpdateField(Field, TempField);
-//
-//      DropField(DatabaseField);
-//
-//      FDatabaseManipulator.RenameField(TempField, Field);
-//
-//      TempField.Free;
-//    except
-//      on E: Exception do
-//        raise Exception.CreateFmt('Erro trying to convert the field %s.%s: %s', [Field.Table.DatabaseName, Field.DatabaseName, E.Message]);
-//    end;
-  end;
-
   procedure CreateForeignKey;
   begin
-    AddTable;
+    if not FDatabaseManipulator.IsSQLite then
+    begin
+      AddTable;
 
-    SQL.Append('constraint ');
+      BuildForeignKeyConstraint;
 
-    SQL.Append(ForeignKey.DatabaseName);
-
-    SQL.Append(' foreign key (');
-
-    SQL.Append(ForeignKey.Field.DatabaseName);
-
-    SQL.Append(') references ');
-
-    SQL.Append(ForeignKey.ParentTable.DatabaseName);
-
-    SQL.Append('(');
-
-    SQL.Append(ForeignKey.ParentTable.PrimaryKey.DatabaseName);
-
-    SQL.Append(')');
-
-    ExecuteSQL;
+      ExecuteSQL;
+    end;
   end;
 
   procedure CreateSequence;
@@ -2835,7 +2824,7 @@ begin
 //          RecreateIndex(Index, DatabaseIndex);
 //      end;
 //  end;
-//
+
   for Table in FManager.Mapper.Tables do
   begin
     if DatabaseTables.TryGetValue(Table.DatabaseName, DatabaseTable) then
@@ -2885,62 +2874,9 @@ end;
 
 { TDatabaseManipulator }
 
-function TDatabaseManipulator.CreateField(const Field: TField): String;
-begin
-//  ExecuteDirect(Format('alter table %s add %s', [Field.Table.DatabaseName, GetFieldDefinition(Field)]));
-end;
-
-function TDatabaseManipulator.CreateForeignKey(const ForeignKey: TForeignKey): String;
-begin
-//  ExecuteDirect(Format('alter table %s add constraint %s foreign key (%s) references %s (%s)', [ForeignKey.Table.DatabaseName,
-//    ForeignKey.DatabaseName, ForeignKey.Field.DatabaseName, ForeignKey.ParentTable.DatabaseName, ForeignKey.ParentTable.PrimaryKey.DatabaseName]));
-end;
-
-function TDatabaseManipulator.CreateIndex(const Index: TIndex): String;
-
-//  function CheckUniqueIndex: String;
-//  begin
-//    if Index.Unique then
-//      Result := 'unique '
-//    else
-//      Result := EmptyStr;
-//  end;
-
-begin
-//  if Index.PrimaryKey then
-//    ExecuteDirect(Format('alter table %s add %s', [Index.Table.DatabaseName, GetPrimaryKey(Index.Table, EmptyStr)]))
-//  else
-//    ExecuteDirect(Format('create %sindex %s on %s (%s)', [CheckUniqueIndex, Index.DatabaseName, Index.Table.DatabaseName, GetFieldList(Index.Fields)]));
-end;
-
 function TDatabaseManipulator.CreateSequence(const Sequence: TSequence): String;
 begin
   Result := Format('create sequence %s', [Sequence.Name]);
-end;
-
-function TDatabaseManipulator.CreateTempField(const Field: TField): String;
-begin
-  CreateField(Field);
-end;
-
-function TDatabaseManipulator.DropDefaultConstraint(const Field: TDatabaseField): String;
-begin
-//  ExecuteDirect(Format('alter table %s drop constraint %s', [Field.Table.Name, Field.DefaultConstraint.Name]));
-end;
-
-function TDatabaseManipulator.DropField(const Field: TDatabaseField): String;
-begin
-//  ExecuteDirect(Format('alter table %s drop column %s', [Field.Table.Name, Field.Name]));
-end;
-
-function TDatabaseManipulator.DropForeignKey(const ForeignKey: TDatabaseForeignKey): String;
-begin
-//  ExecuteDirect(Format('alter table %s drop constraint %s', [ForeignKey.Table.Name, ForeignKey.Name]));
-end;
-
-function TDatabaseManipulator.DropIndex(const Index: TDatabaseIndex): String;
-begin
-//  ExecuteDirect(Format('drop index %s on %s', [Index.Name, Index.Table.Name]));
 end;
 
 function TDatabaseManipulator.DropSequence(const Sequence: TDatabaseSequence): String;
@@ -2948,55 +2884,10 @@ begin
   Result := Format('drop sequence %s', [Sequence.Name]);
 end;
 
-function TDatabaseManipulator.DropTable(const Table: TDatabaseTable): String;
+function TDatabaseManipulator.IsSQLite: Boolean;
 begin
-//  ExecuteDirect(Format('drop table %s', [Table.Name]));
+  Result := False;
 end;
-
-//function TDatabaseManipulator.GetFieldCollation(const Field: TField): String;
-//begin
-//  Result := EmptyStr;
-//
-//  if not Field.Collation.IsEmpty then
-//    Result := Format(' collate %s', [Field.Collation]);
-//end;
-
-//function TDatabaseManipulator.GetFieldDefaultConstraint(const Field: TField): String;
-//begin
-//  Result := EmptyStr;
-//
-//  if Assigned(Field.DefaultConstraint) then
-//    Result := Format(' constraint %s default(%s)', [GetDefaultConstraintName(Field), GetAutoGeneratedValue(Field.DefaultConstraint)]);
-//end;
-//
-//function TDatabaseManipulator.GetFieldDefinition(const Field: TField): String;
-//const
-//  IS_NULL_VALUE: array[Boolean] of String = ('', 'not ');
-//
-//begin
-//  Result := Format('%s %s %snull%s%s', [Field.DatabaseName, GetFieldTypeDefinition(Field), IS_NULL_VALUE[Field.Required], GetFieldCollation(Field),
-//    GetFieldDefaultConstraint(Field)]);
-//end;
-//
-//function TDatabaseManipulator.GetFieldTypeDefinition(Field: TField): String;
-//begin
-//  if Field.SpecialType = stNotDefined then
-//  begin
-//    Result := GetFieldType(Field);
-//
-//    if Field.FieldType.TypeKind in [tkFloat, tkUString, tkWChar] then
-//    begin
-//      var Size := Field.Size.ToString;
-//
-//      if Field.FieldType.TypeKind = tkFloat then
-//        Size := Size + ',' + Field.Scale.ToString;
-//
-//      Result := Format('%s(%s)', [Result, Size]);
-//    end;
-//  end
-//  else
-//    Result := GetSpecialFieldType(Field);
-//end;
 
 function TDatabaseManipulator.MakeInsertStatement(const Table: TTable; const Params: TParams): String;
 begin
@@ -3062,11 +2953,6 @@ begin
 
   if Table.HasPrimaryKey then
     Result := Format('%s where %1:s=:%1:s', [Result, Table.PrimaryKey.DatabaseName]);
-end;
-
-function TDatabaseManipulator.UpdateField(const SourceField, DestinyField: TField): String;
-begin
-//  ExecuteDirect(Format('update %s set %s = %s', [SourceField.Table.DatabaseName, DestinyField.DatabaseName, SourceField.DatabaseName]));
 end;
 
 { TManager }

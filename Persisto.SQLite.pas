@@ -13,6 +13,7 @@ type
     function GetFieldType(const Field: TField): String;
     function GetSchemaTablesScripts: TArray<String>;
     function GetSpecialFieldType(const Field: TField): String;
+    function IsSQLite: Boolean;
   end;
 
 implementation
@@ -72,7 +73,12 @@ const
     'select null Id, null Name, null Value';
 
   FOREING_KEY_SQL =
-    'select null Id, null Name, null IdTable, null IdReferenceTable';
+    'select FK.id || ''.'' || FK."table" Id,' +
+           '''FK_'' || T.name || ''_'' || FK."from" Name,' +
+           'T.name IdTable,' +
+           'FK."table" IdReferenceTable ' +
+      'from PersistoDatabaseTable T,' +
+           'pragma_foreign_key_list(T.name) FK';
 
   FOREING_KEY_COLUMS_SQL =
     'select null Id, null Name, null IdForeignKey';
@@ -151,16 +157,13 @@ const
       Format('insert into PersistoDatabase%s (%s) %s', [Name, GetFieldList, SQL])];
   end;
 
-const
-  FOREIGN_KEY_ID = '''FK_'' || T.name || ''_'' || FK."table" || ''_'' || FK."from"';
-
 begin
   Result := ['create table if not exists PersistoDatabaseSequenceWorkArround (sequence integer primary key autoincrement)']
+    + CreateTable('Sequence', ['Id varchar(250)', 'Name varchar(250)'], SEQUENCES_SQL)
+    + CreateTable('Table', ['Id varchar(250)', 'Name varchar(250)'], TABLE_SQL)
     + CreateTable('DefaultConstraint', ['Id varchar(250)', 'Name varchar(250)', 'Value varchar(250)'], DEFAULT_CONSTRAINT_SQL)
     + CreateTable('ForeignKey', ['Id varchar(250)', 'Name varchar(250)', 'IdTable varchar(250)', 'IdReferenceTable varchar(250)'], FOREING_KEY_SQL)
     + CreateTable('ForeignKeyField', ['Id varchar(250)', 'Name varchar(250)', 'IdForeignKey varchar(250)'], FOREING_KEY_COLUMS_SQL)
-    + CreateTable('Sequence', ['Id varchar(250)', 'Name varchar(250)'], SEQUENCES_SQL)
-    + CreateTable('Table', ['Id varchar(250)', 'Name varchar(250)'], TABLE_SQL)
     + CreateTable('TableField', ['Id varchar(250)', 'IdDefaultConstraint varchar(250)', 'IdTable varchar(250)', 'FieldType integer', 'Name varchar(250)', 'Required integer',
       'Scale integer', 'Size integer', 'SpecialType integer'], COLUMNS_SQL);
 end;
@@ -171,6 +174,11 @@ const
 
 begin
   Result := SPECIAL_TYPE_MAPPING[Field.SpecialType];
+end;
+
+function TDatabaseManipulatorSQLite.IsSQLite: Boolean;
+begin
+  Result := True;
 end;
 
 end.

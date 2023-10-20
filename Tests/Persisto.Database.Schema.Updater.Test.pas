@@ -199,6 +199,7 @@ type
     function GetFieldType(const Field: TField): String;
     function GetSchemaTablesScripts: TArray<String>;
     function GetSpecialFieldType(const Field: TField): String;
+    function IsSQLite: Boolean;
     function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
     function MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
   public
@@ -1562,6 +1563,11 @@ function TDatabaseManiupulatorMock.GetSpecialFieldType(const Field: TField): Str
 begin
   FFunctionSpecialTypeCalled := True;
   Result := FManipulador.GetSpecialFieldType(Field);
+end;
+
+function TDatabaseManiupulatorMock.IsSQLite: Boolean;
+begin
+  Result := False;
 end;
 
 function TDatabaseManiupulatorMock.MakeInsertStatement(const Table: TTable; const Params: TParams): String;
