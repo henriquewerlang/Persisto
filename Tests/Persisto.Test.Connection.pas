@@ -31,16 +31,22 @@ uses
   System.IOUtils,
 {$IFDEF POSTGRESQL}
   FireDAC.Phys.PG,
+  FireDAC.Phys.PGDef,
   Persisto.PostgreSQL,
 {$ELSEIF DEFINED(SQLSERVER)}
   FireDAC.Phys.MSSQL,
+  FireDAC.Phys.MSSQLDef,
   FireDAC.Stan.Consts,
   Persisto.SQLServer,
 {$ELSEIF DEFINED(INTERBASE)}
   FireDAC.Phys.IB,
+  FireDAC.Phys.IBLiteDef,
+  FireDAC.Phys.IBWrapper,
   FireDAC.Stan.Consts,
   Persisto.Interbase,
 {$ELSE}
+  FireDAC.Phys.SQLite,
+  FireDAC.Phys.SQLiteDef,
   Persisto.SQLite,
   Persisto.SQLite.Firedac.Functions,
 {$ENDIF}
@@ -61,32 +67,39 @@ begin
   Driver.VendorLib := GetEnvironmentVariable('POSTGRESQL_LIB_PATH');
 
   Connection.Connection.DriverName := 'PG';
-  Connection.Connection.Params.Database := DatabaseName.ToLower;
-  Connection.Connection.Params.Password := GetEnvironmentVariable('POSTGRESQL_PASSWORD');
-  Connection.Connection.Params.UserName := GetEnvironmentVariable('POSTGRESQL_USERNAME');
+
+  var Configuration := Connection.Connection.Params as TFDPhysPGConnectionDefParams;
+  Configuration.Database := DatabaseName.ToLower;
+  Configuration.Password := GetEnvironmentVariable('POSTGRESQL_PASSWORD');
+  Configuration.UserName := GetEnvironmentVariable('POSTGRESQL_USERNAME');
 
   if Driver.VendorLib.IsEmpty or Connection.Connection.Params.UserName.IsEmpty and Connection.Connection.Params.Password.IsEmpty then
     raise EPostgreSQLConfigurationError.Create;
 {$ELSEIF DEFINED(SQLSERVER)}
   Connection.Connection.DriverName := 'MSSQL';
-  Connection.Connection.Params.Database := DatabaseName;
-  Connection.Connection.Params.Password := GetEnvironmentVariable('SQLSERVER_PASSWORD');
-  Connection.Connection.Params.UserName := GetEnvironmentVariable('SQLSERVER_USERNAME');
 
-  Connection.Connection.Params.AddPair(S_FD_ConnParam_Common_Server, GetEnvironmentVariable('SQLSERVER_HOST'));
-  Connection.Connection.Params.AddPair(S_FD_ConnParam_Common_OSAuthent, GetEnvironmentVariable('SQLSERVER_OSAUTHENTICATION'));
+  var Configuration := Connection.Connection.Params as TFDPhysMSSQLConnectionDefParams;
+  Configuration.Database := DatabaseName;
+  Configuration.Encrypt := False;
+  Configuration.OSAuthent := GetEnvironmentVariable('SQLSERVER_OSAUTHENTICATION').ToUpper = 'YES';
+  Configuration.Password := GetEnvironmentVariable('SQLSERVER_PASSWORD');
+  Configuration.Server := GetEnvironmentVariable('SQLSERVER_HOST');
+  Configuration.UserName := GetEnvironmentVariable('SQLSERVER_USERNAME');
 
-  if Connection.Connection.Params.Values[S_FD_ConnParam_Common_Server].IsEmpty or Connection.Connection.Params.UserName.IsEmpty and Connection.Connection.Params.Password.IsEmpty
-    and Connection.Connection.Params.Values[S_FD_ConnParam_Common_OSAuthent].IsEmpty then
+  if Configuration.Server.IsEmpty or Configuration.UserName.IsEmpty and Configuration.Password.IsEmpty and not Configuration.OSAuthent then
     raise ESQLServerConfigurationError.Create;
 {$ELSEIF DEFINED(INTERBASE)}
   Connection.Connection.DriverName := 'IBLite';
-  Connection.Connection.Params.Database := Format('.\%s.ib', [DatabaseName]);
 
-  Connection.Connection.Params.AddPair(S_FD_ConnParam_IB_OpenMode, 'Create');
+  var Configuration := Connection.Connection.Params as TFDPhysIBLiteConnectionDefParams;
+  Configuration.Database := Format('.\%s.ib', [DatabaseName]);
+  Configuration.OpenMode := omOpenOrCreate;
 {$ELSE}
   Connection.Connection.DriverName := 'SQLite';
-  Connection.Connection.Params.Database := FormatSQLiteDatabaseName(DatabaseName);
+
+  var Configuration := Connection.Connection.Params as TFDPhysSQLiteConnectionDefParams;
+  Configuration.Database := FormatSQLiteDatabaseName(DatabaseName);
+  Configuration.ForeignKeys := fkOn;
 {$ENDIF}
 end;
 
