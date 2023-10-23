@@ -47,6 +47,7 @@ uses
 {$ELSE}
   FireDAC.Phys.SQLite,
   FireDAC.Phys.SQLiteDef,
+  FireDAC.Stan.Consts,
   Persisto.SQLite,
   Persisto.SQLite.Firedac.Functions,
 {$ENDIF}
@@ -58,6 +59,34 @@ const
 function FormatSQLiteDatabaseName(const DatabaseName: String): String;
 begin
   Result := Format('.\%s.sqlite3', [DatabaseName]);
+end;
+
+function GetDeployName: String;
+begin
+{$IFDEF MSWINDOWS}
+  {$IF DEFINED(CPUX64) or DEFINED(CPUARM64)}
+  Result := S_FD_Win64;
+  {$ELSE}
+  Result := S_FD_Win32;
+  {$ENDIF}
+{$ENDIF}
+{$IFDEF MACOS}
+  {$IF DEFINED(CPUX64) or DEFINED(CPUARM64)}
+  Result := S_FD_OSX64;
+  {$ELSE}
+  Result := S_FD_OSX32;
+  {$ENDIF}
+{$ENDIF}
+{$IFDEF LINUX}
+  {$IF DEFINED(CPUX64) or DEFINED(CPUARM64)}
+  Result := S_FD_UIX64;
+  {$ELSE}
+  Result := S_FD_UIX32;
+  {$ENDIF}
+{$ENDIF}
+{$IFDEF ANDROID}
+  Result := S_FD_ANDROID;
+{$ENDIF}
 end;
 
 procedure ConfigureConnection(const Connection: TDatabaseConnectionFireDAC; const DatabaseName: String);
@@ -94,12 +123,20 @@ begin
   var Configuration := Connection.Connection.Params as TFDPhysIBLiteConnectionDefParams;
   Configuration.Database := Format('.\%s.ib', [DatabaseName]);
   Configuration.OpenMode := omOpenOrCreate;
+  Configuration.Password := 'masterkey';
+  Configuration.UserName := 'sysdba';
+
+  if not TFile.Exists('.\ibtogo.dll') then
+    TDirectory.Copy(Format('%s\%s_togo', [GetEnvironmentVariable('IBREDISTDIR'), GetDeployName]), '.\');
 {$ELSE}
   Connection.Connection.DriverName := 'SQLite';
 
   var Configuration := Connection.Connection.Params as TFDPhysSQLiteConnectionDefParams;
   Configuration.Database := FormatSQLiteDatabaseName(DatabaseName);
   Configuration.ForeignKeys := fkOn;
+
+  if not TFile.Exists('.\sqlite3.dll') then
+    TDirectory.Copy(Format('..\..\SQLite\%s', [GetDeployName]), '.\');
 {$ENDIF}
 end;
 

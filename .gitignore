@@ -76,3 +76,6 @@ Persisto.Tests_MemoryManager_EventLog.txt
 
 #DevExpress
 *.skincfg
+
+#Interbase
+Interbase/
