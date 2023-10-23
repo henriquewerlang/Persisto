@@ -56,9 +56,15 @@ uses
 const
   DATABASE_NAME = 'PersistoDatabaseTest';
 
-function FormatSQLiteDatabaseName(const DatabaseName: String): String;
+function FormatDatabaseName(const DatabaseName: String): String;
 begin
+{$IF DEFINED(POSTGRESQL) or DEFINED(SQLSERVER)}
+  Result := DatabaseName;
+{$ELSEIF DEFINED(INTERBASE)}
+  Result := Format('.\%s.ib', [DatabaseName]);
+{$ELSE}
   Result := Format('.\%s.sqlite3', [DatabaseName]);
+{$ENDIF}
 end;
 
 function GetDeployName: String;
@@ -121,7 +127,8 @@ begin
   Connection.Connection.DriverName := 'IBLite';
 
   var Configuration := Connection.Connection.Params as TFDPhysIBLiteConnectionDefParams;
-  Configuration.Database := Format('.\%s.ib', [DatabaseName]);
+  Configuration.Database := DatabaseName;
+  Configuration.DropDatabase := True;
   Configuration.OpenMode := omOpenOrCreate;
   Configuration.Password := 'masterkey';
   Configuration.UserName := 'sysdba';
@@ -132,7 +139,7 @@ begin
   Connection.Connection.DriverName := 'SQLite';
 
   var Configuration := Connection.Connection.Params as TFDPhysSQLiteConnectionDefParams;
-  Configuration.Database := FormatSQLiteDatabaseName(DatabaseName);
+  Configuration.Database := DatabaseName;
   Configuration.ForeignKeys := fkOn;
 
   if not TFile.Exists('.\sqlite3.dll') then
@@ -144,7 +151,7 @@ function CreateConnectionNamed(const DatabaseName: String): IDatabaseConnection;
 begin
   var Connection := TDatabaseConnectionFireDAC.Create;
 
-  ConfigureConnection(Connection, DatabaseName);
+  ConfigureConnection(Connection, FormatDatabaseName(DatabaseName));
 
   Result := Connection;
 end;
@@ -178,9 +185,6 @@ begin
 
   Connection.ExecuteDirect(Format('create database %s', [DatabaseName]));
 {$ELSEIF DEFINED(INTERBASE)}
-  var Connection := CreateConnectionNamed(DatabaseName);
-
-  Connection.ExecuteDirect(Format('create database %s', [DatabaseName]));
 {$ELSE}
 {$ENDIF}
 end;
@@ -190,30 +194,25 @@ begin
   CreateDatabaseNamed(DATABASE_NAME);
 end;
 
-procedure DropDatabaseNamed(const DatabaseName: String);
-begin
-{$IFDEF POSTGRESQL}
-  var Connection := CreateConnectionNamed('postgres');
-
-  Connection.ExecuteDirect(Format('drop database if exists %s with (force)', [DatabaseName]));
-{$ELSEIF DEFINED(SQLSERVER)}
-  var Connection := CreateConnectionNamed('master');
-
-  Connection.ExecuteDirect(Format('drop database if exists %s', [DatabaseName]));
-{$ELSEIF DEFINED(INTERBASE)}
-  var Connection := CreateConnectionNamed(DatabaseName);
-
-  Connection.ExecuteDirect(Format('drop database %s', [DatabaseName]));
-{$ELSE}
-  if TFile.Exists(FormatSQLiteDatabaseName(DatabaseName)) then
-    TFile.Delete(FormatSQLiteDatabaseName(DatabaseName));
-{$ENDIF}
-end;
-
 procedure DropDatabase;
 begin
   try
-    DropDatabaseNamed(DATABASE_NAME);
+    var DatabaseName := FormatDatabaseName(DATABASE_NAME);
+
+{$IFDEF POSTGRESQL}
+    var Connection := CreateConnectionNamed('postgres');
+
+    Connection.ExecuteDirect(Format('drop database if exists %s with (force)', [DatabaseName]));
+{$ELSEIF DEFINED(SQLSERVER)}
+    var Connection := CreateConnectionNamed('master');
+
+    Connection.ExecuteDirect(Format('drop database if exists %s', [DatabaseName]));
+{$ELSEIF DEFINED(INTERBASE)}
+    CreateConnectionNamed(DatabaseName);
+{$ELSE}
+    if TFile.Exists(DatabaseName) then
+      TFile.Delete(DatabaseName);
+{$ENDIF}
   except
   end;
 end;
