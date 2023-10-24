@@ -69,6 +69,18 @@ end;
 
 function TDatabaseManipulatorSQLite.GetSchemaTablesScripts: TArray<String>;
 const
+  PRIMARY_KEY_CONSTRAINT_FILTER_SQL =
+           'pragma_index_list(T.name) PK,' +
+           'pragma_index_info(PK.name) PKF ' +
+     'where PK.origin = ''pk''';
+
+  PRIMARY_KEY_CONSTRAINT_SQL =
+    'select PK.name Id,' +
+           '''PK_'' || T.name Name,' +
+           'PKF.name FieldName ' +
+      'from PersistoDatabaseTable T,' +
+            PRIMARY_KEY_CONSTRAINT_FILTER_SQL;
+
   DEFAULT_CONSTRAINT_SQL =
     'select null Id, null Name, null Value';
 
@@ -89,11 +101,13 @@ const
       'from sqlite_sequence';
 
   TABLE_SQL =
-    'select name Id,' +
-           'name Name ' +
-      'from sqlite_master ' +
-     'where type = ''table'' ' +
-       'and not name like ''sqlite_%''';
+    'select T.name Id,' +
+           '(select PK.name ' +
+              'from ' + PRIMARY_KEY_CONSTRAINT_FILTER_SQL + ') IdPrimaryKey,' +
+           'T.name Name ' +
+      'from sqlite_master T ' +
+     'where T.type = ''table'' ' +
+       'and not T.name like ''sqlite_%''';
 
   COLUMNS_SQL =
     'select T.name || ''#'' || C.name Id,' +
@@ -160,12 +174,13 @@ const
 begin
   Result := ['create table if not exists PersistoDatabaseSequenceWorkArround (sequence integer primary key autoincrement)']
     + CreateTable('Sequence', ['Id varchar(250)', 'Name varchar(250)'], SEQUENCES_SQL)
-    + CreateTable('Table', ['Id varchar(250)', 'Name varchar(250)'], TABLE_SQL)
+    + CreateTable('Table', ['Id varchar(250)', 'IdPrimaryKeyConstraint varchar(250)', 'Name varchar(250)'], TABLE_SQL)
     + CreateTable('DefaultConstraint', ['Id varchar(250)', 'Name varchar(250)', 'Value varchar(250)'], DEFAULT_CONSTRAINT_SQL)
     + CreateTable('ForeignKey', ['Id varchar(250)', 'Name varchar(250)', 'IdTable varchar(250)', 'IdReferenceTable varchar(250)'], FOREING_KEY_SQL)
     + CreateTable('ForeignKeyField', ['Id varchar(250)', 'Name varchar(250)', 'IdForeignKey varchar(250)'], FOREING_KEY_COLUMS_SQL)
     + CreateTable('TableField', ['Id varchar(250)', 'IdDefaultConstraint varchar(250)', 'IdTable varchar(250)', 'FieldType integer', 'Name varchar(250)', 'Required integer',
-      'Scale integer', 'Size integer', 'SpecialType integer'], COLUMNS_SQL);
+      'Scale integer', 'Size integer', 'SpecialType integer'], COLUMNS_SQL)
+    + CreateTable('PrimaryKeyConstraint', ['Id varchar(250)', 'Name varchar(250)', 'FieldName varchar(250)'], PRIMARY_KEY_CONSTRAINT_SQL);
 end;
 
 function TDatabaseManipulatorSQLite.GetSpecialFieldType(const Field: TField): String;

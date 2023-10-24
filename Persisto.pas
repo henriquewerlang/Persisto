@@ -15,7 +15,6 @@ type
   TDatabaseForeignKeyField = class;
   TDatabaseIndex = class;
   TDatabasePrimaryKeyConstraint = class;
-  TDatabasePrimaryKeyConstraintField = class;
   TDatabaseSequence = class;
   TDatabaseTable = class;
 {$M-}
@@ -590,6 +589,7 @@ type
     FId: String;
     FIndexes: Lazy<TArray<TDatabaseIndex>>;
     FName: String;
+    FPrimaryKeyConstraint: TDatabasePrimaryKeyConstraint;
   public
     property Indexes: Lazy<TArray<TDatabaseIndex>> read FIndexes write FIndexes;
   published
@@ -599,6 +599,7 @@ type
     property ForeignKeys: Lazy<TArray<TDatabaseForeignKey>> read FForeignKeys write FForeignKeys;
     property Id: String read FId write FId;
     property Name: String read FName write FName;
+    property PrimaryKeyConstraint: TDatabasePrimaryKeyConstraint read FPrimaryKeyConstraint write FPrimaryKeyConstraint;
   end;
 
   [TableName('PersistoDatabaseTableField')]
@@ -696,26 +697,16 @@ type
     property Value: String read FValue write FValue;
   end;
 
+  [TableName('PersistoDatabasePrimaryKeyConstraint')]
   TDatabasePrimaryKeyConstraint = class
   private
-    FFields: TArray<TDatabasePrimaryKeyConstraintField>;
     FId: String;
     FName: String;
-  public
-    property Fields: TArray<TDatabasePrimaryKeyConstraintField> read FFields write FFields;
+    FFieldName: String;
+  published
+    property FieldName: String read FFieldName write FFieldName;
     property Id: String read FId write FId;
     property Name: String read FName write FName;
-  end;
-
-  TDatabasePrimaryKeyConstraintField = class
-  private
-    FId: String;
-    FName: String;
-    FPrimaryKey: TDatabasePrimaryKeyConstraint;
-  public
-    property Id: String read FId write FId;
-    property Name: String read FName write FName;
-    property PrimaryKey: TDatabasePrimaryKeyConstraint read FPrimaryKey write FPrimaryKey;
   end;
 
   [TableName('PersistoDatabaseSequence')]
