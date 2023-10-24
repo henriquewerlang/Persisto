@@ -99,7 +99,7 @@ const
     'select T.name || ''#'' || C.name Id,' +
            'null IdDefaultConstraint,' +
            'T.name IdTable,' +
-           'case substr(type, 1, iif(instr(type, ''('') > 0, 7, length(type))) ' +
+           'case lower(substr(type, 1, iif(instr(type, ''('') > 0, 7, length(type)))) ' +
               'when ''varchar'' then 5 ' +
               'when ''integer'' then 1 ' +
               'when ''char'' then 2 ' +
@@ -112,7 +112,7 @@ const
            '"notnull" Required,' +
            'cast(substr(type, instr(type, '','') + 1, length(type) - instr(type, '','') - 1) as integer) Scale,' +
            'cast(substr(type, instr(type, ''('') + 1, coalesce(nullif(instr(type, '',''), 0), length(type)) - instr(type, ''('') - 1) as integer) Size,' +
-           'case type ' +
+           'case lower(type)' +
               // Date
               'when ''date'' then 1 ' +
               // DateTime
