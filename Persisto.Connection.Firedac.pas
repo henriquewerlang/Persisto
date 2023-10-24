@@ -107,10 +107,7 @@ begin
   inherited;
 
   FConnection := TFDConnection.Create(nil);
-  FConnection.FetchOptions.CursorKind := ckForwardOnly;
   FConnection.FetchOptions.Items := [];
-  FConnection.FetchOptions.Mode := fmOnDemand;
-  FConnection.FetchOptions.RowsetSize := 10;
   FConnection.FetchOptions.Unidirectional := True;
   FConnection.ResourceOptions.SilentMode := True;
 end;
