@@ -75,9 +75,9 @@ const
      'where PK.origin = ''pk''';
 
   PRIMARY_KEY_CONSTRAINT_SQL =
-    'select PK.name Id,' +
-           '''PK_'' || T.name Name,' +
-           'PKF.name FieldName ' +
+    'select cast(PK.name as varchar(250)) Id,' +
+           'cast(''PK_'' || T.name as varchar(250)) Name,' +
+           'cast(PKF.name as varchar(250)) FieldName ' +
       'from PersistoDatabaseTable T,' +
             PRIMARY_KEY_CONSTRAINT_FILTER_SQL;
 
@@ -85,10 +85,10 @@ const
     'select null Id, null Name, null Value';
 
   FOREING_KEY_SQL =
-    'select FK.id || ''.'' || FK."table" Id,' +
-           '''FK_'' || T.name || ''_'' || FK."from" Name,' +
-           'T.name IdTable,' +
-           'FK."table" IdReferenceTable ' +
+    'select cast(FK.id || ''.'' || FK."table" as varchar(250)) Id,' +
+           'cast(''FK_'' || T.name || ''_'' || FK."from" as varchar(250)) Name,' +
+           'cast(T.name as varchar(250)) IdTable,' +
+           'cast(FK."table" as varchar(250)) IdReferenceTable ' +
       'from PersistoDatabaseTable T,' +
            'pragma_foreign_key_list(T.name) FK';
 
@@ -96,23 +96,23 @@ const
     'select null Id, null Name, null IdForeignKey';
 
   SEQUENCES_SQL =
-    'select Name Id,' +
-           'Name ' +
+    'select cast(name as varchar(250)) Id,' +
+           'cast(name as varchar(250)) Name ' +
       'from sqlite_sequence';
 
   TABLE_SQL =
-    'select T.name Id,' +
-           '(select PK.name ' +
-              'from ' + PRIMARY_KEY_CONSTRAINT_FILTER_SQL + ') IdPrimaryKey,' +
-           'T.name Name ' +
+    'select cast(T.name as varchar(250)) Id,' +
+           'cast((select PK.name ' +
+                   'from ' + PRIMARY_KEY_CONSTRAINT_FILTER_SQL + ') as varchar(250)) IdPrimaryKeyConstraint,' +
+           'cast(T.name as varchar(250)) Name ' +
       'from sqlite_master T ' +
      'where T.type = ''table'' ' +
        'and not T.name like ''sqlite_%''';
 
   COLUMNS_SQL =
-    'select T.name || ''#'' || C.name Id,' +
+    'select cast(T.name || ''#'' || C.name as varchar(250)) Id,' +
            'null IdDefaultConstraint,' +
-           'T.name IdTable,' +
+           'cast(T.name as varchar(250)) IdTable,' +
            'case lower(substr(type, 1, iif(instr(type, ''('') > 0, 7, length(type)))) ' +
               'when ''varchar'' then 5 ' +
               'when ''integer'' then 1 ' +
@@ -122,7 +122,7 @@ const
               'when ''bigint'' then 16 ' +
               'else 0 ' +
            'end FieldType,' +
-           'C.name Name,' +
+           'cast(C.name as varchar(250)) Name,' +
            '"notnull" Required,' +
            'cast(substr(type, instr(type, '','') + 1, length(type) - instr(type, '','') - 1) as integer) Scale,' +
            'cast(substr(type, instr(type, ''('') + 1, coalesce(nullif(instr(type, '',''), 0), length(type)) - instr(type, ''('') - 1) as integer) Size,' +
@@ -144,43 +144,20 @@ const
       'from PersistoDatabaseTable T,' +
            'pragma_table_info(T.name) C';
 
-  function CreateTable(const Name: String; const Fields: TArray<String>; const SQL: String): TArray<String>;
-
-    function GetFieldList: String;
-    begin
-      Result := EmptyStr;
-
-      for var Field in Fields do
-        Result := Result + Format('%s,', [Field.Split([' '])[0]]);
-
-      Result := Result.Substring(0, Pred(Result.Length));
-    end;
-
-    function GetCreateFieldList: String;
-    begin
-      Result := EmptyStr;
-
-      for var Field in Fields do
-        Result := Result + Format('%s,', [Field]);
-
-      Result := Result.Substring(0, Pred(Result.Length));
-    end;
-
+  function CreateTable(const Name, SQL: String): TArray<String>;
   begin
-    Result := [Format('create table if not exists PersistoDatabase%s (%s)', [Name, GetCreateFieldList]), Format('delete from PersistoDatabase%s', [Name]),
-      Format('insert into PersistoDatabase%s (%s) %s', [Name, GetFieldList, SQL])];
+    Result := [Format('create view if not exists PersistoDatabase%s as %s', [Name, SQL])];
   end;
 
 begin
   Result := ['create table if not exists PersistoDatabaseSequenceWorkArround (sequence integer primary key autoincrement)']
-    + CreateTable('Sequence', ['Id varchar(250)', 'Name varchar(250)'], SEQUENCES_SQL)
-    + CreateTable('Table', ['Id varchar(250)', 'IdPrimaryKeyConstraint varchar(250)', 'Name varchar(250)'], TABLE_SQL)
-    + CreateTable('DefaultConstraint', ['Id varchar(250)', 'Name varchar(250)', 'Value varchar(250)'], DEFAULT_CONSTRAINT_SQL)
-    + CreateTable('ForeignKey', ['Id varchar(250)', 'Name varchar(250)', 'IdTable varchar(250)', 'IdReferenceTable varchar(250)'], FOREING_KEY_SQL)
-    + CreateTable('ForeignKeyField', ['Id varchar(250)', 'Name varchar(250)', 'IdForeignKey varchar(250)'], FOREING_KEY_COLUMS_SQL)
-    + CreateTable('TableField', ['Id varchar(250)', 'IdDefaultConstraint varchar(250)', 'IdTable varchar(250)', 'FieldType integer', 'Name varchar(250)', 'Required integer',
-      'Scale integer', 'Size integer', 'SpecialType integer'], COLUMNS_SQL)
-    + CreateTable('PrimaryKeyConstraint', ['Id varchar(250)', 'Name varchar(250)', 'FieldName varchar(250)'], PRIMARY_KEY_CONSTRAINT_SQL);
+    + CreateTable('Sequence', SEQUENCES_SQL)
+    + CreateTable('Table', TABLE_SQL)
+    + CreateTable('DefaultConstraint', DEFAULT_CONSTRAINT_SQL)
+    + CreateTable('ForeignKey', FOREING_KEY_SQL)
+    + CreateTable('ForeignKeyField', FOREING_KEY_COLUMS_SQL)
+    + CreateTable('TableField', COLUMNS_SQL)
+    + CreateTable('PrimaryKeyConstraint', PRIMARY_KEY_CONSTRAINT_SQL);
 end;
 
 function TDatabaseManipulatorSQLite.GetSpecialFieldType(const Field: TField): String;

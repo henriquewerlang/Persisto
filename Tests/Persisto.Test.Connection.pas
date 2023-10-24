@@ -48,6 +48,7 @@ uses
   FireDAC.Phys.SQLite,
   FireDAC.Phys.SQLiteDef,
   FireDAC.Stan.Consts,
+  Persisto.Connection.Firedac.SQLiteFix,
   Persisto.SQLite,
   Persisto.SQLite.Firedac.Functions,
 {$ENDIF}
@@ -144,6 +145,7 @@ begin
     TDirectory.Copy(Format('%s\%s_togo', [GetEnvironmentVariable('IBREDISTDIR'), GetDeployName]), '.\');
 {$ELSEIF DEFINED(SQLITE)}
   Connection.Connection.DriverName := 'SQLite';
+  Connection.Connection.UpdateOptions.CountUpdatedRecords := False;
 
   var Configuration := Connection.Connection.Params as TFDPhysSQLiteConnectionDefParams;
   Configuration.Database := DatabaseName;
