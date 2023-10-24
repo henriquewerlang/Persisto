@@ -56,14 +56,21 @@ uses
 const
   DATABASE_NAME = 'PersistoDatabaseTest';
 
+procedure RaiseConfigurationSelectionError;
+begin
+  raise Exception.Create('Must select one database type in the subconfiguration!');
+end;
+
 function FormatDatabaseName(const DatabaseName: String): String;
 begin
 {$IF DEFINED(POSTGRESQL) or DEFINED(SQLSERVER)}
   Result := DatabaseName;
 {$ELSEIF DEFINED(INTERBASE)}
   Result := Format('.\%s.ib', [DatabaseName]);
-{$ELSE}
+{$ELSEIF DEFINED(SQLITE)}
   Result := Format('.\%s.sqlite3', [DatabaseName]);
+{$ELSE}
+  RaiseConfigurationSelectionError;
 {$ENDIF}
 end;
 
@@ -135,7 +142,7 @@ begin
 
   if not TFile.Exists('.\ibtogo.dll') then
     TDirectory.Copy(Format('%s\%s_togo', [GetEnvironmentVariable('IBREDISTDIR'), GetDeployName]), '.\');
-{$ELSE}
+{$ELSEIF DEFINED(SQLITE)}
   Connection.Connection.DriverName := 'SQLite';
 
   var Configuration := Connection.Connection.Params as TFDPhysSQLiteConnectionDefParams;
@@ -144,6 +151,8 @@ begin
 
   if not TFile.Exists('.\sqlite3.dll') then
     TDirectory.Copy(Format('..\..\SQLite\%s', [GetDeployName]), '.\');
+{$ELSE}
+  RaiseConfigurationSelectionError;
 {$ENDIF}
 end;
 
@@ -169,8 +178,10 @@ begin
   Result := TDatabaseManipulatorSQLServer.Create;
 {$ELSEIF DEFINED(INTERBASE)}
   Result := TDatabaseManipulatorInterbase.Create;
-{$ELSE}
+{$ELSEIF DEFINED(SQLITE)}
   Result := TDatabaseManipulatorSQLite.Create;
+{$ELSE}
+  RaiseConfigurationSelectionError;
 {$ENDIF}
 end;
 
@@ -185,7 +196,9 @@ begin
 
   Connection.ExecuteDirect(Format('create database %s', [DatabaseName]));
 {$ELSEIF DEFINED(INTERBASE)}
+{$ELSEIF DEFINED(SQLITE)}
 {$ELSE}
+  RaiseConfigurationSelectionError;
 {$ENDIF}
 end;
 
@@ -209,9 +222,11 @@ begin
     Connection.ExecuteDirect(Format('drop database if exists %s', [DatabaseName]));
 {$ELSEIF DEFINED(INTERBASE)}
     CreateConnectionNamed(DatabaseName);
-{$ELSE}
+{$ELSEIF DEFINED(SQLITE)}
     if TFile.Exists(DatabaseName) then
       TFile.Delete(DatabaseName);
+{$ELSE}
+  RaiseConfigurationSelectionError;
 {$ENDIF}
   except
   end;
