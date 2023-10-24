@@ -605,7 +605,6 @@ type
   TDatabaseField = class
   private
     FCheck: TDatabaseCheckConstraint;
-    FCollation: String;
     FDefaultConstraint: TDatabaseDefaultConstraint;
     FFieldType: TTypeKind;
     FId: String;
@@ -617,7 +616,6 @@ type
     FTable: TDatabaseTable;
   public
     property Check: TDatabaseCheckConstraint read FCheck write FCheck;
-    property Collation: String read FCollation write FCollation;
   published
     property DefaultConstraint: TDatabaseDefaultConstraint read FDefaultConstraint write FDefaultConstraint;
     property FieldType: TTypeKind read FFieldType write FFieldType;
