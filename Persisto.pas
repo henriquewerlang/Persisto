@@ -2417,10 +2417,12 @@ var
   DatabaseTables: TDictionary<String, TDatabaseTable>;
   ForeignKey: TForeignKey;
   Field: TField;
+  RecreateTables: TDictionary<TTable, TDatabaseTable>;
   Sequence: TSequence;
   Sequences: TDictionary<String, TSequence>;
   SQL: TStringBuilder;
   Table: TTable;
+  Tables: TDictionary<String, TTable>;
 
   procedure ExecuteDirect(const SQL: String);
   begin
@@ -2438,6 +2440,16 @@ var
     ExecuteDirect(SQL.ToString);
 
     SQL.Length := 0;
+  end;
+
+  procedure RemoveLastSQLChar;
+  begin
+    SQL.Length := Pred(SQL.Length);
+  end;
+
+  procedure RecreateTable;
+  begin
+    RecreateTables.AddOrSetValue(Table, DatabaseTable);
   end;
 
   function IsSpecialType(const Field: TField): Boolean;
@@ -2512,11 +2524,6 @@ var
         Exit(DatabaseIndex);
   end;
 
-  procedure RemoveLastSQLChar;
-  begin
-    SQL.Length := Pred(SQL.Length);
-  end;
-
   procedure AppendDefaultConstraint(const Field: TField);
   begin
     if Assigned(Field.DefaultConstraint) then
@@ -2578,6 +2585,19 @@ var
     for var Field in Table.Fields do
       if not Field.IsManyValueAssociation then
       begin
+        SQL.Append(Field.DatabaseName);
+
+        SQL.Append(',');
+      end;
+
+    RemoveLastSQLChar;
+  end;
+
+  procedure BuildFieldDefinitionList;
+  begin
+    for var Field in Table.Fields do
+      if not Field.IsManyValueAssociation then
+      begin
         BuildFieldDefinition(Field);
 
         SQL.Append(',');
@@ -2631,7 +2651,7 @@ var
 
     SQL.Append('(');
 
-    BuildFieldList;
+    BuildFieldDefinitionList;
 
     BuildPrimaryKeyConstraint;
 
@@ -2657,6 +2677,20 @@ var
     SQL.Append(Table.DatabaseName);
   end;
 
+  procedure DropTableNamed(const TableName: String);
+  begin
+    SQL.Append('drop table ');
+
+    SQL.Append(TableName);
+
+    ExecuteSQL;
+  end;
+
+  procedure DropTable;
+  begin
+    DropTableNamed(DatabaseTable.Name);
+  end;
+
   procedure AddTable;
   begin
     AlterTable;
@@ -2673,9 +2707,49 @@ var
     ExecuteSQL;
   end;
 
+  procedure BuildRecreateTable;
+  const
+    TABLE_TEMP_NAME = '___OLD___';
+
+  begin
+    SQL.Append('alter table ');
+
+    SQL.Append(Table.DatabaseName);
+
+    SQL.Append(' rename to ');
+
+    SQL.Append(TABLE_TEMP_NAME);
+
+    ExecuteSQL;
+
+    CreateTable;
+
+    SQL.Append('insert into ');
+
+    SQL.Append(Table.DatabaseName);
+
+    SQL.Append('(');
+
+    BuildFieldList;
+
+    SQL.Append(') select ');
+
+    BuildFieldList;
+
+    SQL.Append(' from ');
+
+    SQL.Append(TABLE_TEMP_NAME);
+
+    ExecuteSQL;
+
+    DropTableNamed(TABLE_TEMP_NAME);
+  end;
+
   procedure CreateForeignKey;
   begin
-    if not FDatabaseManipulator.IsSQLite then
+    if FDatabaseManipulator.IsSQLite then
+      RecreateTable
+    else
     begin
       AddTable;
 
@@ -2703,11 +2777,15 @@ var
       DatabaseTableFields.Add(DatabaseField.Name, DatabaseField);
   end;
 
-  procedure LoadDatabaseTables;
+  procedure LoadTables;
   begin
     DatabaseForeignKeys := TDictionary<String, TDatabaseForeignKey>.Create;
     DatabaseTableFields := TDictionary<String, TDatabaseField>.Create(Comparer);
     DatabaseTables := TDictionary<String, TDatabaseTable>.Create(Comparer);
+    Tables := TDictionary<String, TTable>.Create;
+
+    for var Table in FManager.Mapper.Tables do
+      Tables.Add(Table.DatabaseName, Table);
 
     for var DatabaseTable in FManagerSchema.Select.All.From<TDatabaseTable>.Open.All do
       DatabaseTables.Add(DatabaseTable.Name, DatabaseTable);
@@ -2735,11 +2813,12 @@ var
 
 begin
   Comparer := TOrdinalIStringComparer.Create;
+  RecreateTables := TDictionary<TTable, TDatabaseTable>.Create;
   SQL := TStringBuilder.Create(5000);
 
   ExecuteSchemarScripts(FDatabaseManipulator.GetSchemaTablesScripts);
 
-  LoadDatabaseTables;
+  LoadTables;
 
   LoadSequences;
 
@@ -2747,11 +2826,11 @@ begin
     if not DatabaseSequences.TryGetValue(Sequence.Name, DatabaseSequence) then
       CreateSequence;
 
-  for Table in FManager.Mapper.Tables do
+  for Table in Tables.Values do
     if not DatabaseTables.TryGetValue(Table.DatabaseName, DatabaseTable) then
       CreateTable;
 
-  for Table in FManager.Mapper.Tables do
+  for Table in Tables.Values do
     if DatabaseTables.TryGetValue(Table.DatabaseName, DatabaseTable) then
     begin
       LoadDatabaseTableFields;
@@ -2776,7 +2855,7 @@ begin
 //        end;
     end;
 //
-//  for Table in FManager.Mapper.Tables do
+//  for Table in Tables.Values do
 //    if Table.DefaultRecords.Count > 0 then
 //    begin
 //      var RecordFound: Boolean;
@@ -2796,7 +2875,7 @@ begin
 //      end;
 //    end;
 //
-//  for Table in FManager.Mapper.Tables do
+//  for Table in Tables.Values do
 //  begin
 //    DatabaseTable := Schema.Table[Table.DatabaseName];
 //
@@ -2814,18 +2893,20 @@ begin
 //      end;
 //  end;
 
-  for Table in FManager.Mapper.Tables do
+  for Table in Tables.Values do
   begin
     if DatabaseTables.TryGetValue(Table.DatabaseName, DatabaseTable) then
-      LoadDatabaseTableForeignKeys;
+      LoadDatabaseTableForeignKeys
+    else if FDatabaseManipulator.IsSQLite then
+      Continue;
 
     for ForeignKey in Table.ForeignKeys do
       if not DatabaseForeignKeys.ContainsKey(ForeignKey.DatabaseName) then
         CreateForeignKey;
   end;
 
-//  for DatabaseTable in Schema.Tables do
-//    if Tables.ContainsKey(DatabaseTable.Name) then
+  for DatabaseTable in DatabaseTables.Values do
+    if Tables.ContainsKey(DatabaseTable.Name) then
 //    begin
 //      for DatabaseForeignKey in DatabaseTable.ForeignKeys.Value do
 //        if not ExistsForeigKey(DatabaseForeignKey) then
@@ -2839,12 +2920,15 @@ begin
 //        if not ExistsField(DatabaseField) then
 //          DropField(DatabaseField);
 //    end
-//    else
-//      DropTable(DatabaseTable);
+    else
+      DropTable;
 
   for DatabaseSequence in DatabaseSequences.Values do
     if not Sequences.ContainsKey(DatabaseSequence.Name) then
       DropSequence;
+
+  for Table in RecreateTables.Keys do
+    BuildRecreateTable;
 
   DatabaseForeignKeys.Free;
 
@@ -2855,6 +2939,10 @@ begin
   DatabaseTableFields.Free;
 
   Sequences.Free;
+
+  RecreateTables.Free;
+
+  Tables.Free;
 
   SQL.Free;
 

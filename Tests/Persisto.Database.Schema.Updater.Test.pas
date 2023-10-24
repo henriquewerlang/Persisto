@@ -1499,17 +1499,15 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheTableIsntMappedMustDropTheTable;
 begin
-//  FOnSchemaLoad :=
-//    procedure
-//    begin
-//      var DatabaseTable := TDatabaseTable.Create(FDatabaseSchema, 'NotExistsTable');
-//
-//      FMetadataManipulator.Expect.Once.When.DropTable(It.IsEqualTo(DatabaseTable));
-//    end;
-//
-//  FDatabaseMetadataUpdate.UpdateDatabase;
-//
-//  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+  FManager.ExectDirect('create table ATableDoesntExists (AnyField varchar(10))');
+
+  FManager.UpdateDatabaseSchema;
+
+  LoadSchemaTables;
+
+  var Tables := FManager.Select.All.From<TDatabaseTable>.Where(Field('Name') = 'ATableDoesntExists').Open.All;
+
+  Assert.AreEqual<NativeInt>(0, Length(Tables));
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTryToGetATableAndIsntInTheListMustReturnNil;
