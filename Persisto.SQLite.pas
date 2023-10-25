@@ -141,7 +141,7 @@ const
 
   function CreateView(const Name, SQL: String): String;
   begin
-    Result := Format('create view if not exists PersistoDatabase%s as %s', [Name, SQL]);
+    Result := Format('create temp view if not exists PersistoDatabase%s as %s', [Name, SQL]);
   end;
 
 begin
