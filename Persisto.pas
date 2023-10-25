@@ -2860,27 +2860,16 @@ begin
       if not Assigned(DatabaseTable.PrimaryKeyConstraint) then
         CreateTablePrimaryKey;
     end;
-//
-//  for Table in Tables.Values do
-//    if Table.DefaultRecords.Count > 0 then
-//    begin
-//      var RecordFound: Boolean;
-//      var Records := FDatabaseManipulator.GetAllRecords(Table);
-//
-//      for var DefaultRecord in Table.DefaultRecords do
-//      begin
-//        RecordFound := False;
-//
-//        for var DatabaseRecord in Records do
-//          RecordFound := RecordFound or (Table.PrimaryKey.Value[DefaultRecord].AsVariant = Table.PrimaryKey.Value[DatabaseRecord].AsVariant);
-//
-//        if RecordFound then
-//          FDatabaseManipulator.UpdateRecord(DefaultRecord)
-//        else
-//          FDatabaseManipulator.InsertRecord(DefaultRecord);
-//      end;
-//    end;
-//
+
+  for Table in Tables.Values do
+    if Table.DefaultRecords.Count > 0 then
+    begin
+      FManager.Select.All.From<TObject>(Table).Open.All;
+
+      for var DefaultRecord in Table.DefaultRecords do
+        FManager.Save(DefaultRecord);
+    end;
+
 //  for Table in Tables.Values do
 //  begin
 //    DatabaseTable := Schema.Table[Table.DatabaseName];
