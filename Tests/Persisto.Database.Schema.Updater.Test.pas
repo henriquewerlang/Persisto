@@ -17,6 +17,8 @@ type
     [TearDown]
     procedure TearDown;
     [Test]
+    procedure WhenCheckTheSchemaCantRaiseAnyError;
+    [Test]
     procedure IfTheTableDontExistsInTheDatabaseMustCreateTheTable;
     [Test]
     procedure OnlyTheTableNoExistingTableMustCreatedInTheDatabase;
@@ -78,22 +80,6 @@ type
     procedure WhenTheIndexExistsInDatabaseButTheFieldsAreDiffentMustRecreateTheIndex;
     [Test]
     procedure WhenTheFieldDontExistsInTheMappingMustBeDropedFromTheTable;
-    [Test]
-    procedure WhenTryToGetATableAndIsntInTheListMustReturnNil;
-    [Test]
-    procedure WhenTheTableIsInTheListMustReturnTheTable;
-    [Test]
-    procedure WhenFindAnObjectInTheListMustReturnTheObjectWhenFindByName;
-    [Test]
-    procedure TheComparisionOfNamesMustBeCaseInsensitive;
-    [Test]
-    procedure WhenFindAForeignKeyInATableMustReturnTheForeignKey;
-    [Test]
-    procedure WhenGetAFieldInDatabaseTableMustReturnTheFieldInTheList;
-    [Test]
-    procedure WhenGetAnIndexInDatabaseTableMustReturnTheIndexInTheList;
-    [Test]
-    procedure WhenCheckTheSchemaCantRaiseAnyError;
     [Test]
     procedure WhenTheFieldHasChangedMustCreateATempFieldForTransferTheFieldData;
     [Test]
@@ -180,10 +166,6 @@ type
     procedure WhenTheSequenceNotExistsInDatabaseMustBeCreated;
     [Test]
     procedure WhenTheSequenceNotExistsInTheMapperMustBeDroped;
-    [Test]
-    procedure WhenCreateTheTableMustCreateThePrimaryKeyIndexOfTheTable;
-    [Test]
-    procedure WhenCreateTheTableMustCreateAllForeignKeysOfTheTable;
     [Test]
     procedure WhenAnIndexBecameUniqueMustRecreateTheIndex;
   end;
@@ -555,24 +537,6 @@ begin
   DropDatabase;
 end;
 
-procedure TDatabaseSchemaUpdaterTest.TheComparisionOfNamesMustBeCaseInsensitive;
-begin
-//  var MyList := TObjectList<TDatabaseNamedObject>.Create;
-//
-//  MyList.Add(TDatabaseNamedObject.Create('A'));
-//  MyList.Add(TDatabaseNamedObject.Create('B'));
-//  MyList.Add(TDatabaseNamedObject.Create('C'));
-//  MyList.Add(TDatabaseNamedObject.Create('D'));
-
-//  var MyObject := TDatabaseNamedObject.FindObject<TDatabaseNamedObject>(MyList, 'c');
-//
-//  Assert.IsNotNull(MyObject);
-//
-//  Assert.AreEqual('C', MyObject.Name);
-//
-//  MyList.Free;
-end;
-
 procedure TDatabaseSchemaUpdaterTest.TheIndexCanBeCreatedOnlyIfNotExistsInDatabase;
 begin
 
@@ -697,7 +661,7 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenCheckTheSchemaCantRaiseAnyError;
 begin
-//  Assert.WillNotRaise(FDatabaseMetadataUpdate.UpdateDatabase);
+  Assert.WillNotRaise(FManager.UpdateDatabaseSchema);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenComparingNamesOfTablesMustBeCaseInsensitivityTheComparision;
@@ -830,36 +794,6 @@ begin
 //  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
 end;
 
-procedure TDatabaseSchemaUpdaterTest.WhenCreateTheTableMustCreateAllForeignKeysOfTheTable;
-begin
-//  FOnSchemaLoad :=
-//    procedure
-//    begin
-//      RemoveTable('MyClass');
-//    end;
-//
-//  FMetadataManipulator.Expect.ExecutionCount(3).When.CreateForeignKey(It.IsAny<TForeignKey>);
-//
-//  FDatabaseMetadataUpdate.UpdateDatabase;
-//
-//  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
-end;
-
-procedure TDatabaseSchemaUpdaterTest.WhenCreateTheTableMustCreateThePrimaryKeyIndexOfTheTable;
-begin
-//  FOnSchemaLoad :=
-//    procedure
-//    begin
-//      RemoveTable('MyForeignKeyClass');
-//    end;
-//
-//  FMetadataManipulator.Expect.Once.When.CreateIndex(It.IsAny<TIndex>);
-//
-//  FDatabaseMetadataUpdate.UpdateDatabase;
-//
-//  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
-end;
-
 procedure TDatabaseSchemaUpdaterTest.WhenDontFindThePrimaryKeyIndexMustCreateTheIndex;
 begin
 //  FOnSchemaLoad :=
@@ -979,66 +913,6 @@ begin
 //  FDatabaseMetadataUpdate.UpdateDatabase;
 //
 //  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
-end;
-
-procedure TDatabaseSchemaUpdaterTest.WhenFindAForeignKeyInATableMustReturnTheForeignKey;
-begin
-//  var MySchema := TDatabaseSchema.Create;
-//  var MyTable := TDatabaseTable.Create(MySchema, 'MyTable');
-//
-//  var MyForeignKey := TDatabaseForeignKey.Create(MyTable, 'MyForeignKey', nil);
-//
-//  Assert.IsNotNull(MyForeignKey);
-//
-//  Assert.AreEqual(MyForeignKey, MyTable.ForeignKey[MyForeignKey.Name]);
-//
-//  MySchema.Free;
-end;
-
-procedure TDatabaseSchemaUpdaterTest.WhenFindAnObjectInTheListMustReturnTheObjectWhenFindByName;
-begin
-//  var MyList := TObjectList<TDatabaseNamedObject>.Create;
-//
-//  MyList.Add(TDatabaseNamedObject.Create('A'));
-//  MyList.Add(TDatabaseNamedObject.Create('B'));
-//  MyList.Add(TDatabaseNamedObject.Create('C'));
-//  MyList.Add(TDatabaseNamedObject.Create('D'));
-
-//  var MyObject := TDatabaseNamedObject.FindObject<TDatabaseNamedObject>(MyList, 'C');
-//
-//  Assert.IsNotNull(MyObject);
-//
-//  Assert.AreEqual('C', MyObject.Name);
-//
-//  MyList.Free;
-end;
-
-procedure TDatabaseSchemaUpdaterTest.WhenGetAFieldInDatabaseTableMustReturnTheFieldInTheList;
-begin
-//  var MySchema := TDatabaseSchema.Create;
-//  var MyTable := TDatabaseTable.Create(MySchema, 'MyTable');
-//
-//  var MyField := TDatabaseField.Create(MyTable, 'MyField');
-//
-//  Assert.IsNotNull(MyField);
-//
-//  Assert.AreEqual(MyField, MyTable.Field[MyField.Name]);
-//
-//  MySchema.Free;
-end;
-
-procedure TDatabaseSchemaUpdaterTest.WhenGetAnIndexInDatabaseTableMustReturnTheIndexInTheList;
-begin
-//  var MySchema := TDatabaseSchema.Create;
-//  var MyTable := TDatabaseTable.Create(MySchema, 'MyTable');
-//
-//  var MyIndex := TDatabaseIndex.Create(MyTable, 'MyIndex');
-//
-//  Assert.IsNotNull(MyIndex);
-//
-//  Assert.AreEqual(MyIndex, MyTable.Index[MyIndex.Name]);
-//
-//  MySchema.Free;
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenRemoveTheDefualtConstraintOfAFieldCantTryToCreateTheDefualtConstraintAgain;
@@ -1504,16 +1378,6 @@ begin
 //  MyClass.Free;
 end;
 
-procedure TDatabaseSchemaUpdaterTest.WhenTheTableIsInTheListMustReturnTheTable;
-begin
-//  var MySchema := TDatabaseSchema.Create;
-//  var MyTable := TDatabaseTable.Create(MySchema, 'MyTable');
-//
-//  Assert.AreEqual('MyTable', MyTable.Name);
-//
-//  MySchema.Free;
-end;
-
 procedure TDatabaseSchemaUpdaterTest.WhenTheTableIsntMappedMustDropTheTable;
 begin
   FManager.ExectDirect('create table ATableDoesntExists (AnyField varchar(10))');
@@ -1525,17 +1389,6 @@ begin
   var Tables := FManager.Select.All.From<TDatabaseTable>.Where(Field('Name') = 'ATableDoesntExists').Open.All;
 
   Assert.AreEqual<NativeInt>(0, Length(Tables));
-end;
-
-procedure TDatabaseSchemaUpdaterTest.WhenTryToGetATableAndIsntInTheListMustReturnNil;
-begin
-//  var MySchema := TDatabaseSchema.Create;
-//
-//  TDatabaseTable.Create(MySchema, 'MyTable');
-//
-//  Assert.IsNull(MySchema.Table['Any Table Name']);
-//
-//  MySchema.Free;
 end;
 
 { TDatabaseManiupulatorMock }
