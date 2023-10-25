@@ -327,6 +327,12 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
+                <DeployFile LocalName="Win32\SQLite\Persisto.Tests.exe" Configuration="SQLite" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>Persisto_Tests.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployFile LocalName="Win64\Debug\Delphi.ORM.Tests.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployFile LocalName="Win64\Debug\Persisto.Tests.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win64">

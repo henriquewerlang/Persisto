@@ -61,9 +61,11 @@ type
     [Test]
     procedure IfTheTableDoesntExistsMustCreateAllForeignKeysOfTheTable;
     [Test]
-    procedure IfTheForeignKeyExistsInDatabaseButNotExistsInTheMapperTheForeignKeyMustBeRemoved;
-    [Test]
     procedure WhenTheTableIsntMappedMustDropTheTable;
+    [Test]
+    procedure WhenTheTableDoesntHaveAPrimaryMustCreateThePrimaryKeyFromTheTable;
+    [Test]
+    procedure IfTheForeignKeyExistsInDatabaseButNotExistsInTheMapperTheForeignKeyMustBeRemoved;
     [Test]
     procedure WhenTheIndexDontExistInDatabaseMustCreateIt;
     [Test]
@@ -623,7 +625,7 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenAddAFieldToATableCantAddTheManyValueAssociationField;
 begin
-  FManager.ExectDirect('create table ManyValueParentError (Id int)');
+  FManager.ExectDirect('create table ManyValueParentError (Id int not null)');
 
   FManager.UpdateDatabaseSchema;
 
@@ -700,7 +702,7 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenComparingNamesOfTablesMustBeCaseInsensitivityTheComparision;
 begin
-  FManager.ExectDirect('create table manyvalueparenterror (id int)');
+  FManager.ExectDirect('create table manyvalueparenterror (id int not null)');
 
   Assert.WillNotRaise(
     procedure
@@ -1470,6 +1472,21 @@ begin
 //  FDatabaseMetadataUpdate.UpdateDatabase;
 //
 //  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+end;
+
+procedure TDatabaseSchemaUpdaterTest.WhenTheTableDoesntHaveAPrimaryMustCreateThePrimaryKeyFromTheTable;
+begin
+  var TableName := TManyValueParentError.ClassName.Substring(1);
+
+  FManager.ExectDirect(Format('create table %s (AnyField varchar(10))', [TableName]));
+
+  FManager.UpdateDatabaseSchema;
+
+  LoadSchemaTables;
+
+  var Table := FManager.Select.All.From<TDatabaseTable>.Where(Field('Name') = TableName).Open.One;
+
+  Assert.IsNotNull(Table.PrimaryKeyConstraint);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheTableHasDefaultRecordsMustLoadTheRecordsOfTheTableFromDatabase;

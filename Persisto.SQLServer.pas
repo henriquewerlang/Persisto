@@ -66,7 +66,8 @@ const
     'select cast(object_id as varchar(20)) Id,' +
            'name,' +
            'cast(parent_object_id as varchar(20)) IdTable,' +
-           'cast(referenced_object_id as varchar(20)) IdReferenceTable ' +
+           'cast(referenced_object_id as varchar(20)) IdReferenceTable,' +
+           'null ReferenceField ' +
       'from sys.foreign_keys FK';
 
   FOREING_KEY_COLUMS_SQL =
@@ -80,15 +81,32 @@ const
         'on RC.object_id = FKC.referenced_object_id ' +
        'and RC.column_id = FKC.referenced_column_id';
 
+  PRIMARY_KEY_CONSTRAINT_SQL =
+    'select cast(PK.object_id as varchar(20)) Id,' +
+           'PK.name,' +
+           'C.name FieldName ' +
+      'from sys.key_constraints PK ' +
+      'join sys.index_columns IC ' +
+        'on IC.object_id = PK.parent_object_id ' +
+       'and IC.index_id = PK.unique_index_id ' +
+      'join sys.columns C ' +
+        'on C.object_id = IC.object_id ' +
+       'and C.column_id = IC.column_id ' +
+     'where PK.type = ''PK''';
+
   SEQUENCES_SQL =
     'select cast(object_id as varchar(20)) Id,' +
             'name ' +
       'from sys.sequences';
 
   TABLE_SQL =
-    'select cast(object_id as varchar(20)) Id,' +
-           'Name ' +
-      'from sys.tables';
+       'select cast(T.object_id as varchar(20)) Id,' +
+              'cast(PK.object_id as varchar(20)) IdPrimaryKeyConstraint,' +
+              'T.name ' +
+         'from sys.tables T ' +
+    'left join sys.key_constraints PK ' +
+           'on PK.parent_object_id = T.object_id ' +
+          'and PK.type = ''PK''';
 
   COLUMNS_SQL =
     'select cast(C.object_id as varchar(20)) + ''.'' + cast(C.column_id as varchar(20)) Id,' +
@@ -137,13 +155,17 @@ const
 
   function CreateView(const Name, SQL: String): String;
   begin
-    Result := Format('create or alter view %s as (%s)', [Name, SQL]);
+    Result := Format('create or alter view PersistoDatabase%s as (%s)', [Name, SQL]);
   end;
 
 begin
-  Result := [CreateView('PersistoDatabaseDefaultConstraint', DEFAULT_CONSTRAINT_SQL), CreateView('PersistoDatabaseForeignKey', FOREING_KEY_SQL),
-    CreateView('PersistoDatabaseForeignKeyField', FOREING_KEY_COLUMS_SQL), CreateView('PersistoDatabaseSequence', SEQUENCES_SQL), CreateView('PersistoDatabaseTable', TABLE_SQL),
-    CreateView('PersistoDatabaseTableField', COLUMNS_SQL)
+  Result := [
+    CreateView('DefaultConstraint', DEFAULT_CONSTRAINT_SQL),
+    CreateView('ForeignKey', FOREING_KEY_SQL),
+    CreateView('Sequence', SEQUENCES_SQL),
+    CreateView('Table', TABLE_SQL),
+    CreateView('TableField', COLUMNS_SQL),
+    CreateView('PrimaryKeyConstraint', PRIMARY_KEY_CONSTRAINT_SQL)
     ];
 end;
 

@@ -69,17 +69,13 @@ end;
 
 function TDatabaseManipulatorSQLite.GetSchemaTablesScripts: TArray<String>;
 const
-  PRIMARY_KEY_CONSTRAINT_FILTER_SQL =
-           'pragma_index_list(T.name) PK,' +
-           'pragma_index_info(PK.name) PKF ' +
-     'where PK.origin = ''pk''';
-
   PRIMARY_KEY_CONSTRAINT_SQL =
-    'select cast(PK.name as varchar(250)) Id,' +
+    'select cast(''PK_'' || T.name as varchar(250)) Id,' +
            'cast(''PK_'' || T.name as varchar(250)) Name,' +
-           'cast(PKF.name as varchar(250)) FieldName ' +
+           'cast(PK.name as varchar(250)) FieldName ' +
       'from PersistoDatabaseTable T,' +
-            PRIMARY_KEY_CONSTRAINT_FILTER_SQL;
+           'pragma_table_info(T.name) PK ' +
+     'where PK.pk = 1';
 
   DEFAULT_CONSTRAINT_SQL =
     'select null Id, null Name, null Value';
@@ -88,12 +84,10 @@ const
     'select cast(FK.id || ''.'' || FK."table" as varchar(250)) Id,' +
            'cast(''FK_'' || T.name || ''_'' || FK."from" as varchar(250)) Name,' +
            'cast(T.name as varchar(250)) IdTable,' +
-           'cast(FK."table" as varchar(250)) IdReferenceTable ' +
+           'cast(FK."table" as varchar(250)) IdReferenceTable,' +
+           'cast(null as varchar(250)) ReferenceField ' +
       'from PersistoDatabaseTable T,' +
            'pragma_foreign_key_list(T.name) FK';
-
-  FOREING_KEY_COLUMS_SQL =
-    'select null Id, null Name, null IdForeignKey';
 
   SEQUENCES_SQL =
     'select cast(name as varchar(250)) Id,' +
@@ -102,8 +96,9 @@ const
 
   TABLE_SQL =
     'select cast(T.name as varchar(250)) Id,' +
-           'cast((select PK.name ' +
-                   'from ' + PRIMARY_KEY_CONSTRAINT_FILTER_SQL + ') as varchar(250)) IdPrimaryKeyConstraint,' +
+           'cast((select cast(''PK_'' || T.name as varchar(250)) ' +
+                   'from pragma_table_info(T.name) PK ' +
+                  'where PK.pk = 1) as varchar(250)) IdPrimaryKeyConstraint,' +
            'cast(T.name as varchar(250)) Name ' +
       'from sqlite_master T ' +
      'where T.type = ''table'' ' +
@@ -144,20 +139,19 @@ const
       'from PersistoDatabaseTable T,' +
            'pragma_table_info(T.name) C';
 
-  function CreateTable(const Name, SQL: String): TArray<String>;
+  function CreateView(const Name, SQL: String): String;
   begin
-    Result := [Format('create view if not exists PersistoDatabase%s as %s', [Name, SQL])];
+    Result := Format('create view if not exists PersistoDatabase%s as %s', [Name, SQL]);
   end;
 
 begin
-  Result := ['create table if not exists PersistoDatabaseSequenceWorkArround (sequence integer primary key autoincrement)']
-    + CreateTable('Sequence', SEQUENCES_SQL)
-    + CreateTable('Table', TABLE_SQL)
-    + CreateTable('DefaultConstraint', DEFAULT_CONSTRAINT_SQL)
-    + CreateTable('ForeignKey', FOREING_KEY_SQL)
-    + CreateTable('ForeignKeyField', FOREING_KEY_COLUMS_SQL)
-    + CreateTable('TableField', COLUMNS_SQL)
-    + CreateTable('PrimaryKeyConstraint', PRIMARY_KEY_CONSTRAINT_SQL);
+  Result := ['create table if not exists PersistoDatabaseSequenceWorkArround (sequence integer primary key autoincrement)',
+    CreateView('Sequence', SEQUENCES_SQL),
+    CreateView('Table', TABLE_SQL),
+    CreateView('DefaultConstraint', DEFAULT_CONSTRAINT_SQL),
+    CreateView('ForeignKey', FOREING_KEY_SQL),
+    CreateView('TableField', COLUMNS_SQL),
+    CreateView('PrimaryKeyConstraint', PRIMARY_KEY_CONSTRAINT_SQL)];
 end;
 
 function TDatabaseManipulatorSQLite.GetSpecialFieldType(const Field: TField): String;

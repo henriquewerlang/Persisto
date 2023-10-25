@@ -12,7 +12,6 @@ type
   TDatabaseDefaultConstraint = class;
   TDatabaseField = class;
   TDatabaseForeignKey = class;
-  TDatabaseForeignKeyField = class;
   TDatabaseIndex = class;
   TDatabasePrimaryKeyConstraint = class;
   TDatabaseSequence = class;
@@ -650,28 +649,15 @@ type
   private
     FId: String;
     FName: String;
-    FReferenceFields: TArray<TDatabaseForeignKeyField>;
+    FReferenceField: String;
     FReferenceTable: Lazy<TDatabaseTable>;
     FTable: TDatabaseTable;
   published
     property Id: String read FId write FId;
     property Name: String read FName write FName;
-    [ManyValueAssociationLinkName('ForeignKey')]
-    property ReferenceFields: TArray<TDatabaseForeignKeyField> read FReferenceFields write FReferenceFields;
+    property ReferenceField: String read FReferenceField write FReferenceField;
     property ReferenceTable: Lazy<TDatabaseTable> read FReferenceTable write FReferenceTable;
     property Table: TDatabaseTable read FTable write FTable;
-  end;
-
-  [TableName('PersistoDatabaseForeignKeyField')]
-  TDatabaseForeignKeyField = class
-  private
-    FForeignKey: TDatabaseForeignKey;
-    FId: String;
-    FName: String;
-  published
-    property ForeignKey: TDatabaseForeignKey read FForeignKey write FForeignKey;
-    property Id: String read FId write FId;
-    property Name: String read FName write FName;
   end;
 
   TDatabaseCheckConstraint = class
@@ -2608,18 +2594,15 @@ var
 
   procedure BuildPrimaryKeyConstraint;
   begin
-    if Assigned(Table.PrimaryKey) then
-    begin
-      SQL.Append(', constraint PK_');
+    SQL.Append('constraint PK_');
 
-      SQL.Append(Table.Name);
+    SQL.Append(Table.Name);
 
-      SQL.Append(' primary key (');
+    SQL.Append(' primary key (');
 
-      SQL.Append(Table.PrimaryKey.DatabaseName);
+    SQL.Append(Table.PrimaryKey.DatabaseName);
 
-      SQL.Append(')');
-    end;
+    SQL.Append(')');
   end;
 
   procedure BuildForeignKeyConstraint;
@@ -2653,7 +2636,12 @@ var
 
     BuildFieldDefinitionList;
 
-    BuildPrimaryKeyConstraint;
+    if Assigned(Table.PrimaryKey) then
+    begin
+      SQL.Append(', ');
+
+      BuildPrimaryKeyConstraint;
+    end;
 
     if FDatabaseManipulator.IsSQLite then
       for var FK in Table.ForeignKeys do
@@ -2759,6 +2747,21 @@ var
     end;
   end;
 
+  procedure CreateTablePrimaryKey;
+  begin
+    if Assigned(Table.PrimaryKey) then
+      if FDatabaseManipulator.IsSQLite then
+        RecreateTable
+      else
+      begin
+        AddTable;
+
+        BuildPrimaryKeyConstraint;
+
+        ExecuteSQL;
+      end;
+  end;
+
   procedure CreateSequence;
   begin
     ExecuteDirect(FDatabaseManipulator.CreateSequence(Sequence));
@@ -2782,7 +2785,7 @@ var
     DatabaseForeignKeys := TDictionary<String, TDatabaseForeignKey>.Create;
     DatabaseTableFields := TDictionary<String, TDatabaseField>.Create(Comparer);
     DatabaseTables := TDictionary<String, TDatabaseTable>.Create(Comparer);
-    Tables := TDictionary<String, TTable>.Create;
+    Tables := TDictionary<String, TTable>.Create(Comparer);
 
     for var Table in FManager.Mapper.Tables do
       Tables.Add(Table.DatabaseName, Table);
@@ -2853,6 +2856,9 @@ begin
 //            end;
 //          end;
 //        end;
+
+      if not Assigned(DatabaseTable.PrimaryKeyConstraint) then
+        CreateTablePrimaryKey;
     end;
 //
 //  for Table in Tables.Values do
