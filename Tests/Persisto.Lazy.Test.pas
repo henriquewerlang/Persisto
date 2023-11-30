@@ -196,11 +196,11 @@ begin
 
   FManager.UpdateDatabaseSchema;
 
-  FManager.ExectDirect('insert into LazyArrayClassChild (Id, IdLazyArrayClass) values (1, 10)');
+  var LazyArrayClass := TLazyArrayClass.Create;
+  LazyArrayClass.Id := 10;
+  LazyArrayClass.LazyArray := [TLazyArrayClassChild.Create, TLazyArrayClassChild.Create, TLazyArrayClassChild.Create];
 
-  FManager.ExectDirect('insert into LazyArrayClassChild (Id, IdLazyArrayClass) values (2, 10)');
-
-  FManager.ExectDirect('insert into LazyArrayClassChild (Id, IdLazyArrayClass) values (3, 10)');
+  FManager.Insert(LazyArrayClass);
 end;
 
 procedure TLazyFactoryManyValueTest.Setup;
