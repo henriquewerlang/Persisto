@@ -48,7 +48,6 @@ uses
   FireDAC.Phys.SQLite,
   FireDAC.Phys.SQLiteDef,
   FireDAC.Stan.Consts,
-  Persisto.Connection.Firedac.SQLiteFix,
   Persisto.SQLite,
   Persisto.SQLite.Firedac.Functions,
 {$ENDIF}
