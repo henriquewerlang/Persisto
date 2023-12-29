@@ -18,7 +18,7 @@ type
 
 implementation
 
-uses System.SysUtils;
+uses System.SysUtils, System.Rtti, System.TypInfo;
 
 { TDatabaseManipulatorSQLite }
 
