@@ -166,6 +166,10 @@ type
     procedure WhenTheRecordAlreadyInTheDatabaseMustUpdateTheRecord;
     [Test]
     procedure WhenAnIndexBecameUniqueMustRecreateTheIndex;
+    [Test]
+    procedure WhenCreateDatabaseTheDatabaseMustBeCreated;
+    [Test]
+    procedure WhenDropDatabaseTheDatabaseMustBeDropped;
   end;
 
   TDatabaseManiupulatorMock = class(TInterfacedObject, IDatabaseManipulator)
@@ -175,7 +179,9 @@ type
     FFunctionSpecialTypeCalled: Boolean;
     FManipulador: IDatabaseManipulator;
 
+    function CreateDatabase(const DatabaseName: String): String;
     function CreateSequence(const Sequence: TSequence): String;
+    function DropDatabase(const DatabaseName: String): String;
     function DropSequence(const Sequence: TDatabaseSequence): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
     function GetFieldType(const Field: TField): String;
@@ -792,6 +798,21 @@ begin
 //  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
 end;
 
+procedure TDatabaseSchemaUpdaterTest.WhenCreateDatabaseTheDatabaseMustBeCreated;
+begin
+  var Manager := TManager.Create(CreateConnectionNamed('MyDatabase'), CreateDatabaseManipulator);
+
+  Manager.CreateDatabase;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      CreateConnectionNamed('MyDatabase').OpenCursor('select 1').Next;
+    end);
+
+  Manager.DropDatabase;
+end;
+
 procedure TDatabaseSchemaUpdaterTest.WhenDontFindThePrimaryKeyIndexMustCreateTheIndex;
 begin
 //  FOnSchemaLoad :=
@@ -892,6 +913,24 @@ begin
 //  FDatabaseMetadataUpdate.UpdateDatabase;
 //
 //  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+end;
+
+procedure TDatabaseSchemaUpdaterTest.WhenDropDatabaseTheDatabaseMustBeDropped;
+begin
+  var Connection := CreateConnectionNamed('MyDatabase');
+  var Manager := TManager.Create(Connection, CreateDatabaseManipulator);
+
+  Manager.CreateDatabase;
+
+  Connection.OpenCursor('select 1').Next;
+
+  Manager.DropDatabase;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Connection.OpenCursor('select 1').Next;
+    end);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenExistsMoreThenOneIndexMustCreateAll;
@@ -1393,9 +1432,19 @@ begin
   FManipulador := CreateDatabaseManipulator;
 end;
 
+function TDatabaseManiupulatorMock.CreateDatabase(const DatabaseName: String): String;
+begin
+  Result := FManipulador.CreateDatabase(DatabaseName);
+end;
+
 function TDatabaseManiupulatorMock.CreateSequence(const Sequence: TSequence): String;
 begin
   Result := FManipulador.CreateSequence(Sequence);
+end;
+
+function TDatabaseManiupulatorMock.DropDatabase(const DatabaseName: String): String;
+begin
+  Result := FManipulador.DropDatabase(DatabaseName);
 end;
 
 function TDatabaseManiupulatorMock.DropSequence(const Sequence: TDatabaseSequence): String;

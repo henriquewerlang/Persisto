@@ -7,6 +7,8 @@ uses Persisto, Persisto.Mapping;
 type
   TDatabaseManipulatorPostgreSQL = class(TDatabaseManipulator, IDatabaseManipulator)
   private
+    function CreateDatabase(const DatabaseName: String): String;
+    function DropDatabase(const DatabaseName: String): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
     function GetFieldType(const Field: TField): String;
     function GetSchemaTablesScripts: TArray<String>;
@@ -18,6 +20,16 @@ implementation
 uses System.SysUtils;
 
 { TDatabaseManipulatorPostgreSQL }
+
+function TDatabaseManipulatorPostgreSQL.CreateDatabase(const DatabaseName: String): String;
+begin
+  Result := Format('create database %s', [DatabaseName]);
+end;
+
+function TDatabaseManipulatorPostgreSQL.DropDatabase(const DatabaseName: String): String;
+begin
+  Result := Format('drop database if exists %s with (force)', [DatabaseName]);
+end;
 
 function TDatabaseManipulatorPostgreSQL.GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
 const

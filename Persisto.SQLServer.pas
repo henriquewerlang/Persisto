@@ -7,6 +7,8 @@ uses Data.DB, Persisto;
 type
   TDatabaseManipulatorSQLServer = class(TDatabaseManipulator, IDatabaseManipulator)
   private
+    function CreateDatabase(const DatabaseName: String): String;
+    function DropDatabase(const DatabaseName: String): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
     function GetFieldType(const Field: TField): String;
     function GetSchemaTablesScripts: TArray<String>;
@@ -19,6 +21,16 @@ implementation
 uses System.Rtti, System.TypInfo, System.SysUtils, System.Classes, Persisto.Mapping;
 
 { TDatabaseManipulatorSQLServer }
+
+function TDatabaseManipulatorSQLServer.CreateDatabase(const DatabaseName: String): String;
+begin
+  Result := Format('create database %s', [DatabaseName]);
+end;
+
+function TDatabaseManipulatorSQLServer.DropDatabase(const DatabaseName: String): String;
+begin
+  Result := Format('drop database if exists %s', [DatabaseName]);
+end;
 
 function TDatabaseManipulatorSQLServer.GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
 const

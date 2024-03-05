@@ -111,16 +111,22 @@ type
 
   IDatabaseConnection = interface
     ['{7FF2A2F4-0440-447D-9E64-C61A92E94800}']
+    function GetDatabaseName: String;
     function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
     function OpenCursor(const SQL: String): IDatabaseCursor;
     function StartTransaction: IDatabaseTransaction;
 
     procedure ExecuteDirect(const SQL: String);
+    procedure ExecuteScript(const Script: String);
+
+    property DatabaseName: String read GetDatabaseName;
   end;
 
   IDatabaseManipulator = interface
     ['{7ED4F3DE-1C13-4CF3-AE3C-B51386EA271F}']
+    function CreateDatabase(const DatabaseName: String): String;
     function CreateSequence(const Sequence: TSequence): String;
+    function DropDatabase(const DatabaseName: String): String;
     function DropSequence(const Sequence: TDatabaseSequence): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
     function GetFieldType(const Field: TField): String;
@@ -782,7 +788,9 @@ type
     function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
     function Select: TQueryBuilder;
 
+    procedure CreateDatabase;
     procedure Delete(const &Object: TObject);
+    procedure DropDatabase;
     procedure ExectDirect(const SQL: String);
     procedure Insert(const &Object: TObject);
     procedure Save(const &Object: TObject);
@@ -3060,6 +3068,11 @@ begin
   FStateObjects := TObjectDictionary<String, TStateObject>.Create([doOwnsValues]);
 end;
 
+procedure TManager.CreateDatabase;
+begin
+  FConnection.ExecuteScript(FDatabaseManipulator.CreateDatabase(FConnection.DatabaseName));
+end;
+
 procedure TManager.Delete(const &Object: TObject);
 begin
 
@@ -3076,6 +3089,11 @@ begin
   FStateObjects.Free;
 
   inherited;
+end;
+
+procedure TManager.DropDatabase;
+begin
+  FConnection.ExecuteScript(FDatabaseManipulator.DropDatabase(FConnection.DatabaseName));
 end;
 
 procedure TManager.ExectDirect(const SQL: String);

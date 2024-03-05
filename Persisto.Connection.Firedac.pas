@@ -32,11 +32,13 @@ type
   private
     FConnection: TFDConnection;
 
+    function GetDatabaseName: String;
     function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
     function OpenCursor(const SQL: String): IDatabaseCursor;
     function StartTransaction: IDatabaseTransaction;
 
     procedure ExecuteDirect(const SQL: String);
+    procedure ExecuteScript(const Script: String);
   public
     constructor Create;
 
@@ -47,7 +49,7 @@ type
 
 implementation
 
-uses System.SysUtils, FireDAC.Stan.Option, FireDAC.Stan.Def, FireDAC.Stan.Async, FireDAC.DApt, FireDAC.Phys.Intf, FireDAC.Stan.Intf;
+uses System.SysUtils, FireDAC.Stan.Option, FireDAC.Stan.Def, FireDAC.Stan.Async, FireDAC.DApt, FireDAC.Phys.Intf, FireDAC.Stan.Intf, FireDAC.Comp.Script, FireDAC.Comp.ScriptCommands, FireDAC.UI.Intf;
 
 { TDatabaseCursorFireDAC }
 
@@ -110,6 +112,7 @@ begin
   FConnection.FetchOptions.Items := [];
   FConnection.FetchOptions.Unidirectional := True;
   FConnection.ResourceOptions.SilentMode := True;
+  FFDGUIxSilentMode := True;
 end;
 
 destructor TDatabaseConnectionFireDAC.Destroy;
@@ -122,6 +125,26 @@ end;
 procedure TDatabaseConnectionFireDAC.ExecuteDirect(const SQL: String);
 begin
   FConnection.ExecSQL(SQL);
+end;
+
+procedure TDatabaseConnectionFireDAC.ExecuteScript(const Script: String);
+begin
+  var DatabaseName := GetDatabaseName;
+  var Executor := TFDScript.Create(nil);
+  Executor.Connection := FConnection;
+  Executor.SQLScripts.Add.SQL.Text := Script;
+  FConnection.Params.Database := EmptyStr;
+
+  Executor.ExecuteAll;
+
+  Executor.Free;
+
+  FConnection.Params.Database := DatabaseName;
+end;
+
+function TDatabaseConnectionFireDAC.GetDatabaseName: String;
+begin
+  Result := FConnection.Params.Database;
 end;
 
 function TDatabaseConnectionFireDAC.OpenCursor(const SQL: String): IDatabaseCursor;

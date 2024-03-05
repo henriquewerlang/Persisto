@@ -17,8 +17,7 @@ uses
   Persisto.Lazy.Test in 'Persisto.Lazy.Test.pas',
   Persisto.Database.Schema.Updater.Test in 'Persisto.Database.Schema.Updater.Test.pas',
   Persisto.Manager.Test in 'Persisto.Manager.Test.pas',
-  Persisto.Test.Connection in 'Persisto.Test.Connection.pas',
-  Persisto.Interbase in '..\Persisto.Interbase.pas';
+  Persisto.Test.Connection in 'Persisto.Test.Connection.pas';
 
 begin
   FastMM_EnterDebugMode;

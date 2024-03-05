@@ -7,6 +7,8 @@ uses Persisto, Persisto.Mapping;
 type
   TDatabaseManipulatorSQLite = class(TDatabaseManipulator, IDatabaseManipulator)
   private
+    function CreateDatabase(const DatabaseName: String): String;
+    function DropDatabase(const DatabaseName: String): String;
     function CreateSequence(const Sequence: TSequence): String;
     function DropSequence(const Sequence: TDatabaseSequence): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
@@ -18,13 +20,23 @@ type
 
 implementation
 
-uses System.SysUtils, System.Rtti, System.TypInfo;
+uses System.SysUtils, System.Rtti, System.TypInfo, System.IOUtils;
 
 { TDatabaseManipulatorSQLite }
+
+function TDatabaseManipulatorSQLite.CreateDatabase(const DatabaseName: String): String;
+begin
+  Result := EmptyStr;
+end;
 
 function TDatabaseManipulatorSQLite.CreateSequence(const Sequence: TSequence): String;
 begin
   Result := Format('insert into sqlite_sequence (name, seq) values (''%s'', 0)', [Sequence.Name]);
+end;
+
+function TDatabaseManipulatorSQLite.DropDatabase(const DatabaseName: String): String;
+begin
+  Result := EmptyStr;
 end;
 
 function TDatabaseManipulatorSQLite.DropSequence(const Sequence: TDatabaseSequence): String;

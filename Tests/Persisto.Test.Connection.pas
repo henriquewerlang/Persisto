@@ -5,6 +5,7 @@ interface
 uses System.SysUtils, Persisto;
 
 function CreateConnection: IDatabaseConnection;
+function CreateConnectionNamed(const DatabaseName: String): IDatabaseConnection;
 function CreateDatabaseManipulator: IDatabaseManipulator;
 
 procedure CreateDatabase;
@@ -36,21 +37,19 @@ uses
 {$ELSEIF DEFINED(SQLSERVER)}
   FireDAC.Phys.MSSQL,
   FireDAC.Phys.MSSQLDef,
-  FireDAC.Stan.Consts,
   Persisto.SQLServer,
 {$ELSEIF DEFINED(INTERBASE)}
   FireDAC.Phys.IB,
   FireDAC.Phys.IBLiteDef,
   FireDAC.Phys.IBWrapper,
-  FireDAC.Stan.Consts,
   Persisto.Interbase,
 {$ELSE}
   FireDAC.Phys.SQLite,
   FireDAC.Phys.SQLiteDef,
-  FireDAC.Stan.Consts,
   Persisto.SQLite,
   Persisto.SQLite.Firedac.Functions,
 {$ENDIF}
+  FireDAC.Stan.Consts,
   Persisto.Connection.Firedac;
 
 const
@@ -222,7 +221,6 @@ begin
 
     Connection.ExecuteDirect(Format('drop database if exists %s', [DatabaseName]));
 {$ELSEIF DEFINED(INTERBASE)}
-    CreateConnectionNamed(DatabaseName);
 {$ELSEIF DEFINED(SQLITE)}
     if TFile.Exists(DatabaseName) then
       TFile.Delete(DatabaseName);

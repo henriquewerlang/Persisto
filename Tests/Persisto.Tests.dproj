@@ -216,7 +216,6 @@
         <DCCReference Include="Persisto.Database.Schema.Updater.Test.pas"/>
         <DCCReference Include="Persisto.Manager.Test.pas"/>
         <DCCReference Include="Persisto.Test.Connection.pas"/>
-        <DCCReference Include="..\Persisto.Interbase.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
