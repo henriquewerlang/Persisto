@@ -3049,7 +3049,7 @@ end;
 
 function TManager.BuildStateObjectKey(const Table: TTable; const &Object: TObject): String;
 begin
-  Result := BuildStateObjectKey(Table, Table.PrimaryKey.Value[&Object].ToString);
+  Result := BuildStateObjectKey(Table, Table.PrimaryKey.Value[&Object].AsVariant);
 end;
 
 function TManager.CheckStateObjectExists(const Table: TTable; const &Object: TObject): Boolean;
