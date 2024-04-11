@@ -362,6 +362,7 @@ type
     destructor Destroy; override;
 
     function GetTable(const ClassInfo: TClass): TTable; overload;
+    function GetTable(const RttiInstanceType: TRttiInstanceType): TTable; overload;
     function GetTable(const TypeInfo: PTypeInfo): TTable; overload;
 
     procedure AddDefaultRecord(const Value: TObject);
@@ -565,6 +566,8 @@ type
     class operator LessThanOrEqual(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
     class operator LogicalNot(const UnaryOperator: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
     class operator NotEqual(const Left, Right: TQueryBuilderComparisonHelper): TQueryBuilderComparisonHelper;
+
+    property Comparison: TQueryBuilderComparison read FComparison;
   end;
 
   TQueryBuilderWhere = class
@@ -1063,12 +1066,17 @@ end;
 
 function TMapper.GetTable(const TypeInfo: PTypeInfo): TTable;
 begin
-  Result := LoadTable(FContext.GetType(TypeInfo).AsInstance);
+  Result := GetTable(FContext.GetType(TypeInfo).AsInstance);
 end;
 
 function TMapper.GetTable(const ClassInfo: TClass): TTable;
 begin
   Result := GetTable(ClassInfo.ClassInfo);
+end;
+
+function TMapper.GetTable(const RttiInstanceType: TRttiInstanceType): TTable;
+begin
+  Result := LoadTable(RttiInstanceType);
 end;
 
 function TMapper.GetTableDatabaseName(const Table: TTable): String;
