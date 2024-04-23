@@ -394,6 +394,8 @@ end;
 procedure TManagerTest.WhenAClassIsInheritedFromAnotherClassMustInsertTheParentClassInTheInsert;
 begin
   var InheritedObject := TMyEntityInheritedFromSimpleClass.Create;
+  InheritedObject.AnotherProperty := 'Value';
+  InheritedObject.BaseProperty := 'Value';
   InheritedObject.Id := 20;
 
   FManager.Insert(InheritedObject);
@@ -1134,6 +1136,8 @@ end;
 procedure TManagerTest.WhenUpdateAnObjectWithoutChangesCanRaiseAnyUpdateError;
 begin
   var InheritedObject := TMyEntityInheritedFromSimpleClass.Create;
+  InheritedObject.AnotherProperty := 'Value';
+  InheritedObject.BaseProperty := 'Value';
 
   FManager.Insert(InheritedObject);
 

@@ -137,12 +137,18 @@ var
     Object11.Id := 1;
     Object11.Lazy := TMyEntity.Create;
     Object11.Lazy.Value.Id := 1;
+    Object11.Lazy.Value.Name := 'Name';
 
     var Object12 := TClassWithNullableProperty.Create;
     Object12.Id := 20;
 
     var Object13 := TMyEntityWithAllTypeOfFields.Create;
+    Object13.AnsiChar := 'a';
+    Object13.AnsiString := 'Value';
+    Object13.&String := 'Value';
+    Object13.Char := 'a';
     Object13.Integer := 1;
+    Object13.Text := 'Text';
 
     Objects := [Object1, Object2, Object3, Object7, Object11, Object12, Object13];
   end;

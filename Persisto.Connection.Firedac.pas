@@ -109,6 +109,7 @@ begin
   inherited;
 
   FConnection := TFDConnection.Create(nil);
+  FConnection.FormatOptions.StrsEmpty2Null := True;
   FConnection.FetchOptions.Items := [];
   FConnection.FetchOptions.Unidirectional := True;
   FConnection.ResourceOptions.SilentMode := True;
