@@ -240,7 +240,7 @@ type
     function GetNullValue(const Instance: TObject): TValue;
     function GetPropertyValue(const Instance: TObject): TValue;
     function GetRawPointerOfProperty(const Instance: TObject): Pointer;
-    function GetValue(const Instance: TObject): TValue; virtual;
+    function GetValue(const Instance: TObject): TValue;
 
     procedure SetLazyValue(const Instance: TObject; const Value: ILazyValue);
     procedure SetNullValue(const Instance: TObject; const Value: TValue);
@@ -749,16 +749,18 @@ type
   private
     FObject: TObject;
     FOldValues: TArray<TValue>;
+    FTable: TTable;
 
     function GetOldValue(const Field: TField): TValue;
+    function GetObject: TObject;
 
     procedure SetOldValue(const Field: TField; const Value: TValue);
   public
-    constructor Create(const Table: TTable; const &Object: TObject);
+    constructor Create(const Table: TTable);
 
     destructor Destroy; override;
 
-    property &Object: TObject read FObject write FObject;
+    property &Object: TObject read GetObject;
     property OldValue[const Field: TField]: TValue read GetOldValue write SetOldValue;
   end;
 
@@ -771,14 +773,13 @@ type
     FQueryBuilder: TQueryBuilder;
     FStateObjects: TDictionary<String, TStateObject>;
 
-    function BuildStateObjectKey(const Table: TTable; const PrimaryKeyValue: String): String; overload;
     function BuildStateObjectKey(const Table: TTable; const &Object: TObject): String; overload;
-    function CheckStateObjectExists(const Table: TTable; const &Object: TObject): Boolean;
+    function BuildStateObjectKey(const Table: TTable; const PrimaryKeyValue: String): String; overload;
     function GetStateObject(const Table: TTable; const &Object: TObject): TStateObject;
     function InsertTable(const Table: TTable; const &Object: TObject): Boolean;
+    function LoadStateObject(const Table: TTable; const &Object: TObject; var StateObject: TStateObject): Boolean;
     function SaveTable(const Table: TTable; const &Object: TObject): Boolean;
     function UpdateTable(const Table: TTable; const &Object: TObject): Boolean;
-    function TryGetStateObject(const StateObjectKey: String; var StateObject: TStateObject): Boolean;
 
     procedure AddStateObject(const StateObjectKey: String; const StateObject: TStateObject);
     procedure InternalUpdateTable(const Table: TTable; const &Object: TObject);
@@ -1612,9 +1613,9 @@ var
   begin
     var StateObjectKey := BuildStateObjectKey(QueryTable);
 
-    if not FQueryBuilder.FManager.TryGetStateObject(StateObjectKey, Result) then
+    if not FQueryBuilder.FManager.FStateObjects.TryGetValue(StateObjectKey, Result) then
     begin
-      Result := TStateObject.Create(QueryTable.Table, QueryTable.Table.ClassTypeInfo.MetaclassType.Create);
+      Result := TStateObject.Create(QueryTable.Table);
 
       FQueryBuilder.FManager.AddStateObject(StateObjectKey, Result);
     end;
@@ -3050,19 +3051,17 @@ begin
   FStateObjects.Add(StateObjectKey, StateObject);
 end;
 
-function TManager.BuildStateObjectKey(const Table: TTable; const PrimaryKeyValue: String): String;
-begin
-  Result := Format('%s.%s', [Table.DatabaseName, PrimaryKeyValue]);
-end;
-
 function TManager.BuildStateObjectKey(const Table: TTable; const &Object: TObject): String;
 begin
   Result := BuildStateObjectKey(Table, Table.PrimaryKey.Value[&Object].AsVariant);
 end;
 
-function TManager.CheckStateObjectExists(const Table: TTable; const &Object: TObject): Boolean;
+function TManager.BuildStateObjectKey(const Table: TTable; const PrimaryKeyValue: String): String;
 begin
-  Result := FStateObjects.ContainsKey(BuildStateObjectKey(Table, &Object));
+  Result := PrimaryKeyValue;
+
+  if not PrimaryKeyValue.IsEmpty then
+    Result := Format('%s.%s', [Table.DatabaseName, PrimaryKeyValue]);
 end;
 
 constructor TManager.Create(const Connection: IDatabaseConnection; const DatabaseManipulator: IDatabaseManipulator);
@@ -3111,7 +3110,7 @@ end;
 
 function TManager.GetStateObject(const Table: TTable; const &Object: TObject): TStateObject;
 begin
-  if not FStateObjects.TryGetValue(BuildStateObjectKey(Table, &Object), Result) then
+  if not LoadStateObject(Table, &Object, Result) then
     raise EForeignObjectNotAllowed.Create;
 end;
 
@@ -3194,7 +3193,7 @@ begin
     var Field: TField;
     HasManyValueAssociationFields := False;
     Result := True;
-    StateObject := TStateObject.Create(Table, &Object);
+    StateObject := TStateObject.Create(Table);
 
     FProcessedObjects.Add(&Object, False);
 
@@ -3281,6 +3280,66 @@ begin
   DoUpdateTable(Table, &Object);
 end;
 
+function TManager.LoadStateObject(const Table: TTable; const &Object: TObject; var StateObject: TStateObject): Boolean;
+begin
+  Result := FStateObjects.TryGetValue(BuildStateObjectKey(Table, &Object), StateObject);
+
+  if not Result then
+  begin
+    var Comma := EmptyStr;
+    var Params := TParams.Create;
+    var PrimaryKey := Table.PrimaryKey;
+    var SQL := TStringBuilder.Create;
+
+    Params.CreateParam(PrimaryKey.FieldType.FieldType, PrimaryKey.DatabaseName, ptInput).Value := PrimaryKey.Value[&Object].AsVariant;
+
+    SQL.Append('select ');
+
+    for var Field in Table.Fields do
+      if not Field.IsManyValueAssociation then
+      begin
+        SQL.Append(Comma);
+
+        SQL.Append(Field.DatabaseName);
+
+        Comma := ', ';
+      end;
+
+    SQL.Append(' from ');
+
+    SQL.Append(Table.DatabaseName);
+
+    SQL.Append(' where ');
+
+    SQL.Append(PrimaryKey.DatabaseName);
+
+    SQL.Append(' = :');
+
+    SQL.Append(PrimaryKey.DatabaseName);
+
+    var Cursor := FConnection.PrepareCursor(SQL.ToString, Params);
+
+    Result := Cursor.Next;
+
+    if Result then
+    begin
+      StateObject := TStateObject.Create(Table);
+
+      var DataSet := Cursor.GetDataSet;
+
+      for var Field in Table.Fields do
+        if not Field.IsManyValueAssociation then
+          StateObject.OldValue[Field] := TValue.From(DataSet.FieldByName(Field.DatabaseName).Value);
+
+      AddStateObject(BuildStateObjectKey(Table, &Object), StateObject);
+    end;
+
+    SQL.Free;
+
+    Params.Free;
+  end;
+end;
+
 function TManager.OpenCursor(const SQL: String): IDatabaseCursor;
 begin
   Result := FConnection.OpenCursor(SQL);
@@ -3299,8 +3358,11 @@ begin
 end;
 
 function TManager.SaveTable(const Table: TTable; const &Object: TObject): Boolean;
+var
+  StateObject: TStateObject;
+
 begin
-  if CheckStateObjectExists(Table, &Object) then
+  if LoadStateObject(Table, &Object, StateObject) then
     Result := UpdateTable(Table, &Object)
   else
     Result := InsertTable(Table, &Object);
@@ -3312,11 +3374,6 @@ begin
 
   FQueryBuilder := TQueryBuilder.Create(Self);
   Result := FQueryBuilder;
-end;
-
-function TManager.TryGetStateObject(const StateObjectKey: String; var StateObject: TStateObject): Boolean;
-begin
-  Result := FStateObjects.TryGetValue(StateObjectKey, StateObject);
 end;
 
 procedure TManager.Update(const &Object: TObject);
@@ -3347,20 +3404,28 @@ end;
 
 { TStateObject }
 
-constructor TStateObject.Create(const Table: TTable; const &Object: TObject);
+constructor TStateObject.Create(const Table: TTable);
 begin
   inherited Create;
 
-  FObject := &Object;
+  FTable := Table;
 
-  SetLength(FOldValues, Table.AllFieldCount);
+  SetLength(FOldValues, FTable.AllFieldCount);
 end;
 
 destructor TStateObject.Destroy;
 begin
-  &Object.Free;
+  FObject.Free;
 
   inherited;
+end;
+
+function TStateObject.GetObject: TObject;
+begin
+  if not Assigned(FObject) then
+    FObject := FTable.ClassTypeInfo.MetaclassType.Create;
+
+  Result := FObject;
 end;
 
 function TStateObject.GetOldValue(const Field: TField): TValue;
