@@ -2879,13 +2879,8 @@ begin
     end;
 
   for Table in Tables.Values do
-    if Table.DefaultRecords.Count > 0 then
-    begin
-      FManager.Select.All.From<TObject>(Table).Open.All;
-
-      for var DefaultRecord in Table.DefaultRecords do
-        FManager.Save(DefaultRecord);
-    end;
+    for var DefaultRecord in Table.DefaultRecords do
+      FManager.Save(DefaultRecord);
 
 //  for Table in Tables.Values do
 //  begin
