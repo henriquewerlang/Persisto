@@ -29,7 +29,7 @@ end;
 
 function TDatabaseManipulatorSQLServer.DropDatabase(const DatabaseName: String): String;
 begin
-  Result := Format('drop database if exists %s', [DatabaseName]);
+  Result := Format('use master;'#13#10'alter database %0:s set single_user with rollback immediate;'#13#10'drop database if exists %0:s;', [DatabaseName]);
 end;
 
 function TDatabaseManipulatorSQLServer.GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
