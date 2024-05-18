@@ -327,7 +327,6 @@ type
   TMapper = class
   private
     FContext: TRttiContext;
-    FDefaultRecords: TDictionary<String, TObject>;
     FFieldComparer: IComparer<TField>;
     FSequences: TDictionary<String, TSequence>;
     FTables: TDictionary<TRttiInstanceType, TTable>;
@@ -369,7 +368,6 @@ type
     procedure LoadAll; overload;
     procedure LoadAll(const Schema: TArray<TClass>); overload;
 
-    property DefaultRecords: TDictionary<String, TObject> read FDefaultRecords;
     property Sequences: TArray<TSequence> read GetSequences;
     property Tables: TArray<TTable> read GetTables;
   end;
@@ -994,7 +992,6 @@ begin
   inherited;
 
   FContext := TRttiContext.Create;
-  FDefaultRecords := TDictionary<String, TObject>.Create;
   FSequences := TObjectDictionary<String, TSequence>.Create([doOwnsValues]);
   FTables := TObjectDictionary<TRttiInstanceType, TTable>.Create([doOwnsValues]);
 end;
@@ -1022,8 +1019,6 @@ end;
 destructor TMapper.Destroy;
 begin
   FContext.Free;
-
-  FDefaultRecords.Free;
 
   FSequences.Free;
 
@@ -1395,7 +1390,7 @@ end;
 function TTable.GetDefaultRecords: TList<TObject>;
 begin
   if not Assigned(FDefaultRecords) then
-    FDefaultRecords := TList<TObject>.Create;
+    FDefaultRecords := TObjectList<TObject>.Create;
 
   Result := FDefaultRecords;
 end;
