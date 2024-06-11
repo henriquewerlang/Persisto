@@ -67,26 +67,10 @@ type
     procedure TheFieldTypeMustMatchWithPropertyType(const PropertyName: String; const TypeToCompare: TFieldType);
   end;
 
-  [TestFixture]
-  TRttiHelperFunctionTest = class
-  private
-    FContext: TRttiContext;
-  public
-    [Setup]
-    procedure Setup;
-    [TearDown]
-    procedure TearDown;
-    [Test]
-    procedure WhenCallTheGetRttiTypeMustReturnTheTypeAsExpected;
-    [Test]
-    procedure WhenCallTheGetRttiTypeOfAnClassMustReturnTheTypeAsExpected;
-  end;
-
   TMyAttribute = class(TCustomAttribute);
 
   [TMy]
   TClassWithAttribute = class
-
   end;
 
 implementation
@@ -229,28 +213,6 @@ begin
 
       Value.ArrayLength := 4;
     end);
-end;
-
-{ TRttiHelperFunctionTest }
-
-procedure TRttiHelperFunctionTest.Setup;
-begin
-  FContext := TRttiContext.Create;
-end;
-
-procedure TRttiHelperFunctionTest.TearDown;
-begin
-  FContext.Free;
-end;
-
-procedure TRttiHelperFunctionTest.WhenCallTheGetRttiTypeMustReturnTheTypeAsExpected;
-begin
-  Assert.AreEqual(FContext.GetType(TRttiHelperFunctionTest), GetRttiType(TypeInfo(TRttiHelperFunctionTest)));
-end;
-
-procedure TRttiHelperFunctionTest.WhenCallTheGetRttiTypeOfAnClassMustReturnTheTypeAsExpected;
-begin
-  Assert.AreEqual(FContext.GetType(TRttiHelperFunctionTest), GetRttiType(TRttiHelperFunctionTest));
 end;
 
 end.

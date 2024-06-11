@@ -603,17 +603,31 @@ type
   TClassWithNullableProperty = class
   private
     FId: Integer;
-    FNullable: Nullable<Integer>;
+    FNullable: Integer;
+    FNullableStored: Boolean;
+    FNullableField: Integer;
+    FNullableProcedure: Integer;
+    FNullableFieldStored: Boolean;
+    function GetNullableProcedureStored: Boolean;
+    procedure SetNullable(const Value: Integer);
+  public
+    property NullableFieldStored: Boolean read FNullableFieldStored write FNullableFieldStored;
+    property NullableStored: Boolean read FNullableStored write FNullableStored;
   published
     property Id: Integer read FId write FId;
-    property Nullable: Nullable<Integer> read FNullable write FNullable;
+    property Nullable: Integer read FNullable write SetNullable stored FNullableStored;
+    property NullableField: Integer read FNullableField write FNullableField stored FNullableFieldStored;
+    property NullableProcedure: Integer read FNullableProcedure write FNullableProcedure stored GetNullableProcedureStored;
   end;
 
   TClassWithPrimaryKeyNullableProperty = class
   private
-    FId: Nullable<Integer>;
+    FId: Integer;
+    FIdStored: Boolean;
+  public
+    property IdStored: Boolean read FIdStored write FIdStored;
   published
-    property Id: Nullable<Integer> read FId write FId;
+    property Id: Integer read FId write FId stored FIdStored;
   end;
 
   [Entity]
@@ -1065,8 +1079,11 @@ type
     FTime: TTime;
     FUniqueIdentifier: String;
     FVarChar: String;
-    FNullField: Nullable<Integer>;
+    FNullField: Integer;
     FDefaultInternalFunction: String;
+    FNullFieldStored: Boolean;
+  public
+    property NullFieldStored: Boolean read FNullFieldStored write FNullFieldStored;
   published
     property Boolean: Boolean read FBoolean write FBoolean;
     property Bigint: Int64 read FBigint write FBigint;
@@ -1085,7 +1102,7 @@ type
     property Float: Double read FFloat write FFloat;
     [Sequence('Integer')]
     property Integer: Integer read FInteger write FInteger;
-    property NullField: Nullable<Integer> read FNullField write FNullField;
+    property NullField: Integer read FNullField write FNullField stored FNullFieldStored;
     property Smallint: Word read FSmallint write FSmallint;
     [Text]
     property Text: String read FText write FText;
@@ -1123,6 +1140,19 @@ begin
 
   if FPassCount > 10 then
     raise ExceptTypes[etStackOverflow].Create('Error!');
+end;
+
+{ TClassWithNullableProperty }
+
+function TClassWithNullableProperty.GetNullableProcedureStored: Boolean;
+begin
+  Result := FNullableProcedure > 0;
+end;
+
+procedure TClassWithNullableProperty.SetNullable(const Value: Integer);
+begin
+  FNullable := Value;
+  FNullableStored := True;
 end;
 
 end.

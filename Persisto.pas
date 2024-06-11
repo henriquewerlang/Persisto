@@ -237,13 +237,11 @@ type
     function GetIsLazy: Boolean;
   strict private
     function GetLazyValue(const Instance: TObject): ILazyValue;
-    function GetNullValue(const Instance: TObject): TValue;
     function GetPropertyValue(const Instance: TObject): TValue;
     function GetRawPointerOfProperty(const Instance: TObject): Pointer;
     function GetValue(const Instance: TObject): TValue;
 
     procedure SetLazyValue(const Instance: TObject; const Value: ILazyValue);
-    procedure SetNullValue(const Instance: TObject; const Value: TValue);
     procedure SetValue(const Instance: TObject; const Value: TValue); overload;
   public
     destructor Destroy; override;
@@ -262,12 +260,12 @@ type
     property IsInheritedLink: Boolean read FIsInheritedLink;
     property IsLazy: Boolean read GetIsLazy;
     property IsManyValueAssociation: Boolean read FIsManyValueAssociation;
+    property IsNullable: Boolean read FIsNullable;
     property IsReadOnly: Boolean read FIsReadOnly;
     property LazyType: TRttiType read FLazyType;
     property LazyValue[const Instance: TObject]: ILazyValue read GetLazyValue write SetLazyValue;
     property ManyValueAssociation: TManyValueAssociation read FManyValueAssociation;
     property Name: String read FName write FName;
-    property NullValue[const Instance: TObject]: TValue read GetNullValue write SetNullValue;
     property PropertyInfo: TRttiInstanceProperty read FPropertyInfo;
     property Required: Boolean read FRequired write FRequired;
     property Scale: Word read FScale;
@@ -1140,11 +1138,9 @@ begin
   Field.FTable := Table;
   Table.FFields := Table.FFields + [Field];
 
-  Field.FIsNullable := IsNullable(Field.FieldType);
+  Field.FIsNullable := (UIntPtr(PropertyInfo.PropInfo^.StoredProc) and (not NativeUInt($FF))) <> 0;
 
-  if Field.FIsNullable then
-    Field.FFieldType := GetNullableType(Field.FieldType)
-  else if IsLazy(Field.FieldType) then
+  if IsLazy(Field.FieldType) then
   begin
     Field.FFieldType := GetLazyType(Field.FieldType);
     Field.FLazyType := Field.FFieldType;
@@ -1260,7 +1256,7 @@ procedure TMapper.LoadTableInfo(const TypeInfo: TRttiInstanceType; const Table: 
     var Field := Table.Field[GetPrimaryKeyPropertyName];
 
     if Assigned(Field) then
-      if Field.FIsNullable then
+      if Field.IsNullable then
         raise EClassWithPrimaryKeyNullable.Create(Table)
       else
       begin
@@ -1443,11 +1439,6 @@ begin
   Result := PropertyInfo.PropertyType.GetMethod('GetLazyValue').Invoke(TValue.From(GetRawPointerOfProperty(Instance)), []).AsType<ILazyValue>;
 end;
 
-function TField.GetNullValue(const Instance: TObject): TValue;
-begin
-  Result := PropertyInfo.PropertyType.GetField('FValue').GetValue(GetRawPointerOfProperty(Instance)).AsType<TValue>;
-end;
-
 function TField.GetPropertyValue(const Instance: TObject): TValue;
 begin
   Result := PropertyInfo.GetValue(Instance);
@@ -1473,10 +1464,10 @@ begin
     if Value.IsEmpty then
       Value := Lazy.Value;
   end
-  else if FIsNullable then
-    Value := NullValue[Instance]
+  else if not FIsNullable or IsStoredProp(Instance, PropertyInfo.PropInfo) then
+    Value := GetPropertyValue(Instance)
   else
-    Value := GetPropertyValue(Instance);
+    Value := TValue.Empty;
 
   Result := not Value.IsEmpty;
 end;
@@ -1486,16 +1477,9 @@ begin
   PropertyInfo.PropertyType.GetField('FLazyValue').SetValue(GetRawPointerOfProperty(Instance), TValue.From(Value));
 end;
 
-procedure TField.SetNullValue(const Instance: TObject; const Value: TValue);
-begin
-  PropertyInfo.PropertyType.GetField('FValue').SetValue(GetRawPointerOfProperty(Instance), Value);
-end;
-
 procedure TField.SetValue(const Instance: TObject; const Value: TValue);
 begin
-  if FIsNullable then
-    NullValue[Instance] := Value
-  else if IsLazy then
+  if IsLazy then
     LazyValue[Instance].Value := Value
   else
     PropertyInfo.SetValue(Instance, Value);
@@ -1635,7 +1619,7 @@ var
 
       if Field.IsLazy then
         Field.LazyValue[StateObject.&Object] := CreateLazyFactory(Field, FieldValue)
-      else
+      else if not Field.IsNullable or not FieldValue.IsEmpty then
         Field.Value[StateObject.&Object] := FieldValue;
 
       StateObject.OldValue[Field] := FieldValue;

@@ -1310,12 +1310,6 @@ begin
   Assert.AreEqual(10, Records[0].Value);
   Assert.AreEqual(20, Records[1].Value);
   Assert.AreEqual(30, Records[2].Value);
-
-  MyClass1.Free;
-
-  MyClass2.Free;
-
-  MyClass3.Free;
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheRequiredValueHasChangedMustRecreateTheField;

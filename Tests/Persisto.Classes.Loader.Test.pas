@@ -470,7 +470,7 @@ procedure TClassLoaderTest.WhenLoadAnObjectWithNullableFieldMustLoadTheFieldAsEx
 begin
   var &Object := FManager.Select.All.From<TClassWithNullableProperty>.Open.One;
 
-  Assert.IsTrue(&Object.Nullable.IsNull);
+  Assert.IsFalse(&Object.NullableStored);
 end;
 
 procedure TClassLoaderTest.WhenSelectingAChildTableWithAForeignKeyCantRaiseRecursionErrorThatNotReal;

@@ -2,11 +2,13 @@
 
 interface
 
-uses DUnitX.TestFramework, Persisto, Persisto.Mapping;
+uses System.Rtti, DUnitX.TestFramework, Persisto, Persisto.Mapping;
 
 type
   [TestFixture]
   TLazyTest = class
+  private
+    FContext: TRttiContext;
   public
     [Test]
     procedure WhenLoadTheLazyValueMustReturnTheValueLoaded;
@@ -79,12 +81,12 @@ uses Persisto.Test.Entity, Persisto.Test.Connection;
 
 procedure TLazyTest.TheIsLazyFunctionMustReturnTrueIfTheValueIsLazy;
 begin
-  Assert.IsTrue(IsLazy(GetRttiType(TypeInfo(Lazy<TMyEntity>))));
+  Assert.IsTrue(IsLazy(FContext.GetType(TypeInfo(Lazy<TMyEntity>))));
 end;
 
 procedure TLazyTest.WhenGetLazyTypeMustReturnTheRttiTypeAsExpected;
 begin
-  Assert.AreEqual(GetRttiType(TMyEntity), GetLazyType(GetRttiType(TypeInfo(Lazy<TMyEntity>))));
+  Assert.AreEqual(FContext.GetType(TMyEntity), GetLazyType(FContext.GetType(TypeInfo(Lazy<TMyEntity>))));
 end;
 
 procedure TLazyTest.WhenLoadTheLazyValueMustReturnTheValueLoaded;

@@ -309,6 +309,8 @@ type
     procedure WhenLoadALazyFieldMustLoadTheLazyTypeInfoAsExpected;
     [Test]
     procedure WhenFillTheObjectOfALazyFieldMustReturnTheValueWhenGetTheValueAgain;
+    [Test]
+    procedure WhenGetValueFromANullablePropertyAndTheStoredValueIsFalseMustReturnAnEmptyValue;
   end;
 
 implementation
@@ -769,8 +771,6 @@ begin
   FMapper.AddDefaultRecord(MyClass);
 
   Assert.AreEqual<NativeInt>(1, Table.DefaultRecords.Count);
-
-  MyClass.Free;
 end;
 
 procedure TMapperTest.WhenAFieldIsAForeignKeyThePropertyIsForeignKeyMustReturnTrue;
@@ -912,6 +912,19 @@ begin
   var LazyValue := Table.Field['Lazy'].LazyValue[MyClass];
 
   Assert.IsNotNull(LazyValue);
+
+  MyClass.Free;
+end;
+
+procedure TMapperTest.WhenGetValueFromANullablePropertyAndTheStoredValueIsFalseMustReturnAnEmptyValue;
+begin
+  var MyClass := TClassWithNullableProperty.Create;
+  var Table := FMapper.GetTable(MyClass.ClassType);
+
+  MyClass.NullableField := 12345;
+  MyClass.NullableFieldStored := False;
+
+  Assert.IsTrue(Table.Field['NullableField'].Value[MyClass].IsEmpty);
 
   MyClass.Free;
 end;
@@ -1451,7 +1464,7 @@ begin
 
   Field.Value[MyClass] := 123456;
 
-  Assert.AreEqual<Integer>(123456, MyClass.Nullable.Value);
+  Assert.AreEqual<Integer>(123456, MyClass.Nullable);
 
   MyClass.Free;
 end;
@@ -1462,7 +1475,7 @@ begin
   MyClass.Nullable := 123456;
   var Table := FMapper.GetTable(MyClass.ClassType);
 
-  var Field := Table.Fields[1];
+  var Field := Table.Field['Nullable'];
 
   Assert.AreEqual(123456, Field.Value[MyClass].AsInteger);
 
@@ -1494,14 +1507,15 @@ procedure TMapperTest.WhenThePropertyIsLazyMustReturnTheFieldTypeWithTheInternal
 begin
   var Table := FMapper.GetTable(TLazyClass);
 
-  Assert.AreEqual(GetRttiType(TypeInfo(Integer)), Table.Field['Lazy'].FieldType);
+  Assert.AreEqual(FContext.GetType(TypeInfo(Integer)), Table.Field['Lazy'].FieldType);
 end;
 
 procedure TMapperTest.WhenThePropertyIsNullableMustMarkTheFieldAsNotRequired;
 begin
   var Table := FMapper.GetTable(TClassWithNullableProperty);
 
-  Assert.IsFalse(Table.Fields[1].Required);
+  Assert.IsFalse(Table.Field['NullableField'].Required);
+  Assert.IsFalse(Table.Field['NullableProcedure'].Required);
 end;
 
 procedure TMapperTest.WhenTheTableHasAPrimaryKeyMustCreateAnIndexForThePrimaryKey;

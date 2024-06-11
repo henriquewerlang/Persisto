@@ -1515,7 +1515,7 @@ begin
 
   DataSet.Post;
 
-  Assert.AreEqual(12345678, MyClass.Nullable.Value);
+  Assert.AreEqual(12345678, MyClass.Nullable);
 
   DataSet.Free;
 
@@ -1537,7 +1537,7 @@ begin
 
   DataSet.Post;
 
-  Assert.IsTrue(MyClass.Nullable.IsNull);
+  Assert.IsTrue(MyClass.NullableStored);
 
   DataSet.Free;
 

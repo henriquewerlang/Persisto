@@ -11,7 +11,6 @@ uses
   Persisto.Mapper.Test in 'Persisto.Mapper.Test.pas',
   Persisto.Test.Entity in 'Persisto.Test.Entity.pas',
   Persisto.Rtti.Helper.Test in 'Persisto.Rtti.Helper.Test.pas',
-  Persisto.Nullable.Test in 'Persisto.Nullable.Test.pas',
   Persisto.Lazy.Test in 'Persisto.Lazy.Test.pas',
   Persisto.Database.Schema.Updater.Test in 'Persisto.Database.Schema.Updater.Test.pas',
   Persisto.Manager.Test in 'Persisto.Manager.Test.pas',

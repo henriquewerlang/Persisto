@@ -191,7 +191,6 @@
         <DCCReference Include="Persisto.Mapper.Test.pas"/>
         <DCCReference Include="Persisto.Test.Entity.pas"/>
         <DCCReference Include="Persisto.Rtti.Helper.Test.pas"/>
-        <DCCReference Include="Persisto.Nullable.Test.pas"/>
         <DCCReference Include="Persisto.Lazy.Test.pas"/>
         <DCCReference Include="Persisto.Database.Schema.Updater.Test.pas"/>
         <DCCReference Include="Persisto.Manager.Test.pas"/>

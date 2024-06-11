@@ -179,25 +179,6 @@ type
     procedure SetValue(const Value: TValue); {$IFDEF PAS2JS} override; {$ENDIF}
   end;
 
-  Nullable<T> = record
-  private
-    FValue: TValue;
-  public
-    function GetValue: T;
-    function IsNull: Boolean;
-
-    procedure Clear;
-    procedure SetValue(const Value: T);
-
-{$IFDEF DCC}
-    class operator Implicit(const Value: Nullable<T>): T; overload;
-    class operator Implicit(const Value: T): Nullable<T>; overload;
-    class operator Implicit(const Value: TNullEnumerator): Nullable<T>; overload;
-{$ENDIF}
-
-    property Value: T read GetValue write SetValue;
-  end;
-
   TRttiTypeHelper = class helper for TRttiType
   private
     function GetFieldType: TFieldType;
@@ -221,11 +202,7 @@ type
   end;
 
 function GetLazyType(const RttiType: TRttiType): TRttiType;
-function GetNullableType(const RttiType: TRttiType): TRttiType;
-function GetRttiType(const AClass: TClass): TRttiType; overload;
-function GetRttiType(const TypeInfo: PTypeInfo): TRttiType; overload;
 function IsLazy(const RttiType: TRttiType): Boolean;
-function IsNullable(const RttiType: TRttiType): Boolean;
 
 implementation
 
@@ -233,7 +210,6 @@ uses {$IFDEF PAS2JS}System.RTLConsts{$ELSE}System.Variants, System.SysConst{$END
 
 const
   LAZY_TYPE_NAME = 'Lazy<';
-  NULLABLE_TYPE_NAME = 'Nullable<';
 
 function GetLazyType(const RttiType: TRttiType): TRttiType;
 begin
@@ -245,31 +221,9 @@ begin
   Result := RttiType.GetMethod('GetValue').ReturnType;
 end;
 
-function GetRttiType(const AClass: TClass): TRttiType;
-begin
-  Result := GetRttiType(AClass.ClassInfo);
-end;
-
-function GetRttiType(const TypeInfo: PTypeInfo): TRttiType;
-var
-  Context: TRttiContext;
-
-begin
-  Context := TRttiContext.Create;
-
-  Result := Context.GetType(TypeInfo);
-
-  Context.Free;
-end;
-
 function IsLazy(const RttiType: TRttiType): Boolean;
 begin
   Result := RttiType.Name.StartsWith(LAZY_TYPE_NAME);
-end;
-
-function IsNullable(const RttiType: TRttiType): Boolean;
-begin
-  Result := RttiType.Name.StartsWith(NULLABLE_TYPE_NAME);
 end;
 
 { TLazyValue }
@@ -468,46 +422,6 @@ begin
   inherited Create(agtFixedValue);
 
   FValue := Value;
-end;
-
-{ Nullable<T> }
-
-{$IFDEF DCC}
-
-class operator Nullable<T>.Implicit(const Value: Nullable<T>): T;
-begin
-  Result := Value.Value;
-end;
-
-class operator Nullable<T>.Implicit(const Value: T): Nullable<T>;
-begin
-  Result.Value := Value;
-end;
-
-class operator Nullable<T>.Implicit(const Value: TNullEnumerator): Nullable<T>;
-begin
-  Result.Clear;
-end;
-{$ENDIF}
-
-procedure Nullable<T>.Clear;
-begin
-  FValue := TValue.Empty;
-end;
-
-function Nullable<T>.GetValue: T;
-begin
-  Result := FValue.AsType<T>;
-end;
-
-function Nullable<T>.IsNull: Boolean;
-begin
-  Result := FValue.IsEmpty;
-end;
-
-procedure Nullable<T>.SetValue(const Value: T);
-begin
-  TValue.Make<T>(Value, FValue);
 end;
 
 { TValueHelper }
