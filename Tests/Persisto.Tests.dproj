@@ -186,7 +186,6 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="..\Externals\FastMM5\FastMM5.pas"/>
         <DCCReference Include="Persisto.DataSet.Test.pas"/>
         <DCCReference Include="Persisto.Classes.Loader.Test.pas"/>
         <DCCReference Include="Persisto.Mapper.Test.pas"/>
@@ -257,7 +256,7 @@
                 <DeployFile LocalName="Win32\Debug\Delphi.ORM.Tests.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployFile LocalName="Win32\Debug\Persisto.Tests.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
-                        <RemoteName>Persisto_Tests.exe</RemoteName>
+                        <RemoteName>Persisto.Tests.exe</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
