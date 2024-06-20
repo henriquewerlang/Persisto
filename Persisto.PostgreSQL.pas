@@ -63,9 +63,11 @@ end;
 
 function TDatabaseManipulatorPostgreSQL.GetSchemaTablesScripts: TArray<String>;
 const
-  FOREIGN_KEY_ID = 'constraint_schema || ''#'' || constraint_name';
+  FOREIGN_KEY_ID_FIELDS = 'constraint_schema || ''#'' || constraint_name';
 
-  FOREIGN_KEY_FIELD_ID = FOREIGN_KEY_ID + ' || ''#'' || column_name';
+  FOREIGN_KEY_ID = 'cast(' + FOREIGN_KEY_ID_FIELDS + ' as varchar(200))';
+
+  FOREIGN_KEY_FIELD_ID = FOREIGN_KEY_ID_FIELDS + ' || ''#'' || column_name';
 
   TABLE_ID_FIELDS = 'table_schema || ''#'' || table_name';
 
@@ -76,19 +78,20 @@ const
   COLUMN_ID = COLUMN_ID_FIELDS;
 
   FOREING_KEY_SQL =
-      'select cast(' + FOREIGN_KEY_ID + ' as varchar(200)) Id,' +
+      'select ' + FOREIGN_KEY_ID + ' Id,' +
              'constraint_name Name,' +
              TABLE_ID + ' IdTable,' +
              '(select ' + TABLE_ID +
                 'from information_schema.constraint_table_usage CTU ' +
                'where CTU.table_schema = TC.table_schema ' +
                  'and CTU.table_name = TC.table_name ' +
-                 'and CTU.constraint_name = TC.constraint_name) IdReferenceTable ' +
+                 'and CTU.constraint_name = TC.constraint_name) IdReferenceTable,' +
+             ' null ReferenceField ' +
         'from information_schema.table_constraints TC';
 
   FOREING_KEY_COLUMS_SQL =
       'select cast(' + FOREIGN_KEY_FIELD_ID + ' as varchar(200)) Id,' +
-             'cast(' + FOREIGN_KEY_ID + ' as varchar(200)) IdForeignKey,' +
+             FOREIGN_KEY_ID + ' IdForeignKey,' +
              'column_name Name ' +
         'from information_schema.key_column_usage';
 
@@ -161,7 +164,7 @@ const
 
   function CreateView(const Name, SQL: String): String;
   begin
-    Result := Format('create or replace temp view  PersistoDatabase%s as (%s)', [Name, SQL]);
+    Result := Format('create or replace temp view PersistoDatabase%s as (%s)', [Name, SQL]);
   end;
 
 begin
