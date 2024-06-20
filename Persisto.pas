@@ -234,8 +234,8 @@ type
     FScale: Word;
     FSize: Word;
     FSpecialType: TDatabaseSpecialType;
+
     function GetIsLazy: Boolean;
-  strict private
     function GetLazyValue(const Instance: TObject): ILazyValue;
     function GetPropertyValue(const Instance: TObject): TValue;
     function GetRawPointerOfProperty(const Instance: TObject): Pointer;
@@ -801,7 +801,6 @@ type
   end;
 
 function Field(const Name: String): TQueryBuilderComparisonHelper;
-function GetFieldValue(const Field: TField; const DataSetField: Data.DB.TField): TValue;
 
 implementation
 
@@ -822,18 +821,15 @@ begin
         Result := DataSetField.AsFloat;
       ftTimeStamp, ftOraTimeStamp, ftTimeStampOffset:
         Result := DataSetField.AsDateTime;
+      ftFixedChar, ftFixedWideChar:
+      begin
+        if DataSetField.IsNull then
+          Result := #0
+        else
+          Result := DataSetField.AsString[1];
+      end
       else
         case Field.FieldType.TypeKind of
-          tkChar,
-          tkWChar:
-          begin
-            var Value := DataSetField.AsString;
-
-            if Value.IsEmpty then
-              Result := #0
-            else
-              Result := Value[1]
-          end;
           tkEnumeration:
             Result := TValue.FromOrdinal(Field.FFieldType.Handle, DataSetField.AsVariant);
           else
@@ -841,6 +837,12 @@ begin
         end;
     end;
 end;
+
+type
+  TParamsHelper = class helper for TParams
+  public
+    procedure AddParam(const Field: TField; const Value: Variant);
+  end;
 
 { EFieldNotInCurrentSelection }
 
@@ -3138,7 +3140,8 @@ var
               FieldValue := Field.ForeignKey.ParentTable.PrimaryKey.Value[FieldValue.AsObject];
             end;
 
-            Params.CreateParam(Field.FieldType.FieldType, Field.DatabaseName, ptInput).Value := FieldValue.AsVariant;
+            Params.AddParam(Field, FieldValue.AsVariant);
+
             StateObject.OldValue[Field] := FieldValue;
           end;
 
@@ -3202,11 +3205,6 @@ var
   var
     Params: TParams;
 
-    procedure CreateParam(const Field: TField; const FieldValue: TValue);
-    begin
-      Params.CreateParam(Field.FieldType.FieldType, Field.DatabaseName, ptInput).Value := FieldValue.AsVariant;
-    end;
-
   begin
     Params := TParams.Create(nil);
     var FieldValue: TValue;
@@ -3234,12 +3232,12 @@ var
             SaveTable(Field.ManyValueAssociation.ChildTable, FieldValue.ArrayElement[A].AsObject)
           end
         else if StateObject.OldValue[Field].AsVariant <> FieldValue.AsVariant then
-          CreateParam(Field, FieldValue);
+          Params.AddParam(Field, FieldValue.AsVariant);
       end;
 
       if Params.Count > 0 then
       begin
-        CreateParam(Table.PrimaryKey, Table.PrimaryKey.Value[&Object]);
+        Params.AddParam(Table.PrimaryKey, Table.PrimaryKey.Value[&Object].AsVariant);
 
         FConnection.PrepareCursor(FDatabaseManipulator.MakeUpdateStatement(Table, Params), Params).Next;
       end;
@@ -3265,7 +3263,7 @@ begin
     var PrimaryKey := Table.PrimaryKey;
     var SQL := TStringBuilder.Create;
 
-    Params.CreateParam(PrimaryKey.FieldType.FieldType, PrimaryKey.DatabaseName, ptInput).Value := PrimaryKey.Value[&Object].AsVariant;
+    Params.AddParam(PrimaryKey, PrimaryKey.Value[&Object].AsVariant);
 
     SQL.Append('select ');
 
@@ -3499,6 +3497,13 @@ end;
 procedure TDatabaseClassGenerator.GenerateFile(const Destiny: TStream);
 begin
 
+end;
+
+{ TParamsHelper }
+
+procedure TParamsHelper.AddParam(const Field: TField; const Value: Variant);
+begin
+  CreateParam(Field.FieldType.FieldType, Field.DatabaseName, ptInput).Value := Value;
 end;
 
 end.
