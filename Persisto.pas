@@ -3576,8 +3576,16 @@ end;
 { TParamsHelper }
 
 procedure TParamsHelper.AddParam(const Field: TField; const Value: Variant);
+var
+  Param: TParam;
+
 begin
-  CreateParam(Field.DatabaseType, Field.DatabaseName, ptInput).Value := Value;
+  Param := CreateParam(Field.DatabaseType, Field.DatabaseName, ptInput);
+
+  if VarIsStr(Value) and (Value = EmptyStr) then
+    Param.Value := NULL
+  else
+    Param.Value := Value;
 end;
 
 end.
