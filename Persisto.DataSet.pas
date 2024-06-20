@@ -646,7 +646,7 @@ begin
 //  else
     PropertyType := &Property.PropertyType;
 
-  Result := PropertyType.FieldType;
+//  Result := PropertyType.FieldType;
 
   case PropertyType.TypeKind of
 {$IFDEF DCC}

@@ -180,13 +180,9 @@ type
   end;
 
   TRttiTypeHelper = class helper for TRttiType
-  private
-    function GetFieldType: TFieldType;
   public
     function AsArray: TRttiDynamicArrayType;
     function IsArray: Boolean;
-
-    property FieldType: TFieldType read GetFieldType;
   end;
 
   TValueHelper = record helper for TValue
@@ -465,76 +461,6 @@ end;
 function TRttiTypeHelper.IsArray: Boolean;
 begin
   Result := Self is TRttiDynamicArrayType;
-end;
-
-function TRttiTypeHelper.GetFieldType: TFieldType;
-begin
-  Result := ftUnknown;
-
-  case TypeKind of
-{$IFDEF DCC}
-    tkLString, tkUString, tkWChar,
-{$ENDIF}
-    tkChar, tkString:
-      Result := ftString;
-{$IFDEF PAS2JS}
-    tkBool,
-{$ENDIF}
-    tkEnumeration:
-      if Handle = TypeInfo(Boolean) then
-        Result := ftBoolean
-      else
-        Result := ftInteger;
-    tkFloat:
-      if Handle = TypeInfo(TDate) then
-        Result := ftDate
-      else if Handle = TypeInfo(TDateTime) then
-        Result := ftDateTime
-      else if Handle = TypeInfo(TTime) then
-        Result := ftTime
-      else
-{$IFDEF DCC}
-        case Handle.TypeData.FloatType of
-          ftCurr:
-            Result := ftCurrency;
-          ftDouble:
-            Result := ftFloat;
-          System.TypInfo.ftExtended:
-            Result := ftExtended;
-          System.TypInfo.ftSingle:
-            Result := ftSingle;
-        end;
-{$ELSE}
-        Result := TFieldType.ftFloat;
-{$ENDIF}
-    tkInteger:
-{$IFDEF DCC}
-      case Handle.TypeData.OrdType of
-        otSByte, otUByte:
-          Result := ftByte;
-        otSWord:
-          Result := ftInteger;
-        otUWord:
-          Result := ftWord;
-        otSLong:
-          Result := ftInteger;
-        otULong:
-          Result := ftLongWord;
-      end;
-{$ELSE}
-      Result := ftInteger;
-{$ENDIF}
-    tkClass:
-      Result := ftVariant;
-{$IFDEF DCC}
-    tkInt64:
-      Result := ftLargeint;
-    tkWString:
-      Result := ftWideString;
-{$ENDIF}
-    tkDynArray:
-      Result := ftDataSet;
-  end;
 end;
 
 { ManyValueAssociationLinkNameAttribute }
