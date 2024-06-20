@@ -238,6 +238,10 @@
         <DCCReference Include="Persisto.Manager.Test.pas"/>
         <DCCReference Include="Persisto.Test.Connection.pas"/>
         <DCCReference Include="..\Persisto.DataSet.pas"/>
+        <DCCReference Include="..\Persisto.SQLServer.pas"/>
+        <DCCReference Include="..\Persisto.PostgreSQL.pas"/>
+        <DCCReference Include="..\Persisto.Interbase.pas"/>
+        <DCCReference Include="..\Persisto.SQLite.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
