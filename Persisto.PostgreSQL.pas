@@ -67,15 +67,19 @@ const
 
   FOREIGN_KEY_FIELD_ID = FOREIGN_KEY_ID + ' || ''#'' || column_name';
 
-  TABLE_ID = 'table_schema || ''#'' || table_name';
+  TABLE_ID_FIELDS = 'table_schema || ''#'' || table_name';
 
-  COLUMN_ID = TABLE_ID + ' || ''#'' || column_name';
+  TABLE_ID = 'cast(' + TABLE_ID_FIELDS + ' as varchar(200))';
+
+  COLUMN_ID_FIELDS = TABLE_ID_FIELDS + ' || ''#'' || column_name';
+
+  COLUMN_ID = COLUMN_ID_FIELDS;
 
   FOREING_KEY_SQL =
       'select cast(' + FOREIGN_KEY_ID + ' as varchar(200)) Id,' +
              'constraint_name Name,' +
-             'cast(' + TABLE_ID + ' as varchar(200)) IdTable,' +
-             '(select cast(' + TABLE_ID + ' as varchar(200)) ' +
+             TABLE_ID + ' IdTable,' +
+             '(select ' + TABLE_ID +
                 'from information_schema.constraint_table_usage CTU ' +
                'where CTU.table_schema = TC.table_schema ' +
                  'and CTU.table_name = TC.table_name ' +
@@ -94,13 +98,16 @@ const
       'from information_schema.sequences';
 
   TABLE_SQL =
-    'select cast(' + TABLE_ID + ' as varchar(200)) Id,' +
+    'select ' + TABLE_ID + ' Id,' +
+            TABLE_ID + ' IdPrimaryKeyConstraint,' +
            'table_name Name ' +
-      'from information_schema.tables';
+      'from information_schema.tables ' +
+     'where table_schema = ''public''';
 
   COLUMNS_SQL =
-    'select cast(' + COLUMN_ID + ' as varchar(200)) Id,' +
+    'select ' + COLUMN_ID + ' Id,' +
            'table_name IdTable,' +
+           'null IdDefaultConstraint,' +
            'case data_type ' +
               // String
               'when ''character varying'' then 5 ' +
@@ -140,14 +147,31 @@ const
            'end SpecialType '+
       'from information_schema.columns';
 
+  DEFAULT_CONSTRAINT_SQL =
+    'select ' + COLUMN_ID + ' Id,' +
+           '''DF_'' || table_name || ''_'' || column_name Name,' +
+           'column_default Value ' +
+      'from information_schema.columns';
+
+  PRIMARY_KEY_CONSTRAINT_SQL =
+    'select ' + TABLE_ID + ' Id,' +
+           'constraint_name Name,' +
+           'column_name FieldName ' +
+      'from information_schema.constraint_column_usage';
+
   function CreateView(const Name, SQL: String): String;
   begin
-    Result := Format('create or replace temp view  %s as (%s)', [Name, SQL]);
+    Result := Format('create or replace temp view  PersistoDatabase%s as (%s)', [Name, SQL]);
   end;
 
 begin
-  Result := [CreateView('PersistoDatabaseForeignKey', FOREING_KEY_SQL), CreateView('PersistoDatabaseForeignKeyField', FOREING_KEY_COLUMS_SQL),
-    CreateView('PersistoDatabaseSequence', SEQUENCES_SQL), CreateView('PersistoDatabaseTable', TABLE_SQL), CreateView('PersistoDatabaseTableField', COLUMNS_SQL)
+  Result := [
+    CreateView('DefaultConstraint', DEFAULT_CONSTRAINT_SQL),
+    CreateView('ForeignKey', FOREING_KEY_SQL),
+    CreateView('Sequence', SEQUENCES_SQL),
+    CreateView('Table', TABLE_SQL),
+    CreateView('TableField', COLUMNS_SQL),
+    CreateView('PrimaryKeyConstraint', PRIMARY_KEY_CONSTRAINT_SQL)
     ];
 end;
 
