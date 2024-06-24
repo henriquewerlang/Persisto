@@ -2854,7 +2854,7 @@ var
 
   procedure LoadTables;
   begin
-    DatabaseForeignKeys := TDictionary<String, TDatabaseForeignKey>.Create;
+    DatabaseForeignKeys := TDictionary<String, TDatabaseForeignKey>.Create(Comparer);
     DatabaseTableFields := TDictionary<String, TDatabaseField>.Create(Comparer);
     DatabaseTables := TDictionary<String, TDatabaseTable>.Create(Comparer);
     Tables := TDictionary<String, TTable>.Create(Comparer);

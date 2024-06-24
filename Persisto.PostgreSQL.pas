@@ -75,7 +75,7 @@ const
     '''
       select %0:s Id,
              %0:s IdPrimaryKeyConstraint,
-             table_name Name
+             table_name collate CI Name
         from information_schema.tables
        where table_schema = 'public'
          and table_type = 'BASE TABLE'
@@ -87,39 +87,39 @@ const
              %0:s IdTable,
              null IdDefaultConstraint,
              case data_type
-                // String
+                -- String
                 when 'character varying' then 5
-                // Integer
+                -- Integer
                 when 'integer' then 1
-                // Char
+                -- Char
                 when 'character' then 2
-                // Enumeration
+                -- Enumeration
                 when 'smallint' then 3
-                // Float
+                -- Float
                 when 'numeric' then 4
-                // Int64
+                -- Int64
                 when 'bigint' then 16
                 else 0
              end FieldType,
-             column_name Name,
+             column_name collate CI Name,
              case is_nullable
                 when 'YES' then 0
                 else 1
-             end Required,'+
+             end Required,
              numeric_scale Scale,
              coalesce(character_maximum_length, numeric_precision) Size,
              case data_type
-                // Date
+                -- Date
                 when 'date' then 1
-                // DateTime
+                -- DateTime
                 when 'timestamp without time zone' then 2
-                // Time
+                -- Time
                 when 'time without time zone' then 3
-                // Text
+                -- Text
                 when 'text' then 4
-                // Unique Identifier
+                -- Unique Identifier
                 when 'uuid' then 5
-                // Boolean
+                -- Boolean
                 when 'boolean' then 6
                 else 0
              end SpecialType
@@ -127,49 +127,70 @@ const
     ''';
 
   FOREING_KEY_SQL =
-    'select ' + FOREIGN_KEY_ID + ' Id,' +
-           'constraint_name Name,' +
-            TABLE_ID + ' IdTable,' +
-           '(select ' + TABLE_ID + ' ' +
-              'from information_schema.constraint_table_usage CTU ' +
-             'where CTU.table_schema = TC.table_schema ' +
-               'and CTU.table_name = TC.table_name ' +
-               'and CTU.constraint_name = TC.constraint_name) IdReferenceTable,' +
-           'null ReferenceField ' +
-      'from information_schema.table_constraints TC';
+    '''
+      select %2:s Id,
+             constraint_name collate CI Name,
+             %0:s IdTable,
+             (select %0:s
+                from information_schema.constraint_table_usage CTU
+               where CTU.table_schema = TC.table_schema
+                 and CTU.table_name = TC.table_name
+                 and CTU.constraint_name = TC.constraint_name) IdReferenceTable,
+             null ReferenceField
+        from information_schema.table_constraints TC
+    ''';
 
   FOREING_KEY_COLUMS_SQL =
-    'select cast(' + FOREIGN_KEY_FIELD_ID + ' as varchar(200)) Id,' +
-           FOREIGN_KEY_ID + ' IdForeignKey,' +
-           'column_name Name ' +
-      'from information_schema.key_column_usage';
+    '''
+      select cast(%3:s as varchar(200)) Id,
+             %2:s IdForeignKey,
+             column_name collate CI Name
+        from information_schema.key_column_usage
+    ''';
 
   SEQUENCES_SQL =
     '''
       select sequence_name Id,
-             sequence_name Name
+             sequence_name collate CI Name
         from information_schema.sequences
     ''';
 
   DEFAULT_CONSTRAINT_SQL =
-    'select ' + COLUMN_ID + ' Id,' +
-           '''DF_'' || table_name || ''_'' || column_name Name,' +
-           'column_default Value ' +
-      'from information_schema.columns';
+    '''
+      select %1:s Id,
+             'DF_' || table_name || '_' || column_name Name,
+             column_default Value
+        from information_schema.columns
+    ''';
 
   PRIMARY_KEY_CONSTRAINT_SQL =
-    'select ' + TABLE_ID + ' Id,' +
-           'constraint_name Name,' +
-           'column_name FieldName ' +
-      'from information_schema.constraint_column_usage';
+    '''
+      select %0:s Id,
+             constraint_name collate CI Name,
+             column_name collate CI FieldName
+        from information_schema.constraint_column_usage
+    ''';
+
+  COLLATION_SQL =
+    '''
+      do
+        $do$
+      begin
+        if (not exists(select 1 from pg_collation where collname = 'ci')) then
+          create collation CI (Provider = icu, Locale = 'und-u-ks-level2', Deterministic = false);
+        end if;
+      end
+      $do$
+    ''';
 
   function CreateView(const Name, SQL: String): String;
   begin
-    Result := Format('create or replace view PersistoDatabase%s as (%s)', [Name, Format(SQL, [TABLE_ID, COLUMN_ID])]);
+    Result := Format('create or replace view PersistoDatabase%s as (%s)', [Name, Format(SQL, [TABLE_ID, COLUMN_ID, FOREIGN_KEY_ID, FOREIGN_KEY_FIELD_ID])]);
   end;
 
 begin
   Result := [
+    COLLATION_SQL,
     CreateView('DefaultConstraint', DEFAULT_CONSTRAINT_SQL),
     CreateView('ForeignKey', FOREING_KEY_SQL),
     CreateView('Sequence', SEQUENCES_SQL),
