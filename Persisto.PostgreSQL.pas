@@ -63,92 +63,93 @@ end;
 
 function TDatabaseManipulatorPostgreSQL.GetSchemaTablesScripts: TArray<String>;
 const
-  FOREIGN_KEY_ID_FIELDS = 'constraint_schema || ''#'' || constraint_name';
+  FOREIGN_KEY_ID = 'constraint_schema || ''#'' || constraint_name';
 
-  FOREIGN_KEY_ID = 'cast(' + FOREIGN_KEY_ID_FIELDS + ' as varchar(200))';
+  FOREIGN_KEY_FIELD_ID = FOREIGN_KEY_ID + ' || ''#'' || column_name';
 
-  FOREIGN_KEY_FIELD_ID = FOREIGN_KEY_ID_FIELDS + ' || ''#'' || column_name';
+  TABLE_ID = 'table_schema || ''#'' || table_name';
 
-  TABLE_ID_FIELDS = 'table_schema || ''#'' || table_name';
-
-  TABLE_ID = 'cast(' + TABLE_ID_FIELDS + ' as varchar(200))';
-
-  COLUMN_ID_FIELDS = TABLE_ID_FIELDS + ' || ''#'' || column_name';
-
-  COLUMN_ID = COLUMN_ID_FIELDS;
-
-  FOREING_KEY_SQL =
-      'select ' + FOREIGN_KEY_ID + ' Id,' +
-             'constraint_name Name,' +
-             TABLE_ID + ' IdTable,' +
-             '(select ' + TABLE_ID +
-                'from information_schema.constraint_table_usage CTU ' +
-               'where CTU.table_schema = TC.table_schema ' +
-                 'and CTU.table_name = TC.table_name ' +
-                 'and CTU.constraint_name = TC.constraint_name) IdReferenceTable,' +
-             ' null ReferenceField ' +
-        'from information_schema.table_constraints TC';
-
-  FOREING_KEY_COLUMS_SQL =
-      'select cast(' + FOREIGN_KEY_FIELD_ID + ' as varchar(200)) Id,' +
-             FOREIGN_KEY_ID + ' IdForeignKey,' +
-             'column_name Name ' +
-        'from information_schema.key_column_usage';
-
-  SEQUENCES_SQL =
-    'select sequence_name Id,' +
-           'sequence_name Name ' +
-      'from information_schema.sequences';
+  COLUMN_ID = TABLE_ID + ' || ''#'' || column_name';
 
   TABLE_SQL =
-    'select ' + TABLE_ID + ' Id,' +
-            TABLE_ID + ' IdPrimaryKeyConstraint,' +
-           'table_name Name ' +
-      'from information_schema.tables ' +
-     'where table_schema = ''public''';
+    '''
+      select %0:s Id,
+             %0:s IdPrimaryKeyConstraint,
+             table_name Name
+        from information_schema.tables
+       where table_schema = 'public'
+         and table_type = 'BASE TABLE'
+    ''';
 
   COLUMNS_SQL =
-    'select ' + COLUMN_ID + ' Id,' +
-           'table_name IdTable,' +
-           'null IdDefaultConstraint,' +
-           'case data_type ' +
-              // String
-              'when ''character varying'' then 5 ' +
-              // Integer
-              'when ''integer'' then 1 ' +
-              // Char
-              'when ''character'' then 2 ' +
-              // Enumeration
-              'when ''smallint'' then 3 ' +
-              // Float
-              'when ''numeric'' then 4 ' +
-              // Int64
-              'when ''bigint'' then 16 ' +
-              'else 0 ' +
-           'end FieldType,'+
-           'column_name Name,' +
-           'case is_nullable ' +
-              'when ''YES'' then 0 ' +
-              'else 1 ' +
-           'end Required,'+
-           'numeric_scale Scale,' +
-           'coalesce(character_maximum_length, numeric_precision) Size,' +
-           'case data_type ' +
-              // Date
-              'when ''date'' then 1 ' +
-              // DateTime
-              'when ''timestamp without time zone'' then 2 ' +
-              // Time
-              'when ''time without time zone'' then 3 ' +
-              // Text
-              'when ''text'' then 4 ' +
-              // Unique Identifier
-              'when ''uuid'' then 5 ' +
-              // Boolean
-              'when ''boolean'' then 6 ' +
-              'else 0 ' +
-           'end SpecialType '+
-      'from information_schema.columns';
+    '''
+      select %1:s Id,
+             %0:s IdTable,
+             null IdDefaultConstraint,
+             case data_type
+                // String
+                when 'character varying' then 5
+                // Integer
+                when 'integer' then 1
+                // Char
+                when 'character' then 2
+                // Enumeration
+                when 'smallint' then 3
+                // Float
+                when 'numeric' then 4
+                // Int64
+                when 'bigint' then 16
+                else 0
+             end FieldType,
+             column_name Name,
+             case is_nullable
+                when 'YES' then 0
+                else 1
+             end Required,'+
+             numeric_scale Scale,
+             coalesce(character_maximum_length, numeric_precision) Size,
+             case data_type
+                // Date
+                when 'date' then 1
+                // DateTime
+                when 'timestamp without time zone' then 2
+                // Time
+                when 'time without time zone' then 3
+                // Text
+                when 'text' then 4
+                // Unique Identifier
+                when 'uuid' then 5
+                // Boolean
+                when 'boolean' then 6
+                else 0
+             end SpecialType
+        from information_schema.columns
+    ''';
+
+  FOREING_KEY_SQL =
+    'select ' + FOREIGN_KEY_ID + ' Id,' +
+           'constraint_name Name,' +
+            TABLE_ID + ' IdTable,' +
+           '(select ' + TABLE_ID + ' ' +
+              'from information_schema.constraint_table_usage CTU ' +
+             'where CTU.table_schema = TC.table_schema ' +
+               'and CTU.table_name = TC.table_name ' +
+               'and CTU.constraint_name = TC.constraint_name) IdReferenceTable,' +
+           'null ReferenceField ' +
+      'from information_schema.table_constraints TC';
+
+  FOREING_KEY_COLUMS_SQL =
+    'select cast(' + FOREIGN_KEY_FIELD_ID + ' as varchar(200)) Id,' +
+           FOREIGN_KEY_ID + ' IdForeignKey,' +
+           'column_name Name ' +
+      'from information_schema.key_column_usage';
+
+  SEQUENCES_SQL =
+    '''
+      select sequence_name Id,
+             sequence_name Name
+        from information_schema.sequences
+    ''';
 
   DEFAULT_CONSTRAINT_SQL =
     'select ' + COLUMN_ID + ' Id,' +
@@ -164,7 +165,7 @@ const
 
   function CreateView(const Name, SQL: String): String;
   begin
-    Result := Format('create or replace temp view PersistoDatabase%s as (%s)', [Name, SQL]);
+    Result := Format('create or replace view PersistoDatabase%s as (%s)', [Name, Format(SQL, [TABLE_ID, COLUMN_ID])]);
   end;
 
 begin
