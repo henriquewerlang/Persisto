@@ -2467,6 +2467,7 @@ procedure TDatabaseSchemaUpdater.UpdateDatabase;
 var
   Comparer: TOrdinalIStringComparer;
   DatabaseField: TDatabaseField;
+  DatabaseForeignKey: TDatabaseForeignKey;
   DatabaseForeignKeys: TDictionary<String, TDatabaseForeignKey>;
   DatabaseSequence: TDatabaseSequence;
   DatabaseSequences: TDictionary<String, TDatabaseSequence>;
@@ -2517,7 +2518,7 @@ var
 
   function FieldNeedSize(const Field: TField): Boolean;
   begin
-    Result := (Field.FieldType.TypeKind in [tkUString, tkFloat]) and not IsSpecialType(Field);
+    Result := (Field.FieldType.TypeKind in [tkString, tkLString, tkWString, tkUString, tkFloat]) and not IsSpecialType(Field);
   end;
 
   function FieldNeedPrecision(const Field: TField): Boolean;
@@ -2819,6 +2820,17 @@ var
     end;
   end;
 
+  procedure DropForeignKey;
+  begin
+    AlterTable;
+
+    SQL.Append(' drop constraint ');
+
+    SQL.Append(DatabaseForeignKey.Name);
+
+    ExecuteSQL;
+  end;
+
   procedure CreateTablePrimaryKey;
   begin
     if Assigned(Table.PrimaryKey) then
@@ -2842,6 +2854,15 @@ var
   procedure DropSequence;
   begin
     ExecuteDirect(FDatabaseManipulator.DropSequence(DatabaseSequence));
+  end;
+
+  function CheckForeignKeyExists: Boolean;
+  begin
+    Result := False;
+
+    for var ForeignKey in Table.ForeignKeys do
+      if Comparer.Equals(ForeignKey.DatabaseName, DatabaseForeignKey.Name) then
+        Exit(True);
   end;
 
   procedure LoadDatabaseTableFields;
@@ -2968,12 +2989,12 @@ begin
   end;
 
   for DatabaseTable in DatabaseTables.Values do
-    if Tables.ContainsKey(DatabaseTable.Name) then
-//    begin
-//      for DatabaseForeignKey in DatabaseTable.ForeignKeys.Value do
-//        if not ExistsForeigKey(DatabaseForeignKey) then
-//          DropForeignKey(DatabaseForeignKey);
-//
+    if Tables.TryGetValue(DatabaseTable.Name, Table) then
+    begin
+      for DatabaseForeignKey in DatabaseTable.ForeignKeys.Value do
+//        if not CheckForeignKeyExists then
+          DropForeignKey;
+
 //      for DatabaseIndex in DatabaseTable.Indexes.Value do
 //        if not ExistsIndex(DatabaseIndex) then
 //          DropIndex(DatabaseIndex);
@@ -2981,7 +3002,7 @@ begin
 //      for DatabaseField in DatabaseTable.Fields.Value do
 //        if not ExistsField(DatabaseField) then
 //          DropField(DatabaseField);
-//    end
+    end
     else
       DropTable;
 

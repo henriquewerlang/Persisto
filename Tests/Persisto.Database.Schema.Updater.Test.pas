@@ -378,17 +378,18 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.IfTheForeignKeyExistsInDatabaseButNotExistsInTheMapperTheForeignKeyMustBeRemoved;
 begin
-//  FOnSchemaLoad :=
-//    procedure
-//    begin
-//      var ForeignKey := TDatabaseForeignKey.Create(FDatabaseSchema.Table['MyClass'], 'MyForeignKey', nil);
-//
-//      FMetadataManipulator.Expect.Once.When.DropForeignKey(It.IsEqualTo(ForeignKey));
-//    end;
-//
-//  FDatabaseMetadataUpdate.UpdateDatabase;
-//
-//  Assert.CheckExpectation(FMetadataManipulator.CheckExpectations);
+  FManager.ExectDirect('create table ClassWithForeignKey (Id int not null constraint PK primary key (Id))');
+  FManager.ExectDirect('create table ClassWithPrimaryKey (Id int not null)');
+
+  FManager.ExectDirect('alter table ClassWithPrimaryKey add constraint MyFK foreign key (Id) references ClassWithForeignKey(Id)');
+
+  FManager.UpdateDatabaseSchema;
+
+  LoadSchemaTables;
+
+  var ForeignKeys := FManager.Select.All.From<TDatabaseForeignKey>.Where(Field('Table.Name') = 'ClassWithPrimaryKey').Open.All;
+
+  Assert.AreEqual<NativeInt>(0, Length(ForeignKeys));
 end;
 
 procedure TDatabaseSchemaUpdaterTest.IfTheForeignKeyNotExistsInTheDatabaseMustBeCreated;
