@@ -2468,7 +2468,6 @@ var
   Comparer: TOrdinalIStringComparer;
   DatabaseField: TDatabaseField;
   DatabaseForeignKey: TDatabaseForeignKey;
-  DatabaseForeignKeys: TDictionary<String, TDatabaseForeignKey>;
   DatabaseSequence: TDatabaseSequence;
   DatabaseSequences: TDictionary<String, TDatabaseSequence>;
   DatabaseTable: TDatabaseTable;
@@ -2731,11 +2730,21 @@ var
     ExecuteSQL;
   end;
 
-  procedure AlterTable;
+  procedure AlterTableNamed(const TableName: String);
   begin
     SQL.Append('alter table ');
 
-    SQL.Append(Table.DatabaseName);
+    SQL.Append(TableName);
+  end;
+
+  procedure AlterTable;
+  begin
+    AlterTableNamed(Table.DatabaseName);
+  end;
+
+  procedure AlterDatabaseTable;
+  begin
+    AlterTableNamed(DatabaseTable.Name);
   end;
 
   procedure DropTableNamed(const TableName: String);
@@ -2822,7 +2831,7 @@ var
 
   procedure DropForeignKey;
   begin
-    AlterTable;
+    AlterDatabaseTable;
 
     SQL.Append(' drop constraint ');
 
@@ -2860,6 +2869,15 @@ var
   begin
     Result := False;
 
+    for var DatabaseForeignKey in DatabaseTable.ForeignKeys.Value do
+      if Comparer.Equals(ForeignKey.DatabaseName, DatabaseForeignKey.Name) then
+        Exit(True);
+  end;
+
+  function CheckDatabaseForeignKeyExists: Boolean;
+  begin
+    Result := False;
+
     for var ForeignKey in Table.ForeignKeys do
       if Comparer.Equals(ForeignKey.DatabaseName, DatabaseForeignKey.Name) then
         Exit(True);
@@ -2875,7 +2893,6 @@ var
 
   procedure LoadTables;
   begin
-    DatabaseForeignKeys := TDictionary<String, TDatabaseForeignKey>.Create(Comparer);
     DatabaseTableFields := TDictionary<String, TDatabaseField>.Create(Comparer);
     DatabaseTables := TDictionary<String, TDatabaseTable>.Create(Comparer);
     Tables := TDictionary<String, TTable>.Create(Comparer);
@@ -2885,14 +2902,6 @@ var
 
     for var DatabaseTable in FManagerSchema.Select.All.From<TDatabaseTable>.Open.All do
       DatabaseTables.Add(DatabaseTable.Name, DatabaseTable);
-  end;
-
-  procedure LoadDatabaseTableForeignKeys;
-  begin
-    DatabaseForeignKeys.Clear;
-
-    for var DatabaseForeignKey in DatabaseTable.ForeignKeys.Value do
-      DatabaseForeignKeys.Add(DatabaseForeignKey.Name, DatabaseForeignKey);
   end;
 
   procedure LoadSequences;
@@ -2976,24 +2985,16 @@ begin
 //      end;
 //  end;
 
-  for Table in Tables.Values do
-  begin
-    if DatabaseTables.TryGetValue(Table.DatabaseName, DatabaseTable) then
-      LoadDatabaseTableForeignKeys
-    else if FDatabaseManipulator.IsSQLite then
-      Continue;
-
-    for ForeignKey in Table.ForeignKeys do
-      if not DatabaseForeignKeys.ContainsKey(ForeignKey.DatabaseName) then
-        CreateForeignKey;
-  end;
+  if not FDatabaseManipulator.IsSQLite then
+    for Table in Tables.Values do
+      for ForeignKey in Table.ForeignKeys do
+        if not DatabaseTables.TryGetValue(Table.DatabaseName, DatabaseTable) or not CheckForeignKeyExists then
+          CreateForeignKey;
 
   for DatabaseTable in DatabaseTables.Values do
-    if Tables.TryGetValue(DatabaseTable.Name, Table) then
-    begin
-      for DatabaseForeignKey in DatabaseTable.ForeignKeys.Value do
-//        if not CheckForeignKeyExists then
-          DropForeignKey;
+    for DatabaseForeignKey in DatabaseTable.ForeignKeys.Value do
+      if not Tables.TryGetValue(DatabaseTable.Name, Table) or not CheckDatabaseForeignKeyExists then
+        DropForeignKey;
 
 //      for DatabaseIndex in DatabaseTable.Indexes.Value do
 //        if not ExistsIndex(DatabaseIndex) then
@@ -3002,8 +3003,9 @@ begin
 //      for DatabaseField in DatabaseTable.Fields.Value do
 //        if not ExistsField(DatabaseField) then
 //          DropField(DatabaseField);
-    end
-    else
+
+  for DatabaseTable in DatabaseTables.Values do
+    if not Tables.TryGetValue(DatabaseTable.Name, Table) then
       DropTable;
 
   for DatabaseSequence in DatabaseSequences.Values do
@@ -3012,8 +3014,6 @@ begin
 
   for Table in RecreateTables.Keys do
     BuildRecreateTable;
-
-  DatabaseForeignKeys.Free;
 
   DatabaseSequences.Free;
 
