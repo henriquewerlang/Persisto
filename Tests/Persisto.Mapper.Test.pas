@@ -222,7 +222,6 @@ type
     [Test]
     procedure WhenTheFieldIsRequiredMustLoadThisInfoInTheField;
     [TestCase('AnsiChar', 'AnsiChar')]
-    [TestCase('AnsiString', 'AnsiString')]
     [TestCase('Char', 'Char')]
     [TestCase('Enumerator', 'Enumerator')]
     [TestCase('Float', 'Float')]
@@ -230,7 +229,6 @@ type
     [TestCase('DateTime', 'DateTime')]
     [TestCase('Integer', 'Integer')]
     [TestCase('Int64', 'Int64')]
-    [TestCase('String', 'String')]
     [TestCase('Time', 'Time')]
     procedure WhenThePropertyIsANativeTypeMustMarkTheFieldAsRequired(const FieldName: String);
     [Test]
@@ -313,6 +311,8 @@ type
     procedure WhenGetValueFromANullablePropertyAndTheStoredValueIsFalseMustReturnAnEmptyValue;
     [Test]
     procedure TheFieldDatabaseTypeMustBeEqualTheValueExpected;
+    [Test]
+    procedure WhenAPropertyIsAStringTypeMustBeNotRequired;
   end;
 
 implementation
@@ -861,6 +861,13 @@ begin
   var Table := FMapper.GetTable(TMyEntityWithManyValueAssociation);
 
   Assert.AreEqual<Integer>(1, Length(Table.ManyValueAssociations));
+end;
+
+procedure TMapperTest.WhenAPropertyIsAStringTypeMustBeNotRequired;
+begin
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
+
+  Assert.IsFalse(Table.Field['String'].Required);
 end;
 
 procedure TMapperTest.WhenATableHasPrimaryKeyThePropertyMustReturnTrue;

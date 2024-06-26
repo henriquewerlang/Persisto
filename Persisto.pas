@@ -1152,7 +1152,7 @@ begin
 
   Field.FIsForeignKey := Field.FieldType.IsInstance;
   Field.FIsManyValueAssociation := Field.FieldType.IsArray;
-  Field.FRequired := PropertyInfo.HasAttribute<RequiredAttribute> or not Field.FIsNullable and not Field.FieldType.IsInstance;
+  Field.FRequired := PropertyInfo.HasAttribute<RequiredAttribute> or not Field.FIsNullable and not Field.FieldType.IsInstance and not (Field.FieldType is TRttiStringType);
 
   Field.FDatabaseName := GetFieldDatabaseName(Field);
 
