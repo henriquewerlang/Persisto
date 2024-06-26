@@ -849,7 +849,7 @@ type
   [Entity]
   [Index('MyIndex', 'MyField')]
   [Index('MyIndex2', 'MyField;MyField2')]
-  [UniqueKey('MyUnique', 'MyField;MyField2')]
+  [UniqueIndex('MyUnique', 'MyField;MyField2')]
   TMyClassWithIndex = class
   private
     FId: Integer;
