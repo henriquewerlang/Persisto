@@ -1229,7 +1229,7 @@ begin
       var IndexInfo := IndexAttribute(Attribute);
 
       var Index := CreateIndex(Table, IndexInfo.Name);
-      Index.Unique := Attribute is UniqueKeyAttribute;
+      Index.Unique := Attribute is UniqueIndexAttribute;
 
       for var FieldName in IndexInfo.Fields.Split([';']) do
       begin

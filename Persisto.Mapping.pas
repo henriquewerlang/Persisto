@@ -39,7 +39,7 @@ type
     property Fields: String read FFields;
   end;
 
-  UniqueKeyAttribute = class(IndexAttribute);
+  UniqueIndexAttribute = class(IndexAttribute);
 
   FieldInfoAttribute = class(TCustomAttribute)
   private
