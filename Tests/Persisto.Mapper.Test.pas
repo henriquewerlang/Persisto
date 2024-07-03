@@ -108,8 +108,6 @@ type
     [Test]
     procedure WhenThePropertyIsNullableMustMarkTheFieldAsNotRequired;
     [Test]
-    procedure ThePrimaryKeyCantBeNullable;
-    [Test]
     procedure WhenGetValueOfAndFieldNullableMustReturnEmptyIfHasNoValue;
     [Test]
     procedure WhenTheNullablePropertyIsLoadedMustReturnTheFilled;
@@ -313,6 +311,8 @@ type
     procedure TheFieldDatabaseTypeMustBeEqualTheValueExpected;
     [Test]
     procedure WhenAPropertyIsAStringTypeMustBeNotRequired;
+    [Test]
+    procedure ThePrimaryKeyFieldMustBeMarkedAsRequiredAlways;
   end;
 
 implementation
@@ -692,13 +692,11 @@ begin
   Assert.AreEqual(ParentTable, Table.ForeignKeys[0].ParentTable);
 end;
 
-procedure TMapperTest.ThePrimaryKeyCantBeNullable;
+procedure TMapperTest.ThePrimaryKeyFieldMustBeMarkedAsRequiredAlways;
 begin
-  Assert.WillRaise(
-    procedure
-    begin
-      FMapper.GetTable(TClassWithPrimaryKeyNullableProperty);
-    end, EClassWithPrimaryKeyNullable);
+  var Table := FMapper.GetTable(TClassWithPrimaryKeyNullableProperty);
+
+  Assert.IsTrue(Table.Field['Id'].Required);
 end;
 
 procedure TMapperTest.ThePrimaryKeyIndexMustBeMarkedAsUniqueAndInPrimaryKey;

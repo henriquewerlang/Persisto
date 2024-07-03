@@ -44,11 +44,6 @@ type
     constructor Create(Table: TTable);
   end;
 
-  EClassWithPrimaryKeyNullable = class(Exception)
-  public
-    constructor Create(Table: TTable);
-  end;
-
   EFieldIndexNotFound = class(Exception)
   public
     constructor Create(const Table: TTable; const FieldName: String);
@@ -224,7 +219,6 @@ type
     FIsForeignKey: Boolean;
     FIsInheritedLink: Boolean;
     FIsManyValueAssociation: Boolean;
-    FIsNullable: Boolean;
     FIsReadOnly: Boolean;
     FLazyType: TRttiType;
     FManyValueAssociation: TManyValueAssociation;
@@ -262,7 +256,6 @@ type
     property IsInheritedLink: Boolean read FIsInheritedLink;
     property IsLazy: Boolean read GetIsLazy;
     property IsManyValueAssociation: Boolean read FIsManyValueAssociation;
-    property IsNullable: Boolean read FIsNullable;
     property IsReadOnly: Boolean read FIsReadOnly;
     property LazyType: TRttiType read FLazyType;
     property LazyValue[const Instance: TObject]: ILazyValue read GetLazyValue write SetLazyValue;
@@ -861,13 +854,6 @@ begin
     [ParentTable.ClassTypeInfo.Name, ChildTable.ClassTypeInfo.Name]);
 end;
 
-{ EClassWithPrimaryKeyNullable }
-
-constructor EClassWithPrimaryKeyNullable.Create(Table: TTable);
-begin
-  inherited CreateFmt('The primary key of the class %s is nullable, it''s not accepted!', [Table.ClassTypeInfo.Name]);
-end;
-
 { EClassWithoutPrimaryKeyDefined }
 
 constructor EClassWithoutPrimaryKeyDefined.Create(Table: TTable);
@@ -1142,8 +1128,6 @@ begin
   Field.FTable := Table;
   Table.FFields := Table.FFields + [Field];
 
-  Field.FIsNullable := (UIntPtr(PropertyInfo.PropInfo^.StoredProc) and (not NativeUInt($FF))) <> 0;
-
   if IsLazy(Field.FieldType) then
   begin
     Field.FFieldType := GetLazyType(Field.FieldType);
@@ -1152,7 +1136,7 @@ begin
 
   Field.FIsForeignKey := Field.FieldType.IsInstance;
   Field.FIsManyValueAssociation := Field.FieldType.IsArray;
-  Field.FRequired := PropertyInfo.HasAttribute<RequiredAttribute> or not Field.FIsNullable and not Field.FieldType.IsInstance and not (Field.FieldType is TRttiStringType);
+  Field.FRequired := PropertyInfo.HasAttribute<RequiredAttribute> or ((UIntPtr(PropertyInfo.PropInfo^.StoredProc) and (not NativeUInt($FF))) = 0) and not Field.FieldType.IsInstance and not (Field.FieldType is TRttiStringType);
 
   Field.FDatabaseName := GetFieldDatabaseName(Field);
 
@@ -1260,18 +1244,16 @@ procedure TMapper.LoadTableInfo(const TypeInfo: TRttiInstanceType; const Table: 
     var Field := Table.Field[GetPrimaryKeyPropertyName];
 
     if Assigned(Field) then
-      if Field.IsNullable then
-        raise EClassWithPrimaryKeyNullable.Create(Table)
-      else
-      begin
-        Field.FInPrimaryKey := True;
-        Table.FPrimaryKey := Field;
+    begin
+      Field.FInPrimaryKey := True;
+      Field.FRequired := True;
+      Table.FPrimaryKey := Field;
 
-        var PrimaryKeyIndex := CreateIndex(Table, Format('PK_%s', [Table.DatabaseName]));
-        PrimaryKeyIndex.Fields := [Field];
-        PrimaryKeyIndex.PrimaryKey := True;
-        PrimaryKeyIndex.Unique := True;
-      end;
+      var PrimaryKeyIndex := CreateIndex(Table, Format('PK_%s', [Table.DatabaseName]));
+      PrimaryKeyIndex.Fields := [Field];
+      PrimaryKeyIndex.PrimaryKey := True;
+      PrimaryKeyIndex.Unique := True;
+    end;
   end;
 
 begin
@@ -1540,7 +1522,7 @@ begin
     if Value.IsEmpty then
       Value := Lazy.Value;
   end
-  else if not FIsNullable or IsStoredProp(Instance, PropertyInfo.PropInfo) then
+  else if Required or IsStoredProp(Instance, PropertyInfo.PropInfo) then
     Value := GetPropertyValue(Instance)
   else
     Value := TValue.Empty;
@@ -1695,7 +1677,7 @@ var
 
       if Field.IsLazy then
         Field.LazyValue[StateObject.&Object] := CreateLazyFactory(Field, FieldValue)
-      else if not Field.IsNullable or not FieldValue.IsEmpty then
+      else if Field.Required or not FieldValue.IsEmpty then
         Field.Value[StateObject.&Object] := FieldValue;
 
       StateObject.OldValue[Field] := FieldValue;
