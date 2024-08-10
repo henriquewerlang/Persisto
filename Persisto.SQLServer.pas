@@ -60,7 +60,7 @@ begin
     tkInt64:
       Result := 'bigint';
     tkString, tkLString, tkWString, tkUString:
-      Result := 'varchar';
+      Result := 'nvarchar';
   else
     Result := EmptyStr;
   end;
@@ -183,7 +183,7 @@ end;
 
 function TDatabaseManipulatorSQLServer.GetSpecialFieldType(const Field: TField): String;
 const
-  FIELD_SPECIAL_TYPE_MAPPING: array [TDatabaseSpecialType] of String = ('', 'date', 'datetime', 'time', 'varchar(max)', 'uniqueidentifier', 'bit');
+  FIELD_SPECIAL_TYPE_MAPPING: array [TDatabaseSpecialType] of String = ('', 'date', 'datetime', 'time', 'nvarchar(max)', 'uniqueidentifier', 'bit');
 
 begin
   Result := FIELD_SPECIAL_TYPE_MAPPING[Field.SpecialType];
