@@ -177,6 +177,8 @@ type
     function GetValueAsync: TValue; override; async;
 {$ENDIF}
     procedure SetValue(const Value: TValue); {$IFDEF PAS2JS} override; {$ENDIF}
+  public
+    constructor Create(const Info: PTypeInfo);
   end;
 
   TRttiTypeHelper = class helper for TRttiType
@@ -224,6 +226,13 @@ end;
 
 { TLazyValue }
 
+constructor TLazyValue.Create(const Info: PTypeInfo);
+begin
+  inherited Create;
+
+  TValue.Make(nil, Info, FValue);
+end;
+
 function TLazyValue.GetKey: TValue;
 begin
   Result := TValue.Empty;
@@ -251,7 +260,7 @@ end;
 function Lazy<T>.GetLazyValue: ILazyValue;
 begin
   if not Assigned(FLazyValue) then
-    FLazyValue := TLazyValue.Create;
+    FLazyValue := TLazyValue.Create(TypeInfo(T));
 
   Result := FLazyValue;
 end;

@@ -16,6 +16,8 @@ type
     procedure TheIsLazyFunctionMustReturnTrueIfTheValueIsLazy;
     [Test]
     procedure WhenGetLazyTypeMustReturnTheRttiTypeAsExpected;
+    [Test]
+    procedure WhenTheLazyValueIsntLoadedMustReturnTheTypeInfoFromTheTypeAsExpected;
   end;
 
   [TestFixture]
@@ -31,6 +33,8 @@ type
     procedure WhenGetTheKeyOfAnUnloadedLazyFieldMustReturnEmpty;
     [Test]
     procedure WhenFillTheValueMustReturnTheFilledValue;
+    [Test]
+    procedure WhenTheLazyValueIsUnloadedMustReturnTheValueEmptyButWithTheTypeInfoLoaded;
   end;
 
   [TestFixture]
@@ -75,7 +79,7 @@ type
 
 implementation
 
-uses Persisto.Test.Entity, Persisto.Test.Connection;
+uses System.TypInfo, Persisto.Test.Entity, Persisto.Test.Connection;
 
 { TLazyTest }
 
@@ -103,11 +107,18 @@ begin
   MyEntity.Free;
 end;
 
+procedure TLazyTest.WhenTheLazyValueIsntLoadedMustReturnTheTypeInfoFromTheTypeAsExpected;
+begin
+  var LazyClass := TLazyClass.Create;
+
+  Assert.AreEqual<PTypeInfo>(TypeInfo(TMyEntity), LazyClass.Lazy.LazyValue.Value.TypeInfo);
+end;
+
 { TLazyValueTest }
 
 procedure TLazyValueTest.Setup;
 begin
-  FLazyValue := TLazyValue.Create;
+  FLazyValue := TLazyValue.Create(nil);
 end;
 
 procedure TLazyValueTest.TearDown;
@@ -125,6 +136,13 @@ end;
 procedure TLazyValueTest.WhenGetTheKeyOfAnUnloadedLazyFieldMustReturnEmpty;
 begin
   Assert.IsTrue(FLazyValue.Key.IsEmpty);
+end;
+
+procedure TLazyValueTest.WhenTheLazyValueIsUnloadedMustReturnTheValueEmptyButWithTheTypeInfoLoaded;
+begin
+  FLazyValue := TLazyValue.Create(TypeInfo(TObject));
+
+  Assert.AreEqual<PTypeInfo>(TypeInfo(TObject), FLazyValue.Value.TypeInfo);
 end;
 
 { TLazyFactoryObjectTest }
