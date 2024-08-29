@@ -152,6 +152,8 @@ type
     procedure WhenUpdateAnObjectThatExistsInDatabaseMustLoadTheObjectStatusAndUpdateTheValuesInDatabase;
     [Test]
     procedure WhenUpdateAnObjectThatExistsInDatabaseAndHaveManyValueAssociationCantRaiseDatabaseError;
+    [Test]
+    procedure WhenGetTheFieldValueFromALazyArrayMustReturnTheArrayInTheValueOfTheField;
   end;
 
   [TestFixture]
@@ -194,7 +196,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.Variants, Persisto.Test.Entity, Persisto.Test.Connection;
+uses System.SysUtils, System.Variants, System.Rtti, System.TypInfo, Persisto.Test.Entity, Persisto.Test.Connection;
 
 { TManagerTest }
 
@@ -627,6 +629,19 @@ begin
   Assert.AreEqual<NativeInt>(2, Length(Objects));
   Assert.AreEqual(5, Objects[0].Id);
   Assert.AreEqual(10, Objects[1].Id);
+end;
+
+procedure TManagerTest.WhenGetTheFieldValueFromALazyArrayMustReturnTheArrayInTheValueOfTheField;
+begin
+  var LazyClass := FManager.Select.All.From<TLazyArrayClass>.Where(Field('Id') = 10).Open.One;
+  var Value: TValue;
+  var Field := FManager.Mapper.GetTable(LazyClass.ClassType).Field['LazyArray'];
+
+  Field.HasValue(LazyClass, Value);
+
+  Assert.AreEqual<PTypeInfo>(TypeInfo(TArray<TLazyArrayClassChild>), Value.TypeInfo);
+
+  Assert.AreEqual(2, Value.ArrayLength);
 end;
 
 procedure TManagerTest.WhenInsertAClassThatIsRecursiveInItSelfCantRaiseErrorOfStackOverflow;

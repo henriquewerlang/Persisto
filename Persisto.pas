@@ -1517,10 +1517,16 @@ begin
   if IsLazy then
   begin
     var Lazy := LazyValue[Instance];
-    Value := Lazy.Key;
 
-    if Value.IsEmpty then
-      Value := Lazy.Value;
+    if IsManyValueAssociation then
+      Value := Lazy.Value
+    else
+    begin
+      Value := Lazy.Key;
+
+      if Value.IsEmpty then
+        Value := Lazy.Value;
+    end;
   end
   else if Required or IsStoredProp(Instance, PropertyInfo.PropInfo) then
     Value := GetPropertyValue(Instance)
@@ -3018,7 +3024,7 @@ end;
 
 function TDatabaseManipulator.CreateSequence(const Sequence: TSequence): String;
 begin
-  Result := Format('create sequence %s', [Sequence.Name]);
+  Result := Format('create sequence %s start with 1', [Sequence.Name]);
 end;
 
 function TDatabaseManipulator.DropSequence(const Sequence: TDatabaseSequence): String;
