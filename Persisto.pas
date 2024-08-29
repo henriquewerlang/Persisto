@@ -1525,7 +1525,9 @@ begin
       Value := Lazy.Key;
 
       if Value.IsEmpty then
-        Value := Lazy.Value;
+        Value := Lazy.Value
+      else
+        Exit(False);
     end;
   end
   else if Required or IsStoredProp(Instance, PropertyInfo.PropInfo) then

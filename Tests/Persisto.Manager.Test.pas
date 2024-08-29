@@ -154,6 +154,8 @@ type
     procedure WhenUpdateAnObjectThatExistsInDatabaseAndHaveManyValueAssociationCantRaiseDatabaseError;
     [Test]
     procedure WhenGetTheFieldValueFromALazyArrayMustReturnTheArrayInTheValueOfTheField;
+    [Test]
+    procedure WhenUpdateALazyClassCantRaiseAnyError;
   end;
 
   [TestFixture]
@@ -370,6 +372,12 @@ procedure TManagerTest.PrepareDatabase;
     LazyArrayClass.LazyArray := [CreateObject<TLazyArrayClassChild>, CreateObject<TLazyArrayClassChild>];
 
     FManager.Insert(LazyArrayClass);
+
+    var LazyClass := CreateObject<TLazyClass>;
+    LazyClass.Id := 10;
+    LazyClass.Lazy := CreateObject<TMyEntity>;
+
+    FManager.Insert(LazyClass);
   end;
 
 begin
@@ -381,6 +389,7 @@ begin
   FManager.Mapper.GetTable(TClassWithNullableProperty);
   FManager.Mapper.GetTable(TInsertTest);
   FManager.Mapper.GetTable(TInsertTestWithForeignKey);
+  FManager.Mapper.GetTable(TLazyClass);
   FManager.Mapper.GetTable(TLazyArrayClass);
   FManager.Mapper.GetTable(TManyValueParentInherited);
   FManager.Mapper.GetTable(TMyEntityInheritedFromSimpleClass);
@@ -1040,6 +1049,17 @@ begin
     procedure
     begin
       FManager.Update(&Object);
+    end);
+end;
+
+procedure TManagerTest.WhenUpdateALazyClassCantRaiseAnyError;
+begin
+  var LazyClass := FManager.Select.All.From<TLazyClass>.Where(Field('Id') = 10).Open.One;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Update(LazyClass);
     end);
 end;
 
