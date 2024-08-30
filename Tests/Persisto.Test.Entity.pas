@@ -455,6 +455,10 @@ type
   end;
 
   [Entity]
+  TMyClassInheritedWithoutFields = class(TMyEntityWithSingleTableInheritanceAttribute)
+  end;
+
+  [Entity]
   TMyEntityInheritedFromSimpleClass = class(TMyEntityInheritedFromSingle)
   private
     FSimpleProperty: Integer;

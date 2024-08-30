@@ -1200,9 +1200,6 @@ begin
   for var Prop in TypeInfo.GetDeclaredProperties do
     if Prop.Visibility = mvPublished then
       LoadFieldInfo(Table, Prop as TRttiInstanceProperty, TField.Create(Table));
-
-  if Table.Fields = nil then
-    raise ETableWithoutPublishedFields.Create(Table);
 end;
 
 procedure TMapper.LoadTableIndexes(const TypeInfo: TRttiInstanceType; const Table: TTable);
@@ -1284,6 +1281,9 @@ begin
 
     BaseClassInfo := BaseClassInfo.BaseType
   end;
+
+  if Table.Fields = nil then
+    raise ETableWithoutPublishedFields.Create(Table);
 
   LoadPrimaryKeyInfo;
 
