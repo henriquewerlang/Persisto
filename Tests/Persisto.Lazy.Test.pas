@@ -56,6 +56,8 @@ type
     procedure WhenFillTheValueMustCleanUpTheKeyValue;
     [Test]
     procedure WhenTheValueIsntLoadedMustLoadTheValueFromDatabase;
+    [Test]
+    procedure WhenTheLazyKeyIsEmptyCantTryToLoadTheValueFromDatabase;
   end;
 
   [TestFixture]
@@ -195,6 +197,17 @@ begin
   var LazyFactory := TLazyFactory.Create(nil, nil, 10, nil) as ILazyValue;
 
   Assert.AreEqual(10, LazyFactory.Key.AsInteger);
+end;
+
+procedure TLazyFactoryObjectTest.WhenTheLazyKeyIsEmptyCantTryToLoadTheValueFromDatabase;
+begin
+  var LazyFactory := TLazyFactory.Create(nil, nil, nil, nil) as ILazyValue;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      LazyFactory.Value;
+    end);
 end;
 
 procedure TLazyFactoryObjectTest.WhenTheValueIsntLoadedMustLoadTheValueFromDatabase;

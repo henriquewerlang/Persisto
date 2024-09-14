@@ -1588,7 +1588,7 @@ end;
 
 function TLazyFactory.GetValue: TValue;
 begin
-  if FLazyValue.IsEmpty then
+  if not FKeyValue.IsEmpty and FLazyValue.IsEmpty then
   begin
     FManager.Select.All.From<TObject>(FFilterField.Table).Where(Field(FFilterField.Name) = FKeyValue.AsVariant).Open;
 
