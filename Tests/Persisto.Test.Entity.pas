@@ -1118,6 +1118,22 @@ type
     property VarChar: String read FVarChar write FVarChar;
   end;
 
+  [Entity]
+  TMyRequiredField = class
+  private
+    FId: Integer;
+    FRequired: Integer;
+    FNotRequired: String;
+    FMyUnique: String;
+  published
+    property Id: Integer read FId write FId;
+    property Required: Integer read FRequired write FRequired;
+    [Size(150)]
+    property NotRequired: String read FNotRequired write FNotRequired;
+    [Required, UniqueIdentifier]
+    property MyUnique: String read FMyUnique write FMyUnique;
+  end;
+
 implementation
 
 uses System.Internal.ExcUtils;

@@ -82,6 +82,14 @@ type
     procedure WhenDropDatabaseTheDatabaseMustBeDropped;
     [Test]
     procedure WhenDropATableMustDropTheForeignKeyFirst;
+    [Test]
+    procedure WhenAFieldIsAddedToATableAndIsRequiredButDontHaveADefaultValueMustBeCreatedWithAFakeDefaultValue;
+    [Test]
+    procedure WhenAFieldIsAddedToATableAndIsNotRequiredCantCreatedWithAFakeDefaultValue;
+    [Test]
+    procedure WhenTheRequiredFieldIsAnUniqueIdentifierTheFakeDefaultValueMustBeAGUIDEmpty;
+    [Test]
+    procedure TheFakeDefaultConstraintMustBeCleanedUpFromTheField;
   end;
 
   TDatabaseManiupulatorMock = class(TInterfacedObject, IDatabaseManipulator)
@@ -215,6 +223,17 @@ begin
   DropDatabase;
 end;
 
+procedure TDatabaseSchemaUpdaterTest.TheFakeDefaultConstraintMustBeCleanedUpFromTheField;
+begin
+  FManager.ExectDirect('create table MyRequiredField (Id int not null)');
+
+  FManager.UpdateDatabaseSchema;
+
+  var Field := FManager.Mapper.GetTable(TMyRequiredField).Field['Required'];
+
+  Assert.IsNull(Field.DefaultConstraint);
+end;
+
 procedure TDatabaseSchemaUpdaterTest.TheTableWithManyValueAssociationFieldCantTryToCreateTheFieldMustBeIgnored;
 begin
   FManager.UpdateDatabaseSchema;
@@ -237,6 +256,28 @@ begin
   Cursor.Next;
 
   Assert.IsNull(Cursor.GetDataSet.FindField('Childs'));
+end;
+
+procedure TDatabaseSchemaUpdaterTest.WhenAFieldIsAddedToATableAndIsNotRequiredCantCreatedWithAFakeDefaultValue;
+begin
+  FManager.ExectDirect('create table MyRequiredField (Id int not null)');
+
+  FManager.UpdateDatabaseSchema;
+
+  var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyRequiredField') and (Field('Name') = 'NotRequired')).Open.One;
+
+  Assert.IsNull(Field.DefaultConstraint);
+end;
+
+procedure TDatabaseSchemaUpdaterTest.WhenAFieldIsAddedToATableAndIsRequiredButDontHaveADefaultValueMustBeCreatedWithAFakeDefaultValue;
+begin
+  FManager.ExectDirect('create table MyRequiredField (Id int not null)');
+
+  FManager.UpdateDatabaseSchema;
+
+  var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyRequiredField') and (Field('Name') = 'Required')).Open.One;
+
+  Assert.IsNotNull(Field.DefaultConstraint);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenAFieldWithAPrecisionMustCreateTheFieldWithThePrecisionOfTheAttribute;
@@ -486,6 +527,17 @@ begin
   Assert.AreEqual(10, Records[0].Value);
   Assert.AreEqual(20, Records[1].Value);
   Assert.AreEqual(30, Records[2].Value);
+end;
+
+procedure TDatabaseSchemaUpdaterTest.WhenTheRequiredFieldIsAnUniqueIdentifierTheFakeDefaultValueMustBeAGUIDEmpty;
+begin
+  FManager.ExectDirect('create table MyRequiredField (Id int not null)');
+
+  Assert.WillNotRaise(FManager.UpdateDatabaseSchema);
+
+  var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyRequiredField') and (Field('Name') = 'MyUnique')).Open.One;
+
+  Assert.AreEqual('''00000000-0000-0000-0000-000000000000''', Field.DefaultConstraint.Value);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheSequenceNotExistsInDatabaseMustBeCreated;
