@@ -63,112 +63,135 @@ end;
 
 function TDatabaseManipulatorPostgreSQL.GetSchemaTablesScripts: TArray<String>;
 const
-  FOREIGN_KEY_ID = 'constraint_schema || ''#'' || constraint_name';
-
-  FOREIGN_KEY_FIELD_ID = FOREIGN_KEY_ID + ' || ''#'' || column_name';
-
-  TABLE_ID = 'table_schema || ''#'' || table_name';
-
-  COLUMN_ID = TABLE_ID + ' || ''#'' || column_name';
-
   TABLE_SQL =
     '''
-      select %0:s Id,
-             %0:s IdPrimaryKeyConstraint,
-             table_name collate CI Name
-        from information_schema.tables
-       where table_schema = 'public'
-         and table_type = 'BASE TABLE'
+      select cast(T.oid as varchar(20)) Id,
+             (select cast(C.oid as varchar(20))
+                from pg_constraint C
+               where C.conrelid = T.oid
+                 and contype = 'p') IdPrimaryKeyConstraint,
+             relname collate CI Name
+        from pg_class T
+        join pg_namespace S
+          on S.oid = T.relnamespace
+       where relkind = 'r'
+         and S.nspname = 'public'
     ''';
 
   COLUMNS_SQL =
     '''
-      select %1:s Id,
-             %0:s IdTable,
-             null IdDefaultConstraint,
-             case data_type
+      select cast(cast(attrelid as bigint) * 100000 + attnum as varchar(20)) Id,
+             cast(attrelid as varchar(20)) IdTable,
+             (select cast(D.oid as varchar(20))
+                from pg_attrdef D
+               where D.adrelid = C.attrelid
+                 and D.adnum = C.attnum) IdDefaultConstraint,
+             case atttypid
                 -- String
-                when 'character varying' then 5
+                when 1043 then 5
                 -- Integer
-                when 'integer' then 1
+                when 23 then 1
                 -- Char
-                when 'character' then 2
+                when 1042 then 2
                 -- Enumeration
-                when 'smallint' then 3
+                when 21 then 3
                 -- Float
-                when 'numeric' then 4
+                when 1700 then 4
                 -- Int64
-                when 'bigint' then 16
+                when 20 then 16
                 else 0
              end FieldType,
-             column_name collate CI Name,
-             case is_nullable
-                when 'YES' then 0
-                else 1
-             end Required,
-             numeric_scale Scale,
-             coalesce(character_maximum_length, numeric_precision) Size,
-             case data_type
+             attname collate CI Name,
+             attnotnull Required,
+             (atttypmod - 4) & 65535 Scale,
+             case
+                when atttypid = 1700 then ((atttypmod - 4) >> 16) & 65535
+                else ((atttypmod - 4) >> 16) & 65535
+             end Size,
+             case atttypid
                 -- Date
-                when 'date' then 1
+                when 1082 then 1
                 -- DateTime
-                when 'timestamp without time zone' then 2
+                when 1114 then 2
                 -- Time
-                when 'time without time zone' then 3
+                when 1083 then 3
                 -- Text
-                when 'text' then 4
+                when 25 then 4
                 -- Unique Identifier
-                when 'uuid' then 5
+                when 2950 then 5
                 -- Boolean
-                when 'boolean' then 6
+                when 16 then 6
                 else 0
              end SpecialType
-        from information_schema.columns
+        from pg_attribute C
+        join pg_class T
+          on T.oid = C.attrelid
+        join pg_namespace S
+          on S.oid = T.relnamespace
+       where T.relkind = 'r'
+         and S.nspname = 'public'
     ''';
 
   FOREING_KEY_SQL =
     '''
-      select %2:s Id,
-             constraint_name collate CI Name,
-             %0:s IdTable,
-             (select %0:s
-                from information_schema.constraint_table_usage CTU
-               where CTU.table_schema = TC.table_schema
-                 and CTU.table_name = TC.table_name
-                 and CTU.constraint_name = TC.constraint_name) IdReferenceTable,
-             null ReferenceField
-        from information_schema.table_constraints TC
-    ''';
-
-  FOREING_KEY_COLUMS_SQL =
-    '''
-      select cast(%3:s as varchar(200)) Id,
-             %2:s IdForeignKey,
-             column_name collate CI Name
-        from information_schema.key_column_usage
+      select cast(FK.oid as varchar(20)) Id,
+             FK.conname collate CI Name,
+             cast(FK.conrelid as varchar(20)) IdTable,
+             cast(FK.confrelid as varchar(20)) IdReferenceTable,
+             C.attname collate CI ReferenceField
+        from pg_constraint FK
+        join pg_class T
+          on T.oid = FK.conrelid
+        join pg_namespace S
+          on S.oid = T.relnamespace
+        join pg_attribute C
+          on C.attrelid = T.oid
+         and C.attnum = any (FK.conkey)
+       where T.relkind = 'r'
+         and S.nspname = 'public'
+         and FK.contype = 'f'
     ''';
 
   SEQUENCES_SQL =
     '''
-      select sequence_name Id,
+      select cast(null as varchar(20)) Id,
              sequence_name collate CI Name
         from information_schema.sequences
     ''';
 
   DEFAULT_CONSTRAINT_SQL =
     '''
-      select %1:s Id,
-             'DF_' || table_name || '_' || column_name Name,
-             column_default Value
-        from information_schema.columns
+      select cast(DF.oid as varchar(20)) Id,
+             'DF_' || T.relname || '_' || C.attname collate CI Name,
+             (string_to_array(pg_get_expr(DF.adbin, DF.adrelid), ':'))[1] Value
+        from pg_attrdef DF
+        join pg_class T
+          on T.oid = DF.adrelid
+        join pg_namespace S
+          on S.oid = T.relnamespace
+        join pg_attribute C
+          on C.attrelid = DF.adrelid
+         and C.attnum = DF.adnum
+       where T.relkind = 'r'
+         and S.nspname = 'public'
     ''';
 
   PRIMARY_KEY_CONSTRAINT_SQL =
     '''
-      select %0:s Id,
-             constraint_name collate CI Name,
-             column_name collate CI FieldName
-        from information_schema.constraint_column_usage
+      select cast(PK.oid as varchar(20)) Id,
+             PK.conname collate CI Name,
+             C.attname collate CI FieldName
+        from pg_constraint PK
+        join pg_class T
+          on T.oid = PK.conrelid
+        join pg_namespace S
+          on S.oid = T.relnamespace
+        join pg_attribute C
+          on C.attrelid = T.oid
+         and C.attnum = any (PK.conkey)
+       where T.relkind = 'r'
+         and S.nspname = 'public'
+         and PK.contype = 'p'
     ''';
 
   COLLATION_SQL =
@@ -185,7 +208,7 @@ const
 
   function CreateView(const Name, SQL: String): String;
   begin
-    Result := Format('create or replace view PersistoDatabase%s as (%s)', [Name, Format(SQL, [TABLE_ID, COLUMN_ID, FOREIGN_KEY_ID, FOREIGN_KEY_FIELD_ID])]);
+    Result := Format('create or replace view PersistoDatabase%s as (%s)', [Name, SQL]);
   end;
 
 begin
