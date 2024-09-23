@@ -13,6 +13,7 @@ type
     function DropSequence(const Sequence: TDatabaseSequence): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
     function GetFieldType(const Field: TField): String;
+    function GetMaxNameSize: Integer;
     function GetSchemaTablesScripts: TArray<String>;
     function GetSpecialFieldType(const Field: TField): String;
     function IsSQLite: Boolean;
@@ -77,6 +78,11 @@ begin
   else
     Result := EmptyStr;
   end;
+end;
+
+function TDatabaseManipulatorSQLite.GetMaxNameSize: Integer;
+begin
+  Result := 100;
 end;
 
 function TDatabaseManipulatorSQLite.GetSchemaTablesScripts: TArray<String>;

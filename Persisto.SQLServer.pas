@@ -11,6 +11,7 @@ type
     function DropDatabase(const DatabaseName: String): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
     function GetFieldType(const Field: TField): String;
+    function GetMaxNameSize: Integer;
     function GetSchemaTablesScripts: TArray<String>;
     function GetSpecialFieldType(const Field: TField): String;
     function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
@@ -64,6 +65,11 @@ begin
   else
     Result := EmptyStr;
   end;
+end;
+
+function TDatabaseManipulatorSQLServer.GetMaxNameSize: Integer;
+begin
+  Result := 128;
 end;
 
 function TDatabaseManipulatorSQLServer.GetSchemaTablesScripts: TArray<String>;

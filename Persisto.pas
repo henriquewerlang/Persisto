@@ -125,11 +125,14 @@ type
     function DropSequence(const Sequence: TDatabaseSequence): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
     function GetFieldType(const Field: TField): String;
+    function GetMaxNameSize: Integer;
     function GetSchemaTablesScripts: TArray<String>;
     function GetSpecialFieldType(const Field: TField): String;
     function IsSQLite: Boolean;
     function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
     function MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
+
+    property MaxNameSize: Integer read GetMaxNameSize;
   end;
 
   TTableObject = class
@@ -802,6 +805,17 @@ function Field(const Name: String): TQueryBuilderComparisonHelper;
 implementation
 
 uses System.Variants, System.SysConst, System.Math;
+
+type
+  TNameComparer = class(TOrdinalIStringComparer)
+  private
+    FMaxLength: Integer;
+  protected
+    function Compare(const Left, Right: String): Integer; override;
+    function Equals(const Left, Right: String): Boolean; override;
+  public
+    constructor Create(const MaxLength: Integer);
+  end;
 
 function Field(const Name: String): TQueryBuilderComparisonHelper;
 begin
@@ -2462,7 +2476,7 @@ end;
 
 procedure TDatabaseSchemaUpdater.UpdateDatabase;
 var
-  Comparer: TOrdinalIStringComparer;
+  Comparer: TNameComparer;
   DatabaseField: TDatabaseField;
   DatabaseForeignKey: TDatabaseForeignKey;
   DatabaseSequence: TDatabaseSequence;
@@ -2947,7 +2961,7 @@ var
   end;
 
 begin
-  Comparer := TOrdinalIStringComparer.Create;
+  Comparer := TNameComparer.Create(FDatabaseManipulator.MaxNameSize);
   RecreateTables := TDictionary<TTable, TDatabaseTable>.Create;
   SQL := TStringBuilder.Create(5000);
 
@@ -3637,6 +3651,25 @@ begin
     Param.Value := NULL
   else
     Param.Value := Value;
+end;
+
+{ TNameComparer }
+
+function TNameComparer.Compare(const Left, Right: String): Integer;
+begin
+  Result := CompareText(Left.Substring(0, FMaxLength), Right.Substring(0, FMaxLength));
+end;
+
+constructor TNameComparer.Create(const MaxLength: Integer);
+begin
+  inherited Create;
+
+  FMaxLength := MaxLength;
+end;
+
+function TNameComparer.Equals(const Left, Right: String): Boolean;
+begin
+  Result := Compare(Left, Right) = 0;
 end;
 
 end.

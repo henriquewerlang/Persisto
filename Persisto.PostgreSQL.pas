@@ -11,6 +11,7 @@ type
     function DropDatabase(const DatabaseName: String): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
     function GetFieldType(const Field: TField): String;
+    function GetMaxNameSize: Integer;
     function GetSchemaTablesScripts: TArray<String>;
     function GetSpecialFieldType(const Field: TField): String;
   end;
@@ -59,6 +60,11 @@ begin
     tkUString: Result := 'character varying';
     else Result := EmptyStr;
   end;
+end;
+
+function TDatabaseManipulatorPostgreSQL.GetMaxNameSize: Integer;
+begin
+  Result := 63;
 end;
 
 function TDatabaseManipulatorPostgreSQL.GetSchemaTablesScripts: TArray<String>;
@@ -130,6 +136,7 @@ const
           on S.oid = T.relnamespace
        where T.relkind = 'r'
          and S.nspname = 'public'
+         and C.attnum > 0
     ''';
 
   FOREING_KEY_SQL =
@@ -154,15 +161,17 @@ const
 
   SEQUENCES_SQL =
     '''
-      select cast(null as varchar(20)) Id,
-             sequence_name collate CI Name
-        from information_schema.sequences
+      select cast(S.seqrelid as varchar(20)) Id,
+             C.relname collate CI Name
+        from pg_sequence S
+        join pg_class C
+          on C.oid = S.seqrelid
     ''';
 
   DEFAULT_CONSTRAINT_SQL =
     '''
       select cast(DF.oid as varchar(20)) Id,
-             'DF_' || T.relname || '_' || C.attname collate CI Name,
+             'df_' || T.relname || '_' || C.attname collate CI Name,
              (string_to_array(pg_get_expr(DF.adbin, DF.adrelid), ':'))[1] Value
         from pg_attrdef DF
         join pg_class T

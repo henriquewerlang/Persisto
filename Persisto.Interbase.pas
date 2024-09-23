@@ -11,6 +11,7 @@ type
     function DropDatabase(const DatabaseName: String): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
     function GetFieldType(const Field: TField): String;
+    function GetMaxNameSize: Integer;
     function GetSchemaTablesScripts: TArray<String>;
     function GetSpecialFieldType(const Field: TField): String;
   end;
@@ -39,6 +40,11 @@ end;
 function TDatabaseManipulatorInterbase.GetFieldType(const Field: TField): String;
 begin
   Result := EmptyStr;
+end;
+
+function TDatabaseManipulatorInterbase.GetMaxNameSize: Integer;
+begin
+  Result := 31;
 end;
 
 function TDatabaseManipulatorInterbase.GetSchemaTablesScripts: TArray<String>;

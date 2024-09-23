@@ -105,6 +105,7 @@ type
     function DropSequence(const Sequence: TDatabaseSequence): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
     function GetFieldType(const Field: TField): String;
+    function GetMaxNameSize: Integer;
     function GetSchemaTablesScripts: TArray<String>;
     function GetSpecialFieldType(const Field: TField): String;
     function IsSQLite: Boolean;
@@ -122,7 +123,7 @@ uses System.Rtti, Persisto.Test.Entity, Persisto.Test.Connection;
 
 procedure TDatabaseSchemaUpdaterTest.IfTheForeignKeyExistsInDatabaseButNotExistsInTheMapperTheForeignKeyMustBeRemoved;
 begin
-  FManager.ExectDirect('create table ClassWithForeignKey (Id int not null constraint PK primary key (Id))');
+  FManager.ExectDirect('create table ClassWithForeignKey (Id int not null, constraint PK primary key (Id))');
   FManager.ExectDirect('create table ClassWithPrimaryKey (Id int not null)');
 
   FManager.ExectDirect('alter table ClassWithPrimaryKey add constraint MyFK foreign key (Id) references ClassWithForeignKey(Id)');
@@ -433,8 +434,8 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenDropATableMustDropTheForeignKeyFirst;
 begin
-  FManager.ExectDirect('create table ClassWithForeignKey2 (Id int not null constraint PK1 primary key (Id))');
-  FManager.ExectDirect('create table ClassWithPrimaryKey2 (Id int not null constraint PK2 primary key (Id))');
+  FManager.ExectDirect('create table ClassWithForeignKey2 (Id int not null, constraint PK1 primary key (Id))');
+  FManager.ExectDirect('create table ClassWithPrimaryKey2 (Id int not null, constraint PK2 primary key (Id))');
 
   FManager.ExectDirect('alter table ClassWithPrimaryKey2 add constraint MyFK1 foreign key (Id) references ClassWithForeignKey2(Id)');
 
@@ -639,6 +640,11 @@ function TDatabaseManiupulatorMock.GetFieldType(const Field: TField): String;
 begin
   FFunctionFieldTypeCalled := True;
   Result := FManipulador.GetFieldType(Field);
+end;
+
+function TDatabaseManiupulatorMock.GetMaxNameSize: Integer;
+begin
+  Result := 30;
 end;
 
 function TDatabaseManiupulatorMock.GetSchemaTablesScripts: TArray<String>;
