@@ -1,7 +1,8 @@
-[submodule "Externals/DUnitX"]
-	path = Externals/DUnitX
-	url = https://github.com/VSoftTechnologies/DUnitX.git
 [submodule "Externals/Translucent"]
 	path = Externals/Translucent
 	url = https://github.com/henriquewerlang/Translucent.git
 	branch = master
+[submodule "Externals/TestInsightFramework"]
+	path = Externals/TestInsightFramework
+	url = https://github.com/henriquewerlang/TestInsightFramework.git
+	branch = main

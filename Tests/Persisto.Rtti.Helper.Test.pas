@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Rtti, Data.DB, DUnitX.TestFramework;
+uses System.Rtti, Data.DB, Test.Insight.Framework;
 
 type
   [TestFixture]

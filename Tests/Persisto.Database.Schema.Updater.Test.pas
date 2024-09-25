@@ -2,7 +2,7 @@
 
 interface
 
-uses System.SysUtils, System.Generics.Collections, Data.DB, DUnitX.TestFramework, Persisto, Persisto.Mapping;
+uses System.SysUtils, System.Generics.Collections, Data.DB, Test.Insight.Framework, Persisto, Persisto.Mapping;
 
 type
   [TestFixture]
@@ -232,7 +232,7 @@ begin
 
   var Field := FManager.Mapper.GetTable(TMyRequiredField).Field['Required'];
 
-  Assert.IsNull(Field.DefaultConstraint);
+  Assert.IsNil(Field.DefaultConstraint);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.TheTableWithManyValueAssociationFieldCantTryToCreateTheFieldMustBeIgnored;
@@ -243,7 +243,7 @@ begin
 
   Cursor.Next;
 
-  Assert.IsNull(Cursor.GetDataSet.FindField('Childs'));
+  Assert.IsNil(Cursor.GetDataSet.FindField('Childs'));
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenAddAFieldToATableCantAddTheManyValueAssociationField;
@@ -256,7 +256,7 @@ begin
 
   Cursor.Next;
 
-  Assert.IsNull(Cursor.GetDataSet.FindField('Childs'));
+  Assert.IsNil(Cursor.GetDataSet.FindField('Childs'));
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenAFieldIsAddedToATableAndIsNotRequiredCantCreatedWithAFakeDefaultValue;
@@ -267,7 +267,7 @@ begin
 
   var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyRequiredField') and (Field('Name') = 'NotRequired')).Open.One;
 
-  Assert.IsNull(Field.DefaultConstraint);
+  Assert.IsNil(Field.DefaultConstraint);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenAFieldIsAddedToATableAndIsRequiredButDontHaveADefaultValueMustBeCreatedWithAFakeDefaultValue;
@@ -278,7 +278,7 @@ begin
 
   var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyRequiredField') and (Field('Name') = 'Required')).Open.One;
 
-  Assert.IsNotNull(Field.DefaultConstraint);
+  Assert.IsNotNil(Field.DefaultConstraint);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenAFieldWithAPrecisionMustCreateTheFieldWithThePrecisionOfTheAttribute;
@@ -291,7 +291,7 @@ begin
 
   var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyClassWithAllFieldsType') and (Field('Name') = 'Float')).Open.One;
 
-  Assert.AreEqual(5, Field.Scale);
+  Assert.AreEqual<Integer>(5, Field.Scale);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenAFieldWithASizeMustCreateTheFieldWithTheSizeOfTheAttribute;
@@ -304,7 +304,7 @@ begin
 
   var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyClassWithAllFieldsType') and (Field('Name') = 'DefaultField')).Open.One;
 
-  Assert.AreEqual(30, Field.Size);
+  Assert.AreEqual<Integer>(30, Field.Size);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenCheckTheSchemaCantRaiseAnyError;
@@ -414,7 +414,7 @@ begin
     procedure
     begin
       FManager.ExectDirect('insert into ClassWithPrimaryKey (Id, Value) values (10, 10)');
-    end);
+    end, Exception);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenCreateDatabaseTheDatabaseMustBeCreated;
@@ -449,7 +449,7 @@ begin
 
   var DatabaseTable := FManager.Select.All.From<TDatabaseForeignKey>.Where(Field('Table.Name') = 'ClassWithForeignKey2').Open.One;
 
-  Assert.IsNull(DatabaseTable);
+  Assert.IsNil(DatabaseTable);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenDropDatabaseTheDatabaseMustBeDropped;
@@ -467,7 +467,7 @@ begin
     procedure
     begin
       Connection.OpenCursor('select 1').Next;
-    end);
+    end, Exception);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheDefaultRecordsArentInTheTableMustBeAllInserted;
@@ -525,9 +525,9 @@ begin
 
   var Records := FManager.Select.All.From<TMyClass>.OrderBy.Field('Value').Open.All;
 
-  Assert.AreEqual(10, Records[0].Value);
-  Assert.AreEqual(20, Records[1].Value);
-  Assert.AreEqual(30, Records[2].Value);
+  Assert.AreEqual<Integer>(10, Records[0].Value);
+  Assert.AreEqual<Integer>(20, Records[1].Value);
+  Assert.AreEqual<Integer>(30, Records[2].Value);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheRequiredFieldIsAnUniqueIdentifierTheFakeDefaultValueMustBeAGUIDEmpty;
@@ -549,7 +549,7 @@ begin
 
   var Sequence := FManager.Select.All.From<TDatabaseSequence>.Where(Field('Name') = 'MySequence').Open.One;
 
-  Assert.IsNotNull(Sequence);
+  Assert.IsNotNil(Sequence);
 
   Assert.AreEqual('MySequence', Sequence.Name)
 end;
@@ -570,7 +570,7 @@ begin
 
   var DatabaseSequence := FManager.Select.All.From<TDatabaseSequence>.Where(Field('Name') = 'AnySequence').Open.One;
 
-  Assert.IsNull(DatabaseSequence);
+  Assert.IsNil(DatabaseSequence);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheTableDoesntHaveAPrimaryMustCreateThePrimaryKeyFromTheTable;
@@ -585,7 +585,7 @@ begin
 
   var Table := FManager.Select.All.From<TDatabaseTable>.Where(Field('Name') = TableName).Open.One;
 
-  Assert.IsNotNull(Table.PrimaryKeyConstraint);
+  Assert.IsNotNil(Table.PrimaryKeyConstraint);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheTableIsntMappedMustDropTheTable;

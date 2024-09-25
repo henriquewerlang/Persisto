@@ -2,7 +2,7 @@
 
 interface
 
-uses DUnitX.TestFramework, Persisto;
+uses Test.Insight.Framework, Persisto;
 
 type
   [TestFixture]
@@ -229,8 +229,8 @@ begin
 
   &Object := FManager.Select.All.From<TInsertTestWithForeignKey>.Open.One;
 
-  Assert.IsNull(&Object.FK1);
-  Assert.IsNull(&Object.FK2);
+  Assert.IsNil(&Object.FK1);
+  Assert.IsNil(&Object.FK2);
 end;
 
 procedure TClassLoaderTest.WhenLoadAnEmptyManyValueAssociationValueClassCantLoadTheChildIfIsEmpty;
@@ -301,7 +301,7 @@ begin
     procedure
     begin
       FManager.Update(AObject);
-    end, EForeignObjectNotAllowed);
+    end);
 end;
 
 procedure TClassLoaderTest.WhenLoadAnObjectAndUpdateAFieldMustUpdateOnlyTheChangedField;
@@ -322,7 +322,7 @@ begin
 
   Cursor.Next;
 
-  Assert.AreEqual(222, Cursor.GetDataSet.Fields[0].AsInteger);
+  Assert.AreEqual<Integer>(222, Cursor.GetDataSet.Fields[0].AsInteger);
 end;
 
 procedure TClassLoaderTest.WhenLoadAnObjectInheritedFromAnotherMustLoadTheFieldValueOfAllClassLevel;
@@ -331,39 +331,39 @@ begin
 
   Assert.AreEqual('abc', AObject.AnotherProperty);
   Assert.AreEqual('def', AObject.BaseProperty);
-  Assert.AreEqual(111, AObject.SimpleProperty);
-  Assert.AreEqual(10, AObject.Id);
+  Assert.AreEqual<Integer>(111, AObject.SimpleProperty);
+  Assert.AreEqual<Integer>(10, AObject.Id);
 end;
 
 procedure TClassLoaderTest.WhenLoadAnObjectMustCreateItWhenLoadFromDatabase;
 begin
   var AObject := FManager.Select.All.From<TClassWithPrimaryKey>.Open.One;
 
-  Assert.IsNotNull(AObject);
+  Assert.IsNotNil(AObject);
 end;
 
 procedure TClassLoaderTest.WhenLoadAnObjectMustLoadTheFieldsOfTheObjectWithTheValueInTheDatabase;
 begin
   var AObject := FManager.Select.All.From<TClassWithPrimaryKey>.Open.One;
 
-  Assert.AreEqual(35, AObject.Id);
-  Assert.AreEqual(1, AObject.Value);
+  Assert.AreEqual<Integer>(35, AObject.Id);
+  Assert.AreEqual<Integer>(1, AObject.Value);
 end;
 
 procedure TClassLoaderTest.WhenLoadAnObjectWithALazyPropertyMustCreateTheLazyFactoryToLoadTheLazyValue;
 begin
   var LazyObject := FManager.Select.All.From<TLazyClass>.Open.One;
 
-  Assert.IsNotNull(LazyObject.Lazy.Value);
+  Assert.IsNotNil(LazyObject.Lazy.Value);
 end;
 
 procedure TClassLoaderTest.WhenLoadAnObjectWithChildValuesMustLoadTheChildPropertiesToo;
 begin
   var Objects := FManager.Select.All.From<TMyEntityWithManyValueAssociation>.OrderBy.Field('ManyValueAssociationList.Value').Open.One;
 
-  Assert.AreEqual(111, Objects.ManyValueAssociationList[0].Value);
-  Assert.AreEqual(222, Objects.ManyValueAssociationList[1].Value);
-  Assert.AreEqual(333, Objects.ManyValueAssociationList[2].Value);
+  Assert.AreEqual<Integer>(111, Objects.ManyValueAssociationList[0].Value);
+  Assert.AreEqual<Integer>(222, Objects.ManyValueAssociationList[1].Value);
+  Assert.AreEqual<Integer>(333, Objects.ManyValueAssociationList[2].Value);
 end;
 
 procedure TClassLoaderTest.WhenLoadAnObjectWithCircularReferenceMustRaiseAnError;
@@ -404,8 +404,8 @@ begin
 
   &Object := FManager.Select.All.From<TInsertTestWithForeignKey>.Open.One;
 
-  Assert.IsNotNull(&Object.FK1);
-  Assert.IsNotNull(&Object.FK2);
+  Assert.IsNotNil(&Object.FK1);
+  Assert.IsNotNil(&Object.FK2);
 end;
 
 procedure TClassLoaderTest.WhenLoadAnObjectWithForeignKeyMustLoadAllLevelsOfForeignKey;
@@ -425,13 +425,13 @@ begin
       &Object := &FManager.Select.All.From<TInsertTestWithForeignKeyMoreOne>.Open.One;
     end);
 
-  Assert.IsNotNull(&Object.FK);
+  Assert.IsNotNil(&Object.FK);
   Assert.IsNotEmpty(&Object.FK.FK1.Id);
   Assert.IsTrue(&Object.FK.FK1.DateTime > 0);
-  Assert.AreEqual(111, &Object.FK.FK1.Value);
+  Assert.AreEqual<Integer>(111, &Object.FK.FK1.Value);
   Assert.IsNotEmpty(&Object.FK.FK2.Id);
   Assert.IsTrue(&Object.FK.FK2.DateTime > 0);
-  Assert.AreEqual(222, &Object.FK.FK2.Value);
+  Assert.AreEqual<Integer>(222, &Object.FK.FK2.Value);
 end;
 
 procedure TClassLoaderTest.WhenLoadAnObjectWithForeignKeyMustLoadTheFieldValuesOfTheForeignKeyObjects;
@@ -450,13 +450,13 @@ begin
 
   Assert.IsTrue(&Object.FK1.DateTime > 0);
 
-  Assert.AreEqual(111, &Object.FK1.Value);
+  Assert.AreEqual<Integer>(111, &Object.FK1.Value);
 
   Assert.IsNotEmpty(&Object.FK2.Id);
 
   Assert.IsTrue(&Object.FK2.DateTime > 0);
 
-  Assert.AreEqual(222, &Object.FK2.Value);
+  Assert.AreEqual<Integer>(222, &Object.FK2.Value);
 end;
 
 procedure TClassLoaderTest.WhenLoadAnObjectWithManyValueAssociationMustLoadAllChildObjectsAsExpected;
@@ -528,7 +528,7 @@ begin
 
   &Object := &FManager.Select.All.From<TInsertTestWithForeignKey>.Open.One;
 
-  Assert.AreSame(&Object.FK1, &Object.FK2);
+  Assert.AreEqual(&Object.FK1, &Object.FK2);
 end;
 
 procedure TClassLoaderTest.WhenTryToLoadASingleObjectFromAnEmptyTableCantRaiseAnyError;

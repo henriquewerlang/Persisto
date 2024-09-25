@@ -2,7 +2,7 @@
 
 interface
 
-uses System.SysUtils, Data.DB, System.Generics.Collections, Persisto.DataSet, DUnitX.TestFramework;
+uses System.SysUtils, Data.DB, System.Generics.Collections, Persisto.DataSet, Test.Insight.Framework;
 
 type
   [TestFixture]
@@ -541,7 +541,7 @@ begin
 
   Assert.AreEqual(123456, DataSet.FieldByName('Id').AsInteger);
   Assert.AreEqual('MyName', DataSet.FieldByName('Name').AsString);
-  Assert.AreEqual<Double>(5477.555, DataSet.FieldByName('Value').AsFloat);
+  Assert.AreEqual(5477.555, DataSet.FieldByName('Value').AsFloat);
 
   DataSet.Free;
 
@@ -570,7 +570,7 @@ begin
 
   DataSet.Post;
 
-  Assert.IsNotNull(DataSet.GetCurrentObject<TObject>);
+  Assert.IsNotNil(DataSet.GetCurrentObject<TObject>);
 
   DestroyObjects(DataSet);
 
@@ -760,7 +760,7 @@ begin
 
   DataSet.FieldByName('Name').AsString := 'Another Name';
 
-  Assert.AreEqual<String>('My Name', DataSet.FieldByName('Name').OldValue);
+  Assert.AreEqual('My Name', DataSet.FieldByName('Name').OldValue);
 
   DataSet.Free;
 
@@ -840,7 +840,7 @@ begin
 
   DataSet.OpenClass<TMyTestClassTypes>;
 
-  Assert.WillRaise(DataSet.OpenClass<TMyTestClassTypes>);
+  Assert.WillRaise(DataSet.OpenClass<TMyTestClassTypes>, Exception);
 
   DataSet.Free;
 end;
@@ -1033,7 +1033,7 @@ begin
 
   var MyClass := DataSet.GetCurrentObject<TMyTestClassTypes>;
 
-  Assert.AreEqual<Integer>(2, Length(MyClass.MyArray));
+  Assert.AreEqual(2, Length(MyClass.MyArray));
 
   MyClass.MyArray[0].Free;
 
@@ -1475,7 +1475,7 @@ begin
 
   TPersistoObjectField(DataSet.FindField('Lazy')).AsObject := TheValue;
 
-  Assert.AreEqual<TObject>(TheValue, MyClass.Lazy.Value);
+  Assert.AreEqual(TheValue, MyClass.Lazy.Value);
 
   DataSet.Free;
 
@@ -1593,7 +1593,7 @@ begin
 
   DataSet.Post;
 
-  Assert.AreEqual<TObject>(DataSet.GetCurrentObject<TObject>, MyNewObject);
+  Assert.AreEqual(DataSet.GetCurrentObject<TObject>, MyNewObject);
 
   DataSet.Free;
 
@@ -1613,7 +1613,7 @@ begin
 
   DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
 
-  Assert.IsNotNull(DataSetDetail.ObjectType);
+  Assert.IsNotNil(DataSetDetail.ObjectType);
 
   Assert.AreEqual('TMyTestClassTypes', DataSetDetail.ObjectType.Name);
 
@@ -1753,7 +1753,7 @@ begin
 
   DataSet.OpenObject(MyClass);
 
-  Assert.AreEqual<TObject>(MyClass.AnotherObject, (DataSet.FieldByName('AnotherObject') as TPersistoObjectField).AsObject);
+  Assert.AreEqual(MyClass.AnotherObject, (DataSet.FieldByName('AnotherObject') as TPersistoObjectField).AsObject);
 
   DataSet.Free;
 
@@ -1796,7 +1796,7 @@ begin
 
   DataSet.OpenObject(MyClass);
 
-  Assert.AreEqual<TObject>(TheValue, TPersistoObjectField(DataSet.FindField('Lazy')).AsObject);
+  Assert.AreEqual(TheValue, TPersistoObjectField(DataSet.FindField('Lazy')).AsObject);
 
   DataSet.Free;
 
@@ -1911,7 +1911,7 @@ begin
 
   TPersistoObjectField(DataSet.FieldByName('Self')).AsObject := MyObject;
 
-  Assert.AreEqual<TObject>(DataSet.GetCurrentObject<TObject>, MyObject);
+  Assert.AreEqual(DataSet.GetCurrentObject<TObject>, MyObject);
 
   DataSet.Free;
 end;
@@ -2014,9 +2014,9 @@ begin
 
   for var B := 1 to 10 do
   begin
-    Assert.AreEqual<Integer>(B, DataSet.FieldByName('Id').AsInteger);
+    Assert.AreEqual(B, DataSet.FieldByName('Id').AsInteger);
     Assert.AreEqual(Format('Name%d', [B]), DataSet.FieldByName('Name').AsString);
-    Assert.AreEqual<Double>(B + B, DataSet.FieldByName('Value').AsFloat);
+    Assert.AreEqual(B + B, DataSet.FieldByName('Value').AsFloat);
 
     DataSet.Next;
   end;
@@ -2047,9 +2047,9 @@ begin
 
   for var B := 10 downto 1 do
   begin
-    Assert.AreEqual<Integer>(B, DataSet.FieldByName('Id').AsInteger);
+    Assert.AreEqual(B, DataSet.FieldByName('Id').AsInteger);
     Assert.AreEqual(Format('Name%d', [B]), DataSet.FieldByName('Name').AsString);
-    Assert.AreEqual<Double>(B + B, DataSet.FieldByName('Value').AsFloat);
+    Assert.AreEqual(B + B, DataSet.FieldByName('Value').AsFloat);
 
     DataSet.Prior;
   end;
@@ -2182,7 +2182,7 @@ begin
 
   DataSet.OpenObject(MyObject);
 
-  Assert.IsNotNull(DataSet.FindField('Self'));
+  Assert.IsNotNil(DataSet.FindField('Self'));
 
   DataSet.Free;
 
@@ -2210,7 +2210,7 @@ begin
 
   DataSet.OpenClass<TMyTestClass>;
 
-  Assert.IsNull(DataSet.GetCurrentObject<TMyTestClass>);
+  Assert.IsNil(DataSet.GetCurrentObject<TMyTestClass>);
 
   DataSet.Free;
 end;
@@ -2221,7 +2221,7 @@ begin
 
   DataSet.OpenClass<TMyTestClass>;
 
-  Assert.IsNull(DataSet.FieldByName('Name').Value);
+  Assert.AreEqual(NULL, DataSet.FieldByName('Name').Value);
 
   DataSet.Free;
 end;
@@ -2441,7 +2441,7 @@ begin
 
   DataSetDetail.Post;
 
-  Assert.AreEqual<Integer>(2, Length(MyClass.MyArray));
+  Assert.AreEqual(2, Length(MyClass.MyArray));
 
   MyClass.MyArray[0].Free;
 
@@ -2603,7 +2603,7 @@ begin
 
   DataSetDetail.Delete;
 
-  Assert.AreEqual<Integer>(1, Length(MyClass.MyArray));
+  Assert.AreEqual(1, Length(MyClass.MyArray));
 
   MyArray[0].Free;
 
@@ -2906,7 +2906,7 @@ begin
 
   DataSet.OpenObject(MyClass);
 
-  Assert.IsNull(DataSet.FieldByName('Nullable').Value);
+  Assert.AreEqual(NULL, DataSet.FieldByName('Nullable').Value);
 
   DataSet.Free;
 
@@ -3129,9 +3129,9 @@ begin
   for var A := 1 to 10 do
     DataSet.Next;
 
-  Assert.AreEqual<Integer>(10, DataSet.FieldByName('Id').AsInteger);
+  Assert.AreEqual(10, DataSet.FieldByName('Id').AsInteger);
   Assert.AreEqual('Name10', DataSet.FieldByName('Name').AsString);
-  Assert.AreEqual<Double>(20, DataSet.FieldByName('Value').AsFloat);
+  Assert.AreEqual(20, DataSet.FieldByName('Value').AsFloat);
 
   DataLink.Free;
 
@@ -3215,7 +3215,7 @@ begin
     procedure
     begin
       DataSet.ObjectClassName := 'TMyTestClass';
-    end);
+    end, Exception);
 
   DataSet.Free;
 end;
@@ -3274,7 +3274,7 @@ begin
 
   DataSetDetail.DataSetField := nil;
 
-  Assert.IsNull(DataSetDetail.ParentDataSet);
+  Assert.IsNil(DataSetDetail.ParentDataSet);
 
   DataSetDetail.Free;
 
@@ -3419,7 +3419,7 @@ begin
 
   var Cursor := CreateCursor<TObject>(Value);
 
-  Assert.AreEqual<Pointer>(Value[1], Cursor.Objects[2]);
+  Assert.AreEqual(Value[1], Cursor.Objects[2]);
 end;
 
 function TPersistoListIteratorTest.CreateCursor<T>(const Value: TArray<T>): IORMObjectIterator;
@@ -3443,7 +3443,7 @@ begin
 
   Cursor.CurrentPosition := 1;
 
-  Assert.AreEqual<Cardinal>(1, Cursor.CurrentPosition);
+  Assert.AreEqual(1, Cursor.CurrentPosition);
 end;
 
 procedure TPersistoListIteratorTest.TheRecordCountFunctionMustReturnTheTotalOfItensInTheList;
@@ -3481,7 +3481,7 @@ begin
 
   Cursor.UpdateArrayProperty(&Property, MyClass);
 
-  Assert.AreEqual<Integer>(2, Length(MyClass.MyArray));
+  Assert.AreEqual(2, Length(MyClass.MyArray));
 
   MyClass.MyArray[0].Free;
 
@@ -3507,7 +3507,7 @@ begin
 
   Assert.AreEqual(4, Cursor.RecordCount);
 
-  Assert.AreEqual<Pointer>(TObject(4), Cursor.Objects[4]);
+  Assert.AreEqual(TObject(4), Cursor.Objects[4]);
 end;
 
 procedure TPersistoListIteratorTest.WhenAValueIsRemovedFromTheListTheResyncMustPutTheCurrentPositionInAValidPosition;
@@ -3569,9 +3569,9 @@ begin
 
   Assert.AreEqual(2, Cursor.RecordCount);
 
-  Assert.AreEqual<Pointer>(TObject(1), Cursor.GetObject(1));
+  Assert.AreEqual(TObject(1), Cursor.GetObject(1));
 
-  Assert.AreEqual<Pointer>(TObject(3), Cursor.GetObject(2));
+  Assert.AreEqual(TObject(3), Cursor.GetObject(2));
 end;
 
 procedure TPersistoListIteratorTest.WhenCallResetBeginMustPutTheIteratorInTheFirstPosition;
@@ -3611,7 +3611,7 @@ begin
 
   Cursor.SetObject(1, TObject(2));
 
-  Assert.AreEqual<Pointer>(TObject(2), Cursor.GetObject(1));
+  Assert.AreEqual(TObject(2), Cursor.GetObject(1));
 end;
 
 procedure TPersistoListIteratorTest.WhenTheArrayIsEmptyTheNextProcedureMustReturnFalse;

@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Rtti, DUnitX.TestFramework, Persisto, Persisto.Mapping;
+uses System.Rtti, Test.Insight.Framework, Persisto, Persisto.Mapping;
 
 type
   [TestFixture]
@@ -132,7 +132,7 @@ procedure TLazyValueTest.WhenFillTheValueMustReturnTheFilledValue;
 begin
   FLazyValue.Value := 10;
 
-  Assert.AreEqual(10, FLazyValue.Value.AsInteger);
+  Assert.AreEqual<Integer>(10, FLazyValue.Value.AsInteger);
 end;
 
 procedure TLazyValueTest.WhenGetTheKeyOfAnUnloadedLazyFieldMustReturnEmpty;
@@ -189,14 +189,14 @@ begin
 
   LazyFactory.Value := 10;
 
-  Assert.AreEqual(10, LazyFactory.Value.AsInteger);
+  Assert.AreEqual<Integer>(10, LazyFactory.Value.AsInteger);
 end;
 
 procedure TLazyFactoryObjectTest.WhenGetTheKeyValueFromTheLazyValueFactoryMustReturnTheValueAsExpected;
 begin
   var LazyFactory := TLazyFactory.Create(nil, nil, 10, nil) as ILazyValue;
 
-  Assert.AreEqual(10, LazyFactory.Key.AsInteger);
+  Assert.AreEqual<Integer>(10, LazyFactory.Key.AsInteger);
 end;
 
 procedure TLazyFactoryObjectTest.WhenTheLazyKeyIsEmptyCantTryToLoadTheValueFromDatabase;
@@ -216,7 +216,7 @@ begin
 
   Assert.IsFalse(LazyFactory.Value.IsEmpty);
 
-  Assert.IsNotNull(LazyFactory.Value.AsObject);
+  Assert.IsNotNil(LazyFactory.Value.AsObject);
 end;
 
 { TLazyFactoryManyValueTest }
@@ -254,14 +254,14 @@ begin
 
   LazyFactory.Value := 20;
 
-  Assert.AreEqual(20, LazyFactory.Value.AsInteger);
+  Assert.AreEqual<Integer>(20, LazyFactory.Value.AsInteger);
 end;
 
 procedure TLazyFactoryManyValueTest.WhenGetTheKeyValueFromTheLazyValueFactoryMustReturnTheValueAsExpected;
 begin
   var LazyFactory := TLazyFactory.Create(nil, nil, 20, nil) as ILazyValue;
 
-  Assert.AreEqual(20, LazyFactory.Key.AsInteger);
+  Assert.AreEqual<Integer>(20, LazyFactory.Key.AsInteger);
 end;
 
 procedure TLazyFactoryManyValueTest.WhenTheValueIsntLoadedMustLoadTheValueFromDatabase;

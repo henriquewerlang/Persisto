@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Generics.Collections, DUnitX.TestFramework, Persisto, Persisto.Mapping;
+uses System.Generics.Collections, Test.Insight.Framework, Persisto, Persisto.Mapping;
 
 type
   [TestFixture]
@@ -452,12 +452,12 @@ begin
   var Cursor := FManager.OpenCursor('select count(*) from MyEntityInheritedFromSingle where Id = 20');
 
   Assert.IsTrue(Cursor.Next);
-  Assert.AreEqual<Integer>(1, Cursor.GetDataSet.Fields[0].AsInteger);
+  Assert.AreEqual(1, Cursor.GetDataSet.Fields[0].AsInteger);
 
   Cursor := FManager.OpenCursor('select count(*) from MyEntityInheritedFromSimpleClass where Id = 20');
 
   Assert.IsTrue(Cursor.Next);
-  Assert.AreEqual<Integer>(1, Cursor.GetDataSet.Fields[0].AsInteger);
+  Assert.AreEqual(1, Cursor.GetDataSet.Fields[0].AsInteger);
 end;
 
 procedure TManagerTest.WhenChangeTheForeignKeyOfTheObjectMustUpdateTheForeignKeyValueFromTheCurrentTable;
@@ -503,7 +503,7 @@ procedure TManagerTest.WhenFilterAComplexFieldFromAnInheritedTableMustReturnTheO
 begin
   var Objects := FManager.Select.All.From<TManyValueParentInherited>.Where(Field('Childs.Value.Value') = 35).Open.All;
 
-  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(1, Length(Objects));
   Assert.AreEqual(35, Objects[0].Childs[0].Value.Value);
 end;
 
@@ -511,7 +511,7 @@ procedure TManagerTest.WhenFilterAFieldMustReturnTheObjectsInTheFilterAsExpected
 begin
   var Objects := FManager.Select.All.From<TAAAA>.Where(Field('Id') = 5).OrderBy.Field('Id').Open.All;
 
-  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(1, Length(Objects));
   Assert.AreEqual(5, Objects[0].Id);
 end;
 
@@ -519,7 +519,7 @@ procedure TManagerTest.WhenFilterAFieldWithBetweenOperatorMustReturnTheObjectsIn
 begin
   var Objects := FManager.Select.All.From<TAAAA>.Where(Field('Id').Between(3, 8)).OrderBy.Field('Id').Open.All;
 
-  Assert.AreEqual<NativeInt>(3, Length(Objects));
+  Assert.AreEqual(3, Length(Objects));
   Assert.AreEqual(3, Objects[0].Id);
   Assert.AreEqual(5, Objects[1].Id);
   Assert.AreEqual(8, Objects[2].Id);
@@ -529,7 +529,7 @@ procedure TManagerTest.WhenFilterAFieldWithComplexFieldNameInManyValueAssociatio
 begin
   var Objects := FManager.Select.All.From<TMyManyValue>.Where(Field('Childs.ManyValueAssociation.ManyValueAssociationList.Value') = 60).Open.All;
 
-  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(1, Length(Objects));
   Assert.AreEqual(60, Objects[0].Childs[0].ManyValueAssociation.ManyValueAssociationList[0].Value);
 end;
 
@@ -537,7 +537,7 @@ procedure TManagerTest.WhenFilterAFieldWithComplexFieldNameMustReturnTheObjectsI
 begin
   var Objects := FManager.Select.All.From<TInsertTestWithForeignKey>.Where(Field('FK1.Value') = 30000).Open.All;
 
-  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(1, Length(Objects));
   Assert.AreEqual(30000, Objects[0].FK1.Value);
 end;
 
@@ -545,7 +545,7 @@ procedure TManagerTest.WhenFilterAFieldWithGreaterThanOperatorMustReturnTheObjec
 begin
   var Objects := FManager.Select.All.From<TAAAA>.Where(Field('Id') > 5).OrderBy.Field('Id').Open.All;
 
-  Assert.AreEqual<NativeInt>(2, Length(Objects));
+  Assert.AreEqual(2, Length(Objects));
   Assert.AreEqual(8, Objects[0].Id);
   Assert.AreEqual(10, Objects[1].Id);
 end;
@@ -554,7 +554,7 @@ procedure TManagerTest.WhenFilterAFieldWithGreaterThanOrEqualOperatorMustReturnT
 begin
   var Objects := FManager.Select.All.From<TAAAA>.Where(Field('Id') >= 5).OrderBy.Field('Id').Open.All;
 
-  Assert.AreEqual<NativeInt>(3, Length(Objects));
+  Assert.AreEqual(3, Length(Objects));
   Assert.AreEqual(5, Objects[0].Id);
   Assert.AreEqual(8, Objects[1].Id);
   Assert.AreEqual(10, Objects[2].Id);
@@ -564,7 +564,7 @@ procedure TManagerTest.WhenFilterAFieldWithIsNullOperatorMustReturnTheObjectsInT
 begin
   var Objects := FManager.Select.All.From<TClassWithNullableProperty>.Where(Field('Nullable').IsNull).OrderBy.Field('Id').Open.All;
 
-  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(1, Length(Objects));
   Assert.AreEqual(1, Objects[0].Id);
 end;
 
@@ -572,7 +572,7 @@ procedure TManagerTest.WhenFilterAFieldWithLessThanOperatorMustReturnTheObjectsI
 begin
   var Objects := FManager.Select.All.From<TAAAA>.Where(Field('Id') < 5).OrderBy.Field('Id').Open.All;
 
-  Assert.AreEqual<NativeInt>(2, Length(Objects));
+  Assert.AreEqual(2, Length(Objects));
   Assert.AreEqual(1, Objects[0].Id);
   Assert.AreEqual(3, Objects[1].Id);
 end;
@@ -581,7 +581,7 @@ procedure TManagerTest.WhenFilterAFieldWithLessThanOrEqualOperatorMustReturnTheO
 begin
   var Objects := FManager.Select.All.From<TAAAA>.Where(Field('Id') <= 5).OrderBy.Field('Id').Open.All;
 
-  Assert.AreEqual<NativeInt>(3, Length(Objects));
+  Assert.AreEqual(3, Length(Objects));
   Assert.AreEqual(1, Objects[0].Id);
   Assert.AreEqual(3, Objects[1].Id);
   Assert.AreEqual(5, Objects[2].Id);
@@ -591,7 +591,7 @@ procedure TManagerTest.WhenFilterAFieldWithLikeOperatorMustReturnTheObjectsInThe
 begin
   var Objects := FManager.Select.All.From<TAAAA>.Where(Field('Value').Like('B__')).OrderBy.Field('Id').Open.All;
 
-  Assert.AreEqual<NativeInt>(2, Length(Objects));
+  Assert.AreEqual(2, Length(Objects));
   Assert.AreEqual(3, Objects[0].Id);
   Assert.AreEqual(8, Objects[1].Id);
 end;
@@ -600,7 +600,7 @@ procedure TManagerTest.WhenFilterAFieldWithLogicalNotOperatorMustReturnTheObject
 begin
   var Objects := FManager.Select.All.From<TClassWithNullableProperty>.Where(not Field('Nullable').IsNull).OrderBy.Field('Id').Open.All;
 
-  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(1, Length(Objects));
   Assert.AreEqual(2, Objects[0].Id);
 end;
 
@@ -608,7 +608,7 @@ procedure TManagerTest.WhenFilterAFieldWithNotEqualOperatorMustReturnTheObjectsI
 begin
   var Objects := FManager.Select.All.From<TAAAA>.Where(Field('Id') <> 5).OrderBy.Field('Id').Open.All;
 
-  Assert.AreEqual<NativeInt>(4, Length(Objects));
+  Assert.AreEqual(4, Length(Objects));
   Assert.AreEqual(1, Objects[0].Id);
   Assert.AreEqual(3, Objects[1].Id);
   Assert.AreEqual(8, Objects[2].Id);
@@ -619,7 +619,7 @@ procedure TManagerTest.WhenFilterAInheritedFieldMustFilterByThisField;
 begin
   var Objects := FManager.Select.All.From<TClassLevel4>.Where(Field('Field1') = 'abc').Open.All;
 
-  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(1, Length(Objects));
   Assert.AreEqual('abc', Objects[0].Field1);
 end;
 
@@ -627,7 +627,7 @@ procedure TManagerTest.WhenFilterWithBitwiseAndOperatorMustReturnTheObjectsInThe
 begin
   var Objects := FManager.Select.All.From<TAAAA>.Where((Field('Id') < 10) and (Field('Id') > 5)).OrderBy.Field('Id').Open.All;
 
-  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(1, Length(Objects));
   Assert.AreEqual(8, Objects[0].Id);
 end;
 
@@ -635,7 +635,7 @@ procedure TManagerTest.WhenFilterWithBitwiseOrOperatorMustReturnTheObjectsInTheF
 begin
   var Objects := FManager.Select.All.From<TAAAA>.Where((Field('Id') = 10) or (Field('Id') = 5)).OrderBy.Field('Id').Open.All;
 
-  Assert.AreEqual<NativeInt>(2, Length(Objects));
+  Assert.AreEqual(2, Length(Objects));
   Assert.AreEqual(5, Objects[0].Id);
   Assert.AreEqual(10, Objects[1].Id);
 end;
@@ -648,7 +648,7 @@ begin
 
   Field.HasValue(LazyClass, Value);
 
-  Assert.AreEqual<PTypeInfo>(TypeInfo(TArray<TLazyArrayClassChild>), Value.TypeInfo);
+  Assert.AreEqual(TypeInfo(TArray<TLazyArrayClassChild>), Value.TypeInfo);
 
   Assert.AreEqual(2, Value.ArrayLength);
 end;
@@ -712,7 +712,7 @@ begin
   var Cursor := FManager.OpenCursor('select count(*) from InsertAutoGenerated where Id = ''' +  MainObject.FK1.Id + '''');
 
   Assert.IsTrue(Cursor.Next);
-  Assert.AreEqual<Integer>(1, Cursor.GetDataSet.Fields[0].AsInteger);
+  Assert.AreEqual(1, Cursor.GetDataSet.Fields[0].AsInteger);
 end;
 
 procedure TManagerTest.WhenInsertAnObjectWithAutoGeneratedValuesMustLoadTheValueInTheInsertedObject;
@@ -749,7 +749,7 @@ begin
   var Cursor := FManager.OpenCursor('select IdAnotherClass from ClassWithForeignKey where Id = 30');
 
   Assert.IsTrue(Cursor.Next);
-  Assert.AreEqual<NativeInt>(45, Cursor.GetDataSet.Fields[0].AsInteger);
+  Assert.AreEqual(45, Cursor.GetDataSet.Fields[0].AsInteger);
 end;
 
 procedure TManagerTest.WhenInsertAnObjectWithManyValueAssociationCanRaiseAnyError;
@@ -865,7 +865,7 @@ procedure TManagerTest.WhenLoadALazyManyValueAssociationMustLoadAllChildsAsExpec
 begin
   var LazyClass := FManager.Select.All.From<TLazyArrayClass>.Where(Field('Id') = 10).Open.One;
 
-  Assert.AreEqual<NativeInt>(2, Length(LazyClass.LazyArray.Value));
+  Assert.AreEqual(2, Length(LazyClass.LazyArray.Value));
 end;
 
 procedure TManagerTest.WhenLoadALazyManyValueAssociationTheLoadOfChildObjectsMustBeDelayed;
@@ -874,7 +874,7 @@ begin
 
   FManager.ExectDirect('delete from LazyArrayClassChild where IdLazyArrayClass = 30');
 
-  Assert.AreEqual<NativeInt>(0, Length(LazyClass.LazyArray.Value));
+  Assert.AreEqual(0, Length(LazyClass.LazyArray.Value));
 end;
 
 procedure TManagerTest.WhenLoadAnObjectWithOrderByMustLoadTheObjectsInTheOrderAsExpected;
@@ -892,7 +892,7 @@ procedure TManagerTest.WhenMixBitwiseOrAndTheBitwiseAndOperatorMustReturnTheObje
 begin
   var Objects := FManager.Select.All.From<TAAAA>.Where(((Field('Id') = 10) or (Field('Id') = 3)) and (Field('Id') < 5)).OrderBy.Field('Id').Open.All;
 
-  Assert.AreEqual<NativeInt>(1, Length(Objects));
+  Assert.AreEqual(1, Length(Objects));
   Assert.AreEqual(3, Objects[0].Id);
 end;
 
@@ -906,7 +906,7 @@ begin
 
   AnotherManager.Save(MyEntity);
 
-  Assert.AreEqual<NativeInt>(1, Length(AnotherManager.Select.All.From<TAutoGeneratedClass>.Open.All));
+  Assert.AreEqual(1, Length(AnotherManager.Select.All.From<TAutoGeneratedClass>.Open.All));
 
   AnotherManager.Free;
 end;
@@ -939,7 +939,7 @@ begin
     procedure
     begin
       FManager.Save(MyEntity);
-    end, EForeignObjectNotAllowed);
+    end);
 end;
 
 procedure TManagerTest.WhenSaveAnObjectThatDontExistsInDatabaseMustInsertThisObject;
@@ -982,7 +982,7 @@ begin
       Result := Open.All;
     end);
 
-  Assert.AreEqual<NativeInt>(1, Length(Result));
+  Assert.AreEqual(1, Length(Result));
 end;
 
 procedure TManagerTest.WhenTheOrderByClauseAsAnForeignKeyObjectTheOrderByMustBeOrderAsExpected;
@@ -996,8 +996,8 @@ begin
       Result := Open.All;
     end);
 
-  Assert.IsNull(Result[0].FK1);
-  Assert.IsNotNull(Result[1].FK1);
+  Assert.IsNil(Result[0].FK1);
+  Assert.IsNotNil(Result[1].FK1);
 end;
 
 procedure TManagerTest.WhenTheOrderByClauseHasAComplexFieldNameMustFindTheFieldAndApplyInTheOrderByList;
@@ -1090,7 +1090,7 @@ begin
 
   Cursor.Next;
 
-  Assert.AreEqual<Integer>(222, Cursor.GetDataSet.Fields[0].AsInteger);
+  Assert.AreEqual(222, Cursor.GetDataSet.Fields[0].AsInteger);
 end;
 
 procedure TManagerTest.WhenUpdateAnObjectMustInsertTheNewObjectInTheForeignKey;
@@ -1236,7 +1236,7 @@ begin
     procedure
     begin
       FManager.Update(MyEntity);
-    end, EForeignObjectNotAllowed);
+    end);
 end;
 
 procedure TManagerTest.WhenUpdateAnObjectThatExistsInDatabaseMustLoadTheObjectStatusAndUpdateTheValuesInDatabase;
@@ -1303,7 +1303,7 @@ begin
 
   Cursor.Next;
 
-  Assert.AreEqual<Integer>(1234, Cursor.GetDataSet.Fields[0].AsInteger);
+  Assert.AreEqual(1234, Cursor.GetDataSet.Fields[0].AsInteger);
 end;
 
 procedure TManagerTest.WhenUpdateAnObjectWithoutChangesCanRaiseAnyUpdateError;
@@ -1397,7 +1397,7 @@ procedure TStateObjectTest.WhenGetTheObjectValueFromStateObjectMustLoadTheObject
 begin
   var StateObject := TStateObject.Create(FMapper.GetTable(TInsertTest));
 
-  Assert.IsNotNull(StateObject.&Object);
+  Assert.IsNotNil(StateObject.&Object);
 
   StateObject.Free;
 end;
