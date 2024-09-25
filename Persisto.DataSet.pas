@@ -68,11 +68,11 @@ type
     property RecordCount: Integer read GetRecordCount;
   end;
 
-  TPersistoListIterator<T: class> = class(TInterfacedObject, IORMObjectIterator)
+  TPersistoListIterator = class(TInterfacedObject, IORMObjectIterator)
   private
     FCurrentPosition: Cardinal;
-    FInternalList: TList<T>;
-    FList: TList<T>;
+    FInternalList: TList<TObject>;
+    FList: TList<TObject>;
 
     function GetCurrentPosition: Cardinal;
     function GetObject(Index: Cardinal): TObject;
@@ -93,8 +93,8 @@ type
 
     property CurrentPosition: Cardinal read GetCurrentPosition write SetCurrentPosition;
   public
-    constructor Create(const Value: array of T); overload;
-    constructor Create(const Value: TList<T>); overload;
+    constructor Create(const Value: TArray<TObject>); overload;
+    constructor Create(const Value: TList<TObject>); overload;
 
     destructor Destroy; override;
 
@@ -106,24 +106,25 @@ type
 {$ENDIF}
   TPersistoDataSet = class(TDataSet)
   private
+    FCalculatedFields: TDictionary<TField, Integer>;
+    FContext: TRttiContext;
+    FFilterFunction: TFunc<TPersistoDataSet, Boolean>;
+    FIndexFieldNames: String;
+    FInsertingObject: TObject;
     FIterator: IORMObjectIterator;
     FIteratorData: IORMObjectIterator;
     FIteratorFilter: IORMObjectIterator;
-    FContext: TRttiContext;
+    FObjectClassName: String;
     FObjectType: TRttiInstanceType;
-    FPropertyMappingList: TArray<TArray<TRttiProperty>>;
-    FInsertingObject: TObject;
     FOldValueObject: TObject;
     FParentDataSet: TPersistoDataSet;
-    FCalculatedFields: TDictionary<TField, Integer>;
-    FIndexFieldNames: String;
-    FFilterFunction: TFunc<TPersistoDataSet, Boolean>;
+    FPropertyMappingList: TArray<TArray<TRttiProperty>>;
+    FObjectClass: TClass;
 
     function GetCurrentActiveBuffer: TPersistoRecordBuffer;
     function GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
     function GetFieldTypeFromProperty(&Property: TRttiProperty): TFieldType;
     function GetObjectAndPropertyFromParentDataSet(var Instance: TValue; var &Property: TRttiProperty): Boolean;
-    function GetObjectClass<T: class>: TClass;
     function GetObjectClassName: String;
     function GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
     function GetRecordInfoFromActiveBuffer: TPersistoRecordInfo;
@@ -149,11 +150,11 @@ type
     procedure ResetFilter;
     procedure SetCurrentObject(const NewObject: TObject);
     procedure SetIndexFieldNames(const Value: String);
-    procedure SetObjectClassName(const Value: String);
-    procedure SetObjectType(const Value: TRttiInstanceType);
     procedure Sort;
     procedure UpdateArrayPosition(const Buffer: TPersistoRecordBuffer);
     procedure UpdateParentObject;
+    procedure SetObjectClassName(const Value: String);
+    procedure SetObjectClass(const Value: TClass);
 
 {$IFDEF PAS2JS}
     procedure GetLazyDisplayText(Sender: TField; var Text: String; DisplayText: Boolean);
@@ -198,14 +199,10 @@ type
     function GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TPersistoFieldBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF}; override;
 
     procedure Filter(Func: TFunc<TPersistoDataSet, Boolean>);
-    procedure OpenArray<T: class>(List: TArray<T>);
-    procedure OpenClass<T: class>;
-    procedure OpenList<T: class>(List: TList<T>);
-    procedure OpenObject<T: class>(&Object: T);
-    procedure OpenObjectArray(ObjectClass: TClass; List: TArray<TObject>);
     procedure Resync(Mode: TResyncMode); override;
 
-    property ObjectType: TRttiInstanceType read FObjectType write SetObjectType;
+    property ObjectClass: TClass read FObjectClass write SetObjectClass;
+    property ObjectType: TRttiInstanceType read FObjectType;
     property ParentDataSet: TPersistoDataSet read FParentDataSet;
   published
     property Active;
@@ -229,7 +226,7 @@ type
     property BeforeScroll;
     property DataSetField;
     property IndexFieldNames: String read FIndexFieldNames write SetIndexFieldNames;
-    property ObjectClassName: String read GetObjectClassName write SetObjectClassName;
+    property ObjectClassName: String read FObjectClassName write SetObjectClassName;
     property OnCalcFields;
     property OnDeleteError;
     property OnEditError;
@@ -251,59 +248,59 @@ uses System.Math, Persisto.Mapping, {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$END
 const
   SELF_FIELD_NAME = 'Self';
 
-{ TPersistoListIterator<T> }
+{ TPersistoListIterator }
 
-procedure TPersistoListIterator<T>.Add(Obj: TObject);
+procedure TPersistoListIterator.Add(Obj: TObject);
 begin
-  FCurrentPosition := Succ(FList.Add(T(Obj)));
+  FCurrentPosition := Succ(FList.Add(Obj));
 end;
 
-procedure TPersistoListIterator<T>.Clear;
+procedure TPersistoListIterator.Clear;
 begin
   FCurrentPosition := 0;
 
   FList.Clear;
 end;
 
-constructor TPersistoListIterator<T>.Create(const Value: TList<T>);
+constructor TPersistoListIterator.Create(const Value: TList<TObject>);
 begin
   inherited Create;
 
   FList := Value;
 end;
 
-constructor TPersistoListIterator<T>.Create(const Value: array of T);
+constructor TPersistoListIterator.Create(const Value: TArray<TObject>);
 begin
-  FInternalList := TList<T>.Create;
+  FInternalList := TList<TObject>.Create;
 
   FInternalList.AddRange(Value);
 
   Create(FInternalList);
 end;
 
-destructor TPersistoListIterator<T>.Destroy;
+destructor TPersistoListIterator.Destroy;
 begin
   FInternalList.Free;
 
   inherited;
 end;
 
-function TPersistoListIterator<T>.GetCurrentPosition: Cardinal;
+function TPersistoListIterator.GetCurrentPosition: Cardinal;
 begin
   Result := FCurrentPosition;
 end;
 
-function TPersistoListIterator<T>.GetObject(Index: Cardinal): TObject;
+function TPersistoListIterator.GetObject(Index: Cardinal): TObject;
 begin
   Result := FList[Pred(Index)];
 end;
 
-function TPersistoListIterator<T>.GetRecordCount: Integer;
+function TPersistoListIterator.GetRecordCount: Integer;
 begin
   Result := FList.Count;
 end;
 
-function TPersistoListIterator<T>.Next: Boolean;
+function TPersistoListIterator.Next: Boolean;
 begin
   Result := FCurrentPosition < Cardinal(FList.Count);
 
@@ -311,7 +308,7 @@ begin
     Inc(FCurrentPosition);
 end;
 
-function TPersistoListIterator<T>.Prior: Boolean;
+function TPersistoListIterator.Prior: Boolean;
 begin
   Result := FCurrentPosition > 1;
 
@@ -319,39 +316,39 @@ begin
     Dec(FCurrentPosition);
 end;
 
-procedure TPersistoListIterator<T>.Remove;
+procedure TPersistoListIterator.Remove;
 begin
   FList.Delete(Pred(CurrentPosition));
 
   Resync;
 end;
 
-procedure TPersistoListIterator<T>.ResetBegin;
+procedure TPersistoListIterator.ResetBegin;
 begin
   FCurrentPosition := 0;
 end;
 
-procedure TPersistoListIterator<T>.ResetEnd;
+procedure TPersistoListIterator.ResetEnd;
 begin
   FCurrentPosition := Succ(FList.Count);
 end;
 
-procedure TPersistoListIterator<T>.Resync;
+procedure TPersistoListIterator.Resync;
 begin
   FCurrentPosition := Min(FCurrentPosition, GetRecordCount);
 end;
 
-procedure TPersistoListIterator<T>.SetCurrentPosition(const Value: Cardinal);
+procedure TPersistoListIterator.SetCurrentPosition(const Value: Cardinal);
 begin
   FCurrentPosition := Value;
 end;
 
-procedure TPersistoListIterator<T>.SetObject(Index: Cardinal; const Value: TObject);
+procedure TPersistoListIterator.SetObject(Index: Cardinal; const Value: TObject);
 begin
-  FList[Pred(Index)] := T(Value);
+  FList[Pred(Index)] := Value;
 end;
 
-procedure TPersistoListIterator<T>.Swap(Left, Right: Cardinal);
+procedure TPersistoListIterator.Swap(Left, Right: Cardinal);
 var
   Obj: TObject;
 
@@ -366,7 +363,7 @@ begin
   end;
 end;
 
-procedure TPersistoListIterator<T>.UpdateArrayProperty(&Property: TRttiProperty; Instance: TObject);
+procedure TPersistoListIterator.UpdateArrayProperty(&Property: TRttiProperty; Instance: TObject);
 var
   A: Integer;
 
@@ -377,7 +374,7 @@ begin
   ValueArray.ArrayLength := FList.Count;
 
   for A := 0 to Pred(FList.Count) do
-    ValueArray.ArrayElement[A] := TValue.From<T>(FList[A]);
+    ValueArray.ArrayElement[A] := TValue.From(FList[A]);
 
   &Property.SetValue(Instance, ValueArray);
 end;
@@ -415,7 +412,7 @@ end;
 procedure TPersistoDataSet.CheckIterator;
 begin
   if not Assigned(FIteratorData) then
-    FIteratorData := TPersistoListIterator<TObject>.Create([]);
+    FIteratorData := TPersistoListIterator.Create([]);
 
   FIterator := FIteratorData;
 end;
@@ -435,7 +432,12 @@ end;
 procedure TPersistoDataSet.CheckObjectTypeLoaded;
 begin
   if not Assigned(ObjectType) then
-    raise EDataSetWithoutObjectDefinition.Create;
+    if Assigned(FObjectClass) then
+      FObjectType := FContext.GetType(FObjectClass) as TRttiInstanceType
+    else if ObjectClassName.IsEmpty then
+      raise EDataSetWithoutObjectDefinition.Create
+    else
+      FObjectType := FContext.FindType(ObjectClassName) as TRttiInstanceType;
 end;
 
 procedure TPersistoDataSet.CheckSelfFieldType;
@@ -713,11 +715,6 @@ begin
     Result := ParentDataSet.GetPropertyAndObjectFromField(DataSetField, Instance, &Property);
 end;
 
-function TPersistoDataSet.GetObjectClass<T>: TClass;
-begin
-  Result := {$IFDEF PAS2JS}(FContext.GetType(TypeInfo(T)) as TRttiInstanceType).MetaclassType{$ELSE}T{$ENDIF};
-end;
-
 function TPersistoDataSet.GetObjectClassName: String;
 begin
   Result := EmptyStr;
@@ -898,7 +895,7 @@ begin
 
     if Assigned(FFilterFunction) then
     begin
-      FIteratorFilter := TPersistoListIterator<TObject>.Create([]);
+      FIteratorFilter := TPersistoListIterator.Create([]);
 
       FIteratorData.ResetBegin;
 
@@ -957,32 +954,34 @@ end;
 
 procedure TPersistoDataSet.InternalOpen;
 begin
-  CheckIterator;
+  CheckObjectTypeLoaded;
 
-  LoadDetailInfo;
-
-  if FieldDefs.Count = 0 then
-    if FieldCount = 0 then
-      LoadFieldDefsFromClass
-    else
-      InitFieldDefsFromFields;
-
-  if FieldCount = 0 then
-    CreateFields;
-
-  CheckSelfFieldType;
-
-  LoadPropertiesFromFields;
-
-{$IFDEF PAS2JS}
-  LoadLazyGetTextFields;
-{$ENDIF}
-
-  BindFields(True);
-
-  CheckCalculatedFields;
-
-  LoadObjectListFromParentDataSet;
+//  CheckIterator;
+//
+//  LoadDetailInfo;
+//
+//  if FieldDefs.Count = 0 then
+//    if FieldCount = 0 then
+//      LoadFieldDefsFromClass
+//    else
+//      InitFieldDefsFromFields;
+//
+//  if FieldCount = 0 then
+//    CreateFields;
+//
+//  CheckSelfFieldType;
+//
+//  LoadPropertiesFromFields;
+//
+//{$IFDEF PAS2JS}
+//  LoadLazyGetTextFields;
+//{$ENDIF}
+//
+//  BindFields(True);
+//
+//  CheckCalculatedFields;
+//
+//  LoadObjectListFromParentDataSet;
 end;
 
 procedure TPersistoDataSet.InternalPost;
@@ -1031,12 +1030,12 @@ var
   Properties: TArray<TRttiProperty>;
 
 begin
-  if Assigned(ParentDataSet) then
-  begin
-    Properties := ParentDataSet.FPropertyMappingList[Pred(DataSetField.FieldNo)];
-
-    ObjectType := (Properties[High(Properties)].PropertyType as TRttiDynamicArrayType).ElementType as TRttiInstanceType;
-  end;
+//  if Assigned(ParentDataSet) then
+//  begin
+//    Properties := ParentDataSet.FPropertyMappingList[Pred(DataSetField.FieldNo)];
+//
+//    FObjectType := (Properties[High(Properties)].PropertyType as TRttiDynamicArrayType).ElementType as TRttiInstanceType;
+//  end;
 end;
 
 procedure TPersistoDataSet.LoadFieldDefsFromClass;
@@ -1048,8 +1047,6 @@ var
   Size: Integer;
 
 begin
-  CheckObjectTypeLoaded;
-
   for &Property in ObjectType.GetProperties do
     if &Property.Visibility = mvPublished then
     begin
@@ -1101,8 +1098,6 @@ var
   PropertyName: String;
 
 begin
-  CheckObjectTypeLoaded;
-
   SetLength(FPropertyMappingList, Fields.Count);
 
   for A := 0 to Pred(Fields.Count) do
@@ -1142,37 +1137,12 @@ begin
   end;
 end;
 
-procedure TPersistoDataSet.OpenArray<T>(List: TArray<T>);
-begin
-  OpenInternalIterator(GetObjectClass<T>, TPersistoListIterator<T>.Create(List));
-end;
-
-procedure TPersistoDataSet.OpenClass<T>;
-begin
-  OpenArray<T>(nil);
-end;
-
 procedure TPersistoDataSet.OpenInternalIterator(ObjectClass: TClass; Iterator: IORMObjectIterator);
 begin
   FIteratorData := Iterator;
-  ObjectType := FContext.GetType(ObjectClass) as TRttiInstanceType;
+//  ObjectType := FContext.GetType(ObjectClass) as TRttiInstanceType;
 
   Open;
-end;
-
-procedure TPersistoDataSet.OpenList<T>(List: TList<T>);
-begin
-  OpenInternalIterator(GetObjectClass<T>, TPersistoListIterator<T>.Create(List));
-end;
-
-procedure TPersistoDataSet.OpenObject<T>(&Object: T);
-begin
-  OpenArray<T>([&Object]);
-end;
-
-procedure TPersistoDataSet.OpenObjectArray(ObjectClass: TClass; List: TArray<TObject>);
-begin
-  OpenInternalIterator(ObjectClass, TPersistoListIterator<TObject>.Create(List));
 end;
 
 procedure TPersistoDataSet.ReleaseOldValueObject;
@@ -1334,22 +1304,18 @@ begin
   end;
 end;
 
-procedure TPersistoDataSet.SetObjectClassName(const Value: String);
-begin
-  ObjectType := nil;
-
-{$IFDEF DCC}
-  for var &Type in FContext.GetTypes do
-    if (&Type.Name = Value) or (&Type.QualifiedName = Value) then
-      ObjectType := &Type as TRttiInstanceType;
-{$ENDIF}
-end;
-
-procedure TPersistoDataSet.SetObjectType(const Value: TRttiInstanceType);
+procedure TPersistoDataSet.SetObjectClass(const Value: TClass);
 begin
   CheckInactive;
 
-  FObjectType := Value;
+  FObjectClass := Value;
+end;
+
+procedure TPersistoDataSet.SetObjectClassName(const Value: String);
+begin
+  CheckInactive;
+
+  FObjectClassName := Value;
 end;
 
 procedure TPersistoDataSet.Sort;
@@ -1653,7 +1619,7 @@ end;
 
 constructor EDataSetWithoutObjectDefinition.Create;
 begin
-  inherited Create('To open the DataSet, you must use the especialized procedures ou fill de ObjectClassName property!');
+  inherited Create('Must load a object information property like ObjectClass or ObjectClassName!');
 end;
 
 { EDataSetNotInEditingState }

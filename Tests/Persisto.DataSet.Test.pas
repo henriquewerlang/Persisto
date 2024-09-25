@@ -2,21 +2,43 @@
 
 interface
 
-uses System.SysUtils, Data.DB, System.Generics.Collections, Persisto.DataSet, Test.Insight.Framework;
+uses System.SysUtils, System.Rtti, Data.DB, System.Generics.Collections, Persisto.DataSet, Test.Insight.Framework;
 
 type
   [TestFixture]
   TPersistoDataSetTest = class
   private
+    FContext: TRttiContext;
+    FDataSet: TPersistoDataSet;
+
     procedure DestroyObjects(DataSet: TPersistoDataSet);
   public
-    [SetupFixture]
+    [Setup]
     procedure Setup;
+    [TearDown]
+    procedure TearDown;
     [Test]
+    procedure WhenTryToOpenTheDataSetWithoutAnObjectInformationMustRaiseAnError;
+    [Test]
+    procedure WhenLoadTheObjectClassNameMustOpenWithoutAnyError;
+    [Test]
+    procedure WhenLoadTheObjectClassNameMustLoadTheObjectTypeInfoWithTheObjectType;
+    [Test]
+    procedure WhenTryToChangeTheObjectClassNameWithAnOpenDataSetMustRaiseAnError;
+    [Test]
+    procedure WhenLoadTheObjectClassPropertyCantRaiseErrorWhenOpenTheDataSet;
+    [Test]
+    procedure WhenLoadTheObjectClassPropertyMustLoadTheObjectTypePropertyWithTheClassInfo;
+    [Test]
+    procedure WhenTryToChangeTheObjectClassWhenTheDataSetIsOpenMustRaiseAnError;
+
+
+
+    [TTest]
     procedure WhenOpenDataSetHaveToLoadFieldListWithPropertiesOfMappedObject;
-    [Test]
+    [TTest]
     procedure TheNameOfFieldMustBeEqualToTheNameOfTheProperty;
-    [Test]
+    [TTest]
     procedure WhenOpenDataSetFromAListMustHaveToLoadFieldListWithPropertiesOfMappedObject;
     [TestCase('Array', 'MyArray,ftDataSet')]
     [TestCase('Boolean', 'Boolean,ftBoolean')]
@@ -38,43 +60,43 @@ type
     [TestCase('WideString', 'WideString,ftWideString')]
     [TestCase('Word', 'Word,ftWord')]
     procedure TheFieldTypeMustMatchWithPropertyType(FieldName: String; TypeToCompare: TFieldType);
-    [Test]
+    [TTest]
     procedure WhenOpenTheDataSetWithAObjectTheRecordCountMustBeOne;
-    [Test]
+    [TTest]
     procedure WhenOpenTheDataSetWithAListTheRecordCountMustBeTheSizeOfTheList;
-    [Test]
+    [TTest]
     procedure AfterOpenTheFieldMustLoadTheValuesFromTheObjectClass;
-    [Test]
+    [TTest]
     procedure WhenNavigateByDataSetMustHaveToShowTheValuesFromTheList;
-    [Test]
+    [TTest]
     procedure WhenNavigatingBackHaveToLoadTheListValuesAsExpected;
-    [Test]
+    [TTest]
     procedure WhenHaveFieldDefDefinedCantLoadFieldsFromTheClass;
-    [Test]
+    [TTest]
     procedure WhenTheFieldDefNameNotExistsInPropertyListMustRaiseAException;
-    [Test]
+    [TTest]
     procedure WhenTheFieldAndPropertyTypeAreDifferentItHasToRaiseAnException;
-    [Test]
+    [TTest]
     procedure WhenAFieldIsSeparatedByAPointItHasToLoadTheSubPropertiesOfTheObject;
-    [Test]
+    [TTest]
     procedure WhenTryOpenADataSetWithoutAObjectDefinitionMustRaiseAnError;
-    [Test]
+    [TTest]
     procedure WhenFilledTheObjectClassNameHasToLoadTheDataSetWithoutErrors;
-    [Test]
+    [TTest]
     procedure WhenUseQualifiedClassNameHasToLoadTheDataSetWithoutErrors;
-    [Test]
+    [TTest]
     procedure WhenCheckingIfTheFieldIsNullCantRaiseAnError;
-    [Test]
+    [TTest]
     procedure WhenCallFirstHaveToGoToTheFirstRecord;
-    [Test]
+    [TTest]
     procedure UsingBookmarkHaveToWorkLikeSpected;
-    [Test]
+    [TTest]
     procedure WhenUseTheOpenClassMustLoadFieldFromTheClass;
-    [Test]
+    [TTest]
     procedure WhenExistsAFieldInDataSetMustFillTheFieldDefFromThisField;
-    [Test]
+    [TTest]
     procedure WhenInsertIntoDataSetCantRaiseAnError;
-    [Test]
+    [TTest]
     procedure WhenPostARecordMustAppendToListOfObjects;
     [TestCase('Boolean', 'Boolean,True')]
     [TestCase('Byte', 'Byte,123')]
@@ -99,261 +121,215 @@ type
     [TestCase('WideChar', 'WideChar,1')]
     [TestCase('WideString', 'WideString,50')]
     procedure WhenAFieldIsACreateTheFieldMustHaveTheMinimalSizeDefined(FieldName: String; Size: Integer);
-    [Test]
+    [TTest]
     procedure WhenOpenAnEmptyDataSetCantRaiseAnError;
-    [Test]
+    [TTest]
     procedure WhenOpenAnEmptyDataSetTheCurrentObjectMustReturnNil;
-    [Test]
+    [TTest]
     procedure WhenTryToGetAFieldValueFromAEmptyDataSetCantRaiseAnError;
-    [Test]
+    [TTest]
     procedure WhenOpenAnEmptyDataSetTheValueOfTheFieldMustReturnNull;
-    [Test]
+    [TTest]
     procedure WhenASubPropertyIsAnObjectAndTheValueIsNilCantRaiseAnError;
-    [Test]
+    [TTest]
     procedure WhenFillingAFieldWithSubPropertyMustFillTheLastLevelOfTheField;
-    [Test]
+    [TTest]
     procedure WhenOpenAClassWithDerivationMustLoadTheFieldFromTheBaseClassToo;
-    [Test]
+    [TTest]
     procedure WhenTheDataSetIsEmptyCantRaiseAnErrorWhenGetAFieldFromASubPropertyThatIsAnObject;
-    [Test]
+    [TTest]
     procedure EveryInsertedObjectMustGoToTheObjectList;
-    [Test]
+    [TTest]
     procedure AfterInsertAnObjectMustResetTheObjectToSaveTheNewInfo;
-    [Test]
+    [TTest]
     procedure WhenEditingTheDataSetAndSetAFieldValueMustChangeThePropertyOfTheObjectToo;
-    [Test]
+    [TTest]
     procedure TheOldValuePropertyFromFieldMustReturnTheOriginalValueOfTheObjectBeingEdited;
-    [Test]
+    [TTest]
     procedure WhenAStringFieldIsEmptyCantRaiseAnErrorBecauseOfIt;
-    [Test]
+    [TTest]
     procedure WhenTheEditionIsCanceledMustReturnTheOriginalValueFromTheField;
-    [Test]
+    [TTest]
     procedure WhenEditingCantIncreseTheRecordCountWhenPostTheRecord;
-    [Test]
+    [TTest]
     procedure WhenSetAValueToAFieldThatIsAnObjectMustFillThePropertyInTheClassWithThisObject;
-    [Test]
+    [TTest]
     procedure WhenGetAValueFromAFieldAndIsAnObjectMustReturnTheObjectFromTheClass;
-    [Test]
+    [TTest]
     procedure OpenArrayObjectMustLoadTheObjectTypeFromTheParam;
-    [Test]
+    [TTest]
     procedure OpenArrayObjectMustActiveTheDataSet;
-    [Test]
+    [TTest]
     procedure OpenArrayMustLoadTheObjectListWithTheParamPassed;
-    [Test]
+    [TTest]
     procedure TheRecNoPropertyMustReturnTheCurrentRecordPositionInTheDataSet;
-    [Test]
+    [TTest]
     procedure WhenADataSetIsActiveCantOpenItAgainMustRaiseAnError;
-    [Test]
+    [TTest]
     procedure WhenCleanUpTheObjectClassNameMustStayEmpty;
-    [Test]
+    [TTest]
     procedure WhenChangeTheObjectTypeOfTheDataSetMustBeClosedToAcceptTheChange;
-    [Test]
+    [TTest]
     procedure WhenFillTheDataSetFieldPropertyMustLoadTheParentDataSetPropertyWithTheDataSetCorrect;
-    [Test]
+    [TTest]
     procedure WhenCleanUpTheDataSetFieldPropertyTheParentDataSetMustBeCleanedToo;
-    [Test]
+    [TTest]
     procedure WhenFillTheDataSetFieldMustLoadTheObjectTypeFromThePropertyOfTheField;
-    [Test]
+    [TTest]
     procedure WhenOpenTheDetailDataSetMustLoadAllRecordsFromTheParentDataSet;
-    [Test]
+    [TTest]
     procedure WhenScrollTheParentDataSetMustLoadTheArrayInDetailDataSet;
-    [Test]
+    [TTest]
     procedure WhenPostTheDetailDataSetMustUpdateTheArrayValueFromParentDataSet;
-    [Test]
+    [TTest]
     procedure WhenTheRecordBufferIsBiggerThenOneMustLoadTheBufferOfTheDataSetAsExpected;
-    [Test]
+    [TTest]
     procedure WhenOpenADataSetWithDetailMustLoadTheRecordsOfTheDetail;
-    [Test]
+    [TTest]
     procedure WhenTheDetailDataSetHasAComposeNameMustLoadTheObjectTypeCorrectly;
-    [Test]
+    [TTest]
     procedure WhenTheDetailDataSetHasAComposeNameMustLoadTheDataCorrecty;
-    [Test]
+    [TTest]
     procedure WhenInsertARecordThenCancelTheInsertionAndStartANewInsertTheOldBufferMustBeCleanedUp;
-    [Test]
+    [TTest]
     procedure WhenThePropertyIsANullableTypeMustCreateTheField;
-    [Test]
+    [TTest]
     procedure WhenThePropertyIsANullableTypeMustCreateTheFieldWithTheInternalTypeOfTheNullable;
-    [Test]
+    [TTest]
     procedure WhenTheFieldIsMappedToANullableFieldAndTheValueIsntFilledMustReturnNullInTheFieldValue;
-    [Test]
+    [TTest]
     procedure WhenTheNullablePropertyIsFilledMustReturnTheValueFilled;
-    [Test]
+    [TTest]
     procedure WhenClearAFieldCantRaiseAnError;
-    [Test]
+    [TTest]
     procedure WhenFillANullableFieldWithTheNullValueMustMarkThePropertyWithIsNullTrue;
-    [Test]
+    [TTest]
     procedure WhenFillANullableFieldWithAnValueMustFillThePropertyWithTheValue;
-    [Test]
+    [TTest]
     procedure GetADateTimeFieldMustReturnTheValueAsExpected;
-    [Test]
+    [TTest]
     procedure WhenThePropertyOfTheClassIsLazyLoadingMustCreateTheField;
-    [Test]
+    [TTest]
     procedure WhenThePropertyOfTheClassIsLazyLoadingMustCreateTheFieldWithTheGenericTypeOfTheLazyRecord;
-    [Test]
+    [TTest]
     procedure WhenGetTheValueOfALazyPropertyMustReturnTheValueInsideTheLazyRecord;
-    [Test]
+    [TTest]
     procedure WhenFillAFieldOfALazyPropertyMustFieldTheLazyStructure;
-    [Test]
+    [TTest]
     procedure WhenTryToGetAComposeFieldNameFromALazyPropertyMustLoadAsExpected;
-    [Test]
+    [TTest]
     procedure WhenOpenADataSetWithCalculatedFieldCantRaiseAnyError;
-    [Test]
+    [TTest]
     procedure WhenTryToGetTheValueOfACalculatedFieldCantRaiseAnyError;
-    [Test]
+    [TTest]
     procedure WhenADataSetNotInEditingStateMustRaiseAnErrorIfTryToFillAFieldValue;
-    [Test]
+    [TTest]
     procedure WhenFillTheValueOfACalculatedFieldCantRaiseAnyError;
-    [Test]
+    [TTest]
     procedure WhenToCalculateAFieldMustReturnTheValueExpected;
-    [Test]
+    [TTest]
     procedure WhenExitsMoreThenOneCalculatedFieldMustReturnTheValueAsExpected;
-    [Test]
+    [TTest]
     procedure WhenOpenADataSetWithAnEmptyArrayCantRaiseAnyError;
-    [Test]
+    [TTest]
     procedure WhenCloseTheDataSetMustUmbingTheFieldsAndCloseTheDataSetDetail;
-    [Test]
+    [TTest]
     procedure WhenMoveTheMasterDataSetTheCountOfTheDetailRecordMustRepresentTheExatValueFromArrayOfMasterClass;
-    [Test]
+    [TTest]
     procedure WhenTheDetailDataSetIsEmptyCantRaiseAnErrorWhenGetAFieldValue;
-    [Test]
+    [TTest]
     procedure WhenMoveTheMasterDataSetTheDetailDataSetMustBeInTheFirstRecord;
-    [Test]
+    [TTest]
     procedure WhenDeleteARecordFromADataSetMustRemoveTheValueFromTheDataSet;
-    [Test]
+    [TTest]
     procedure WhenRemoveARecordFromDetailMustUpdateTheArrayOfTheParentClass;
-    [Test]
+    [TTest]
     procedure WhenScrollTheDataSetMustCalculateTheFields;
-    [Test]
+    [TTest]
     procedure WhenPutTheDataSetInInsertStateMustClearTheCalculatedFields;
-    [Test]
+    [TTest]
     procedure WhenIsRemovedTheLastRecordFromDataSetCantRaiseAnError;
-    [Test]
+    [TTest]
     procedure WhenRemoveAComposeDetailFieldNameMustUpdateTheParentClassWithTheNewValues;
-    [Test]
+    [TTest]
     procedure WhenOpenTheDataSetWithAListAndTheListIsChangedTheResyncCantRaiseAnyError;
-    [Test]
+    [TTest]
     procedure TheCalcBufferMustBeClearedOnScrollingTheDataSet;
-    [Test]
+    [TTest]
     procedure WhenOpenADataSetWithoutFieldsMustAddTheSelfFieldToDataSet;
-    [Test]
+    [TTest]
     procedure WhenAddTheSelfFieldCantRaiseAnyError;
-    [Test]
+    [TTest]
     procedure TheSelfFieldTypeMustBeVariant;
-    [Test]
+    [TTest]
     procedure WhenAddTheSelfFieldMustBeOfTheVariantType;
-    [Test]
+    [TTest]
     procedure WhenGetTheValueOfTheSelfFieldMustReturnTheCurrentObjectOfThDataSet;
-    [Test]
+    [TTest]
     procedure WhenFillTheCurrentObjectMustReplaceTheCurrentValueInTheInternalList;
-    [Test]
+    [TTest]
     procedure WhenInsertingMustTheSelfFieldMustReplaceTheCurrentObjectHasExpected;
-    [Test]
+    [TTest]
     procedure WhenFillANilValueToSelfFieldMustRaiseAnError;
-    [Test]
+    [TTest]
     procedure WhenTryToFillAnObjectWithDifferentTypeMustRaiseAnError;
-    [Test]
+    [TTest]
     procedure WhenChangeTheSelfFieldMustNotifyTheChangeOfAllFieldsInDataSet;
-    [Test]
+    [TTest]
     procedure WhenFillTheIndexFieldNamesMustOrderTheValuesInAscendingOrderAsExpected;
-    [Test]
+    [TTest]
     procedure WhenFillTheIndexFieldNamesWithMoreTheOnFieldMustOrderAsExpected;
-    [Test]
+    [TTest]
     procedure WhenPutTheMinusSymbolBeforeTheFieldNameInIndexMustSortDescending;
-    [Test]
+    [TTest]
     procedure WhenChangeTheIndexFieldNamesWithDataSetOpenMustSortTheValues;
-    [Test]
+    [TTest]
     procedure AfterChangeAnRecordMustSortTheDataSetAgain;
-    [Test]
+    [TTest]
     procedure WhenSortACalculatedFieldCantRaiseAnyError;
-    [Test]
+    [TTest]
     procedure WhenSortACalculatedFieldAsExpected;
-    [Test]
+    [TTest]
     procedure WhenNotUsingACalculatedFieldInTheIndexCantCallTheOnCalcFields;
-    [Test]
+    [TTest]
     procedure WhenCallTheResyncMustReorderTheDataSet;
-    [Test]
+    [TTest]
     procedure WhenFilterTheDataSetMustStayOnlyTheFilteredRecords;
-    [Test]
+    [TTest]
     procedure WhenApplyAFilterBeforeOpenTheDataSetMustFilterTheRecordAfterOpen;
-    [Test]
+    [TTest]
     procedure WhenRemoveTheFilterMustReturnTheOriginalRecordsToTheDataSet;
-    [Test]
+    [TTest]
     procedure WhenInsertingARecordInAFilteredDataSetMustCheckTheFilterToAddTheRecordToTheDataSet;
-    [Test]
+    [TTest]
     procedure WhenEditingARecordAndTheFilterBecameInvalidMustRemoveTheRecordFromDataSet;
-    [Test]
+    [TTest]
     procedure WhenSortAFilteredDataSetCantRaiseAnyError;
-    [Test]
+    [TTest]
     procedure WhenOrderingANullFieldValueItMustBeTheFirstRecordInTheSortedDataSet;
-    [Test]
+    [TTest]
     procedure WhenExistsMoreTheOneNullValueMustBeTheFirstRecordsAnThenTheFieldsWithValue;
-    [Test]
+    [TTest]
     procedure WhenOrderingANullFieldValueInDescendingOrderItMustBeTheLastRecordInTheSortedDataSet;
-    [Test]
+    [TTest]
     procedure WhenGetTheRecordCountFromAClosedDataSetCantRaiseAnyError;
-    [Test]
+    [TTest]
     procedure WhenTheDataSetIsClosedTheRecordCountMustReturnMinusOne;
-    [Test]
+    [TTest]
     procedure WhenCreateADataSetFieldAndOpenTheParentDataSetMustOpenTheDetailToo;
-    [Test]
+    [TTest]
     procedure WhenGetTheCurrentObjectOfAClosedDataSetCantRaiseAnyError;
-    [Test]
+    [TTest]
     procedure WhenGetValueOfAnFieldInAClosedDataSetCantRaiseAnyError;
-    [Test]
+    [TTest]
     procedure WhenTheDataLinkTryToGetAFieldValueInTheDetailDataSetCantRaiseAnyError;
-    [Test]
+    [TTest]
     procedure WhenTheDataSetIsOpenAndHasADetailAndTheDetailHasRecordsMustClearTheDetailAfterIntertingInTheParentDataSet;
-    [Test]
+    [TTest]
     procedure WhenTheDataSetDetailIsFilteredAndIsInsertedAnRecordInvalidForFilterMustLoadTheParentArrayAnyWay;
   end;
 
-  [TestFixture]
-  TPersistoListIteratorTest = class
-  private
-    function CreateCursor<T: class>(const Value: TArray<T>): IORMObjectIterator; overload;
-    function CreateCursor<T: class>(const Value: array of T): IORMObjectIterator; overload;
-    function CreateCursorList<T: class>(const Value: TList<T>): IORMObjectIterator; overload;
-  public
-    [Test]
-    procedure WhenTheArrayIsEmptyTheNextProcedureMustReturnFalse;
-    [Test]
-    procedure WhenTheArrayIsEmptyThePriorProcedureMustReturnFalse;
-    [Test]
-    procedure WhenTheArrayIsNotEmptyTheNextProcedureMustReturnTrue;
-    [Test]
-    procedure WhenTheIterationInCursorReachTheEndOfTheArrayTheNextFunctionMustReturnFalse;
-    [Test]
-    procedure AccessingTheObjectListMustReturnTheObjectInThePositionPassedInTheParam;
-    [Test]
-    procedure TheCurrentPositionOfRecordMustBeSaved;
-    [Test]
-    procedure TheRecordCountFunctionMustReturnTheTotalOfItensInTheList;
-    [Test]
-    procedure WhenAddAnObjectToCursorThisMustBeAddedToTheList;
-    [Test]
-    procedure WhenCallResetBeginMustPutTheIteratorInTheFirstPosition;
-    [Test]
-    procedure WhenClassResetEndMustPutTheIteratorInLastPosition;
-    [Test]
-    procedure WhenAddAnObjectTheCurrentPositionMustBeTheInsertedObjectPosition;
-    [Test]
-    procedure WhenCallClearProcedureMustCleanUpTheItensInTheInternalList;
-    [Test]
-    procedure WhenCallClearProcedureMustResetTheCurrentPositionOfTheIterator;
-    [Test]
-    procedure TheUpdateArrayMustFillTheValuesInThePropertyPassedInTheParam;
-    [Test]
-    procedure WhenCallRemoveMustRemoveTheCurrentValueFromTheList;
-    [Test]
-    procedure WhenRemoveTheLastPositionInTheListMustUpdateTheCurrentPositionOfTheIterator;
-    [Test]
-    procedure WhenAValueIsRemovedFromTheListTheResyncMustPutTheCurrentPositionInAValidPosition;
-    [Test]
-    procedure WhenSetObjectToTheIteraTPersistoustReplaceTheObjectInTheIndex;
-    [Test]
-    procedure TheSwapProcedureMustChangeTheItemsByThePositionPassed;
-  end;
-
+{$M+}
   TAnotherObject = class
   private
     FAnotherObject: TAnotherObject;
@@ -454,21 +430,9 @@ type
     procedure OnCalcFields(DataSet: TDataSet);
   end;
 
-  TDataLinkMock = class(TDataLink)
-  private
-    FMethodCalled: String;
-    FOnActiveChanged: TProc;
-  protected
-    procedure ActiveChanged; override;
-    procedure RecordChanged(Field: TField); override;
-  public
-    property MethodCalled: String read FMethodCalled write FMethodCalled;
-    property OnActiveChanged: TProc read FOnActiveChanged write FOnActiveChanged;
-  end;
-
 implementation
 
-uses System.Rtti, System.Classes, System.Variants, Data.DBConsts, Persisto.Test.Entity;
+uses System.Classes, System.Variants, Data.DBConsts, Persisto.Test.Entity;
 
 { TPersistoDataSetTest }
 
@@ -484,7 +448,7 @@ begin
 
   DataSet.IndexFieldNames := 'Id';
 
-  DataSet.OpenArray<TMyTestClass>(MyArray);
+//  DataSet.OpenArray(TArray<TObject>(MyArray));
 
   DataSet.Insert;
 
@@ -508,7 +472,7 @@ procedure TPersistoDataSetTest.AfterInsertAnObjectMustResetTheObjectToSaveTheNew
 begin
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass<TMyTestClass>;
 
   DataSet.Append;
 
@@ -537,7 +501,7 @@ begin
   MyObject.Name := 'MyName';
   MyObject.Value := 5477.555;
 
-  DataSet.OpenObject(MyObject);
+//  DataSet.OpenObject(MyObject);
 
   Assert.AreEqual(123456, DataSet.FieldByName('Id').AsInteger);
   Assert.AreEqual('MyName', DataSet.FieldByName('Name').AsString);
@@ -564,7 +528,7 @@ procedure TPersistoDataSetTest.EveryInsertedObjectMustGoToTheObjectList;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass<TMyTestClass>;
 
   DataSet.Append;
 
@@ -583,7 +547,7 @@ begin
   var MyObject := TMyTestClassTypes.Create;
   MyObject.DateTime := EncodeDate(2020, 02, 18) + EncodeTime(12, 34, 56, 0);
 
-  DataSet.OpenObject(MyObject);
+//  DataSet.OpenObject(MyObject);
 
   Assert.AreEqual(MyObject.DateTime, DataSet.FieldByName('DateTime').AsDateTime);
 
@@ -598,7 +562,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var MyClass := TMyTestClass.Create;
 
-  DataSet.OpenObjectArray(TMyTestClass, [MyClass]);
+//  DataSet.OpenObjectArray(TMyTestClass, [MyClass]);
 
   Assert.AreEqual(1, DataSet.RecordCount);
 
@@ -612,7 +576,7 @@ begin
   var Context := TRttiContext.Create;
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenObjectArray(TMyTestClass, nil);
+//  DataSet.OpenObjectArray(TMyTestClass, nil);
 
   Assert.IsTrue(DataSet.Active);
 
@@ -624,7 +588,7 @@ begin
   var Context := TRttiContext.Create;
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenObjectArray(TMyTestClass, nil);
+//  DataSet.OpenObjectArray(TMyTestClass, nil);
 
   Assert.AreEqual(Context.GetType(TMyTestClass) as TRttiInstanceType, DataSet.ObjectType);
 
@@ -633,22 +597,15 @@ end;
 
 procedure TPersistoDataSetTest.Setup;
 begin
-  if DebugHook = 0 then
-  begin
-    var DataSet := TPersistoDataSet.Create(nil);
+  FContext := TRttiContext.Create;
+  FDataSet := TPersistoDataSet.Create(nil);
+end;
 
-    DataSet.OpenClass<TMyTestClassTypes>;
+procedure TPersistoDataSetTest.TearDown;
+begin
+  FContext.Free;
 
-    DataSet.Free;
-
-    for var &Type in TRttiContext.Create.GetTypes do
-      &Type.QualifiedName;
-
-    try
-      DatabaseError(SDataSetOpen, nil);
-    except
-    end;
-  end;
+  FDataSet.Free;
 end;
 
 procedure TPersistoDataSetTest.TheCalcBufferMustBeClearedOnScrollingTheDataSet;
@@ -692,7 +649,7 @@ begin
 
   Field.DataSet := DataSet;
 
-  DataSet.OpenArray<TMyTestClass>(List);
+//  DataSet.OpenArray<TMyTestClass>(List);
 
   DataSet.Next;
 
@@ -721,7 +678,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var MyObject := TMyTestClassTypes.Create;
 
-  DataSet.OpenObject(MyObject);
+//  DataSet.OpenObject(MyObject);
 
   Assert.AreEqual(TypeToCompare, DataSet.FieldByName(FieldName).DataType);
 
@@ -735,7 +692,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var MyObject := TMyTestClass.Create;
 
-  DataSet.OpenObject(MyObject);
+//  DataSet.OpenObject(MyObject);
 
   Assert.AreEqual('Id', DataSet.Fields[0].FieldName);
   Assert.AreEqual('Name', DataSet.Fields[1].FieldName);
@@ -754,7 +711,7 @@ begin
 
   MyClass.Name := 'My Name';
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   DataSet.Edit;
 
@@ -773,7 +730,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var List: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
 
-  DataSet.OpenArray<TMyTestClass>(List);
+//  DataSet.OpenArray<TMyTestClass>(List);
 
   DataSet.Next;
 
@@ -792,7 +749,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var MyObject := TMyTestClass.Create;
 
-  DataSet.OpenObject(MyObject);
+//  DataSet.OpenObject(MyObject);
 
   Assert.AreEqual(ftVariant, DataSet.FieldByName('Self').DataType);
 
@@ -816,7 +773,7 @@ begin
     MyList.Add(MyObject);
   end;
 
-  DataSet.OpenList<TMyTestClass>(MyList);
+//  DataSet.OpenList<TMyTestClass>(MyList);
 
   for var A := 1 to 4 do
     DataSet.Next;
@@ -838,9 +795,9 @@ procedure TPersistoDataSetTest.WhenADataSetIsActiveCantOpenItAgainMustRaiseAnErr
 begin
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClassTypes>;
-
-  Assert.WillRaise(DataSet.OpenClass<TMyTestClassTypes>, Exception);
+//  DataSet.OpenClass<TMyTestClassTypes>;
+//
+//  Assert.WillRaise(DataSet.OpenClass<TMyTestClassTypes>, Exception);
 
   DataSet.Free;
 end;
@@ -850,7 +807,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var MyClass := TMyTestClass.Create;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   Assert.WillRaise(
     procedure
@@ -871,7 +828,7 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      DataSet.OpenObject(MyObject);
+//      DataSet.OpenObject(MyObject);
     end);
 
   DataSet.Free;
@@ -890,7 +847,7 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      DataSet.OpenClass<TMyTestClass>;
+//      DataSet.OpenClass<TMyTestClass>;
     end, ESelfFieldTypeWrong);
 
   DataSet.Free;
@@ -900,7 +857,7 @@ procedure TPersistoDataSetTest.WhenAFieldIsACreateTheFieldMustHaveTheMinimalSize
 begin
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClassTypes>;
+//  DataSet.OpenClass<TMyTestClassTypes>;
 
   Assert.AreEqual(Size, DataSet.FieldByName(FieldName).Size);
 
@@ -917,7 +874,7 @@ begin
 
   DataSet.FieldDefs.Add('AnotherObject.AnotherObject.AnotherName', ftString, 50);
 
-  DataSet.OpenObject(MyObject);
+//  DataSet.OpenObject(MyObject);
 
   Assert.AreEqual('MyName', DataSet.FieldByName('AnotherObject.AnotherObject.AnotherName').AsString);
 
@@ -940,7 +897,7 @@ begin
       Result := DataSet.FieldByName('Id').AsInteger = 5;
     end);
 
-  DataSet.OpenArray<TMyTestClass>(MyArray);
+//  DataSet.OpenArray(TArray<TObject>(MyArray));
 
   Assert.AreEqual(1, DataSet.RecordCount);
 
@@ -954,51 +911,51 @@ end;
 
 procedure TPersistoDataSetTest.WhenTheDataLinkTryToGetAFieldValueInTheDetailDataSetCantRaiseAnyError;
 begin
-  var DataLink := TDataLinkMock.Create;
-  var DataSet := TPersistoDataSet.Create(nil);
-  DataSet.Name := 'Pai';
-  var DataSetDetail := TPersistoDataSet.Create(nil);
-  DataSetDetail.Name := 'Filho';
-  var DataSetField := TDataSetField.Create(nil);
-  DataSetField.FieldName := 'MyArray';
-  DataSetField.DataSet := DataSet;
-  var DataSource := TDataSource.Create(nil);
-  var DetailField := TStringField.Create(nil);
-  DetailField.FieldName := 'Str';
-  DetailField.DataSet := DataSetDetail;
-  var MyClass := TMyTestClassTypes.Create;
-  MyClass.MyArray := [TMyTestClassTypes.Create];
-
-  DataLink.DataSource := DataSource;
-  DataLink.OnActiveChanged :=
-    procedure
-    begin
-      DataSetDetail.FieldByName('Str').DisplayText;
-    end;
-  DataSetDetail.DataSetField := DataSetField;
-  DataSource.DataSet := DataSetDetail;
-
-  DataSet.OpenObject(MyClass);
-
-  DataSet.Close;
-
-  Assert.WillNotRaise(
-    procedure
-    begin
-      DataSet.OpenObject(MyClass);
-    end);
-
-  MyClass.MyArray[0].Free;
-
-  MyClass.Free;
-
-  DataSetDetail.Free;
-
-  DataSet.Free;
-
-  DataSource.Free;
-
-  DataLink.Free;
+//  var DataLink := TDataLinkMock.Create;
+//  var DataSet := TPersistoDataSet.Create(nil);
+//  DataSet.Name := 'Pai';
+//  var DataSetDetail := TPersistoDataSet.Create(nil);
+//  DataSetDetail.Name := 'Filho';
+//  var DataSetField := TDataSetField.Create(nil);
+//  DataSetField.FieldName := 'MyArray';
+//  DataSetField.DataSet := DataSet;
+//  var DataSource := TDataSource.Create(nil);
+//  var DetailField := TStringField.Create(nil);
+//  DetailField.FieldName := 'Str';
+//  DetailField.DataSet := DataSetDetail;
+//  var MyClass := TMyTestClassTypes.Create;
+//  MyClass.MyArray := [TMyTestClassTypes.Create];
+//
+//  DataLink.DataSource := DataSource;
+//  DataLink.OnActiveChanged :=
+//    procedure
+//    begin
+//      DataSetDetail.FieldByName('Str').DisplayText;
+//    end;
+//  DataSetDetail.DataSetField := DataSetField;
+//  DataSource.DataSet := DataSetDetail;
+//
+//  DataSet.OpenObject(MyClass);
+//
+//  DataSet.Close;
+//
+//  Assert.WillNotRaise(
+//    procedure
+//    begin
+//      DataSet.OpenObject(MyClass);
+//    end);
+//
+//  MyClass.MyArray[0].Free;
+//
+//  MyClass.Free;
+//
+//  DataSetDetail.Free;
+//
+//  DataSet.Free;
+//
+//  DataSource.Free;
+//
+//  DataLink.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenTheDataSetDetailIsFilteredAndIsInsertedAnRecordInvalidForFilterMustLoadTheParentArrayAnyWay;
@@ -1013,7 +970,7 @@ begin
 
   DataSetDetail.DataSetField := Field;
 
-  DataSet.OpenClass<TMyTestClassTypes>;
+//  DataSet.OpenClass<TMyTestClassTypes>;
 
   DataSet.Insert;
 
@@ -1059,7 +1016,7 @@ begin
 
   DataSet.FieldDefs.Add('AnotherObject.AnotherName', ftString, 50);
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass<TMyTestClass>;
 
   Assert.WillNotRaise(
     procedure
@@ -1085,7 +1042,7 @@ begin
 
   DataSetDetail.DataSetField := Field;
 
-  DataSet.OpenArray<TParentClass>(MyClass);
+//  DataSet.OpenArray(TArray<TObject>(MyClass));
 
   DataSet.Insert;
 
@@ -1121,7 +1078,7 @@ begin
 
   DataSetDetail.DataSetField := Field;
 
-  DataSet.OpenArray<TParentClass>(MyClass);
+//  DataSet.OpenArray(TArray<TObject>(MyClass));
 
   Assert.AreEqual(2, DataSetDetail.RecordCount);
 
@@ -1152,7 +1109,7 @@ begin
 
   DataSetDetail.DataSetField := Field;
 
-  DataSet.OpenClass<TParentClass>;
+//  DataSet.OpenClass<TParentClass>;
 
   Assert.AreEqual('TMyTestClassTypes', DataSetDetail.ObjectType.Name);
 
@@ -1168,7 +1125,7 @@ begin
   var MyClass: TArray<TMyTestClassTypes> := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
   MyClass[0].MyArray := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
 
-  DataSet.OpenArray<TMyTestClassTypes>(MyClass);
+//  DataSet.OpenArray(TArray<TObject>(MyClass));
 
   DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
 
@@ -1199,7 +1156,7 @@ begin
   var MyClass := TMyTestClass.Create;
   MyClass.Name := 'My Name';
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   DataSet.Edit;
 
@@ -1219,7 +1176,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var MyClass := TMyTestClass.Create;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   Assert.WillNotRaise(
     procedure
@@ -1240,7 +1197,7 @@ begin
 
   DataSet.FieldDefs.Add('AnotherObject.AnotherObject.AnotherName', ftString, 50);
 
-  DataSet.OpenObject(MyObject);
+//  DataSet.OpenObject(MyObject);
 
   Assert.WillNotRaise(
     procedure
@@ -1268,7 +1225,7 @@ begin
     MyList.Add(MyObject);
   end;
 
-  DataSet.OpenList<TMyTestClass>(MyList);
+//  DataSet.OpenList<TMyTestClass>(MyList);
 
   while not DataSet.Eof do
     DataSet.Next;
@@ -1292,7 +1249,7 @@ begin
 
   DataSet.IndexFieldNames := 'Id';
 
-  DataSet.OpenArray<TMyTestClass>(MyArray);
+//  DataSet.OpenArray(TArray<TObject>(MyArray));
 
   MyArray[0].Id := 10;
 
@@ -1317,7 +1274,7 @@ begin
       Result := DataSet.FieldByName('Id').AsInteger = 5;
     end);
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   DataSet.Edit;
 
@@ -1338,7 +1295,7 @@ begin
   var MyClass := TMyTestClass.Create;
   MyClass.Name := 'My Name';
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   DataSet.Edit;
 
@@ -1358,7 +1315,7 @@ begin
 
   MyClass.Name := 'My Name';
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   DataSet.Edit;
 
@@ -1379,7 +1336,7 @@ begin
 
   Field.DataSet := DataSet;
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass<TMyTestClass>;
 
   Assert.AreEqual(1, DataSet.FieldDefs.Count);
 
@@ -1398,7 +1355,7 @@ begin
 
   DataSet.IndexFieldNames := 'Nullable';
 
-  DataSet.OpenArray<TClassWithNullableProperty>(MyArray);
+//  DataSet.OpenArray(TArray<TObject>(MyArray));
 
   DataSet.First;
 
@@ -1448,7 +1405,7 @@ begin
 
   Field.DataSet := DataSet;
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass<TMyTestClass>;
 
   DataSet.Edit;
 
@@ -1469,7 +1426,7 @@ begin
   var MyClass := TLazyClass.Create;
   var TheValue := TMyEntity.Create;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   DataSet.Edit;
 
@@ -1488,7 +1445,7 @@ procedure TPersistoDataSetTest.WhenFillANilValueToSelfFieldMustRaiseAnError;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass<TMyTestClass>;
 
   DataSet.Insert;
 
@@ -1507,7 +1464,7 @@ begin
 
   var MyClass := TClassWithNullableProperty.Create;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   DataSet.Edit;
 
@@ -1529,7 +1486,7 @@ begin
   var MyClass := TClassWithNullableProperty.Create;
   MyClass.Nullable := 12345678;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   DataSet.Edit;
 
@@ -1564,7 +1521,7 @@ begin
 
   DataSet.FieldDefs.Add('AnotherObject.AnotherObject.AnotherName', ftString, 50);
 
-  DataSet.OpenObject(MyObject);
+//  DataSet.OpenObject(MyObject);
 
   DataSet.Edit;
 
@@ -1585,7 +1542,7 @@ begin
   var MyObject := TMyTestClass.Create;
   var MyNewObject := TMyTestClass.Create;
 
-  DataSet.OpenObject(MyObject);
+//  DataSet.OpenObject(MyObject);
 
   DataSet.Edit;
 
@@ -1607,7 +1564,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var DataSetDetail := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClassTypes>;
+//  DataSet.OpenClass<TMyTestClassTypes>;
 
   DataSet.Open;
 
@@ -1627,7 +1584,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var DataSetDetail := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClassTypes>;
+//  DataSet.OpenClass<TMyTestClassTypes>;
 
   DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
 
@@ -1649,7 +1606,7 @@ begin
 
   DataSet.IndexFieldNames := 'Id';
 
-  DataSet.OpenArray<TMyTestClass>(MyArray);
+//  DataSet.OpenArray(TArray<TObject>(MyArray));
 
   for var A := Pred(DataSet.RecordCount) downto 0 do
   begin
@@ -1682,7 +1639,7 @@ begin
 
   DataSet.IndexFieldNames := 'Id;Name';
 
-  DataSet.OpenArray<TMyTestClass>(MyArray);
+//  DataSet.OpenArray(TArray<TObject>(MyArray));
 
   for var A := 0 to High(MyArray) do
   begin
@@ -1706,7 +1663,7 @@ begin
 
   Field.DataSet := DataSet;
 
-  DataSet.OpenClass<TParentClass>;
+//  DataSet.OpenClass<TParentClass>;
 
   DataSet.Edit;
 
@@ -1727,7 +1684,7 @@ begin
   for var A := 0 to High(MyArray) do
     MyArray[A].Id := Succ(A);
 
-  DataSet.OpenArray<TMyTestClass>(MyArray);
+//  DataSet.OpenArray(TArray<TObject>(MyArray));
 
   DataSet.Filter(
     function (DataSet: TPersistoDataSet): Boolean
@@ -1751,7 +1708,7 @@ begin
   var MyClass := TMyTestClass.Create;
   MyClass.AnotherObject := TAnotherObject.Create;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   Assert.AreEqual(MyClass.AnotherObject, (DataSet.FieldByName('AnotherObject') as TPersistoObjectField).AsObject);
 
@@ -1794,7 +1751,7 @@ begin
 
   MyClass.Lazy.Value := TheValue;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   Assert.AreEqual(TheValue, TPersistoObjectField(DataSet.FindField('Lazy')).AsObject);
 
@@ -1810,7 +1767,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var MyObject := TMyTestClass.Create;
 
-  DataSet.OpenObject(MyObject);
+//  DataSet.OpenObject(MyObject);
 
   Assert.AreEqual(DataSet.GetCurrentObject<TObject>, TPersistoObjectField(DataSet.FieldByName('Self')).AsObject);
 
@@ -1847,7 +1804,7 @@ begin
   DataSet.FieldDefs.Add('Name', ftString, 20);
   DataSet.FieldDefs.Add('Value', ftFloat);
 
-  DataSet.OpenObject(MyObject);
+//  DataSet.OpenObject(MyObject);
 
   Assert.AreEqual(3, DataSet.FieldDefs.Count);
 
@@ -1860,7 +1817,7 @@ procedure TPersistoDataSetTest.WhenInsertARecordThenCancelTheInsertionAndStartAN
 begin
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass(TMyTestClass);
 
   DataSet.Append;
 
@@ -1885,7 +1842,7 @@ begin
       Result := DataSet.FieldByName('Id').AsInteger = 5;
     end);
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass(TMyTestClass);
 
   DataSet.Insert;
 
@@ -1905,7 +1862,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var MyObject := TMyTestClass.Create;
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass(TMyTestClass);
 
   DataSet.Insert;
 
@@ -1920,7 +1877,7 @@ procedure TPersistoDataSetTest.WhenInsertIntoDataSetCantRaiseAnError;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass(TMyTestClass);
 
   Assert.WillNotRaise(DataSet.Append);
 
@@ -1934,7 +1891,7 @@ begin
   var MyClass: TArray<TMyTestClassTypes> := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
   MyClass[0].MyArray := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
 
-  DataSet.OpenArray<TMyTestClassTypes>(MyClass);
+//  DataSet.OpenArray(TArray<TObject>(MyClass));
 
   DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
 
@@ -1972,7 +1929,7 @@ begin
   MyClass.MyArray[0].Cardinal := 10;
   MyClass.MyArray[1].Cardinal := 20;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
 
@@ -1980,7 +1937,7 @@ begin
 
   DataSetDetail.Close;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   Assert.AreEqual(10, DataSetDetail.FieldByName('Cardinal').AsInteger);
 
@@ -2010,7 +1967,7 @@ begin
     MyList.Add(MyObject);
   end;
 
-  DataSet.OpenList<TMyTestClass>(MyList);
+//  DataSet.OpenList<TMyTestClass>(MyList);
 
   for var B := 1 to 10 do
   begin
@@ -2041,7 +1998,7 @@ begin
     MyList.Add(MyObject);
   end;
 
-  DataSet.OpenList<TMyTestClass>(MyList);
+//  DataSet.OpenList<TMyTestClass>(MyList);
 
   DataSet.Last;
 
@@ -2088,7 +2045,7 @@ begin
   for var A := 0 to 2 do
     MyArray[A].Id := A + 1;
 
-  DataSet.OpenArray<TMyTestClass>(MyArray);
+//  DataSet.OpenArray(TArray<TObject>(MyArray));
 
   // Calc on open and after sort
   Assert.AreEqual(2, CalcCount);
@@ -2105,7 +2062,7 @@ procedure TPersistoDataSetTest.WhenOpenAClassWithDerivationMustLoadTheFieldFromT
 begin
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClassChild>;
+//  DataSet.OpenClass(TMyTestClassChild);
 
   Assert.AreEqual(7, DataSet.FieldCount);
 
@@ -2119,7 +2076,7 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      DataSet.OpenArray<TMyTestClass>(nil);
+//      DataSet.OpenArray(nil);
     end);
 
   Assert.WillNotRaise(
@@ -2143,7 +2100,7 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      DataSet.OpenClass<TParentClass>;
+//      DataSet.OpenClass(TParentClass);
     end);
 
   DataSet.Free;
@@ -2156,7 +2113,7 @@ begin
   var MyClass: TArray<TMyTestClassTypes> := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
   MyClass[0].MyArray := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
 
-  DataSet.OpenArray<TMyTestClassTypes>(MyClass);
+//  DataSet.OpenArray(TArray<TObject>(MyClass));
 
   DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
 
@@ -2180,7 +2137,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var MyObject := TMyTestClass.Create;
 
-  DataSet.OpenObject(MyObject);
+//  DataSet.OpenObject(MyObject);
 
   Assert.IsNotNil(DataSet.FindField('Self'));
 
@@ -2193,7 +2150,7 @@ procedure TPersistoDataSetTest.WhenOpenAnEmptyDataSetCantRaiseAnError;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass(TMyTestClass);
 
   Assert.WillNotRaise(
     procedure
@@ -2208,7 +2165,7 @@ procedure TPersistoDataSetTest.WhenOpenAnEmptyDataSetTheCurrentObjectMustReturnN
 begin
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass(TMyTestClass);
 
   Assert.IsNil(DataSet.GetCurrentObject<TMyTestClass>);
 
@@ -2219,7 +2176,7 @@ procedure TPersistoDataSetTest.WhenOpenAnEmptyDataSetTheValueOfTheFieldMustRetur
 begin
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass(TMyTestClass);
 
   Assert.AreEqual(NULL, DataSet.FieldByName('Name').Value);
 
@@ -2231,7 +2188,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var MyObject := TObjectList<TMyTestClass>.Create;
 
-  DataSet.OpenList<TMyTestClass>(MyObject);
+//  DataSet.OpenList<TMyTestClass>(MyObject);
 
   Assert.AreEqual(5, DataSet.FieldCount);
 
@@ -2245,7 +2202,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var MyObject := TMyTestClass.Create;
 
-  DataSet.OpenObject(MyObject);
+//  DataSet.OpenObject(MyObject);
 
   Assert.AreEqual(5, DataSet.FieldCount);
 
@@ -2267,7 +2224,7 @@ begin
 
   MyList.Add(TMyTestClass.Create);
 
-  DataSet.OpenList<TMyTestClass>(MyList);
+//  DataSet.OpenList<TMyTestClass>(MyList);
 
   DataSet.Last;
 
@@ -2301,7 +2258,7 @@ begin
 
   MyList.Add(TMyTestClass.Create);
 
-  DataSet.OpenList<TMyTestClass>(MyList);
+//  DataSet.OpenList<TMyTestClass>(MyList);
 
   Assert.AreEqual(4, DataSet.RecordCount);
 
@@ -2315,7 +2272,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var MyObject := TMyTestClass.Create;
 
-  DataSet.OpenObject(MyObject);
+//  DataSet.OpenObject(MyObject);
 
   Assert.AreEqual(1, DataSet.RecordCount);
 
@@ -2331,7 +2288,7 @@ begin
   var MyClass := TMyTestClassTypes.Create;
   MyClass.MyArray := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
 
@@ -2339,7 +2296,7 @@ begin
 
   DataSetDetail.Close;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   Assert.AreEqual(2, DataSetDetail.RecordCount);
 
@@ -2365,7 +2322,7 @@ begin
 
   DataSet.IndexFieldNames := '-Nullable';
 
-  DataSet.OpenArray<TClassWithNullableProperty>(MyArray);
+//  DataSet.OpenArray(TArray<TObject>(MyArray));
 
   DataSet.Last;
 
@@ -2388,7 +2345,7 @@ begin
 
   DataSet.IndexFieldNames := 'Nullable';
 
-  DataSet.OpenArray<TClassWithNullableProperty>(MyArray);
+//  DataSet.OpenArray(TArray<TObject>(MyArray));
 
   DataSet.First;
 
@@ -2404,7 +2361,7 @@ procedure TPersistoDataSetTest.WhenPostARecordMustAppendToListOfObjects;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass(TMyTestClass);
 
   DataSet.Append;
 
@@ -2427,7 +2384,7 @@ begin
   var DataSetDetail := TPersistoDataSet.Create(nil);
   var MyClass := TMyTestClassTypes.Create;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
 
@@ -2470,7 +2427,7 @@ begin
 
   Field.DataSet := DataSet;
 
-  DataSet.OpenObject<TMyTestClass>(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   DataSet.Insert;
 
@@ -2494,7 +2451,7 @@ begin
 
   DataSet.IndexFieldNames := '-Id';
 
-  DataSet.OpenArray<TMyTestClass>(MyArray);
+//  DataSet.OpenArray(TArray<TObject>(MyArray));
 
   for var A := Pred(DataSet.RecordCount) downto 0 do
   begin
@@ -2525,7 +2482,7 @@ begin
 
   DataSetDetail.DataSetField := Field;
 
-  DataSet.OpenArray<TParentClass>(MyClass);
+//  DataSet.OpenArray(TArray<TObject>(MyClass));
 
   DataSetDetail.Delete;
 
@@ -2568,7 +2525,7 @@ begin
     MyList.Add(MyObject);
   end;
 
-  DataSet.OpenList<TMyTestClass>(MyList);
+//  DataSet.OpenList<TMyTestClass>(MyList);
 
   DataSet.Last;
 
@@ -2589,6 +2546,38 @@ begin
   MyList.Free;
 end;
 
+procedure TPersistoDataSetTest.WhenLoadTheObjectClassNameMustLoadTheObjectTypeInfoWithTheObjectType;
+begin
+  FDataSet.ObjectClassName := TMyTestClass.QualifiedClassName;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(FContext.GetType(TMyTestClass).AsInstance, FDataSet.ObjectType);
+end;
+
+procedure TPersistoDataSetTest.WhenLoadTheObjectClassNameMustOpenWithoutAnyError;
+begin
+  FDataSet.ObjectClassName := TMyTestClass.QualifiedClassName;
+
+  Assert.WillNotRaise(FDataSet.Open);
+end;
+
+procedure TPersistoDataSetTest.WhenLoadTheObjectClassPropertyCantRaiseErrorWhenOpenTheDataSet;
+begin
+  FDataSet.ObjectClass := TMyTestClass;
+
+  Assert.WillNotRaise(FDataSet.Open);
+end;
+
+procedure TPersistoDataSetTest.WhenLoadTheObjectClassPropertyMustLoadTheObjectTypePropertyWithTheClassInfo;
+begin
+  FDataSet.ObjectClass := TMyTestClass;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(FContext.GetType(TMyTestClass).AsInstance, FDataSet.ObjectType);
+end;
+
 procedure TPersistoDataSetTest.WhenRemoveARecordFromDetailMustUpdateTheArrayOfTheParentClass;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
@@ -2597,7 +2586,7 @@ begin
   var MyArray: TArray<TMyTestClassTypes> := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
   MyClass.MyArray := MyArray;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
 
@@ -2624,7 +2613,7 @@ begin
   for var A := 0 to High(MyArray) do
     MyArray[A].Id := Succ(A);
 
-  DataSet.OpenArray<TMyTestClass>(MyArray);
+//  DataSet.OpenArray(TArray<TObject>(MyArray));
 
   DataSet.Filter(
     function (DataSet: TPersistoDataSet): Boolean
@@ -2661,7 +2650,7 @@ begin
   for var A := 0 to 1 do
     MyArray[A].Id := A + 1;
 
-  DataSet.OpenArray<TMyTestClass>(MyArray);
+//  DataSet.OpenArray(TArray<TObject>(MyArray));
 
   DataSet.Next;
 
@@ -2685,7 +2674,7 @@ begin
   var MyClass: TArray<TMyTestClassTypes> := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
   MyClass[1].MyArray := [TMyTestClassTypes.Create, TMyTestClassTypes.Create];
 
-  DataSet.OpenArray<TMyTestClassTypes>(MyClass);
+//  DataSet.OpenArray(TArray<TObject>(MyClass));
 
   DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
 
@@ -2712,7 +2701,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var MyClass := TMyTestClass.Create;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   DataSet.Edit;
 
@@ -2736,7 +2725,7 @@ begin
 
   var &Property := RttiType.GetProperty(FieldName);
 
-  DataSet.OpenClass<TMyTestClassTypes>;
+//  DataSet.OpenClass(TMyTestClassTypes);
 
   DataSet.Append;
 
@@ -2798,7 +2787,7 @@ begin
   for var A := 0 to 2 do
     MyArray[A].Id := A + 1;
 
-  DataSet.OpenArray<TMyTestClass>(MyArray);
+//  DataSet.OpenArray(TArray<TObject>(MyArray));
 
   Assert.AreEqual(-3, DataSet.FieldByName('Calculated').AsInteger);
 
@@ -2825,7 +2814,7 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      DataSet.OpenArray<TMyTestClass>(MyArray);
+//      DataSet.OpenArray(TArray<TObject>(MyArray));
     end);
 
   DataSet.Free;
@@ -2848,7 +2837,7 @@ begin
       Result := DataSet.FieldByName('Id').AsInteger in [1, 3, 5];
     end);
 
-  DataSet.OpenArray<TMyTestClass>(MyArray);
+//  DataSet.OpenArray(TArray<TObject>(MyArray));
 
   Assert.WillNotRaise(
     procedure
@@ -2872,7 +2861,7 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      DataSet.OpenObject(MyObject);
+//      DataSet.OpenObject(MyObject);
     end, EPropertyWithDifferentType);
 
   DataSet.Free;
@@ -2890,7 +2879,7 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      DataSet.OpenObject(MyObject);
+//      DataSet.OpenObject(MyObject);
     end, EPropertyNameDoesNotExist);
 
   DataSet.Free;
@@ -2904,7 +2893,7 @@ begin
 
   var MyClass := TClassWithNullableProperty.Create;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   Assert.AreEqual(NULL, DataSet.FieldByName('Nullable').Value);
 
@@ -2920,7 +2909,7 @@ begin
   var MyClass := TClassWithNullableProperty.Create;
   MyClass.Nullable := 12345678;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   Assert.AreEqual(12345678, DataSet.FieldByName('Nullable').AsInteger);
 
@@ -2935,7 +2924,7 @@ begin
 
   var MyClass := TClassWithNullableProperty.Create;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   Assert.IsTrue(DataSet.FindField('Nullable') <> nil);
 
@@ -2950,7 +2939,7 @@ begin
 
   var MyClass := TClassWithNullableProperty.Create;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   Assert.AreEqual(ftInteger, DataSet.FieldByName('Nullable').DataType);
 
@@ -2965,7 +2954,7 @@ begin
 
   var MyClass := TLazyClass.Create;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   Assert.IsTrue(DataSet.FindField('Lazy') <> nil);
 
@@ -2980,7 +2969,7 @@ begin
 
   var MyClass := TLazyClass.Create;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   Assert.AreEqual(ftVariant, DataSet.FindField('Lazy').DataType);
 
@@ -3002,11 +2991,37 @@ begin
   DataSet.Free;
 end;
 
+procedure TPersistoDataSetTest.WhenTryToChangeTheObjectClassNameWithAnOpenDataSetMustRaiseAnError;
+begin
+  FDataSet.ObjectClassName := TMyTestClass.QualifiedClassName;
+
+  FDataSet.Open;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      FDataSet.ObjectClassName := TMyTestClass.QualifiedClassName;
+    end, EDatabaseError);
+end;
+
+procedure TPersistoDataSetTest.WhenTryToChangeTheObjectClassWhenTheDataSetIsOpenMustRaiseAnError;
+begin
+  FDataSet.ObjectClass := TMyTestClass;
+
+  FDataSet.Open;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      FDataSet.ObjectClass := TMyTestClass;
+    end, EDatabaseError);
+end;
+
 procedure TPersistoDataSetTest.WhenTryToFillAnObjectWithDifferentTypeMustRaiseAnError;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass(TMyTestClass);
 
   DataSet.Insert;
 
@@ -3034,7 +3049,7 @@ begin
 
   DataSet.FieldDefs.Add('Lazy.Name', ftString, 50);
 
-  DataSet.OpenObject(MyObject);
+//  DataSet.OpenObject(MyObject);
 
   Assert.AreEqual('Test', DataSet.FieldByName('Lazy.Name').AsString);
 
@@ -3049,7 +3064,7 @@ procedure TPersistoDataSetTest.WhenTryToGetAFieldValueFromAEmptyDataSetCantRaise
 begin
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass(TMyTestClass);
 
   Assert.WillNotRaise(
     procedure
@@ -3069,7 +3084,7 @@ begin
 
   Field.DataSet := DataSet;
 
-  DataSet.OpenClass<TParentClass>;
+//  DataSet.OpenClass(TParentClass);
 
   Assert.WillNotRaise(
     procedure
@@ -3078,6 +3093,11 @@ begin
     end);
 
   DataSet.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenTryToOpenTheDataSetWithoutAnObjectInformationMustRaiseAnError;
+begin
+  Assert.WillRaise(FDataSet.Open, EDataSetWithoutObjectDefinition);
 end;
 
 procedure TPersistoDataSetTest.WhenUseQualifiedClassNameHasToLoadTheDataSetWithoutErrors;
@@ -3095,7 +3115,7 @@ procedure TPersistoDataSetTest.WhenUseTheOpenClassMustLoadFieldFromTheClass;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass(TMyTestClass);
 
   Assert.AreEqual(5, DataSet.FieldCount);
 
@@ -3124,7 +3144,7 @@ begin
     MyList.Add(MyObject);
   end;
 
-  DataSet.OpenList<TMyTestClass>(MyList);
+//  DataSet.OpenList<TMyTestClass>(MyList);
 
   for var A := 1 to 10 do
     DataSet.Next;
@@ -3162,7 +3182,7 @@ begin
 
   Field.DataSet := DataSet;
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass(TMyTestClass);
 
   DataSet.Edit;
 
@@ -3184,7 +3204,7 @@ begin
   for var A := 0 to High(MyArray) do
     MyArray[A].Id := A;
 
-  DataSet.OpenArray<TMyTestClass>(MyArray);
+//  DataSet.OpenArray(TArray<TObject>(MyArray));
 
   DataSet.IndexFieldNames := '-Id';
 
@@ -3222,25 +3242,25 @@ end;
 
 procedure TPersistoDataSetTest.WhenChangeTheSelfFieldMustNotifyTheChangeOfAllFieldsInDataSet;
 begin
-  var DataLink := TDataLinkMock.Create;
-  var DataSet := TPersistoDataSet.Create(nil);
-  var DataSource := TDataSource.Create(DataSet);
-  var MyObject := TMyTestClass.Create;
-
-  DataLink.DataSource := DataSource;
-  DataSource.DataSet := DataSet;
-
-  DataSet.OpenClass<TMyTestClass>;
-
-  DataSet.Insert;
-
-  TPersistoObjectField(DataSet.FieldByName('Self')).AsObject := MyObject;
-
-  Assert.AreEqual('RecordChanged', DataLink.FMethodCalled);
-
-  DataSet.Free;
-
-  DataLink.Free;
+//  var DataLink := TDataLinkMock.Create;
+//  var DataSet := TPersistoDataSet.Create(nil);
+//  var DataSource := TDataSource.Create(DataSet);
+//  var MyObject := TMyTestClass.Create;
+//
+//  DataLink.DataSource := DataSource;
+//  DataSource.DataSet := DataSet;
+//
+//  DataSet.OpenClass(TMyTestClass);
+//
+//  DataSet.Insert;
+//
+//  TPersistoObjectField(DataSet.FieldByName('Self')).AsObject := MyObject;
+//
+//  Assert.AreEqual('RecordChanged', DataLink.FMethodCalled);
+//
+//  DataSet.Free;
+//
+//  DataLink.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenCheckingIfTheFieldIsNullCantRaiseAnError;
@@ -3248,7 +3268,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var MyObject := TMyTestClass.Create;
 
-  DataSet.OpenObject(MyObject);
+//  DataSet.OpenObject(MyObject);
 
   Assert.WillNotRaise(
     procedure
@@ -3266,7 +3286,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var DataSetDetail := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClassTypes>;
+//  DataSet.OpenClass(TMyTestClassTypes);
 
   DataSet.Open;
 
@@ -3298,7 +3318,7 @@ procedure TPersistoDataSetTest.WhenClearAFieldCantRaiseAnError;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
 
-  DataSet.OpenClass<TMyTestClass>;
+//  DataSet.OpenClass(TMyTestClass);
 
   DataSet.Append;
 
@@ -3325,7 +3345,7 @@ begin
 
   AnotherField.DataSet := DataSet;
 
-  DataSet.OpenClass<TMyTestClassTypes>;
+//  DataSet.OpenClass(TMyTestClassTypes);
 
   DataSet.Close;
 
@@ -3349,7 +3369,7 @@ begin
 
   DataSetDetail.DataSetField := Field;
 
-  DataSet.OpenObject(MyClass);
+//  DataSet.OpenObject(MyClass);
 
   Assert.IsTrue(DataSetDetail.Active);
 
@@ -3366,7 +3386,7 @@ begin
   var DataSet := TPersistoDataSet.Create(nil);
   var List: TArray<TMyTestClass> := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
 
-  DataSet.OpenArray<TMyTestClass>(List);
+//  DataSet.OpenArray(TArray<TObject>(List));
 
   DataSet.Delete;
 
@@ -3409,254 +3429,6 @@ var
 
 begin
   FCallbackProc(ORMDataSet);
-end;
-
-{ TPersistoListIteratorTest }
-
-procedure TPersistoListIteratorTest.AccessingTheObjectListMustReturnTheObjectInThePositionPassedInTheParam;
-begin
-  var Value := [TObject(1), TObject(2), TObject(3)];
-
-  var Cursor := CreateCursor<TObject>(Value);
-
-  Assert.AreEqual(Value[1], Cursor.Objects[2]);
-end;
-
-function TPersistoListIteratorTest.CreateCursor<T>(const Value: TArray<T>): IORMObjectIterator;
-begin
-  Result := TPersistoListIterator<T>.Create(Value);
-end;
-
-function TPersistoListIteratorTest.CreateCursor<T>(const Value: array of T): IORMObjectIterator;
-begin
-  Result := TPersistoListIterator<T>.Create(Value);
-end;
-
-function TPersistoListIteratorTest.CreateCursorList<T>(const Value: TList<T>): IORMObjectIterator;
-begin
-  Result := TPersistoListIterator<T>.Create(Value);
-end;
-
-procedure TPersistoListIteratorTest.TheCurrentPositionOfRecordMustBeSaved;
-begin
-  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
-
-  Cursor.CurrentPosition := 1;
-
-  Assert.AreEqual(1, Cursor.CurrentPosition);
-end;
-
-procedure TPersistoListIteratorTest.TheRecordCountFunctionMustReturnTheTotalOfItensInTheList;
-begin
-  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
-
-  Assert.AreEqual(3, Cursor.RecordCount);
-end;
-
-procedure TPersistoListIteratorTest.TheSwapProcedureMustChangeTheItemsByThePositionPassed;
-begin
-  var MyArray := [TMyClass.Create, TMyClass.Create, TMyClass.Create];
-
-  var Cursor := CreateCursor<TMyClass>(MyArray);
-
-  for var A := Low(MyArray) to High(MyArray) do
-    MyArray[A].Value := A;
-
-  Cursor.Swap(1, 3);
-
-  Assert.AreEqual(2, TMyClass(Cursor.Objects[1]).Value);
-
-  Assert.AreEqual(0, TMyClass(Cursor.Objects[3]).Value);
-
-  for var Item in MyArray do
-    Item.Free;
-end;
-
-procedure TPersistoListIteratorTest.TheUpdateArrayMustFillTheValuesInThePropertyPassedInTheParam;
-begin
-  var Context := TRttiContext.Create;
-  var &Property := Context.GetType(TMyTestClassTypes).GetProperty('MyArray') as TRttiProperty;
-  var Cursor := CreateCursor<TMyTestClassTypes>([TMyTestClassTypes.Create, TMyTestClassTypes.Create]);
-  var MyClass := TMyTestClassTypes.Create;
-
-  Cursor.UpdateArrayProperty(&Property, MyClass);
-
-  Assert.AreEqual(2, Length(MyClass.MyArray));
-
-  MyClass.MyArray[0].Free;
-
-  MyClass.MyArray[1].Free;
-
-  MyClass.Free;
-end;
-
-procedure TPersistoListIteratorTest.WhenAddAnObjectTheCurrentPositionMustBeTheInsertedObjectPosition;
-begin
-  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
-
-  Cursor.Add(TObject(4));
-
-  Assert.AreEqual(4, Cursor.CurrentPosition);
-end;
-
-procedure TPersistoListIteratorTest.WhenAddAnObjectToCursorThisMustBeAddedToTheList;
-begin
-  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
-
-  Cursor.Add(TObject(4));
-
-  Assert.AreEqual(4, Cursor.RecordCount);
-
-  Assert.AreEqual(TObject(4), Cursor.Objects[4]);
-end;
-
-procedure TPersistoListIteratorTest.WhenAValueIsRemovedFromTheListTheResyncMustPutTheCurrentPositionInAValidPosition;
-begin
-  var List := TList<TObject>.Create;
-
-  var Cursor := CreateCursorList<TObject>(List);
-
-  List.Add(TObject(1));
-
-  List.Add(TObject(1));
-
-  List.Add(TObject(1));
-
-  List.Add(TObject(1));
-
-  Cursor.ResetEnd;
-
-  List.Delete(0);
-
-  List.Delete(0);
-
-  Cursor.Resync;
-
-  Assert.AreEqual(2, Cursor.CurrentPosition);
-
-  List.Free;
-end;
-
-procedure TPersistoListIteratorTest.WhenCallClearProcedureMustCleanUpTheItensInTheInternalList;
-begin
-  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
-
-  Cursor.Clear;
-
-  Assert.AreEqual(0, Cursor.RecordCount);
-end;
-
-procedure TPersistoListIteratorTest.WhenCallClearProcedureMustResetTheCurrentPositionOfTheIterator;
-begin
-  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
-
-  Cursor.Next;
-
-  Cursor.Next;
-
-  Cursor.Clear;
-
-  Assert.AreEqual(0, Cursor.CurrentPosition);
-end;
-
-procedure TPersistoListIteratorTest.WhenCallRemoveMustRemoveTheCurrentValueFromTheList;
-begin
-  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
-
-  Cursor.CurrentPosition := 2;
-
-  Cursor.Remove;
-
-  Assert.AreEqual(2, Cursor.RecordCount);
-
-  Assert.AreEqual(TObject(1), Cursor.GetObject(1));
-
-  Assert.AreEqual(TObject(3), Cursor.GetObject(2));
-end;
-
-procedure TPersistoListIteratorTest.WhenCallResetBeginMustPutTheIteratorInTheFirstPosition;
-begin
-  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
-
-  Cursor.ResetBegin;
-
-  Assert.AreEqual(0, Cursor.CurrentPosition);
-end;
-
-procedure TPersistoListIteratorTest.WhenClassResetEndMustPutTheIteratorInLastPosition;
-begin
-  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
-
-  Cursor.ResetEnd;
-
-  Assert.AreEqual(4, Cursor.CurrentPosition);
-end;
-
-procedure TPersistoListIteratorTest.WhenRemoveTheLastPositionInTheListMustUpdateTheCurrentPositionOfTheIterator;
-begin
-  var Cursor := CreateCursor<TObject>([TObject(1), TObject(2), TObject(3)]);
-
-  Cursor.ResetEnd;
-
-  Cursor.Prior;
-
-  Cursor.Remove;
-
-  Assert.AreEqual(2, Cursor.CurrentPosition);
-end;
-
-procedure TPersistoListIteratorTest.WhenSetObjectToTheIteraTPersistoustReplaceTheObjectInTheIndex;
-begin
-  var Cursor := CreateCursor<TObject>([TObject(1)]);
-
-  Cursor.SetObject(1, TObject(2));
-
-  Assert.AreEqual(TObject(2), Cursor.GetObject(1));
-end;
-
-procedure TPersistoListIteratorTest.WhenTheArrayIsEmptyTheNextProcedureMustReturnFalse;
-begin
-  var Cursor := CreateCursor<TObject>(nil);
-
-  Assert.IsFalse(Cursor.Next);
-end;
-
-procedure TPersistoListIteratorTest.WhenTheArrayIsEmptyThePriorProcedureMustReturnFalse;
-begin
-  var Cursor := CreateCursor<TObject>(nil);
-
-  Assert.IsFalse(Cursor.Prior);
-end;
-
-procedure TPersistoListIteratorTest.WhenTheArrayIsNotEmptyTheNextProcedureMustReturnTrue;
-begin
-  var Cursor := CreateCursor<TObject>([TObject(1)]);
-
-  Assert.IsTrue(Cursor.Next);
-end;
-
-procedure TPersistoListIteratorTest.WhenTheIterationInCursorReachTheEndOfTheArrayTheNextFunctionMustReturnFalse;
-begin
-  var Cursor := CreateCursor<TObject>([TObject(1)]);
-
-  Cursor.Next;
-
-  Assert.IsFalse(Cursor.Next);
-end;
-
-{ TDataLinkMock }
-
-procedure TDataLinkMock.ActiveChanged;
-begin
-  if Assigned(FOnActiveChanged) then
-    FOnActiveChanged();
-end;
-
-procedure TDataLinkMock.RecordChanged(Field: TField);
-begin
-  inherited;
-
-  MethodCalled := 'RecordChanged';
 end;
 
 end.

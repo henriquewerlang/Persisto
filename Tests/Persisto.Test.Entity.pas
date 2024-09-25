@@ -5,6 +5,7 @@ interface
 uses System.SysUtils, Persisto.Mapping;
 
 type
+{$M+}
   TMyEntityInheritedFromSimpleClass = class;
 
   [Entity]
