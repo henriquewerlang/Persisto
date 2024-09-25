@@ -134,7 +134,7 @@ begin
 
   var ForeignKeys := FManager.Select.All.From<TDatabaseForeignKey>.Where(Field('Table.Name') = 'ClassWithPrimaryKey').Open.All;
 
-  Assert.AreEqual<NativeInt>(0, Length(ForeignKeys));
+  Assert.AreEqual(0, Length(ForeignKeys));
 end;
 
 procedure TDatabaseSchemaUpdaterTest.IfTheForeignKeyNotExistsInTheDatabaseMustBeCreated;
@@ -147,7 +147,7 @@ begin
 
   var ForeignKeys := FManager.Select.All.From<TDatabaseForeignKey>.Where(Field('Table.Name') = 'InsertTestWithForeignKey').Open.All;
 
-  Assert.AreEqual<NativeInt>(2, Length(ForeignKeys));
+  Assert.AreEqual(2, Length(ForeignKeys));
 end;
 
 procedure TDatabaseSchemaUpdaterTest.IfTheTableDoesntExistsMustCreateAllForeignKeysOfTheTable;
@@ -158,7 +158,7 @@ begin
 
   var ForeignKeys := FManager.Select.All.From<TDatabaseForeignKey>.Where(Field('Table.Name') = 'InsertTestWithForeignKey').Open.All;
 
-  Assert.AreEqual<NativeInt>(2, Length(ForeignKeys));
+  Assert.AreEqual(2, Length(ForeignKeys));
 end;
 
 procedure TDatabaseSchemaUpdaterTest.IfTheTableDontExistsInTheDatabaseMustCreateTheTable;
@@ -291,7 +291,7 @@ begin
 
   var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyClassWithAllFieldsType') and (Field('Name') = 'Float')).Open.One;
 
-  Assert.AreEqual<Integer>(5, Field.Scale);
+  Assert.AreEqual(5, Field.Scale);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenAFieldWithASizeMustCreateTheFieldWithTheSizeOfTheAttribute;
@@ -304,7 +304,7 @@ begin
 
   var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyClassWithAllFieldsType') and (Field('Name') = 'DefaultField')).Open.One;
 
-  Assert.AreEqual<Integer>(30, Field.Size);
+  Assert.AreEqual(30, Field.Size);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenCheckTheSchemaCantRaiseAnyError;
@@ -492,7 +492,7 @@ begin
 
   var Records := FManager.Select.All.From<TMyClass>.Open.All;
 
-  Assert.AreEqual<NativeInt>(3, Length(Records));
+  Assert.AreEqual(3, Length(Records));
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheRecordAlreadyInTheDatabaseMustUpdateTheRecord;
@@ -525,9 +525,9 @@ begin
 
   var Records := FManager.Select.All.From<TMyClass>.OrderBy.Field('Value').Open.All;
 
-  Assert.AreEqual<Integer>(10, Records[0].Value);
-  Assert.AreEqual<Integer>(20, Records[1].Value);
-  Assert.AreEqual<Integer>(30, Records[2].Value);
+  Assert.AreEqual(10, Records[0].Value);
+  Assert.AreEqual(20, Records[1].Value);
+  Assert.AreEqual(30, Records[2].Value);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheRequiredFieldIsAnUniqueIdentifierTheFakeDefaultValueMustBeAGUIDEmpty;
@@ -598,7 +598,7 @@ begin
 
   var Tables := FManager.Select.All.From<TDatabaseTable>.Where(Field('Name') = 'ATableDoesntExists').Open.All;
 
-  Assert.AreEqual<NativeInt>(0, Length(Tables));
+  Assert.AreEqual(0, Length(Tables));
 end;
 
 { TDatabaseManiupulatorMock }

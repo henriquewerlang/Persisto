@@ -113,7 +113,7 @@ procedure TLazyTest.WhenTheLazyValueIsntLoadedMustReturnTheTypeInfoFromTheTypeAs
 begin
   var LazyClass := TLazyClass.Create;
 
-  Assert.AreEqual<PTypeInfo>(TypeInfo(TMyEntity), LazyClass.Lazy.LazyValue.Value.TypeInfo);
+  Assert.AreEqual(TypeInfo(TMyEntity), LazyClass.Lazy.LazyValue.Value.TypeInfo);
 end;
 
 { TLazyValueTest }
@@ -132,7 +132,7 @@ procedure TLazyValueTest.WhenFillTheValueMustReturnTheFilledValue;
 begin
   FLazyValue.Value := 10;
 
-  Assert.AreEqual<Integer>(10, FLazyValue.Value.AsInteger);
+  Assert.AreEqual(10, FLazyValue.Value.AsInteger);
 end;
 
 procedure TLazyValueTest.WhenGetTheKeyOfAnUnloadedLazyFieldMustReturnEmpty;
@@ -144,7 +144,7 @@ procedure TLazyValueTest.WhenTheLazyValueIsUnloadedMustReturnTheValueEmptyButWit
 begin
   FLazyValue := TLazyValue.Create(TypeInfo(TObject));
 
-  Assert.AreEqual<PTypeInfo>(TypeInfo(TObject), FLazyValue.Value.TypeInfo);
+  Assert.AreEqual(TypeInfo(TObject), FLazyValue.Value.TypeInfo);
 end;
 
 { TLazyFactoryObjectTest }
@@ -189,14 +189,14 @@ begin
 
   LazyFactory.Value := 10;
 
-  Assert.AreEqual<Integer>(10, LazyFactory.Value.AsInteger);
+  Assert.AreEqual(10, LazyFactory.Value.AsInteger);
 end;
 
 procedure TLazyFactoryObjectTest.WhenGetTheKeyValueFromTheLazyValueFactoryMustReturnTheValueAsExpected;
 begin
   var LazyFactory := TLazyFactory.Create(nil, nil, 10, nil) as ILazyValue;
 
-  Assert.AreEqual<Integer>(10, LazyFactory.Key.AsInteger);
+  Assert.AreEqual(10, LazyFactory.Key.AsInteger);
 end;
 
 procedure TLazyFactoryObjectTest.WhenTheLazyKeyIsEmptyCantTryToLoadTheValueFromDatabase;
@@ -254,14 +254,14 @@ begin
 
   LazyFactory.Value := 20;
 
-  Assert.AreEqual<Integer>(20, LazyFactory.Value.AsInteger);
+  Assert.AreEqual(20, LazyFactory.Value.AsInteger);
 end;
 
 procedure TLazyFactoryManyValueTest.WhenGetTheKeyValueFromTheLazyValueFactoryMustReturnTheValueAsExpected;
 begin
   var LazyFactory := TLazyFactory.Create(nil, nil, 20, nil) as ILazyValue;
 
-  Assert.AreEqual<Integer>(20, LazyFactory.Key.AsInteger);
+  Assert.AreEqual(20, LazyFactory.Key.AsInteger);
 end;
 
 procedure TLazyFactoryManyValueTest.WhenTheValueIsntLoadedMustLoadTheValueFromDatabase;
@@ -273,7 +273,7 @@ begin
 
   var ArrayValue := LazyFactory.Value.AsType<TArray<TObject>>;
 
-  Assert.AreEqual<NativeInt>(3, Length(ArrayValue));
+  Assert.AreEqual(3, Length(ArrayValue));
 end;
 
 end.

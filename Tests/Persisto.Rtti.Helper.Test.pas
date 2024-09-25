@@ -78,7 +78,7 @@ begin
 
   var Attribute := Context.GetType(TypeInfo(TClassWithAttribute)).GetAttribute<TMyAttribute>;
 
-  Assert.IsNotNull(Attribute);
+  Assert.IsNotNil(Attribute);
 
   Assert.AreEqual(TMyAttribute.ClassName, Attribute.ClassName);
 end;
@@ -145,7 +145,7 @@ begin
 
   Value.ArrayLength := 4;
 
-  Assert.AreEqual<Integer>(4, Length(Value.AsType<TArray<Integer>>));
+  Assert.AreEqual(4, Length(Value.AsType<TArray<Integer>>));
 end;
 
 procedure TValueHelperTest.WhenGetAnArrayElementMustReturnTheValueExpected;
@@ -182,7 +182,7 @@ begin
       var Value := TValue.From(MyConstArray);
 
       Value.ArrayLength := 4;
-    end);
+    end, Exception);
 end;
 
 end.
