@@ -792,9 +792,9 @@ type
     procedure Delete(const &Object: TObject);
     procedure DropDatabase;
     procedure ExectDirect(const SQL: String);
-    procedure Insert(const &Object: TObject);
-    procedure Save(const &Object: TObject);
-    procedure Update(const &Object: TObject);
+    procedure Insert(const Objects: TArray<TObject>);
+    procedure Save(const Objects: TArray<TObject>);
+    procedure Update(const Objects: TArray<TObject>);
     procedure UpdateDatabaseSchema;
 
     property Mapper: TMapper read FMapper;
@@ -3008,8 +3008,7 @@ begin
     end;
 
   for Table in Tables.Values do
-    for var DefaultRecord in Table.DefaultRecords do
-      FManager.Save(DefaultRecord);
+    FManager.Save(Table.DefaultRecords.ToArray);
 
 //  for Table in Tables.Values do
 //  begin
@@ -3229,11 +3228,22 @@ begin
     raise EForeignObjectNotAllowed.Create;
 end;
 
-procedure TManager.Insert(const &Object: TObject);
+procedure TManager.Insert(const Objects: TArray<TObject>);
 begin
   FProcessedObjects.Clear;
 
-  InsertTable(Mapper.GetTable(&Object.ClassType), &Object);
+  var Transaction := FConnection.StartTransaction;
+
+  try
+    for var &Object in Objects do
+      InsertTable(Mapper.GetTable(&Object.ClassType), &Object);
+
+    Transaction.Commit;
+  except
+    Transaction.Rollback;
+
+    raise;
+  end;
 end;
 
 function TManager.InsertTable(const Table: TTable; const &Object: TObject): Boolean;
@@ -3461,11 +3471,22 @@ begin
   Result := FConnection.PrepareCursor(SQL, Params);
 end;
 
-procedure TManager.Save(const &Object: TObject);
+procedure TManager.Save(const Objects: TArray<TObject>);
 begin
   FProcessedObjects.Clear;
 
-  SaveTable(Mapper.GetTable(&Object.ClassType), &Object);
+  var Transaction := FConnection.StartTransaction;
+
+  try
+    for var &Object in Objects do
+      SaveTable(Mapper.GetTable(&Object.ClassType), &Object);
+
+    Transaction.Commit;
+  except
+    Transaction.Rollback;
+
+    raise;
+  end;
 end;
 
 function TManager.SaveTable(const Table: TTable; const &Object: TObject): Boolean;
@@ -3487,11 +3508,22 @@ begin
   Result := FQueryBuilder;
 end;
 
-procedure TManager.Update(const &Object: TObject);
+procedure TManager.Update(const Objects: TArray<TObject>);
 begin
   FProcessedObjects.Clear;
 
-  UpdateTable(Mapper.GetTable(&Object.ClassType), &Object);
+  var Transaction := FConnection.StartTransaction;
+
+  try
+    for var &Object in Objects do
+      UpdateTable(Mapper.GetTable(&Object.ClassType), &Object);
+
+    Transaction.Commit;
+  except
+    Transaction.Rollback;
+
+    raise;
+  end;
 end;
 
 procedure TManager.UpdateDatabaseSchema;

@@ -1135,6 +1135,18 @@ type
     property MyUnique: String read FMyUnique write FMyUnique;
   end;
 
+  [Entity]
+  TEntityWithError = class
+  private
+    FId: String;
+    FError: Integer;
+    function GetError: Integer;
+  published
+    [NewUniqueIdentifier, UniqueIdentifier]
+    property Id: String read FId write FId;
+    property Error: Integer read GetError write FError;
+  end;
+
 implementation
 
 uses System.Internal.ExcUtils;
@@ -1174,6 +1186,16 @@ procedure TClassWithNullableProperty.SetNullable(const Value: Integer);
 begin
   FNullable := Value;
   FNullableStored := True;
+end;
+
+{ TEntityWithError }
+
+function TEntityWithError.GetError: Integer;
+begin
+  Result := FError;
+
+  if FError > 10 then
+    raise Exception.Create('Error');
 end;
 
 end.

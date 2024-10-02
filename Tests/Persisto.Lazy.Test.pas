@@ -233,7 +233,7 @@ begin
   LazyArrayClass.Id := 10;
   LazyArrayClass.LazyArray := [TLazyArrayClassChild.Create, TLazyArrayClassChild.Create, TLazyArrayClassChild.Create];
 
-  FManager.Insert(LazyArrayClass);
+  FManager.Insert([LazyArrayClass]);
 end;
 
 procedure TLazyFactoryManyValueTest.Setup;
