@@ -102,7 +102,7 @@ type
   end;
 
 {$IFDEF DCC}
-  [ComponentPlatformsAttribute(pidWin32 or pidWin64)]
+  [ComponentPlatformsAttribute(pidAllPlatforms)]
 {$ENDIF}
   TPersistoDataSet = class(TDataSet)
   private
