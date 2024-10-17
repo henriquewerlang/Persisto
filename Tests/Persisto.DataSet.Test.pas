@@ -31,7 +31,27 @@ type
     procedure WhenLoadTheObjectClassPropertyMustLoadTheObjectTypePropertyWithTheClassInfo;
     [Test]
     procedure WhenTryToChangeTheObjectClassWhenTheDataSetIsOpenMustRaiseAnError;
-
+    [Test]
+    procedure AfterOpenTheDataSetAndTryToInserMustInsertWithoutAnyError;
+    [Test]
+    procedure WhenPostTheRecordInTheDataSetMustKeepTheObjectInsideTheDataSet;
+    [Test]
+    procedure WhenInsertingARecordTheCurrentObjectMustReturnTheObjectBeenInserted;
+    [Test]
+    procedure WhenFillTheObjectListAndOpenTheDataSetWithAnEmptyArrayMustRaiseError;
+    [Test]
+    procedure WhenFillTheObjectListMustLoadTheObjectClassTypeWithTheObjectClassType;
+    [Test]
+    procedure WhenGetTheObjectListMustReturnTheObjectsFilledInTheList;
+    [Test]
+    procedure WhenFillTheObjectListAndOpenTheDataSetTheRecordCountMustBeEqualTheLengthOfTheObjectList;
+    [Test]
+    procedure IfTheDataSetIsntOpenTheRecordCountMustReturnMinusOneValue;
+    [Test]
+    procedure WhenOpenAnEmptyDataSetTheEOFPropertyMustBeTrue;
+    [Test]
+    procedure WhenOpenTheDataSetWithOneObjectMustReturnFalseInTheEOFProperty;
+    
 
 
     [TTest]
@@ -493,6 +513,15 @@ begin
   DataSet.Free;
 end;
 
+procedure TPersistoDataSetTest.AfterOpenTheDataSetAndTryToInserMustInsertWithoutAnyError;
+begin
+  FDataSet.ObjectClass := TMyTestClass;
+
+  FDataSet.Open;
+
+  Assert.WillNotRaise(FDataSet.Insert);
+end;
+
 procedure TPersistoDataSetTest.AfterOpenTheFieldMustLoadTheValuesFromTheObjectClass;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
@@ -554,6 +583,11 @@ begin
   DataSet.Free;
 
   MyObject.Free;
+end;
+
+procedure TPersistoDataSetTest.IfTheDataSetIsntOpenTheRecordCountMustReturnMinusOneValue;
+begin
+  Assert.AreEqual(-1, FDataSet.RecordCount);
 end;
 
 procedure TPersistoDataSetTest.OpenArrayMustLoadTheObjectListWithTheParamPassed;
@@ -1588,7 +1622,7 @@ begin
 
   DataSetDetail.DataSetField := DataSet.FieldByName('MyArray') as TDataSetField;
 
-  Assert.AreEqual(DataSet, DataSetDetail.ParentDataSet);
+//  Assert.AreEqual(DataSet, DataSetDetail.ParentDataSet);
 
   DataSetDetail.Free;
 
@@ -1652,6 +1686,39 @@ begin
 
   for var Item in MyArray do
     Item.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenFillTheObjectListAndOpenTheDataSetTheRecordCountMustBeEqualTheLengthOfTheObjectList;
+begin
+  var MyObject := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject, MyObject, MyObject];
+
+  FDataSet.Open;
+
+  Assert.AreEqual(3, FDataSet.RecordCount);
+
+  MyObject.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenFillTheObjectListAndOpenTheDataSetWithAnEmptyArrayMustRaiseError;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      FDataSet.Objects := nil;
+    end, EObjectArrayCantBeEmpty);
+end;
+
+procedure TPersistoDataSetTest.WhenFillTheObjectListMustLoadTheObjectClassTypeWithTheObjectClassType;
+begin
+  var MyObject := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject];
+
+  Assert.AreEqual(FDataSet.ObjectClass, MyObject.ClassType);
+
+  MyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenFillTheValueOfACalculatedFieldCantRaiseAnyError;
@@ -1728,6 +1795,18 @@ begin
     end);
 
   DataSet.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenGetTheObjectListMustReturnTheObjectsFilledInTheList;
+begin
+  var MyObject := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject, MyObject, MyObject];
+
+  Assert.AreEqual(3, Length(FDataSet.Objects));
+  Assert.AreEqual(MyObject, FDataSet.Objects[0]);
+
+  MyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenGetTheRecordCountFromAClosedDataSetCantRaiseAnyError;
@@ -1855,6 +1934,15 @@ begin
   DataSet.GetCurrentObject<TMyTestClass>.Free;
 
   DataSet.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenInsertingARecordTheCurrentObjectMustReturnTheObjectBeenInserted;
+begin
+  FDataSet.ObjectClass := TMyTestClass;
+
+  FDataSet.Open;
+
+  Assert.IsNotNil(FDataSet.CurrentObject);
 end;
 
 procedure TPersistoDataSetTest.WhenInsertingMustTheSelfFieldMustReplaceTheCurrentObjectHasExpected;
@@ -2172,6 +2260,15 @@ begin
   DataSet.Free;
 end;
 
+procedure TPersistoDataSetTest.WhenOpenAnEmptyDataSetTheEOFPropertyMustBeTrue;
+begin
+  FDataSet.ObjectClass := TMyTestClass;
+
+  FDataSet.Open;
+
+  Assert.IsTrue(FDataSet.Eof);
+end;
+
 procedure TPersistoDataSetTest.WhenOpenAnEmptyDataSetTheValueOfTheFieldMustReturnNull;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
@@ -2277,6 +2374,19 @@ begin
   Assert.AreEqual(1, DataSet.RecordCount);
 
   DataSet.Free;
+
+  MyObject.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenOpenTheDataSetWithOneObjectMustReturnFalseInTheEOFProperty;
+begin
+  var MyObject := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  Assert.IsFalse(FDataSet.Eof);
 
   MyObject.Free;
 end;
@@ -2409,6 +2519,27 @@ begin
   DataSet.Free;
 
   MyClass.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenPostTheRecordInTheDataSetMustKeepTheObjectInsideTheDataSet;
+begin
+  FDataSet.ObjectClass := TMyTestClass;
+
+  FDataSet.Open;
+
+  FDataSet.Insert;
+
+  FDataSet.Post;
+
+  FDataSet.Insert;
+
+  FDataSet.Post;
+
+  FDataSet.Insert;
+
+  FDataSet.Post;
+
+  Assert.AreEqual(3, FDataSet.RecordCount);
 end;
 
 procedure TPersistoDataSetTest.WhenPutTheDataSetInInsertStateMustClearTheCalculatedFields;
@@ -3294,7 +3425,7 @@ begin
 
   DataSetDetail.DataSetField := nil;
 
-  Assert.IsNil(DataSetDetail.ParentDataSet);
+//  Assert.IsNil(DataSetDetail.ParentDataSet);
 
   DataSetDetail.Free;
 
