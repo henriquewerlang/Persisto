@@ -2588,6 +2588,9 @@ begin
 end;
 
 procedure TManager.GenerateUnit(const FileName: String);
+const
+  FIELD_TYPE: array[TTypeKind] of String = ('', 'Integer', 'Char', '', 'Double', 'String', '', '', '', 'Char', 'String', 'String', '', '', '', '', 'Int64', '', 'String', '', '', '', '');
+
 begin
   ExecuteSchemaScripts;
 
@@ -2612,18 +2615,21 @@ begin
 
   for var Table in Tables do
   begin
-    TheUnit.AppendLine(Format(
-      '''
-        [Entity]
-        T%s = class
-        private
-          FField: Integer;
-          FId: Integer;
-        published
-          property Field: Integer read FField write FField;
-          property Id: Integer read FId write FId;
-        end;
-      ''', [Table.Name]));
+    TheUnit.AppendLine('  [Entity]');
+
+    TheUnit.AppendLine(Format('  T%s = class', [Table.Name]));
+
+    TheUnit.AppendLine('  private');
+
+    for var Field in Table.Fields do
+      TheUnit.AppendLine(Format('    F%s: %s;', [Field.Name, FIELD_TYPE[Field.FieldType]]));
+
+    TheUnit.AppendLine('  published');
+
+    for var Field in Table.Fields do
+      TheUnit.AppendLine(Format('    property %0:s: %1:s read F%0:s write F%0:s;', [Field.Name, FIELD_TYPE[Field.FieldType]]));
+
+    TheUnit.AppendLine('  end;');
 
     TheUnit.AppendLine;
   end;

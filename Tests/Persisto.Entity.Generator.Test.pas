@@ -18,13 +18,31 @@ type
     procedure WhenGenerateTheUnitMustLoadTheFileWithTheTableInTheDatabaseAsExpected;
     [Test]
     procedure WhenTheDatabaseHaveMoreThanOneTableMustLoadAllTablesInTheUnit;
+    [Test]
+    procedure WhenTheTableHasMoreThenTwoFieldMustLoadThenAllInTheClass;
+    [Test]
+    procedure TheTypeOfTheDatabaseFieldMustReflectTheTypeOfThePropertyDeclaration;
   end;
 
 implementation
 
-uses System.IOUtils, Persisto.Test.Connection;
+uses System.SysUtils, System.IOUtils, Persisto.Test.Connection;
 
 const
+  BASE_UNIT =
+  '''
+  unit Entites;
+
+  uses Persisto.Mapping;
+
+  type
+  %s
+
+  implementation
+
+  end.
+
+  ''';
   FILE_ENTITY = '.\Entites.pas';
 
 { TGenerateUnitTeste }
@@ -41,22 +59,37 @@ begin
   RebootDatabase;
 end;
 
-procedure TGenerateUnitTeste.WhenGenerateTheUnitMustLoadTheFileWithTheTableInTheDatabaseAsExpected;
+procedure TGenerateUnitTeste.TheTypeOfTheDatabaseFieldMustReflectTheTypeOfThePropertyDeclaration;
 begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FField: Int64;
+        FId: Int64;
+      published
+        property Field: Int64 read FField write FField;
+        property Id: Int64 read FId write FId;
+      end;
+    ''';
+
   FManager.ExectDirect(
     '''
-      create table MyTable (Id int, Field int)
+      create table MyTable (Field bigint, Id bigint)
     ''');
 
   FManager.GenerateUnit(FILE_ENTITY);
 
-  Assert.AreEqual(
+  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+end;
+
+procedure TGenerateUnitTeste.WhenGenerateTheUnitMustLoadTheFileWithTheTableInTheDatabaseAsExpected;
+begin
+  var MyUnit :=
     '''
-    unit Entites;
-
-    uses Persisto.Mapping;
-
-    type
       TMyTable = class;
 
       [Entity]
@@ -68,33 +101,22 @@ begin
         property Field: Integer read FField write FField;
         property Id: Integer read FId write FId;
       end;
+    ''';
 
-    implementation
-
-    end.
-
-    ''',
-    TFile.ReadAllText(FILE_ENTITY));
-end;
-
-procedure TGenerateUnitTeste.WhenTheDatabaseHaveMoreThanOneTableMustLoadAllTablesInTheUnit;
-begin
   FManager.ExectDirect(
     '''
-      create table MyTable (Id int, Field int);
-      create table MyTable2 (Id int, Field int);
-      create table MyTable3 (Id int, Field int);
+      create table MyTable (Field int, Id int)
     ''');
 
   FManager.GenerateUnit(FILE_ENTITY);
 
-  Assert.AreEqual(
+  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+end;
+
+procedure TGenerateUnitTeste.WhenTheDatabaseHaveMoreThanOneTableMustLoadAllTablesInTheUnit;
+begin
+  var MyUnit :=
     '''
-    unit Entites;
-
-    uses Persisto.Mapping;
-
-    type
       TMyTable = class;
       TMyTable2 = class;
       TMyTable3 = class;
@@ -128,13 +150,49 @@ begin
         property Field: Integer read FField write FField;
         property Id: Integer read FId write FId;
       end;
+    ''';
 
-    implementation
+  FManager.ExectDirect(
+    '''
+      create table MyTable (Field int, Id int);
+      create table MyTable2 (Field int, Id int);
+      create table MyTable3 (Field int, Id int);
+    ''');
 
-    end.
+  FManager.GenerateUnit(FILE_ENTITY);
 
-    ''',
-    TFile.ReadAllText(FILE_ENTITY));
+  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+end;
+
+procedure TGenerateUnitTeste.WhenTheTableHasMoreThenTwoFieldMustLoadThenAllInTheClass;
+begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FField1: Integer;
+        FField2: Integer;
+        FField3: Integer;
+        FId: Integer;
+      published
+        property Field1: Integer read FField1 write FField1;
+        property Field2: Integer read FField2 write FField2;
+        property Field3: Integer read FField3 write FField3;
+        property Id: Integer read FId write FId;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table MyTable (Field1 int, Field2 int, Field3 int, Id int)
+    ''');
+
+  FManager.GenerateUnit(FILE_ENTITY);
+
+  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
 end;
 
 end.
