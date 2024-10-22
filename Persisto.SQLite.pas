@@ -173,13 +173,14 @@ const
   end;
 
 begin
-  Result := ['create table if not exists PersistoDatabaseSequenceWorkArround (sequence integer primary key autoincrement)',
+  Result := ['create table PersistoDatabaseSequenceWorkArround (sequence integer primary key autoincrement)',
     CreateView('Sequence', SEQUENCES_SQL),
     CreateView('Table', TABLE_SQL),
     CreateView('DefaultConstraint', DEFAULT_CONSTRAINT_SQL),
     CreateView('ForeignKey', FOREING_KEY_SQL),
     CreateView('TableField', COLUMNS_SQL),
-    CreateView('PrimaryKeyConstraint', PRIMARY_KEY_CONSTRAINT_SQL)];
+    CreateView('PrimaryKeyConstraint', PRIMARY_KEY_CONSTRAINT_SQL),
+    'drop table PersistoDatabaseSequenceWorkArround'];
 end;
 
 function TDatabaseManipulatorSQLite.GetSpecialFieldType(const Field: TField): String;

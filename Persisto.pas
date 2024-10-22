@@ -710,19 +710,6 @@ type
     property Name: String read FName write FName;
   end;
 
-  TDatabaseSchemaUpdater = class
-  private
-    FDatabaseManipulator: IDatabaseManipulator;
-    FManager: TManager;
-    FManagerSchema: TManager;
-  public
-    constructor Create(const Manager: TManager);
-
-    destructor Destroy; override;
-
-    procedure UpdateDatabase;
-  end;
-
   TDatabaseManipulator = class(TInterfacedObject)
   protected
     function CreateSequence(const Sequence: TSequence): String;
@@ -730,15 +717,6 @@ type
     function IsSQLite: Boolean;
     function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
     function MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
-  end;
-
-  TDatabaseClassGenerator = class
-  private
-    FManager: TManager;
-  public
-    constructor Create(const Manager: TManager);
-
-    procedure GenerateFile(const Destiny: TStream);
   end;
 
   TStateObject = class
@@ -779,6 +757,7 @@ type
 
     procedure AddStateObject(const StateObjectKey: String; const StateObject: TStateObject);
     procedure InternalUpdateTable(const Table: TTable; const &Object: TObject);
+    procedure ExecuteSchemaScripts;
   public
     constructor Create(const Connection: IDatabaseConnection; const DatabaseManipulator: IDatabaseManipulator);
 
@@ -792,6 +771,7 @@ type
     procedure Delete(const &Object: TObject);
     procedure DropDatabase;
     procedure ExectDirect(const SQL: String);
+    procedure GenerateUnit(const FileName: String);
     procedure Insert(const Objects: TArray<TObject>);
     procedure Save(const Objects: TArray<TObject>);
     procedure Update(const Objects: TArray<TObject>);
@@ -804,7 +784,7 @@ function Field(const Name: String): TQueryBuilderComparisonHelper;
 
 implementation
 
-uses System.Variants, System.SysConst, System.Math;
+uses System.Variants, System.SysConst, System.Math, System.IOUtils;
 
 type
   TNameComparer = class(TOrdinalIStringComparer)
@@ -2454,27 +2434,516 @@ begin
   Result := TQueryBuilderOpen<T>.Create(FQueryBuilder);
 end;
 
-{ TDatabaseSchemaUpdater }
+{ TDatabaseManipulator }
 
-constructor TDatabaseSchemaUpdater.Create(const Manager: TManager);
+function TDatabaseManipulator.CreateSequence(const Sequence: TSequence): String;
+begin
+  Result := Format('create sequence %s start with 1', [Sequence.Name]);
+end;
+
+function TDatabaseManipulator.DropSequence(const Sequence: TDatabaseSequence): String;
+begin
+  Result := Format('drop sequence %s', [Sequence.Name]);
+end;
+
+function TDatabaseManipulator.IsSQLite: Boolean;
+begin
+  Result := False;
+end;
+
+function TDatabaseManipulator.MakeInsertStatement(const Table: TTable; const Params: TParams): String;
+begin
+  var FieldNames := EmptyStr;
+  var ParamNames := EmptyStr;
+  var ReturningFields := EmptyStr;
+
+  if Params.Count = 0 then
+    Result := ' default values '
+  else
+  begin
+    for var A := 0 to Pred(Params.Count) do
+    begin
+      var Param := Params[A];
+
+      if not FieldNames.IsEmpty then
+      begin
+        FieldNames := FieldNames + ',';
+        ParamNames := ParamNames + ',';
+      end;
+
+      FieldNames := FieldNames + Param.Name;
+      ParamNames := ParamNames + ':' + Param.Name;
+    end;
+
+    Result := Format('(%s)values(%s)', [FieldNames, ParamNames]);
+  end;
+
+  Result := 'insert into %s' + Result;
+
+  for var Field in Table.ReturningFields do
+  begin
+    if not ReturningFields.IsEmpty then
+      ReturningFields := ReturningFields + ',';
+
+    ReturningFields := ReturningFields + Field.DatabaseName;
+  end;
+
+  if not ReturningFields.IsEmpty then
+    Result := Result + 'returning %s';
+
+  Result := Format(Result, [Table.DatabaseName, ReturningFields]);
+end;
+
+function TDatabaseManipulator.MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
+begin
+  Result := EmptyStr;
+
+  for var A := 0 to Pred(Params.Count) do
+  begin
+    var Param := Params[A];
+
+    if not Table.HasPrimaryKey or (Param.Name <> Table.PrimaryKey.DatabaseName) then
+    begin
+      if not Result.IsEmpty then
+        Result := Result + ',';
+
+      Result := Result + Format('%0:s=:%0:s', [Param.Name]);
+    end;
+  end;
+
+  Result := Format('update %s set %s', [Table.DatabaseName, Result, '']);
+
+  if Table.HasPrimaryKey then
+    Result := Format('%s where %1:s=:%1:s', [Result, Table.PrimaryKey.DatabaseName]);
+end;
+
+{ TManager }
+
+procedure TManager.AddStateObject(const StateObjectKey: String; const StateObject: TStateObject);
+begin
+  FStateObjects.Add(StateObjectKey, StateObject);
+end;
+
+function TManager.BuildStateObjectKey(const Table: TTable; const &Object: TObject): String;
+begin
+  Result := BuildStateObjectKey(Table, Table.PrimaryKey.Value[&Object].AsVariant);
+end;
+
+function TManager.BuildStateObjectKey(const Table: TTable; const PrimaryKeyValue: String): String;
+begin
+  Result := PrimaryKeyValue;
+
+  if not PrimaryKeyValue.IsEmpty then
+    Result := Format('%s.%s', [Table.DatabaseName, PrimaryKeyValue]);
+end;
+
+constructor TManager.Create(const Connection: IDatabaseConnection; const DatabaseManipulator: IDatabaseManipulator);
 begin
   inherited Create;
 
-  FDatabaseManipulator := Manager.FDatabaseManipulator;
-  FManager := Manager;
-  FManagerSchema := TManager.Create(FManager.FConnection, FManager.FDatabaseManipulator);
-
-  Randomize;
+  FConnection := Connection;
+  FDatabaseManipulator := DatabaseManipulator;
+  FMapper := TMapper.Create;
+  FProcessedObjects := TDictionary<TObject, Boolean>.Create;
+  FStateObjects := TObjectDictionary<String, TStateObject>.Create([doOwnsValues]);
 end;
 
-destructor TDatabaseSchemaUpdater.Destroy;
+procedure TManager.CreateDatabase;
 begin
-  FManagerSchema.Free;
+  FConnection.ExecuteScript(FDatabaseManipulator.CreateDatabase(FConnection.DatabaseName));
+end;
+
+procedure TManager.Delete(const &Object: TObject);
+begin
+
+end;
+
+destructor TManager.Destroy;
+begin
+  FProcessedObjects.Free;
+
+  FMapper.Free;
+
+  FQueryBuilder.Free;
+
+  FStateObjects.Free;
 
   inherited;
 end;
 
-procedure TDatabaseSchemaUpdater.UpdateDatabase;
+procedure TManager.DropDatabase;
+begin
+  FConnection.ExecuteScript(FDatabaseManipulator.DropDatabase(FConnection.DatabaseName));
+end;
+
+procedure TManager.ExectDirect(const SQL: String);
+begin
+  FConnection.ExecuteDirect(SQL);
+end;
+
+procedure TManager.ExecuteSchemaScripts;
+begin
+  for var SQL in FDatabaseManipulator.GetSchemaTablesScripts do
+    ExectDirect(SQL);
+end;
+
+procedure TManager.GenerateUnit(const FileName: String);
+begin
+  ExecuteSchemaScripts;
+
+  var TheUnit := TStringBuilder.Create(5000);
+
+  TheUnit.AppendLine(Format('unit %s;', [TPath.GetFileNameWithoutExtension(FileName)]));
+
+  TheUnit.AppendLine;
+
+  TheUnit.AppendLine('uses Persisto.Mapping;');
+
+  TheUnit.AppendLine;
+
+  TheUnit.AppendLine('type');
+
+  var Tables := Select.All.From<TDatabaseTable>.OrderBy.Field('Name').Open.All;
+
+  for var Table in Tables do
+    TheUnit.AppendLine(Format('  T%s = class;', [Table.Name]));
+
+  TheUnit.AppendLine;
+
+  for var Table in Tables do
+  begin
+    TheUnit.AppendLine(Format(
+      '''
+        [Entity]
+        T%s = class
+        private
+          FField: Integer;
+          FId: Integer;
+        published
+          property Field: Integer read FField write FField;
+          property Id: Integer read FId write FId;
+        end;
+      ''', [Table.Name]));
+
+    TheUnit.AppendLine;
+  end;
+
+  TheUnit.AppendLine('implementation');
+
+  TheUnit.AppendLine;
+
+  TheUnit.AppendLine('end.');
+
+  TFile.WriteAllText(FileName, TheUnit.ToString);
+
+  TheUnit.Free;
+end;
+
+function TManager.GetStateObject(const Table: TTable; const &Object: TObject): TStateObject;
+begin
+  if not LoadStateObject(Table, &Object, Result) then
+    raise EForeignObjectNotAllowed.Create;
+end;
+
+procedure TManager.Insert(const Objects: TArray<TObject>);
+begin
+  FProcessedObjects.Clear;
+
+  var Transaction := FConnection.StartTransaction;
+
+  try
+    for var &Object in Objects do
+      InsertTable(Mapper.GetTable(&Object.ClassType), &Object);
+
+    Transaction.Commit;
+  except
+    Transaction.Rollback;
+
+    raise;
+  end;
+end;
+
+function TManager.InsertTable(const Table: TTable; const &Object: TObject): Boolean;
+var
+  DelayedSave: TArray<TField>;
+  FieldValue: TValue;
+  HasManyValueAssociationFields: Boolean;
+  StateObject: TStateObject;
+
+  procedure SaveForeignTable(const Field: TField);
+  begin
+    try
+      if not SaveTable(Field.ForeignKey.ParentTable, FieldValue.AsObject) then
+        raise ERecursionInsertionError.Create(Field.ForeignKey.ParentTable.Name);
+    except
+      on E: ERecursionInsertionError do
+        raise ERecursionInsertionError.Create(Table.Name + '->' + E.RecursionTree);
+    end;
+  end;
+
+  procedure DoInsertTable(const Table: TTable; const &Object: TObject);
+  begin
+    var Field: TField;
+    var FieldIndex := 0;
+    var Params := TParams.Create(nil);
+
+    try
+      if Assigned(Table.BaseTable) then
+        DoInsertTable(Table.BaseTable, &Object);
+
+      for Field in Table.Fields do
+        if not Field.AutoGenerated then
+          if Field.IsManyValueAssociation then
+            HasManyValueAssociationFields := True
+          else if Field.IsForeignKey and not Field.Required then
+            DelayedSave := DelayedSave + [Field]
+          else
+          begin
+            if Field.HasValue(&Object, FieldValue) and Field.IsForeignKey then
+            begin
+              SaveForeignTable(Field);
+
+              FieldValue := Field.ForeignKey.ParentTable.PrimaryKey.Value[FieldValue.AsObject];
+            end;
+
+            Params.AddParam(Field, FieldValue.AsVariant);
+
+            StateObject.OldValue[Field] := FieldValue;
+          end;
+
+      var Cursor := FConnection.PrepareCursor(FDatabaseManipulator.MakeInsertStatement(Table, Params), Params);
+
+      Cursor.Next;
+
+      for Field in Table.ReturningFields do
+      begin
+        FieldValue := GetFieldValue(Field, Cursor.GetDataSet.Fields[FieldIndex]);
+
+        Field.Value[&Object] := FieldValue;
+        StateObject.OldValue[Field] := FieldValue;
+
+        Inc(FieldIndex);
+      end;
+    finally
+      Params.Free;
+    end;
+  end;
+
+begin
+  if not FProcessedObjects.TryGetValue(&Object, Result) then
+  begin
+    DelayedSave := nil;
+    var Field: TField;
+    HasManyValueAssociationFields := False;
+    Result := True;
+    StateObject := TStateObject.Create(Table);
+
+    FProcessedObjects.Add(&Object, False);
+
+    try
+      DoInsertTable(Table, &Object);
+    except
+      StateObject.Free;
+
+      raise;
+    end;
+
+    AddStateObject(BuildStateObjectKey(Table, &Object), StateObject);
+
+    FProcessedObjects[&Object] := Result;
+
+    if (DelayedSave <> nil) or HasManyValueAssociationFields then
+    begin
+      for Field in DelayedSave do
+        if Field.HasValue(&Object, FieldValue) then
+          SaveForeignTable(Field);
+
+      InternalUpdateTable(Table, &Object);
+    end;
+  end;
+end;
+
+procedure TManager.InternalUpdateTable(const Table: TTable; const &Object: TObject);
+var
+  StateObject: TStateObject;
+
+  procedure DoUpdateTable(const Table: TTable; const &Object: TObject);
+  var
+    Params: TParams;
+
+  begin
+    Params := TParams.Create(nil);
+    var FieldValue: TValue;
+
+    try
+      if Assigned(Table.BaseTable) then
+        DoUpdateTable(Table.BaseTable, &Object);
+
+      for var Field in Table.Fields do
+      begin
+        if Field.HasValue(&Object, FieldValue) and Field.IsForeignKey then
+        begin
+          var ForeignObject := FieldValue.AsObject;
+
+          SaveTable(Field.ForeignKey.ParentTable, ForeignObject);
+
+          FieldValue := Field.ForeignKey.ParentTable.PrimaryKey.Value[ForeignObject];
+        end;
+
+        if Field.IsManyValueAssociation then
+          for var A := 0 to Pred(FieldValue.ArrayLength) do
+          begin
+            Field.ManyValueAssociation.ChildField.Value[FieldValue.ArrayElement[A].AsObject] := &Object;
+
+            SaveTable(Field.ManyValueAssociation.ChildTable, FieldValue.ArrayElement[A].AsObject)
+          end
+        else if StateObject.OldValue[Field].AsVariant <> FieldValue.AsVariant then
+          Params.AddParam(Field, FieldValue.AsVariant);
+      end;
+
+      if Params.Count > 0 then
+      begin
+        Params.AddParam(Table.PrimaryKey, Table.PrimaryKey.Value[&Object].AsVariant);
+
+        FConnection.PrepareCursor(FDatabaseManipulator.MakeUpdateStatement(Table, Params), Params).Next;
+      end;
+    finally
+      Params.Free;
+    end;
+  end;
+
+begin
+  StateObject := GetStateObject(Table, &Object);
+
+  DoUpdateTable(Table, &Object);
+end;
+
+function TManager.LoadStateObject(const Table: TTable; const &Object: TObject; var StateObject: TStateObject): Boolean;
+begin
+  Result := FStateObjects.TryGetValue(BuildStateObjectKey(Table, &Object), StateObject);
+
+  if not Result then
+  begin
+    var Comma := EmptyStr;
+    var Params := TParams.Create;
+    var PrimaryKey := Table.PrimaryKey;
+    var SQL := TStringBuilder.Create;
+
+    Params.AddParam(PrimaryKey, PrimaryKey.Value[&Object].AsVariant);
+
+    SQL.Append('select ');
+
+    for var Field in Table.Fields do
+      if not Field.IsManyValueAssociation then
+      begin
+        SQL.Append(Comma);
+
+        SQL.Append(Field.DatabaseName);
+
+        Comma := ', ';
+      end;
+
+    SQL.Append(' from ');
+
+    SQL.Append(Table.DatabaseName);
+
+    SQL.Append(' where ');
+
+    SQL.Append(PrimaryKey.DatabaseName);
+
+    SQL.Append(' = :');
+
+    SQL.Append(PrimaryKey.DatabaseName);
+
+    var Cursor := FConnection.PrepareCursor(SQL.ToString, Params);
+
+    Result := Cursor.Next;
+
+    if Result then
+    begin
+      StateObject := TStateObject.Create(Table);
+
+      var DataSet := Cursor.GetDataSet;
+
+      for var Field in Table.Fields do
+        if not Field.IsManyValueAssociation then
+          StateObject.OldValue[Field] := TValue.From(DataSet.FieldByName(Field.DatabaseName).Value);
+
+      AddStateObject(BuildStateObjectKey(Table, &Object), StateObject);
+    end;
+
+    SQL.Free;
+
+    Params.Free;
+  end;
+end;
+
+function TManager.OpenCursor(const SQL: String): IDatabaseCursor;
+begin
+  Result := FConnection.OpenCursor(SQL);
+end;
+
+function TManager.PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
+begin
+  Result := FConnection.PrepareCursor(SQL, Params);
+end;
+
+procedure TManager.Save(const Objects: TArray<TObject>);
+begin
+  FProcessedObjects.Clear;
+
+  var Transaction := FConnection.StartTransaction;
+
+  try
+    for var &Object in Objects do
+      SaveTable(Mapper.GetTable(&Object.ClassType), &Object);
+
+    Transaction.Commit;
+  except
+    Transaction.Rollback;
+
+    raise;
+  end;
+end;
+
+function TManager.SaveTable(const Table: TTable; const &Object: TObject): Boolean;
+var
+  StateObject: TStateObject;
+
+begin
+  if LoadStateObject(Table, &Object, StateObject) then
+    Result := UpdateTable(Table, &Object)
+  else
+    Result := InsertTable(Table, &Object);
+end;
+
+function TManager.Select: TQueryBuilder;
+begin
+  FQueryBuilder.Free;
+
+  FQueryBuilder := TQueryBuilder.Create(Self);
+  Result := FQueryBuilder;
+end;
+
+procedure TManager.Update(const Objects: TArray<TObject>);
+begin
+  FProcessedObjects.Clear;
+
+  var Transaction := FConnection.StartTransaction;
+
+  try
+    for var &Object in Objects do
+      UpdateTable(Mapper.GetTable(&Object.ClassType), &Object);
+
+    Transaction.Commit;
+  except
+    Transaction.Rollback;
+
+    raise;
+  end;
+end;
+
+procedure TManager.UpdateDatabaseSchema;
 var
   Comparer: TNameComparer;
   DatabaseField: TDatabaseField;
@@ -2495,13 +2964,7 @@ var
 
   procedure ExecuteDirect(const SQL: String);
   begin
-    FManager.ExectDirect(SQL);
-  end;
-
-  procedure ExecuteSchemarScripts(const Scripts: TArray<String>);
-  begin
-    for var SQL in Scripts do
-      FManagerSchema.ExectDirect(SQL);
+    ExectDirect(SQL);
   end;
 
   procedure ExecuteSQL;
@@ -2941,10 +3404,10 @@ var
     DatabaseTables := TDictionary<String, TDatabaseTable>.Create(Comparer);
     Tables := TDictionary<String, TTable>.Create(Comparer);
 
-    for var Table in FManager.Mapper.Tables do
+    for var Table in Mapper.Tables do
       Tables.Add(Table.DatabaseName, Table);
 
-    for var DatabaseTable in FManagerSchema.Select.All.From<TDatabaseTable>.Open.All do
+    for var DatabaseTable in Select.All.From<TDatabaseTable>.Open.All do
       DatabaseTables.Add(DatabaseTable.Name, DatabaseTable);
   end;
 
@@ -2953,10 +3416,10 @@ var
     DatabaseSequences := TDictionary<String, TDatabaseSequence>.Create(Comparer);
     Sequences := TDictionary<String, TSequence>.Create(Comparer);
 
-    for var DatabaseSequence in FManagerSchema.Select.All.From<TDatabaseSequence>.Open.All do
+    for var DatabaseSequence in Select.All.From<TDatabaseSequence>.Open.All do
       DatabaseSequences.Add(DatabaseSequence.Name, DatabaseSequence);
 
-    for var Sequence in FManager.Mapper.Sequences do
+    for var Sequence in Mapper.Sequences do
       Sequences.Add(Sequence.Name, Sequence);
   end;
 
@@ -2965,11 +3428,13 @@ begin
   RecreateTables := TDictionary<TTable, TDatabaseTable>.Create;
   SQL := TStringBuilder.Create(5000);
 
-  ExecuteSchemarScripts(FDatabaseManipulator.GetSchemaTablesScripts);
+  ExecuteSchemaScripts;
 
   LoadTables;
 
   LoadSequences;
+
+  Randomize;
 
   for Sequence in Sequences.Values do
     if not DatabaseSequences.TryGetValue(Sequence.Name, DatabaseSequence) then
@@ -3008,7 +3473,7 @@ begin
     end;
 
   for Table in Tables.Values do
-    FManager.Save(Table.DefaultRecords.ToArray);
+    Save(Table.DefaultRecords.ToArray);
 
 //  for Table in Tables.Values do
 //  begin
@@ -3073,468 +3538,6 @@ begin
   SQL.Free;
 
   Comparer.Free;
-end;
-
-{ TDatabaseManipulator }
-
-function TDatabaseManipulator.CreateSequence(const Sequence: TSequence): String;
-begin
-  Result := Format('create sequence %s start with 1', [Sequence.Name]);
-end;
-
-function TDatabaseManipulator.DropSequence(const Sequence: TDatabaseSequence): String;
-begin
-  Result := Format('drop sequence %s', [Sequence.Name]);
-end;
-
-function TDatabaseManipulator.IsSQLite: Boolean;
-begin
-  Result := False;
-end;
-
-function TDatabaseManipulator.MakeInsertStatement(const Table: TTable; const Params: TParams): String;
-begin
-  var FieldNames := EmptyStr;
-  var ParamNames := EmptyStr;
-  var ReturningFields := EmptyStr;
-
-  if Params.Count = 0 then
-    Result := ' default values '
-  else
-  begin
-    for var A := 0 to Pred(Params.Count) do
-    begin
-      var Param := Params[A];
-
-      if not FieldNames.IsEmpty then
-      begin
-        FieldNames := FieldNames + ',';
-        ParamNames := ParamNames + ',';
-      end;
-
-      FieldNames := FieldNames + Param.Name;
-      ParamNames := ParamNames + ':' + Param.Name;
-    end;
-
-    Result := Format('(%s)values(%s)', [FieldNames, ParamNames]);
-  end;
-
-  Result := 'insert into %s' + Result;
-
-  for var Field in Table.ReturningFields do
-  begin
-    if not ReturningFields.IsEmpty then
-      ReturningFields := ReturningFields + ',';
-
-    ReturningFields := ReturningFields + Field.DatabaseName;
-  end;
-
-  if not ReturningFields.IsEmpty then
-    Result := Result + 'returning %s';
-
-  Result := Format(Result, [Table.DatabaseName, ReturningFields]);
-end;
-
-function TDatabaseManipulator.MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
-begin
-  Result := EmptyStr;
-
-  for var A := 0 to Pred(Params.Count) do
-  begin
-    var Param := Params[A];
-
-    if not Table.HasPrimaryKey or (Param.Name <> Table.PrimaryKey.DatabaseName) then
-    begin
-      if not Result.IsEmpty then
-        Result := Result + ',';
-
-      Result := Result + Format('%0:s=:%0:s', [Param.Name]);
-    end;
-  end;
-
-  Result := Format('update %s set %s', [Table.DatabaseName, Result, '']);
-
-  if Table.HasPrimaryKey then
-    Result := Format('%s where %1:s=:%1:s', [Result, Table.PrimaryKey.DatabaseName]);
-end;
-
-{ TManager }
-
-procedure TManager.AddStateObject(const StateObjectKey: String; const StateObject: TStateObject);
-begin
-  FStateObjects.Add(StateObjectKey, StateObject);
-end;
-
-function TManager.BuildStateObjectKey(const Table: TTable; const &Object: TObject): String;
-begin
-  Result := BuildStateObjectKey(Table, Table.PrimaryKey.Value[&Object].AsVariant);
-end;
-
-function TManager.BuildStateObjectKey(const Table: TTable; const PrimaryKeyValue: String): String;
-begin
-  Result := PrimaryKeyValue;
-
-  if not PrimaryKeyValue.IsEmpty then
-    Result := Format('%s.%s', [Table.DatabaseName, PrimaryKeyValue]);
-end;
-
-constructor TManager.Create(const Connection: IDatabaseConnection; const DatabaseManipulator: IDatabaseManipulator);
-begin
-  inherited Create;
-
-  FConnection := Connection;
-  FDatabaseManipulator := DatabaseManipulator;
-  FMapper := TMapper.Create;
-  FProcessedObjects := TDictionary<TObject, Boolean>.Create;
-  FStateObjects := TObjectDictionary<String, TStateObject>.Create([doOwnsValues]);
-end;
-
-procedure TManager.CreateDatabase;
-begin
-  FConnection.ExecuteScript(FDatabaseManipulator.CreateDatabase(FConnection.DatabaseName));
-end;
-
-procedure TManager.Delete(const &Object: TObject);
-begin
-
-end;
-
-destructor TManager.Destroy;
-begin
-  FProcessedObjects.Free;
-
-  FMapper.Free;
-
-  FQueryBuilder.Free;
-
-  FStateObjects.Free;
-
-  inherited;
-end;
-
-procedure TManager.DropDatabase;
-begin
-  FConnection.ExecuteScript(FDatabaseManipulator.DropDatabase(FConnection.DatabaseName));
-end;
-
-procedure TManager.ExectDirect(const SQL: String);
-begin
-  FConnection.ExecuteDirect(SQL);
-end;
-
-function TManager.GetStateObject(const Table: TTable; const &Object: TObject): TStateObject;
-begin
-  if not LoadStateObject(Table, &Object, Result) then
-    raise EForeignObjectNotAllowed.Create;
-end;
-
-procedure TManager.Insert(const Objects: TArray<TObject>);
-begin
-  FProcessedObjects.Clear;
-
-  var Transaction := FConnection.StartTransaction;
-
-  try
-    for var &Object in Objects do
-      InsertTable(Mapper.GetTable(&Object.ClassType), &Object);
-
-    Transaction.Commit;
-  except
-    Transaction.Rollback;
-
-    raise;
-  end;
-end;
-
-function TManager.InsertTable(const Table: TTable; const &Object: TObject): Boolean;
-var
-  DelayedSave: TArray<TField>;
-  FieldValue: TValue;
-  HasManyValueAssociationFields: Boolean;
-  StateObject: TStateObject;
-
-  procedure SaveForeignTable(const Field: TField);
-  begin
-    try
-      if not SaveTable(Field.ForeignKey.ParentTable, FieldValue.AsObject) then
-        raise ERecursionInsertionError.Create(Field.ForeignKey.ParentTable.Name);
-    except
-      on E: ERecursionInsertionError do
-        raise ERecursionInsertionError.Create(Table.Name + '->' + E.RecursionTree);
-    end;
-  end;
-
-  procedure DoInsertTable(const Table: TTable; const &Object: TObject);
-  begin
-    var Field: TField;
-    var FieldIndex := 0;
-    var Params := TParams.Create(nil);
-
-    try
-      if Assigned(Table.BaseTable) then
-        DoInsertTable(Table.BaseTable, &Object);
-
-      for Field in Table.Fields do
-        if not Field.AutoGenerated then
-          if Field.IsManyValueAssociation then
-            HasManyValueAssociationFields := True
-          else if Field.IsForeignKey and not Field.Required then
-            DelayedSave := DelayedSave + [Field]
-          else
-          begin
-            if Field.HasValue(&Object, FieldValue) and Field.IsForeignKey then
-            begin
-              SaveForeignTable(Field);
-
-              FieldValue := Field.ForeignKey.ParentTable.PrimaryKey.Value[FieldValue.AsObject];
-            end;
-
-            Params.AddParam(Field, FieldValue.AsVariant);
-
-            StateObject.OldValue[Field] := FieldValue;
-          end;
-
-      var Cursor := FConnection.PrepareCursor(FDatabaseManipulator.MakeInsertStatement(Table, Params), Params);
-
-      Cursor.Next;
-
-      for Field in Table.ReturningFields do
-      begin
-        FieldValue := GetFieldValue(Field, Cursor.GetDataSet.Fields[FieldIndex]);
-
-        Field.Value[&Object] := FieldValue;
-        StateObject.OldValue[Field] := FieldValue;
-
-        Inc(FieldIndex);
-      end;
-    finally
-      Params.Free;
-    end;
-  end;
-
-begin
-  if not FProcessedObjects.TryGetValue(&Object, Result) then
-  begin
-    DelayedSave := nil;
-    var Field: TField;
-    HasManyValueAssociationFields := False;
-    Result := True;
-    StateObject := TStateObject.Create(Table);
-
-    FProcessedObjects.Add(&Object, False);
-
-    try
-      DoInsertTable(Table, &Object);
-    except
-      StateObject.Free;
-
-      raise;
-    end;
-
-    AddStateObject(BuildStateObjectKey(Table, &Object), StateObject);
-
-    FProcessedObjects[&Object] := Result;
-
-    if (DelayedSave <> nil) or HasManyValueAssociationFields then
-    begin
-      for Field in DelayedSave do
-        if Field.HasValue(&Object, FieldValue) then
-          SaveForeignTable(Field);
-
-      InternalUpdateTable(Table, &Object);
-    end;
-  end;
-end;
-
-procedure TManager.InternalUpdateTable(const Table: TTable; const &Object: TObject);
-var
-  StateObject: TStateObject;
-
-  procedure DoUpdateTable(const Table: TTable; const &Object: TObject);
-  var
-    Params: TParams;
-
-  begin
-    Params := TParams.Create(nil);
-    var FieldValue: TValue;
-
-    try
-      if Assigned(Table.BaseTable) then
-        DoUpdateTable(Table.BaseTable, &Object);
-
-      for var Field in Table.Fields do
-      begin
-        if Field.HasValue(&Object, FieldValue) and Field.IsForeignKey then
-        begin
-          var ForeignObject := FieldValue.AsObject;
-
-          SaveTable(Field.ForeignKey.ParentTable, ForeignObject);
-
-          FieldValue := Field.ForeignKey.ParentTable.PrimaryKey.Value[ForeignObject];
-        end;
-
-        if Field.IsManyValueAssociation then
-          for var A := 0 to Pred(FieldValue.ArrayLength) do
-          begin
-            Field.ManyValueAssociation.ChildField.Value[FieldValue.ArrayElement[A].AsObject] := &Object;
-
-            SaveTable(Field.ManyValueAssociation.ChildTable, FieldValue.ArrayElement[A].AsObject)
-          end
-        else if StateObject.OldValue[Field].AsVariant <> FieldValue.AsVariant then
-          Params.AddParam(Field, FieldValue.AsVariant);
-      end;
-
-      if Params.Count > 0 then
-      begin
-        Params.AddParam(Table.PrimaryKey, Table.PrimaryKey.Value[&Object].AsVariant);
-
-        FConnection.PrepareCursor(FDatabaseManipulator.MakeUpdateStatement(Table, Params), Params).Next;
-      end;
-    finally
-      Params.Free;
-    end;
-  end;
-
-begin
-  StateObject := GetStateObject(Table, &Object);
-
-  DoUpdateTable(Table, &Object);
-end;
-
-function TManager.LoadStateObject(const Table: TTable; const &Object: TObject; var StateObject: TStateObject): Boolean;
-begin
-  Result := FStateObjects.TryGetValue(BuildStateObjectKey(Table, &Object), StateObject);
-
-  if not Result then
-  begin
-    var Comma := EmptyStr;
-    var Params := TParams.Create;
-    var PrimaryKey := Table.PrimaryKey;
-    var SQL := TStringBuilder.Create;
-
-    Params.AddParam(PrimaryKey, PrimaryKey.Value[&Object].AsVariant);
-
-    SQL.Append('select ');
-
-    for var Field in Table.Fields do
-      if not Field.IsManyValueAssociation then
-      begin
-        SQL.Append(Comma);
-
-        SQL.Append(Field.DatabaseName);
-
-        Comma := ', ';
-      end;
-
-    SQL.Append(' from ');
-
-    SQL.Append(Table.DatabaseName);
-
-    SQL.Append(' where ');
-
-    SQL.Append(PrimaryKey.DatabaseName);
-
-    SQL.Append(' = :');
-
-    SQL.Append(PrimaryKey.DatabaseName);
-
-    var Cursor := FConnection.PrepareCursor(SQL.ToString, Params);
-
-    Result := Cursor.Next;
-
-    if Result then
-    begin
-      StateObject := TStateObject.Create(Table);
-
-      var DataSet := Cursor.GetDataSet;
-
-      for var Field in Table.Fields do
-        if not Field.IsManyValueAssociation then
-          StateObject.OldValue[Field] := TValue.From(DataSet.FieldByName(Field.DatabaseName).Value);
-
-      AddStateObject(BuildStateObjectKey(Table, &Object), StateObject);
-    end;
-
-    SQL.Free;
-
-    Params.Free;
-  end;
-end;
-
-function TManager.OpenCursor(const SQL: String): IDatabaseCursor;
-begin
-  Result := FConnection.OpenCursor(SQL);
-end;
-
-function TManager.PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
-begin
-  Result := FConnection.PrepareCursor(SQL, Params);
-end;
-
-procedure TManager.Save(const Objects: TArray<TObject>);
-begin
-  FProcessedObjects.Clear;
-
-  var Transaction := FConnection.StartTransaction;
-
-  try
-    for var &Object in Objects do
-      SaveTable(Mapper.GetTable(&Object.ClassType), &Object);
-
-    Transaction.Commit;
-  except
-    Transaction.Rollback;
-
-    raise;
-  end;
-end;
-
-function TManager.SaveTable(const Table: TTable; const &Object: TObject): Boolean;
-var
-  StateObject: TStateObject;
-
-begin
-  if LoadStateObject(Table, &Object, StateObject) then
-    Result := UpdateTable(Table, &Object)
-  else
-    Result := InsertTable(Table, &Object);
-end;
-
-function TManager.Select: TQueryBuilder;
-begin
-  FQueryBuilder.Free;
-
-  FQueryBuilder := TQueryBuilder.Create(Self);
-  Result := FQueryBuilder;
-end;
-
-procedure TManager.Update(const Objects: TArray<TObject>);
-begin
-  FProcessedObjects.Clear;
-
-  var Transaction := FConnection.StartTransaction;
-
-  try
-    for var &Object in Objects do
-      UpdateTable(Mapper.GetTable(&Object.ClassType), &Object);
-
-    Transaction.Commit;
-  except
-    Transaction.Rollback;
-
-    raise;
-  end;
-end;
-
-procedure TManager.UpdateDatabaseSchema;
-begin
-  var Updater := TDatabaseSchemaUpdater.Create(Self);
-
-  try
-    Updater.UpdateDatabase;
-  finally
-    Updater.Free;
-  end;
 end;
 
 function TManager.UpdateTable(const Table: TTable; const &Object: TObject): Boolean;
@@ -3654,20 +3657,6 @@ begin
   inherited Create;
 
   FFieldName := FieldName;
-end;
-
-{ TDatabaseClassGenerator }
-
-constructor TDatabaseClassGenerator.Create(const Manager: TManager);
-begin
-  inherited Create;
-
-  FManager := Manager;
-end;
-
-procedure TDatabaseClassGenerator.GenerateFile(const Destiny: TStream);
-begin
-
 end;
 
 { TParamsHelper }
