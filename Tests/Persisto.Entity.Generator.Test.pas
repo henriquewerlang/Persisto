@@ -9,6 +9,8 @@ type
   TGenerateUnitTeste = class
   private
     FManager: TManager;
+
+    procedure GenerateUnit;
   public
     [Setup]
     procedure Setup;
@@ -22,6 +24,10 @@ type
     procedure WhenTheTableHasMoreThenTwoFieldMustLoadThenAllInTheClass;
     [Test]
     procedure TheTypeOfTheDatabaseFieldMustReflectTheTypeOfThePropertyDeclaration;
+    [Test]
+    procedure WhenTheTableHasAForeignKeyMustFillTheFieldTypeWithTheClassType;
+    [Test]
+    procedure WhenFillTheFunctionToFormatNamesMustLoadTheNamesAsExpected;
   end;
 
 implementation
@@ -81,7 +87,7 @@ begin
       create table MyTable (Field bigint, Id bigint)
     ''');
 
-  FManager.GenerateUnit(FILE_ENTITY);
+  GenerateUnit;
 
   Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
 end;
@@ -108,7 +114,7 @@ begin
       create table MyTable (Field int, Id int)
     ''');
 
-  FManager.GenerateUnit(FILE_ENTITY);
+  GenerateUnit;
 
   Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
 end;
@@ -159,7 +165,7 @@ begin
       create table MyTable3 (Field int, Id int);
     ''');
 
-  FManager.GenerateUnit(FILE_ENTITY);
+  GenerateUnit;
 
   Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
 end;
@@ -190,10 +196,89 @@ begin
       create table MyTable (Field1 int, Field2 int, Field3 int, Id int)
     ''');
 
-  FManager.GenerateUnit(FILE_ENTITY);
+  GenerateUnit;
 
   Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
 end;
 
+procedure TGenerateUnitTeste.WhenTheTableHasAForeignKeyMustFillTheFieldTypeWithTheClassType;
+begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+      TMyTable2 = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FMyTable2: TMyTable2;
+        FId: Integer;
+      published
+        property MyTable2: TMyTable2 read FMyTable2 write FMyTable2;
+        property Id: Integer read FId write FId;
+      end;
+
+      [Entity]
+      TMyTable2 = class
+      private
+        FId: Integer;
+      published
+        property Id: Integer read FId write FId;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table MyTable2 (Id int, primary key (Id));
+      create table MyTable (IdMyTable2 int, Id int);
+      alter table MyTable add constraint FK_MyTable_MyTable2 foreign key (IdMyTable2) references MyTable2 (Id);
+    ''');
+
+  GenerateUnit;
+
+  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+end;
+
+procedure TGenerateUnitTeste.WhenFillTheFunctionToFormatNamesMustLoadTheNamesAsExpected;
+begin
+  var MyUnit :=
+    '''
+      TMYTABLE = class;
+
+      [Entity]
+      TMYTABLE = class
+      private
+        FFIELD: Integer;
+        FID: Integer;
+      published
+        property FIELD: Integer read FFIELD write FFIELD;
+        property ID: Integer read FID write FID;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table MyTable (Field int, Id int)
+    ''');
+
+  FManager.GenerateUnit(FILE_ENTITY,
+    function(Name: String): String
+    begin
+      Result := Name.ToUpper;
+    end);
+
+  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+end;
+
+procedure TGenerateUnitTeste.GenerateUnit;
+begin
+  FManager.GenerateUnit(FILE_ENTITY,
+    function(Name: String): String
+    begin
+      Result := Name.Replace('Id', 'Id', [rfIgnoreCase]).Replace('My', 'My', [rfIgnoreCase]).Replace('Table', 'Table', [rfIgnoreCase]).Replace('Field', 'Field', [rfIgnoreCase]);
+    end);
+end;
+
 end.
+
 

@@ -771,7 +771,7 @@ type
     procedure Delete(const &Object: TObject);
     procedure DropDatabase;
     procedure ExectDirect(const SQL: String);
-    procedure GenerateUnit(const FileName: String);
+    procedure GenerateUnit(const FileName: String; FormatName: TFunc<String, String> = nil);
     procedure Insert(const Objects: TArray<TObject>);
     procedure Save(const Objects: TArray<TObject>);
     procedure Update(const Objects: TArray<TObject>);
@@ -2587,12 +2587,46 @@ begin
     ExectDirect(SQL);
 end;
 
-procedure TManager.GenerateUnit(const FileName: String);
+procedure TManager.GenerateUnit(const FileName: String; FormatName: TFunc<String, String> = nil);
 const
   FIELD_TYPE: array[TTypeKind] of String = ('', 'Integer', 'Char', '', 'Double', 'String', '', '', '', 'Char', 'String', 'String', '', '', '', '', 'Int64', '', 'String', '', '', '', '');
 
+var
+  Field: TDatabaseField;
+  Table: TDatabaseTable;
+
+  function FormatTableName: String;
+  begin
+    Result := FormatName(Table.Name);
+  end;
+
+  function FormatFieldName: String;
+  begin
+    Result := FormatName(Field.Name);
+
+    for var ForeignKey in Table.ForeignKeys.Value do
+      if (Field.Name = ForeignKey.ReferenceField) and Result.StartsWith('Id') then
+        Result := Result.Substring(2);
+  end;
+
+  function GetFieldType: String;
+  begin
+    Result := FIELD_TYPE[Field.FieldType];
+
+    for var ForeignKey in Table.ForeignKeys.Value do
+      if Field.Name = ForeignKey.ReferenceField then
+        Result := Format('T%s', [FormatName(ForeignKey.ReferenceTable.Value.Name)]);
+  end;
+
 begin
   ExecuteSchemaScripts;
+
+  if not Assigned(FormatName) then
+    FormatName :=
+      function (Name: String): String
+      begin
+        Result := Name;
+      end;
 
   var TheUnit := TStringBuilder.Create(5000);
 
@@ -2608,26 +2642,28 @@ begin
 
   var Tables := Select.All.From<TDatabaseTable>.OrderBy.Field('Name').Open.All;
 
-  for var Table in Tables do
-    TheUnit.AppendLine(Format('  T%s = class;', [Table.Name]));
+  for Table in Tables do
+    TheUnit.AppendLine(Format('  T%s = class;', [FormatTableName]));
 
   TheUnit.AppendLine;
 
-  for var Table in Tables do
+  for Table in Tables do
   begin
+    var Fields := Table.Fields;
+
     TheUnit.AppendLine('  [Entity]');
 
-    TheUnit.AppendLine(Format('  T%s = class', [Table.Name]));
+    TheUnit.AppendLine(Format('  T%s = class', [FormatTableName]));
 
     TheUnit.AppendLine('  private');
 
-    for var Field in Table.Fields do
-      TheUnit.AppendLine(Format('    F%s: %s;', [Field.Name, FIELD_TYPE[Field.FieldType]]));
+    for Field in Fields do
+      TheUnit.AppendLine(Format('    F%s: %s;', [FormatFieldName, GetFieldType]));
 
     TheUnit.AppendLine('  published');
 
-    for var Field in Table.Fields do
-      TheUnit.AppendLine(Format('    property %0:s: %1:s read F%0:s write F%0:s;', [Field.Name, FIELD_TYPE[Field.FieldType]]));
+    for Field in Fields do
+      TheUnit.AppendLine(Format('    property %0:s: %1:s read F%0:s write F%0:s;', [FormatFieldName, GetFieldType]));
 
     TheUnit.AppendLine('  end;');
 
