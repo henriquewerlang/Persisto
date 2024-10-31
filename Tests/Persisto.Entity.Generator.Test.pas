@@ -60,6 +60,8 @@ end;
 
 procedure TGenerateUnitTeste.TearDown;
 begin
+  TFile.Delete(FILE_ENTITY);
+
   FManager.Free;
 
   RebootDatabase;
