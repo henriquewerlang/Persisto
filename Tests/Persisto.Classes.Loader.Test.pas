@@ -79,6 +79,8 @@ type
     procedure WhenSelectingAChildTableWithAForeignKeyCantRaiseRecursionErrorThatNotReal;
     [Test]
     procedure WhenSelectingAClassWithManyValueAssociationWithCircularReferenteMustLoadTheReferenceCircularTreeWithTheManyValueInformationToo;
+    [Test]
+    procedure WhenLoadAClassWithManyValueAssociationMoreThenOneTimeMustResetTheArrayEveryTime;
   end;
 
 implementation
@@ -201,6 +203,17 @@ begin
     begin
       FManager.Select.All.From<TMyEntityWithAllTypeOfFields>.Where(Field('Integer') = 1).Open.One;
     end);
+end;
+
+procedure TClassLoaderTest.WhenLoadAClassWithManyValueAssociationMoreThenOneTimeMustResetTheArrayEveryTime;
+begin
+  FManager.Select.All.From<TMyEntityWithManyValueAssociation>.Open.One;
+
+  FManager.Select.All.From<TMyEntityWithManyValueAssociation>.Open.One;
+
+  var Objects := FManager.Select.All.From<TMyEntityWithManyValueAssociation>.Open.One;
+
+  Assert.AreEqual(3, Length(Objects.ManyValueAssociationList));
 end;
 
 procedure TClassLoaderTest.WhenLoadAllObjectsFromAManyValueAssociationMustReturnAUniqueInstanceOfEachObject;

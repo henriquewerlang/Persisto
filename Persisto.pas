@@ -1635,9 +1635,14 @@ var
     Result := FQueryBuilder.FManager.BuildStateObjectKey(QueryTable.Table, QueryTable.PrimaryKeyField.DataSetField.AsString);
   end;
 
-  function BuildStateObjectKeyForManyValue(const QueryTable: TQueryBuilderTable): String;
+  function BuildStateObjectKeyForManyValueObject(const QueryTable: TQueryBuilderTable): String;
   begin
     Result := '#.' + BuildStateObjectKey(QueryTable);
+  end;
+
+  function BuildStateObjectKeyForManyValueProperty(const QueryTable: TQueryBuilderTable): String;
+  begin
+    Result := '*.' + BuildStateObjectKey(QueryTable);
   end;
 
   function BuildStateObjectKeyForObject(const QueryTable: TQueryBuilderTable): String;
@@ -1645,9 +1650,14 @@ var
     Result := '$.' + BuildStateObjectKey(QueryTable);
   end;
 
-  function CheckManyValueLoaded(const QueryTable: TQueryBuilderTable): Boolean;
+  function CheckManyValuePropertyLoaded(const QueryTable: TQueryBuilderTable): Boolean;
   begin
-    Result := not LoadedObjects.TryAdd(BuildStateObjectKeyForManyValue(QueryTable), False);
+    Result := not LoadedObjects.TryAdd(BuildStateObjectKeyForManyValueProperty(QueryTable), False);
+  end;
+
+  function CheckManyValueObjectLoaded(const QueryTable: TQueryBuilderTable): Boolean;
+  begin
+    Result := not LoadedObjects.TryAdd(BuildStateObjectKeyForManyValueObject(QueryTable), False);
   end;
 
   function CheckObjectLoaded(const QueryTable: TQueryBuilderTable): Boolean;
@@ -1709,12 +1719,16 @@ var
     for Field in QueryTable.LazyManyValueAssociationFields do
       Field.LazyValue[StateObject.&Object] := CreateLazyFactory(Field, QueryTable.PrimaryKeyField.Field.Value[StateObject.&Object]);
 
+    if not QueryTable.ManyValueAssociationTables.IsEmpty and not CheckManyValuePropertyLoaded(QueryTable) then
+      for ManyValueAssociationTable in QueryTable.ManyValueAssociationTables do
+        ManyValueAssociationTable.ManyValueAssociationField.Field.Value[StateObject.&Object] := nil;
+
     for ManyValueAssociationTable in QueryTable.ManyValueAssociationTables do
       if not ManyValueAssociationTable.PrimaryKeyField.DataSetField.IsNull then
       begin
         ManyValueObject := CreateObject(ManyValueAssociationTable);
 
-        if not CheckManyValueLoaded(ManyValueAssociationTable) then
+        if not CheckManyValueObjectLoaded(ManyValueAssociationTable) then
         begin
           FieldValue := ManyValueAssociationTable.ManyValueAssociationField.Field.Value[StateObject.&Object];
 
