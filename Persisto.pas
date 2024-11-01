@@ -2614,13 +2614,18 @@ var
     Result := FormatName(Table.Name);
   end;
 
-  function FormatFieldName: String;
+  function DatabaseFieldName: String;
   begin
-    Result := FormatName(Field.Name);
+    Result := Field.Name;
 
     for var ForeignKey in Table.ForeignKeys.Value do
-      if (Field.Name = ForeignKey.ReferenceField) and Result.StartsWith('Id') then
+      if (Result = ForeignKey.ReferenceField) and Result.StartsWith('Id') then
         Result := Result.Substring(2);
+  end;
+
+  function FormatFieldName: String;
+  begin
+    Result := FormatName(DatabaseFieldName);
   end;
 
   function GetFieldType: String;
@@ -2667,6 +2672,9 @@ begin
 
     TheUnit.AppendLine('  [Entity]');
 
+    if String.Compare(FormatTableName, Table.Name, [coIgnoreCase]) <> 0 then
+      TheUnit.AppendLine(Format('  [TableName(''%s'')]', [Table.Name]));
+
     TheUnit.AppendLine(Format('  T%s = class', [FormatTableName]));
 
     TheUnit.AppendLine('  private');
@@ -2677,7 +2685,12 @@ begin
     TheUnit.AppendLine('  published');
 
     for Field in Fields do
+    begin
+      if String.Compare(FormatFieldName, DatabaseFieldName, [coIgnoreCase]) <> 0 then
+        TheUnit.AppendLine(Format('    [FieldName(''%s'')]', [DatabaseFieldName, GetFieldType]));
+
       TheUnit.AppendLine(Format('    property %0:s: %1:s read F%0:s write F%0:s;', [FormatFieldName, GetFieldType]));
+    end;
 
     TheUnit.AppendLine('  end;');
 

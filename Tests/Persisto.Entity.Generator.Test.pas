@@ -28,6 +28,10 @@ type
     procedure WhenTheTableHasAForeignKeyMustFillTheFieldTypeWithTheClassType;
     [Test]
     procedure WhenFillTheFunctionToFormatNamesMustLoadTheNamesAsExpected;
+    [Test]
+    procedure WhenTheNameOfTheFieldIsChangedInTheFormattingFunctionMustLoadTheFieldNameAttribute;
+    [Test]
+    procedure WhenTheNameOfTheTableIsChangedInTheFormattingFunctionMustLoadTheTableNameAttribute;
   end;
 
 implementation
@@ -60,7 +64,8 @@ end;
 
 procedure TGenerateUnitTeste.TearDown;
 begin
-  TFile.Delete(FILE_ENTITY);
+  if TFile.Exists(FILE_ENTITY) then
+    TFile.Delete(FILE_ENTITY);
 
   FManager.Free;
 
@@ -86,7 +91,7 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table MyTable (Field bigint, Id bigint)
+      create table "MyTable" ("Field" bigint, "Id" bigint)
     ''');
 
   GenerateUnit;
@@ -113,7 +118,7 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table MyTable (Field int, Id int)
+      create table "MyTable" ("Field" int, "Id" int)
     ''');
 
   GenerateUnit;
@@ -162,9 +167,9 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table MyTable (Field int, Id int);
-      create table MyTable2 (Field int, Id int);
-      create table MyTable3 (Field int, Id int);
+      create table "MyTable" ("Field" int, "Id" int);
+      create table "MyTable2" ("Field" int, "Id" int);
+      create table "MyTable3" ("Field" int, "Id" int);
     ''');
 
   GenerateUnit;
@@ -195,7 +200,7 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table MyTable (Field1 int, Field2 int, Field3 int, Id int)
+      create table "MyTable" ("Field1" int, "Field2" int, "Field3" int, "Id" int)
     ''');
 
   GenerateUnit;
@@ -231,9 +236,9 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table MyTable2 (Id int, primary key (Id));
-      create table MyTable (IdMyTable2 int, Id int);
-      alter table MyTable add constraint FK_MyTable_MyTable2 foreign key (IdMyTable2) references MyTable2 (Id);
+      create table "MyTable2" ("Id" int, primary key ("Id"));
+      create table "MyTable" ("IdMyTable2" int, "Id" int);
+      alter table "MyTable" add constraint "FK_MyTable_MyTable2" foreign key ("IdMyTable2") references "MyTable2" ("Id");
     ''');
 
   GenerateUnit;
@@ -260,7 +265,7 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table MyTable (Field int, Id int)
+      create table "MyTable" ("Field" int, "Id" int)
     ''');
 
   FManager.GenerateUnit(FILE_ENTITY,
@@ -274,13 +279,78 @@ end;
 
 procedure TGenerateUnitTeste.GenerateUnit;
 begin
+  FManager.GenerateUnit(FILE_ENTITY);
+end;
+
+procedure TGenerateUnitTeste.WhenTheNameOfTheFieldIsChangedInTheFormattingFunctionMustLoadTheFieldNameAttribute;
+begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FAnotherName: Integer;
+        FId: Integer;
+      published
+        [FieldName('Field')]
+        property AnotherName: Integer read FAnotherName write FAnotherName;
+        property Id: Integer read FId write FId;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Field" int, "Id" int)
+    ''');
+
   FManager.GenerateUnit(FILE_ENTITY,
-    function(Name: String): String
+    function (Name: String): String
     begin
-      Result := Name.Replace('Id', 'Id', [rfIgnoreCase]).Replace('My', 'My', [rfIgnoreCase]).Replace('Table', 'Table', [rfIgnoreCase]).Replace('Field', 'Field', [rfIgnoreCase]);
+      Result := Name;
+
+      if Result = 'Field' then
+        Result := 'AnotherName';
     end);
+
+  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+end;
+
+procedure TGenerateUnitTeste.WhenTheNameOfTheTableIsChangedInTheFormattingFunctionMustLoadTheTableNameAttribute;
+begin
+  var MyUnit :=
+    '''
+      TAnotherName = class;
+
+      [Entity]
+      [TableName('MyTable')]
+      TAnotherName = class
+      private
+        FField: Integer;
+        FId: Integer;
+      published
+        property Field: Integer read FField write FField;
+        property Id: Integer read FId write FId;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Field" int, "Id" int)
+    ''');
+
+  FManager.GenerateUnit(FILE_ENTITY,
+    function (Name: String): String
+    begin
+      Result := Name;
+
+      if Result = 'MyTable' then
+        Result := 'AnotherName';
+    end);
+
+  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
 end;
 
 end.
-
 
