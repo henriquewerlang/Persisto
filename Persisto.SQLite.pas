@@ -185,7 +185,7 @@ end;
 
 function TDatabaseManipulatorSQLite.GetSpecialFieldType(const Field: TField): String;
 const
-  SPECIAL_TYPE_MAPPING: array [TDatabaseSpecialType] of String = ('', 'date', 'datetime', 'time', 'text', 'uniqueidentifierchar', 'boolean');
+  SPECIAL_TYPE_MAPPING: array [TDatabaseSpecialType] of String = ('', 'date', 'datetime', 'time', 'text', 'uniqueidentifierchar', 'boolean', 'blob');
 
 begin
   Result := SPECIAL_TYPE_MAPPING[Field.SpecialType];

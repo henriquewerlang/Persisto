@@ -637,7 +637,7 @@ type
   private
     FFields: TArray<TDatabaseField>;
     FPrimaryKey: Boolean;
-    FTable: TDatabaseTable;
+    FTable: Lazy<TDatabaseTable>;
     FUnique: Boolean;
     FName: String;
   public
@@ -646,7 +646,7 @@ type
     property Unique: Boolean read FUnique write FUnique;
   published
     property Name: String read FName write FName;
-    property Table: TDatabaseTable read FTable write FTable;
+    property Table: Lazy<TDatabaseTable> read FTable write FTable;
   end;
 
   [TableName('PersistoDatabaseForeignKey')]
@@ -656,13 +656,13 @@ type
     FName: String;
     FReferenceField: String;
     FReferenceTable: Lazy<TDatabaseTable>;
-    FTable: TDatabaseTable;
+    FTable: Lazy<TDatabaseTable>;
   published
     property Id: String read FId write FId;
     property Name: String read FName write FName;
     property ReferenceField: String read FReferenceField write FReferenceField;
     property ReferenceTable: Lazy<TDatabaseTable> read FReferenceTable write FReferenceTable;
-    property Table: TDatabaseTable read FTable write FTable;
+    property Table: Lazy<TDatabaseTable> read FTable write FTable;
   end;
 
   TDatabaseCheckConstraint = class
@@ -2603,7 +2603,8 @@ end;
 
 procedure TManager.GenerateUnit(const FileName: String; FormatName: TFunc<String, String> = nil);
 const
-  FIELD_TYPE: array[TTypeKind] of String = ('', 'Integer', 'Char', '', 'Double', 'String', '', '', '', 'Char', 'String', 'String', '', '', '', '', 'Int64', '', 'String', '', '', '', '');
+  FIELD_TYPE: array[TTypeKind] of String = ('', 'Integer', 'Char', 'Integer', 'Double', 'String', '', '', '', 'Char', 'String', 'String', '', '', '', '', 'Int64', '', 'String', '', '', '', '');
+  SPECIAL_FIELD_TYPE: array[TDatabaseSpecialType] of String = ('', 'TDate', 'TDateTime', 'TTime', 'Lazy<String>', 'String', 'Boolean', 'TArray<Byte>');
 
 var
   Field: TDatabaseField;
@@ -2632,6 +2633,9 @@ var
   begin
     Result := FIELD_TYPE[Field.FieldType];
 
+    if Result.IsEmpty then
+      Result := SPECIAL_FIELD_TYPE[Field.SpecialType];
+
     for var ForeignKey in Table.ForeignKeys.Value do
       if Field.Name = ForeignKey.ReferenceField then
         Result := Format('T%s', [FormatName(ForeignKey.ReferenceTable.Value.Name)]);
@@ -2653,7 +2657,15 @@ begin
 
   TheUnit.AppendLine;
 
+  TheUnit.AppendLine('interface');
+
+  TheUnit.AppendLine;
+
   TheUnit.AppendLine('uses Persisto.Mapping;');
+
+  TheUnit.AppendLine;
+
+  TheUnit.AppendLine('{$M+}');
 
   TheUnit.AppendLine;
 
@@ -2688,6 +2700,11 @@ begin
     begin
       if String.Compare(FormatFieldName, DatabaseFieldName, [coIgnoreCase]) <> 0 then
         TheUnit.AppendLine(Format('    [FieldName(''%s'')]', [DatabaseFieldName, GetFieldType]));
+
+      if Field.FieldType = tkString then
+        TheUnit.AppendLine(Format('    [Size(%d)]', [Field.Size]))
+      else if Field.FieldType = tkFloat then
+        TheUnit.AppendLine(Format('    [Precision(%d, %d)]', [Field.Size, Field.Scale]));
 
       TheUnit.AppendLine(Format('    property %0:s: %1:s read F%0:s write F%0:s;', [FormatFieldName, GetFieldType]));
     end;

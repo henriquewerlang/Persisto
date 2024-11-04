@@ -18,7 +18,7 @@ type
 
 implementation
 
-uses System.SysUtils;
+uses System.SysUtils, System.Rtti, System.TypInfo;
 
 { TDatabaseManipulatorPostgreSQL }
 
@@ -102,6 +102,8 @@ const
                 -- Enumeration
                 when 21 then 3
                 -- Float
+                when 700 then 4
+                when 701 then 4
                 when 1700 then 4
                 -- Int64
                 when 20 then 16
@@ -111,6 +113,7 @@ const
              attnotnull Required,
              (atttypmod - 4) & 65535 Scale,
              case
+                when atttypid = 1043 then atttypmod - 4
                 when atttypid = 1700 then ((atttypmod - 4) >> 16) & 65535
                 else ((atttypmod - 4) >> 16) & 65535
              end Size,
@@ -119,14 +122,20 @@ const
                 when 1082 then 1
                 -- DateTime
                 when 1114 then 2
+                when 1184 then 2
+                when 14722 then 2
                 -- Time
                 when 1083 then 3
+                when 1266 then 3
                 -- Text
                 when 25 then 4
+                when 142 then 4
                 -- Unique Identifier
                 when 2950 then 5
                 -- Boolean
                 when 16 then 6
+                -- Binary
+                when 17 then 7
                 else 0
              end SpecialType
         from pg_attribute C
@@ -234,7 +243,7 @@ end;
 
 function TDatabaseManipulatorPostgreSQL.GetSpecialFieldType(const Field: TField): String;
 const
-  SPECIAL_TYPE_MAPPING: array[TDatabaseSpecialType] of String = ('', 'date', 'timestamp without time zone', 'time without time zone', 'text', 'uuid', 'boolean');
+  SPECIAL_TYPE_MAPPING: array[TDatabaseSpecialType] of String = ('', 'date', 'timestamp without time zone', 'time without time zone', 'text', 'uuid', 'boolean', 'bytea');
 
 begin
   Result := SPECIAL_TYPE_MAPPING[Field.SpecialType];

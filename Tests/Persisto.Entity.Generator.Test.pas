@@ -32,6 +32,12 @@ type
     procedure WhenTheNameOfTheFieldIsChangedInTheFormattingFunctionMustLoadTheFieldNameAttribute;
     [Test]
     procedure WhenTheNameOfTheTableIsChangedInTheFormattingFunctionMustLoadTheTableNameAttribute;
+    [Test]
+    procedure WhenTheFieldIsASpecialTypeMustLoadTheFieldTypeAsExpected;
+    [Test]
+    procedure WhenTheFieldIsVarCharMustLoadTheSizeAttributeInTheField;
+    [Test]
+    procedure WhenTheFieldIsANumericTypeMustLoadThePrecisionAttributeInTheField;
   end;
 
 implementation
@@ -43,7 +49,11 @@ const
   '''
   unit Entites;
 
+  interface
+
   uses Persisto.Mapping;
+
+  {$M+}
 
   type
   %s
@@ -348,6 +358,89 @@ begin
       if Result = 'MyTable' then
         Result := 'AnotherName';
     end);
+
+  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+end;
+
+procedure TGenerateUnitTeste.WhenTheFieldIsASpecialTypeMustLoadTheFieldTypeAsExpected;
+begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FField: TDate;
+        FId: Integer;
+      published
+        property Field: TDate read FField write FField;
+        property Id: Integer read FId write FId;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Field" date, "Id" int)
+    ''');
+
+  GenerateUnit;
+
+  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+end;
+
+procedure TGenerateUnitTeste.WhenTheFieldIsVarCharMustLoadTheSizeAttributeInTheField;
+begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FField: String;
+        FId: Integer;
+      published
+        [Size(150)]
+        property Field: String read FField write FField;
+        property Id: Integer read FId write FId;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Field" varchar(150), "Id" int)
+    ''');
+
+  GenerateUnit;
+
+  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+end;
+
+procedure TGenerateUnitTeste.WhenTheFieldIsANumericTypeMustLoadThePrecisionAttributeInTheField;
+begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FField: Double;
+        FId: Integer;
+      published
+        [Precision(15, 4)]
+        property Field: Double read FField write FField;
+        property Id: Integer read FId write FId;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Field" numeric(15, 4), "Id" int)
+    ''');
+
+  GenerateUnit;
 
   Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
 end;

@@ -206,7 +206,7 @@ end;
 
 function TDatabaseManipulatorSQLServer.GetSpecialFieldType(const Field: TField): String;
 const
-  FIELD_SPECIAL_TYPE_MAPPING: array [TDatabaseSpecialType] of String = ('', 'date', 'datetime', 'time', 'nvarchar(max)', 'uniqueidentifier', 'bit');
+  FIELD_SPECIAL_TYPE_MAPPING: array [TDatabaseSpecialType] of String = ('', 'date', 'datetime', 'time', 'nvarchar(max)', 'uniqueidentifier', 'bit', 'varbinary(max)');
 
 begin
   Result := FIELD_SPECIAL_TYPE_MAPPING[Field.SpecialType];
