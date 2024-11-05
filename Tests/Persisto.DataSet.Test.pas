@@ -51,7 +51,19 @@ type
     procedure WhenOpenAnEmptyDataSetTheEOFPropertyMustBeTrue;
     [Test]
     procedure WhenOpenTheDataSetWithOneObjectMustReturnFalseInTheEOFProperty;
-    
+    [Test]
+    procedure WhenOpenAListOfObjectTheCurrentObjectMustBeTheFirstObjectInTheList;
+    [Test]
+    procedure WhenNavigateAllObjectInTheDataSetMustMarkTheOEFPropertyHasTrue;
+    [Test]
+    procedure WhenGoToTheLastRecordInTheListMustMarkTheEOFPropertyHasTrue;
+    [Test]
+    procedure WhenGoToTheLastRecordTheCurrentObjectMustReturnTheLastObjectInTheList;
+    [Test]
+    procedure WhenGoBackInAllRecordMustMarkTheBOFPropertyHasTrue;
+    [Test]
+    procedure WhenGoToTheFirstRecordTheCurrentObjectMustBeTheFirstRecordOfTheList;
+
 
 
     [TTest]
@@ -481,11 +493,6 @@ begin
   Assert.AreEqual(-1, DataSet.FieldByName('Id').AsInteger);
 
   DataSet.Free;
-
-  MyNewClass.Free;
-
-  for var Item in MyArray do
-    Item.Free;
 end;
 
 procedure TPersistoDataSetTest.AfterInsertAnObjectMustResetTheObjectToSaveTheNewInfo;
@@ -537,20 +544,18 @@ begin
   Assert.AreEqual(5477.555, DataSet.FieldByName('Value').AsFloat);
 
   DataSet.Free;
-
-  MyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.DestroyObjects(DataSet: TPersistoDataSet);
 begin
-  DataSet.First;
-
-  while not DataSet.Eof do
-  begin
-    DataSet.GetCurrentObject<TObject>.Free;
-
-    DataSet.Next;
-  end;
+//  DataSet.First;
+//
+//  while not DataSet.Eof do
+//  begin
+//    DataSet.GetCurrentObject<TObject>.Free;
+//
+//    DataSet.Next;
+//  end;
 end;
 
 procedure TPersistoDataSetTest.EveryInsertedObjectMustGoToTheObjectList;
@@ -631,12 +636,16 @@ end;
 
 procedure TPersistoDataSetTest.Setup;
 begin
+  inherited;
+
   FContext := TRttiContext.Create;
   FDataSet := TPersistoDataSet.Create(nil);
 end;
 
 procedure TPersistoDataSetTest.TearDown;
 begin
+  DestroyObjects(FDataSet);
+
   FContext.Free;
 
   FDataSet.Free;
@@ -1874,6 +1883,62 @@ begin
   DataSet.Free;
 end;
 
+procedure TPersistoDataSetTest.WhenGoBackInAllRecordMustMarkTheBOFPropertyHasTrue;
+begin
+  FDataSet.Objects := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  FDataSet.Open;
+
+  FDataSet.Last;
+
+  FDataSet.Prior;
+
+  FDataSet.Prior;
+
+  FDataSet.Prior;
+
+  Assert.IsTrue(FDataSet.Bof);
+end;
+
+procedure TPersistoDataSetTest.WhenGoToTheFirstRecordTheCurrentObjectMustBeTheFirstRecordOfTheList;
+begin
+  var MyObject := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject, TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  FDataSet.Open;
+
+  FDataSet.Last;
+
+  FDataSet.First;
+
+  Assert.AreEqual(MyObject, FDataSet.CurrentObject);
+end;
+
+procedure TPersistoDataSetTest.WhenGotoTheLastRecordInTheListMustMarkTheEOFPropertyHasTrue;
+begin
+  FDataSet.Objects := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  FDataSet.Open;
+
+  FDataSet.Last;
+
+  Assert.IsTrue(FDataSet.Eof);
+end;
+
+procedure TPersistoDataSetTest.WhenGoToTheLastRecordTheCurrentObjectMustReturnTheLastObjectInTheList;
+begin
+  var MyObject := TMyTestClass.Create;
+
+  FDataSet.Objects := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create, MyObject];
+
+  FDataSet.Open;
+
+  FDataSet.Last;
+
+  Assert.AreEqual(MyObject, FDataSet.CurrentObject);
+end;
+
 procedure TPersistoDataSetTest.WhenHaveFieldDefDefinedCantLoadFieldsFromTheClass;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
@@ -1941,6 +2006,8 @@ begin
   FDataSet.ObjectClass := TMyTestClass;
 
   FDataSet.Open;
+
+  FDataSet.Insert;
 
   Assert.IsNotNil(FDataSet.CurrentObject);
 end;
@@ -2038,6 +2105,21 @@ begin
   DataSetDetail.Free;
 
   DataSet.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenNavigateAllObjectInTheDataSetMustMarkTheOEFPropertyHasTrue;
+begin
+  FDataSet.Objects := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  FDataSet.Open;
+
+  FDataSet.Next;
+
+  FDataSet.Next;
+
+  FDataSet.Next;
+
+  Assert.IsTrue(FDataSet.Eof);
 end;
 
 procedure TPersistoDataSetTest.WhenNavigateByDataSetMustHaveToShowTheValuesFromTheList;
@@ -2234,6 +2316,17 @@ begin
   MyObject.Free;
 end;
 
+procedure TPersistoDataSetTest.WhenOpenAListOfObjectTheCurrentObjectMustBeTheFirstObjectInTheList;
+begin
+  var MyObject := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject, TMyTestClass.Create, TMyTestClass.Create];
+
+  FDataSet.Open;
+
+  Assert.AreEqual(MyObject, FDataSet.GetCurrentObject<TMyTestClass>);
+end;
+
 procedure TPersistoDataSetTest.WhenOpenAnEmptyDataSetCantRaiseAnError;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
@@ -2304,8 +2397,6 @@ begin
   Assert.AreEqual(5, DataSet.FieldCount);
 
   DataSet.Free;
-
-  MyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenOpenTheDataSetWithAListAndTheListIsChangedTheResyncCantRaiseAnyError;

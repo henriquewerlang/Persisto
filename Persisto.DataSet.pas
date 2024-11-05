@@ -32,7 +32,8 @@ type
 
   TPersistoBuffer = class
   public
-    ObjectPosition: NativeInt;
+//    ObjectPosition: NativeInt;
+    CurrentObject: TObject;
   end;
 
   TPersistoObjectField = class(TField)
@@ -111,15 +112,16 @@ type
   TPersistoDataSet = class(TDataSet)
   private
     FContext: TRttiContext;
+    FCurrentObjectPosition: NativeInt;
     FIndexFieldNames: String;
     FObjectClass: TClass;
     FObjectClassName: String;
     FObjectList: TList<TObject>;
     FObjectType: TRttiInstanceType;
+    FInsertingObject: TObject;
 
 //    FCalculatedFields: TDictionary<TField, Integer>;
 //    FFilterFunction: TFunc<TPersistoDataSet, Boolean>;
-//    FInsertingObject: TObject;
 //    FIterator: IORMObjectIterator;
 //    FIteratorData: IORMObjectIterator;
 //    FIteratorFilter: IORMObjectIterator;
@@ -127,6 +129,7 @@ type
 //    FParentDataSet: TPersistoDataSet;
 //    FPropertyMappingList: TArray<TArray<TRttiProperty>>;
 
+    function GetActivePersistoBuffer: TPersistoBuffer;
     function GetActiveObject: TObject;
     function GetCurrentActiveBuffer: TPersistoRecordBuffer;
     function GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
@@ -197,6 +200,8 @@ type
     procedure InternalSetToRecord(Buffer: TPersistoRecordBuffer); override;
     procedure SetDataSetField(const DataSetField: TDataSetField); override;
     procedure SetFieldData(Field: TField; Buffer: TPersistoValueBuffer); override;
+
+    property ActivePersistoBuffer: TPersistoBuffer read GetActivePersistoBuffer;
   public
     constructor Create(AOwner: TComponent); override;
 
@@ -551,6 +556,11 @@ end;
 
 function TPersistoDataSet.GetActiveObject: TObject;
 begin
+  Result := ActivePersistoBuffer.CurrentObject;
+end;
+
+function TPersistoDataSet.GetActivePersistoBuffer: TPersistoBuffer;
+begin
   Result := TPersistoBuffer(ActiveBuffer);
 end;
 
@@ -757,28 +767,38 @@ begin
 end;
 
 function TPersistoDataSet.GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TPersistoRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
+var
+  PersistoBuffer: TPersistoBuffer absolute Buffer;
+
 begin
-  Result := grError;
-//  Result := grOK;
-//
-//  case GetMode of
-//    gmCurrent:
+  if FObjectList.IsEmpty then
+    Result := grEOF
+  else
+    Result := grOK;
+
+  case GetMode of
+    gmCurrent:;
 //      if FIterator.CurrentPosition = 0 then
 //        Result := grError;
-//    gmNext:
-//      if not FIterator.Next then
-//        Result := grEOF;
-//    gmPrior:
-//      if not FIterator.Prior then
-//        Result := grBOF;
-//  end;
-//
-//  if Result = grOK then
-//  begin
-//    UpdateArrayPosition(Buffer);
-//
-//    InternalCalculateFields(Buffer);
-//  end;
+    gmNext:
+      if Succ(FCurrentObjectPosition) = FObjectList.Count then
+        Result := grEOF
+      else
+      begin
+        Inc(FCurrentObjectPosition);
+
+        PersistoBuffer.CurrentObject := FObjectList[FCurrentObjectPosition];
+      end;
+    gmPrior:
+      if Pred(FCurrentObjectPosition) > -1 then
+      begin
+        Dec(FCurrentObjectPosition);
+
+        PersistoBuffer.CurrentObject := FObjectList[FCurrentObjectPosition];
+      end
+      else
+        Result := grBOF;
+  end;
 end;
 
 function TPersistoDataSet.GetRecordCount: Integer;
@@ -812,15 +832,16 @@ var
   PersistoBuffer: TPersistoBuffer absolute Buffer;
 
 begin
-  PersistoBuffer.ObjectPosition := -1;
+  PersistoBuffer.CurrentObject := nil;
 end;
 
 procedure TPersistoDataSet.InternalInsert;
 begin
   inherited;
 
-//  if not Assigned(FInsertingObject) then
-//    FInsertingObject := ObjectType.MetaclassType.Create;
+  FInsertingObject := ObjectType.MetaclassType.Create;
+
+  ActivePersistoBuffer.CurrentObject := FInsertingObject;
 end;
 
 procedure TPersistoDataSet.InternalCancel;
@@ -910,7 +931,7 @@ end;
 
 procedure TPersistoDataSet.InternalFirst;
 begin
-//  FIterator.ResetBegin;
+  FCurrentObjectPosition := -1;
 end;
 
 procedure TPersistoDataSet.InternalGotoBookmark(Bookmark: TBookmark);
@@ -940,15 +961,15 @@ end;
 
 procedure TPersistoDataSet.InternalLast;
 begin
-//  FIterator.ResetEnd;
+  FCurrentObjectPosition := FObjectList.Count;
 end;
 
 procedure TPersistoDataSet.InternalOpen;
 begin
+  FCurrentObjectPosition := -1;
+
   CheckObjectTypeLoaded;
 
-//  CheckIterator;
-//
 //  LoadDetailInfo;
 //
 //  if FieldDefs.Count = 0 then
@@ -963,10 +984,6 @@ begin
 //  CheckSelfFieldType;
 //
 //  LoadPropertiesFromFields;
-//
-//{$IFDEF PAS2JS}
-//  LoadLazyGetTextFields;
-//{$ENDIF}
 //
 //  BindFields(True);
 //
