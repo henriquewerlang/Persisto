@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Classes, Data.DB, System.Rtti, System.Generics.Collections, System.SysUtils, System.TypInfo;
+uses System.Classes, System.Rtti, System.Generics.Collections, System.SysUtils, System.TypInfo, Persisto, Data.DB;
 
 type
   EDataSetNotInEditingState = class(Exception)
@@ -152,6 +152,7 @@ type
     procedure InternalFilter(const NeedResync: Boolean);
     procedure LoadDetailInfo;
     procedure LoadFieldDefsFromClass;
+    procedure LoadFields;
     procedure LoadObjectListFromParentDataSet;
     procedure LoadPropertiesFromFields;
     procedure OpenInternalIterator(ObjectClass: TClass; Iterator: IORMObjectIterator);
@@ -258,9 +259,6 @@ type
 implementation
 
 uses System.Math, Persisto.Mapping, {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF};
-
-const
-  SELF_FIELD_NAME = 'Self';
 
 { TPersistoListIterator }
 
@@ -456,14 +454,14 @@ begin
 end;
 
 procedure TPersistoDataSet.CheckSelfFieldType;
-var
-  Field: TField;
-
+//var
+//  Field: TField;
+//
 begin
-  Field := FindField(SELF_FIELD_NAME);
-
-  if Assigned(Field) and (Field.DataType <> ftVariant) then
-    raise ESelfFieldTypeWrong.Create('The Self field must be of the variant type!');
+//  Field := FindField(SELF_FIELD_NAME);
+//
+//  if Assigned(Field) and (Field.DataType <> ftVariant) then
+//    raise ESelfFieldTypeWrong.Create('The Self field must be of the variant type!');
 end;
 
 procedure TPersistoDataSet.ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TPersistoCalcFieldBuffer);
@@ -970,6 +968,8 @@ begin
 
   CheckObjectTypeLoaded;
 
+  LoadFields;
+
 //  LoadDetailInfo;
 //
 //  if FieldDefs.Count = 0 then
@@ -1021,7 +1021,7 @@ end;
 
 function TPersistoDataSet.IsSelfField(Field: TField): Boolean;
 begin
-  Result := Field.FieldName = SELF_FIELD_NAME;
+//  Result := Field.FieldName = SELF_FIELD_NAME;
 end;
 
 procedure TPersistoDataSet.GoToPosition(const Position: Cardinal; const CalculateFields: Boolean);
@@ -1064,7 +1064,22 @@ begin
       FieldDefs.Add(&Property.Name, FieldType, Size);
     end;
 
-  FieldDefs.Add(SELF_FIELD_NAME, ftVariant, 0);
+//  FieldDefs.Add(SELF_FIELD_NAME, ftVariant, 0);
+end;
+
+procedure TPersistoDataSet.LoadFields;
+begin
+  var Mapper := TMapper.Create;
+
+  for var Field in Mapper.GetTable(ObjectType).Fields do
+  begin
+    var DataSetField := TStringField.Create(Self);
+    DataSetField.FieldName := Field.Name;
+
+    DataSetField.SetParentComponent(Self);
+  end;
+
+  Mapper.Free;
 end;
 
 procedure TPersistoDataSet.LoadObjectListFromParentDataSet;

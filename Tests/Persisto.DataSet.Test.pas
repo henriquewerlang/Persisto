@@ -63,15 +63,13 @@ type
     procedure WhenGoBackInAllRecordMustMarkTheBOFPropertyHasTrue;
     [Test]
     procedure WhenGoToTheFirstRecordTheCurrentObjectMustBeTheFirstRecordOfTheList;
-
-
-
-    [TTest]
+    [Test]
     procedure WhenOpenDataSetHaveToLoadFieldListWithPropertiesOfMappedObject;
-    [TTest]
+    [Test]
     procedure TheNameOfFieldMustBeEqualToTheNameOfTheProperty;
-    [TTest]
-    procedure WhenOpenDataSetFromAListMustHaveToLoadFieldListWithPropertiesOfMappedObject;
+
+
+
     [TestCase('Array', 'MyArray,ftDataSet')]
     [TestCase('Boolean', 'Boolean,ftBoolean')]
     [TestCase('Byte', 'Byte,ftByte')]
@@ -92,10 +90,6 @@ type
     [TestCase('WideString', 'WideString,ftWideString')]
     [TestCase('Word', 'Word,ftWord')]
     procedure TheFieldTypeMustMatchWithPropertyType(FieldName: String; TypeToCompare: TFieldType);
-    [TTest]
-    procedure WhenOpenTheDataSetWithAObjectTheRecordCountMustBeOne;
-    [TTest]
-    procedure WhenOpenTheDataSetWithAListTheRecordCountMustBeTheSizeOfTheList;
     [TTest]
     procedure AfterOpenTheFieldMustLoadTheValuesFromTheObjectClass;
     [TTest]
@@ -366,11 +360,13 @@ type
   private
     FAnotherObject: TAnotherObject;
     FAnotherName: String;
+    FId: String;
   public
     destructor Destroy; override;
   published
     property AnotherName: String read FAnotherName write FAnotherName;
     property AnotherObject: TAnotherObject read FAnotherObject write FAnotherObject;
+    property Id: String read FId write FId;
   end;
 
   TMyTestClass = class
@@ -732,19 +728,14 @@ end;
 
 procedure TPersistoDataSetTest.TheNameOfFieldMustBeEqualToTheNameOfTheProperty;
 begin
-  var DataSet := TPersistoDataSet.Create(nil);
-  var MyObject := TMyTestClass.Create;
+  FDataSet.ObjectClass := TMyTestClass;
 
-//  DataSet.OpenObject(MyObject);
+  FDataSet.Open;
 
-  Assert.AreEqual('Id', DataSet.Fields[0].FieldName);
-  Assert.AreEqual('Name', DataSet.Fields[1].FieldName);
-  Assert.AreEqual('Value', DataSet.Fields[2].FieldName);
-  Assert.AreEqual('AnotherObject', DataSet.Fields[3].FieldName);
-
-  DataSet.Free;
-
-  MyObject.Free;
+  Assert.AreEqual('Id', FDataSet.Fields[0].FieldName);
+  Assert.AreEqual('Name', FDataSet.Fields[1].FieldName);
+  Assert.AreEqual('Value', FDataSet.Fields[2].FieldName);
+  Assert.AreEqual('AnotherObject', FDataSet.Fields[3].FieldName);
 end;
 
 procedure TPersistoDataSetTest.TheOldValuePropertyFromFieldMustReturnTheOriginalValueOfTheObjectBeingEdited;
@@ -2373,30 +2364,13 @@ begin
   DataSet.Free;
 end;
 
-procedure TPersistoDataSetTest.WhenOpenDataSetFromAListMustHaveToLoadFieldListWithPropertiesOfMappedObject;
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-  var MyObject := TObjectList<TMyTestClass>.Create;
-
-//  DataSet.OpenList<TMyTestClass>(MyObject);
-
-  Assert.AreEqual(5, DataSet.FieldCount);
-
-  DataSet.Free;
-
-  MyObject.Free;
-end;
-
 procedure TPersistoDataSetTest.WhenOpenDataSetHaveToLoadFieldListWithPropertiesOfMappedObject;
 begin
-  var DataSet := TPersistoDataSet.Create(nil);
-  var MyObject := TMyTestClass.Create;
+  FDataSet.ObjectClass := TMyTestClass;
 
-//  DataSet.OpenObject(MyObject);
+  FDataSet.Open;
 
-  Assert.AreEqual(5, DataSet.FieldCount);
-
-  DataSet.Free;
+  Assert.AreEqual(4, FDataSet.FieldCount);
 end;
 
 procedure TPersistoDataSetTest.WhenOpenTheDataSetWithAListAndTheListIsChangedTheResyncCantRaiseAnyError;
@@ -2431,42 +2405,6 @@ begin
   DataSet.Free;
 
   MyList.Free;
-end;
-
-procedure TPersistoDataSetTest.WhenOpenTheDataSetWithAListTheRecordCountMustBeTheSizeOfTheList;
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-  var MyList := TObjectList<TMyTestClass>.Create;
-
-  MyList.Add(TMyTestClass.Create);
-
-  MyList.Add(TMyTestClass.Create);
-
-  MyList.Add(TMyTestClass.Create);
-
-  MyList.Add(TMyTestClass.Create);
-
-//  DataSet.OpenList<TMyTestClass>(MyList);
-
-  Assert.AreEqual(4, DataSet.RecordCount);
-
-  DataSet.Free;
-
-  MyList.Free;
-end;
-
-procedure TPersistoDataSetTest.WhenOpenTheDataSetWithAObjectTheRecordCountMustBeOne;
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-  var MyObject := TMyTestClass.Create;
-
-//  DataSet.OpenObject(MyObject);
-
-  Assert.AreEqual(1, DataSet.RecordCount);
-
-  DataSet.Free;
-
-  MyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenOpenTheDataSetWithOneObjectMustReturnFalseInTheEOFProperty;
