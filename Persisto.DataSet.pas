@@ -5,6 +5,8 @@ interface
 uses System.Classes, System.Rtti, System.Generics.Collections, System.SysUtils, System.TypInfo, Persisto, Data.DB;
 
 type
+  TPersistoDataSet = class;
+
   EDataSetNotInEditingState = class(Exception)
   public
     constructor Create;
@@ -25,22 +27,16 @@ type
   ESelfFieldDifferentObjectType = class(Exception);
   ESelfFieldNotAllowEmptyValue = class(Exception);
   ESelfFieldTypeWrong = class(Exception);
-  TPersistoCalcFieldBuffer = {$IFDEF PAS2JS}TDataRecord{$ELSE}TRecBuf{$ENDIF};
-  TPersistoFieldBuffer = {$IFDEF PAS2JS}TDataRecord{$ELSE}TValueBuffer{$ENDIF};
-  TPersistoRecordBuffer = {$IFDEF PAS2JS}TDataRecord{$ELSE}TRecordBuffer{$ENDIF};
-  TPersistoValueBuffer = {$IFDEF PAS2JS}JSValue{$ELSE}TValueBuffer{$ENDIF};
 
   TPersistoBuffer = class
   public
-//    ObjectPosition: NativeInt;
     CurrentObject: TObject;
   end;
 
   TPersistoObjectField = class(TField)
   private
-{$IFDEF DCC}
-    FBuffer: TPersistoValueBuffer;
-{$ENDIF}
+    FBuffer: TValueBuffer;
+
     function GetAsObject: TObject;
 
     procedure SetAsObject(const Value: TObject);
@@ -106,13 +102,45 @@ type
     property Objects[Index: Cardinal]: TObject read GetObject write SetObject; default;
   end;
 
+  IPersistoCursor = interface
+    function GetCurrentObject: TObject;
+    function GetObjectCount: Integer;
+    function Next: Boolean;
+    function Prior: Boolean;
+
+    procedure First;
+    procedure Last;
+
+    property CurrentObject: TObject read GetCurrentObject;
+    property ObjectCount: Integer read GetObjectCount;
+  end;
+
+  TPersistoCursor = class(TInterfacedObject, IPersistoCursor)
+  private
+    FCurrentPosition: Integer;
+    FDataSet: TPersistoDataSet;
+
+    function GetCurrentObject: TObject;
+    function GetObjectCount: Integer;
+    function Next: Boolean;
+    function Prior: Boolean;
+
+    procedure First;
+    procedure Last;
+
+    property CurrentObject: TObject read GetCurrentObject;
+    property ObjectCount: Integer read GetObjectCount;
+  public
+    constructor Create(const DataSet: TPersistoDataSet);
+  end;
+
 {$IFDEF DCC}
   [ComponentPlatformsAttribute(pidAllPlatforms)]
 {$ENDIF}
   TPersistoDataSet = class(TDataSet)
   private
     FContext: TRttiContext;
-    FCurrentObjectPosition: NativeInt;
+    FCursor: IPersistoCursor;
     FIndexFieldNames: String;
     FObjectClass: TClass;
     FObjectClassName: String;
@@ -131,14 +159,14 @@ type
 
     function GetActivePersistoBuffer: TPersistoBuffer;
     function GetActiveObject: TObject;
-    function GetCurrentActiveBuffer: TPersistoRecordBuffer;
+    function GetCurrentActiveBuffer: TRecBuf;
     function GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
     function GetFieldTypeFromProperty(&Property: TRttiProperty): TFieldType;
     function GetObjectAndPropertyFromParentDataSet(var Instance: TValue; var &Property: TRttiProperty): Boolean;
     function GetObjects: TArray<TObject>;
     function GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
     function GetRecordInfoFromActiveBuffer: TPersistoBuffer;
-    function GetRecordInfoFromBuffer(const Buffer: TPersistoRecordBuffer): TPersistoBuffer;
+    function GetRecordInfoFromBuffer(const Buffer: TRecBuf): TPersistoBuffer;
     function IsSelfField(Field: TField): Boolean;
 
     procedure CheckCalculatedFields;
@@ -148,7 +176,7 @@ type
     procedure CheckSelfFieldType;
     procedure GetPropertyValue(const &Property: TRttiProperty; var Instance: TValue);
     procedure GoToPosition(const Position: Cardinal; const CalculateFields: Boolean);
-    procedure InternalCalculateFields(const Buffer: TPersistoRecordBuffer);
+    procedure InternalCalculateFields(const Buffer: TRecBuf);
     procedure InternalFilter(const NeedResync: Boolean);
     procedure LoadDetailInfo;
     procedure LoadFieldDefsFromClass;
@@ -162,7 +190,7 @@ type
     procedure SetCurrentObject(const NewObject: TObject);
     procedure SetIndexFieldNames(const Value: String);
     procedure Sort;
-    procedure UpdateArrayPosition(const Buffer: TPersistoRecordBuffer);
+    procedure UpdateArrayPosition(const Buffer: TRecBuf);
     procedure UpdateParentObject;
     procedure SetObjectClassName(const Value: String);
     procedure SetObjectClass(const Value: TClass);
@@ -173,18 +201,18 @@ type
     procedure LoadLazyGetTextFields;
 {$ENDIF}
   protected
-    function AllocRecordBuffer: TPersistoRecordBuffer; override;
+    function AllocRecordBuffer: TRecordBuffer; override;
     function GetFieldClass(FieldType: TFieldType): TFieldClass; override;
     function GetRecNo: Integer; override;
-    function GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TPersistoRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
+    function GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function GetRecordCount: Integer; override;
     function IsCursorOpen: Boolean; override;
 
-    procedure ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TPersistoCalcFieldBuffer); override;
+    procedure ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf); override;
     procedure DataEvent(Event: TDataEvent; Info: {$IFDEF PAS2JS}JSValue{$ELSE}NativeInt{$ENDIF}); override;
     procedure DoAfterOpen; override;
-    procedure FreeRecordBuffer(var Buffer: TPersistoRecordBuffer); override;
-    procedure GetBookmarkData(Buffer: TPersistoRecordBuffer; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark); override;
+    procedure FreeRecordBuffer(var Buffer: TRecordBuffer); override;
+    procedure GetBookmarkData(Buffer: TRecBuf; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark); override;
     procedure InternalCancel; override;
     procedure InternalClose; override;
     procedure InternalDelete; override;
@@ -193,14 +221,14 @@ type
     procedure InternalGotoBookmark(Bookmark: TBookmark); override;
     procedure InternalHandleException{$IFDEF PAS2JS}(E: Exception){$ENDIF}; override;
     procedure InternalInitFieldDefs; override;
-    procedure InternalInitRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TPersistoRecordBuffer); override;
+    procedure InternalInitRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf); override;
     procedure InternalInsert; override;
     procedure InternalLast; override;
     procedure InternalOpen; override;
     procedure InternalPost; override;
-    procedure InternalSetToRecord(Buffer: TPersistoRecordBuffer); override;
+    procedure InternalSetToRecord(Buffer: TRecBuf); override;
     procedure SetDataSetField(const DataSetField: TDataSetField); override;
-    procedure SetFieldData(Field: TField; Buffer: TPersistoValueBuffer); override;
+    procedure SetFieldData(Field: TField; Buffer: TValueBuffer); override;
 
     property ActivePersistoBuffer: TPersistoBuffer read GetActivePersistoBuffer;
   public
@@ -209,7 +237,7 @@ type
     destructor Destroy; override;
 
     function GetCurrentObject<T: class>: T;
-    function GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TPersistoFieldBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF}; override;
+    function GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TValueBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF}; override;
 
     procedure Filter(Func: TFunc<TPersistoDataSet, Boolean>);
     procedure Resync(Mode: TResyncMode); override;
@@ -393,18 +421,18 @@ end;
 
 { TPersistoDataSet }
 
-function TPersistoDataSet.AllocRecordBuffer: TPersistoRecordBuffer;
+function TPersistoDataSet.AllocRecordBuffer: TRecordBuffer;
 //var
 //  NewRecordInfo: TPersistoRecordInfo;
 
 begin
-  Result := TPersistoRecordBuffer(TPersistoBuffer.Create);
+  Result := TRecordBuffer(TPersistoBuffer.Create);
 //  NewRecordInfo := TPersistoRecordInfo.Create;
 //{$IFDEF PAS2JS}
 //  Result := inherited;
 //  Result.Data := NewRecordInfo;
 //{$ELSE}
-//  Result := TPersistoRecordBuffer(NewRecordInfo);
+//  Result := TRecBuf(NewRecordInfo);
 //{$ENDIF}
 //
 //  InternalInitRecord(Result);
@@ -464,7 +492,7 @@ begin
 //    raise ESelfFieldTypeWrong.Create('The Self field must be of the variant type!');
 end;
 
-procedure TPersistoDataSet.ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TPersistoCalcFieldBuffer);
+procedure TPersistoDataSet.ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf);
 //var
 //  A: Integer;
 //
@@ -544,7 +572,7 @@ begin
 //    Resync([]);
 end;
 
-procedure TPersistoDataSet.FreeRecordBuffer(var Buffer: TPersistoRecordBuffer);
+procedure TPersistoDataSet.FreeRecordBuffer(var Buffer: TRecordBuffer);
 var
   PersistoBuffer: TPersistoBuffer absolute Buffer;
 
@@ -562,7 +590,7 @@ begin
   Result := TPersistoBuffer(ActiveBuffer);
 end;
 
-procedure TPersistoDataSet.GetBookmarkData(Buffer: TPersistoRecordBuffer; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark);
+procedure TPersistoDataSet.GetBookmarkData(Buffer: TRecBuf; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark);
 //var
 //  RecordInfo: TPersistoRecordInfo;
 
@@ -572,7 +600,7 @@ begin
 //{$IFDEF PAS2JS}Data.Data{$ELSE}PInteger(Data)^{$ENDIF} := RecordInfo.ArrayPosition;
 end;
 
-function TPersistoDataSet.GetCurrentActiveBuffer: TPersistoRecordBuffer;
+function TPersistoDataSet.GetCurrentActiveBuffer: TRecBuf;
 begin
   case State of
     // dsInsert:;
@@ -581,14 +609,14 @@ begin
     // dsBrowse: ;
     // dsEdit: ;
     // dsSetKey: ;
-     dsCalcFields: Result := TPersistoRecordBuffer(CalcBuffer);
+     dsCalcFields: Result := TRecBuf(CalcBuffer);
     // dsFilter: ;
     // dsNewValue: ;
     // dsCurValue: ;
     // dsBlockRead: ;
     // dsInternalCalc: ;
     // dsOpening: ;
-    else Result := TPersistoRecordBuffer(ActiveBuffer);
+    else Result := TRecBuf(ActiveBuffer);
   end;
 end;
 
@@ -605,7 +633,7 @@ begin
     Result := inherited GetFieldClass(FieldType);
 end;
 
-function TPersistoDataSet.GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TPersistoFieldBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF};
+function TPersistoDataSet.GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TValueBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF};
 //var
 //  &Property: TRttiProperty;
 //
@@ -648,7 +676,7 @@ begin
 //      end
 //      else if Field is TDateTimeField then
 //      begin
-//        var DataTimeValue: TPersistoValueBuffer;
+//        var DataTimeValue: TValueBuffer;
 //
 //        SetLength(DataTimeValue, SizeOf(Double));
 //
@@ -760,51 +788,46 @@ end;
 
 function TPersistoDataSet.GetRecNo: Integer;
 begin
-//  Result := GetRecordInfoFromActiveBuffer.ArrayPosition
   Result := 0;
 end;
 
-function TPersistoDataSet.GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TPersistoRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
+function TPersistoDataSet.GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
 var
   PersistoBuffer: TPersistoBuffer absolute Buffer;
 
 begin
-  if FObjectList.IsEmpty then
-    Result := grEOF
-  else
-    Result := grOK;
-
   case GetMode of
     gmCurrent:;
 //      if FIterator.CurrentPosition = 0 then
 //        Result := grError;
     gmNext:
-      if Succ(FCurrentObjectPosition) = FObjectList.Count then
-        Result := grEOF
+      if FCursor.Next then
+      begin
+        Result := grOK;
+
+        PersistoBuffer.CurrentObject := FCursor.CurrentObject;
+      end
       else
-      begin
-        Inc(FCurrentObjectPosition);
-
-        PersistoBuffer.CurrentObject := FObjectList[FCurrentObjectPosition];
-      end;
+        Result := grEOF;
     gmPrior:
-      if Pred(FCurrentObjectPosition) > -1 then
+      if FCursor.Prior then
       begin
-        Dec(FCurrentObjectPosition);
+        Result := grOK;
 
-        PersistoBuffer.CurrentObject := FObjectList[FCurrentObjectPosition];
+        PersistoBuffer.CurrentObject := FCursor.CurrentObject;
       end
       else
         Result := grBOF;
+    else
+      Result := grError;
   end;
 end;
 
 function TPersistoDataSet.GetRecordCount: Integer;
 begin
-  if Active then
-    Result := FObjectList.Count
-  else
-    Result := -1;
+  CheckActive;
+
+  Result := FCursor.ObjectCount;
 end;
 
 function TPersistoDataSet.GetRecordInfoFromActiveBuffer: TPersistoBuffer;
@@ -812,20 +835,20 @@ begin
   Result := GetRecordInfoFromBuffer(GetCurrentActiveBuffer);
 end;
 
-function TPersistoDataSet.GetRecordInfoFromBuffer(const Buffer: TPersistoRecordBuffer): TPersistoBuffer;
+function TPersistoDataSet.GetRecordInfoFromBuffer(const Buffer: TRecBuf): TPersistoBuffer;
 begin
   Result := TPersistoBuffer(Buffer{$IFDEF PAS2JS}.Data{$ENDIF});
 end;
 
-procedure TPersistoDataSet.InternalCalculateFields(const Buffer: TPersistoRecordBuffer);
+procedure TPersistoDataSet.InternalCalculateFields(const Buffer: TRecBuf);
 var
-  ORMBuffer: TPersistoCalcFieldBuffer absolute Buffer;
+  ORMBuffer: TRecBuf absolute Buffer;
 
 begin
   GetCalcFields(ORMBuffer);
 end;
 
-procedure TPersistoDataSet.InternalInitRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TPersistoRecordBuffer);
+procedure TPersistoDataSet.InternalInitRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf);
 var
   PersistoBuffer: TPersistoBuffer absolute Buffer;
 
@@ -865,6 +888,7 @@ end;
 
 procedure TPersistoDataSet.InternalClose;
 begin
+  FCursor := nil;
 //  FIterator := nil;
 //  FIteratorData := nil;
 //  FIteratorFilter := nil;
@@ -929,7 +953,7 @@ end;
 
 procedure TPersistoDataSet.InternalFirst;
 begin
-  FCurrentObjectPosition := -1;
+  FCursor.First;
 end;
 
 procedure TPersistoDataSet.InternalGotoBookmark(Bookmark: TBookmark);
@@ -959,12 +983,12 @@ end;
 
 procedure TPersistoDataSet.InternalLast;
 begin
-  FCurrentObjectPosition := FObjectList.Count;
+  FCursor.Last;
 end;
 
 procedure TPersistoDataSet.InternalOpen;
 begin
-  FCurrentObjectPosition := -1;
+  FCursor := TPersistoCursor.Create(Self);
 
   CheckObjectTypeLoaded;
 
@@ -1009,14 +1033,14 @@ begin
 //  ReleaseOldValueObject;
 end;
 
-procedure TPersistoDataSet.InternalSetToRecord(Buffer: TPersistoRecordBuffer);
+procedure TPersistoDataSet.InternalSetToRecord(Buffer: TRecBuf);
 begin
 //  FIterator.CurrentPosition := GetRecordInfoFromBuffer(Buffer).ArrayPosition;
 end;
 
 function TPersistoDataSet.IsCursorOpen: Boolean;
 begin
-  Result := True;
+  Result := Assigned(FObjectType);
 end;
 
 function TPersistoDataSet.IsSelfField(Field: TField): Boolean;
@@ -1234,7 +1258,7 @@ begin
   inherited;
 end;
 
-procedure TPersistoDataSet.SetFieldData(Field: TField; Buffer: TPersistoValueBuffer);
+procedure TPersistoDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer);
 //var
 //  Instance: TValue;
 //
@@ -1267,7 +1291,7 @@ begin
 //        Value := TValue.From(ConvertToDateTime(Field, Buffer, True));
 //{$ELSE}
 //      begin
-//        var DataTimeValue: TPersistoValueBuffer;
+//        var DataTimeValue: TValueBuffer;
 //
 //        SetLength(DataTimeValue, SizeOf(Double));
 //
@@ -1524,7 +1548,7 @@ begin
 //  end;
 end;
 
-procedure TPersistoDataSet.UpdateArrayPosition(const Buffer: TPersistoRecordBuffer);
+procedure TPersistoDataSet.UpdateArrayPosition(const Buffer: TRecBuf);
 begin
 //  GetRecordInfoFromBuffer(Buffer).ArrayPosition := FIterator.CurrentPosition;
 end;
@@ -1670,6 +1694,51 @@ end;
 constructor EObjectArrayCantBeEmpty.Create;
 begin
   inherited Create('The object list can''t be emtpy!');
+end;
+
+{ TPersistoCursor }
+
+constructor TPersistoCursor.Create(const DataSet: TPersistoDataSet);
+begin
+  inherited Create;
+
+  FDataSet := DataSet;
+
+  First;
+end;
+
+procedure TPersistoCursor.First;
+begin
+  FCurrentPosition := -1;
+end;
+
+function TPersistoCursor.GetCurrentObject: TObject;
+begin
+  Result := FDataSet.FObjectList[FCurrentPosition];
+end;
+
+function TPersistoCursor.GetObjectCount: Integer;
+begin
+  Result := FDataSet.FObjectList.Count;
+end;
+
+procedure TPersistoCursor.Last;
+begin
+  FCurrentPosition := ObjectCount;
+end;
+
+function TPersistoCursor.Next: Boolean;
+begin
+  Inc(FCurrentPosition);
+
+  Result := FCurrentPosition < ObjectCount;
+end;
+
+function TPersistoCursor.Prior: Boolean;
+begin
+  Dec(FCurrentPosition);
+
+  Result := FCurrentPosition > -1;
 end;
 
 end.

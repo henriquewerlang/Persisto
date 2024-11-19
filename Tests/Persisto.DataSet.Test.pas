@@ -46,7 +46,7 @@ type
     [Test]
     procedure WhenFillTheObjectListAndOpenTheDataSetTheRecordCountMustBeEqualTheLengthOfTheObjectList;
     [Test]
-    procedure IfTheDataSetIsntOpenTheRecordCountMustReturnMinusOneValue;
+    procedure WhenTheDataSetIsCloseAndTryToGetTheRecordCountMustRaiseError;
     [Test]
     procedure WhenOpenAnEmptyDataSetTheEOFPropertyMustBeTrue;
     [Test]
@@ -63,6 +63,8 @@ type
     procedure WhenGoBackInAllRecordMustMarkTheBOFPropertyHasTrue;
     [Test]
     procedure WhenGoToTheFirstRecordTheCurrentObjectMustBeTheFirstRecordOfTheList;
+    [Test]
+    procedure WhenAppendADataSourceInDataSetCantRaiseAnyError;
     [Test]
     procedure WhenOpenDataSetHaveToLoadFieldListWithPropertiesOfMappedObject;
     [Test]
@@ -340,8 +342,6 @@ type
     [TTest]
     procedure WhenGetTheRecordCountFromAClosedDataSetCantRaiseAnyError;
     [TTest]
-    procedure WhenTheDataSetIsClosedTheRecordCountMustReturnMinusOne;
-    [TTest]
     procedure WhenCreateADataSetFieldAndOpenTheParentDataSetMustOpenTheDetailToo;
     [TTest]
     procedure WhenGetTheCurrentObjectOfAClosedDataSetCantRaiseAnyError;
@@ -584,11 +584,6 @@ begin
   DataSet.Free;
 
   MyObject.Free;
-end;
-
-procedure TPersistoDataSetTest.IfTheDataSetIsntOpenTheRecordCountMustReturnMinusOneValue;
-begin
-  Assert.AreEqual(-1, FDataSet.RecordCount);
 end;
 
 procedure TPersistoDataSetTest.OpenArrayMustLoadTheObjectListWithTheParamPassed;
@@ -917,6 +912,19 @@ begin
   MyObject.Free;
 end;
 
+procedure TPersistoDataSetTest.WhenAppendADataSourceInDataSetCantRaiseAnyError;
+begin
+  var DataSource := TDataSource.Create(nil);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      DataSource.DataSet := FDataSet;
+    end);
+
+  DataSource.Free;
+end;
+
 procedure TPersistoDataSetTest.WhenApplyAFilterBeforeOpenTheDataSetMustFilterTheRecordAfterOpen;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
@@ -1035,13 +1043,13 @@ begin
   DataSet.Free;
 end;
 
-procedure TPersistoDataSetTest.WhenTheDataSetIsClosedTheRecordCountMustReturnMinusOne;
+procedure TPersistoDataSetTest.WhenTheDataSetIsCloseAndTryToGetTheRecordCountMustRaiseError;
 begin
-  var DataSet := TPersistoDataSet.Create(nil);
-
-  Assert.AreEqual(-1, DataSet.RecordCount);
-
-  DataSet.Free;
+  Assert.WillRaise(
+    procedure
+    begin
+      FDataSet.RecordCount;
+    end, EDatabaseError);
 end;
 
 procedure TPersistoDataSetTest.WhenTheDataSetIsEmptyCantRaiseAnErrorWhenGetAFieldFromASubPropertyThatIsAnObject;
