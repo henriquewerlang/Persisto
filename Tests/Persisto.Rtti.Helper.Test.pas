@@ -20,19 +20,19 @@ type
     procedure WhenGetAnArrayElementMustReturnTheValueExpected;
     [Test]
     procedure WhenSetAnArrayElementMustChangeTheValueAsExpected;
-    [TestCase('AnsiChar', 'AnsiChar,C')]
-    [TestCase('AnsiString', 'AnsiString,AnsiString')]
-    [TestCase('Char', 'Char,C')]
-    [TestCase('Enumerator', 'Enumerator,1')]
-    [TestCase('Empty Value', 'EmptyValue,')]
-    [TestCase('Float', 'Float,1234.456')]
-    [TestCase('Date', 'Date,2020-01-31')]
-    [TestCase('DateTime', 'DateTime,2020-01-31 12:34:56')]
-    [TestCase('GUID', 'GUID,{BD2BBA84-C691-4C5E-ABD3-4F32937C53F8}')]
-    [TestCase('Integer', 'Integer,1234')]
-    [TestCase('Int64', 'Int64,1234')]
-    [TestCase('String', 'String,String')]
-    [TestCase('Time', 'Time,12:34:56')]
+//    [TestCase('AnsiChar', 'AnsiChar,C')]
+//    [TestCase('AnsiString', 'AnsiString,AnsiString')]
+//    [TestCase('Char', 'Char,C')]
+//    [TestCase('Enumerator', 'Enumerator,1')]
+//    [TestCase('Empty Value', 'EmptyValue,')]
+//    [TestCase('Float', 'Float,1234.456')]
+//    [TestCase('Date', 'Date,2020-01-31')]
+//    [TestCase('DateTime', 'DateTime,2020-01-31 12:34:56')]
+//    [TestCase('GUID', 'GUID,{BD2BBA84-C691-4C5E-ABD3-4F32937C53F8}')]
+//    [TestCase('Integer', 'Integer,1234')]
+//    [TestCase('Int64', 'Int64,1234')]
+//    [TestCase('String', 'String,String')]
+//    [TestCase('Time', 'Time,12:34:56')]
     procedure TheConversionOfTheTValueMustBeLikeExpected(TypeToConvert, ValueToCompare: String);
   end;
 

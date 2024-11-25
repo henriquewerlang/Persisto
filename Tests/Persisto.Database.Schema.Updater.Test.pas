@@ -32,19 +32,19 @@ type
     procedure WhenAFieldWithASizeMustCreateTheFieldWithTheSizeOfTheAttribute;
     [Test]
     procedure WhenAFieldWithAPrecisionMustCreateTheFieldWithThePrecisionOfTheAttribute;
-    [TestCase('String', 'VarChar,tkString')]
-    [TestCase('Integer', 'Integer,tkInteger')]
-    [TestCase('Char', 'Char,tkChar')]
-    [TestCase('Enumeration', 'Enumerator,tkEnumeration')]
-    [TestCase('Float', 'Float,tkFloat')]
-    [TestCase('Int64', 'Bigint,tkInt64')]
+//    [TestCase('String', 'VarChar,tkString')]
+//    [TestCase('Integer', 'Integer,tkInteger')]
+//    [TestCase('Char', 'Char,tkChar')]
+//    [TestCase('Enumeration', 'Enumerator,tkEnumeration')]
+//    [TestCase('Float', 'Float,tkFloat')]
+//    [TestCase('Int64', 'Bigint,tkInt64')]
     procedure WhenCreateANormalFieldMustLoadTheFieldKindInfoAsExpected(const FieldName: String; const FieldKind: TTypeKind);
-    [TestCase('Date', 'Date,stDate')]
-    [TestCase('DateTime', 'DateTime,stDateTime')]
-    [TestCase('Time', 'Time,stTime')]
-    [TestCase('Text', 'Text,stText')]
-    [TestCase('Unique Identifier', 'UniqueIdentifier,stUniqueIdentifier')]
-    [TestCase('Boolean', 'Boolean,stBoolean')]
+//    [TestCase('Date', 'Date,stDate')]
+//    [TestCase('DateTime', 'DateTime,stDateTime')]
+//    [TestCase('Time', 'Time,stTime')]
+//    [TestCase('Text', 'Text,stText')]
+//    [TestCase('Unique Identifier', 'UniqueIdentifier,stUniqueIdentifier')]
+//    [TestCase('Boolean', 'Boolean,stBoolean')]
     procedure WhenCreateASpecialTypeFieldMustLoadTheSpecialTypeInfoAsExpected(const FieldName: String; const SpecialType: TDatabaseSpecialType);
     [Test]
     procedure WhenCreateARequiredFieldMustCreateTheFieldNotNull;

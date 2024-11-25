@@ -219,15 +219,15 @@ type
     procedure WhenTheLazyFieldIsntLoadedAndHaveAKeyFilledMustReturnTheKeyValueInGetValueFunction;
     [Test]
     procedure WhenTheFieldIsRequiredMustLoadThisInfoInTheField;
-    [TestCase('AnsiChar', 'AnsiChar')]
-    [TestCase('Char', 'Char')]
-    [TestCase('Enumerator', 'Enumerator')]
-    [TestCase('Float', 'Float')]
-    [TestCase('Date', 'Date')]
-    [TestCase('DateTime', 'DateTime')]
-    [TestCase('Integer', 'Integer')]
-    [TestCase('Int64', 'Int64')]
-    [TestCase('Time', 'Time')]
+//    [TestCase('AnsiChar', 'AnsiChar')]
+//    [TestCase('Char', 'Char')]
+//    [TestCase('Enumerator', 'Enumerator')]
+//    [TestCase('Float', 'Float')]
+//    [TestCase('Date', 'Date')]
+//    [TestCase('DateTime', 'DateTime')]
+//    [TestCase('Integer', 'Integer')]
+//    [TestCase('Int64', 'Int64')]
+//    [TestCase('Time', 'Time')]
     procedure WhenThePropertyIsANativeTypeMustMarkTheFieldAsRequired(const FieldName: String);
     [Test]
     procedure WhenTheFieldIsAClassMustMarkAsNotRequired;

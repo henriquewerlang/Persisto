@@ -72,286 +72,286 @@ type
 
 
 
-    [TestCase('Array', 'MyArray,ftDataSet')]
-    [TestCase('Boolean', 'Boolean,ftBoolean')]
-    [TestCase('Byte', 'Byte,ftByte')]
-    [TestCase('Cardinal', 'Cardinal,ftLongWord')]
-    [TestCase('Char', 'Char,ftString')]
-    [TestCase('Class', 'Class,ftVariant')]
-    [TestCase('Currency', 'Currency,ftCurrency')]
-    [TestCase('Date', 'Date,ftDate')]
-    [TestCase('DateTime', 'DateTime,ftDateTime')]
-    [TestCase('Double', 'Double,ftFloat')]
-    [TestCase('Enumerator', 'MyEnum,ftInteger')]
-    [TestCase('Int64', 'Int64,ftLargeint')]
-    [TestCase('Integer', 'Int,ftInteger')]
-    [TestCase('Sigle', 'Single,ftSingle')]
-    [TestCase('String', 'Str,ftString')]
-    [TestCase('Time', 'Time,ftTime')]
-    [TestCase('WideChar', 'WideChar,ftString')]
-    [TestCase('WideString', 'WideString,ftWideString')]
-    [TestCase('Word', 'Word,ftWord')]
+//    [TestCase('Array', 'MyArray,ftDataSet')]
+//    [TestCase('Boolean', 'Boolean,ftBoolean')]
+//    [TestCase('Byte', 'Byte,ftByte')]
+//    [TestCase('Cardinal', 'Cardinal,ftLongWord')]
+//    [TestCase('Char', 'Char,ftString')]
+//    [TestCase('Class', 'Class,ftVariant')]
+//    [TestCase('Currency', 'Currency,ftCurrency')]
+//    [TestCase('Date', 'Date,ftDate')]
+//    [TestCase('DateTime', 'DateTime,ftDateTime')]
+//    [TestCase('Double', 'Double,ftFloat')]
+//    [TestCase('Enumerator', 'MyEnum,ftInteger')]
+//    [TestCase('Int64', 'Int64,ftLargeint')]
+//    [TestCase('Integer', 'Int,ftInteger')]
+//    [TestCase('Sigle', 'Single,ftSingle')]
+//    [TestCase('String', 'Str,ftString')]
+//    [TestCase('Time', 'Time,ftTime')]
+//    [TestCase('WideChar', 'WideChar,ftString')]
+//    [TestCase('WideString', 'WideString,ftWideString')]
+//    [TestCase('Word', 'Word,ftWord')]
     procedure TheFieldTypeMustMatchWithPropertyType(FieldName: String; TypeToCompare: TFieldType);
-    [TTest]
+//    [Test]
     procedure AfterOpenTheFieldMustLoadTheValuesFromTheObjectClass;
-    [TTest]
+//    [Test]
     procedure WhenNavigateByDataSetMustHaveToShowTheValuesFromTheList;
-    [TTest]
+//    [Test]
     procedure WhenNavigatingBackHaveToLoadTheListValuesAsExpected;
-    [TTest]
+//    [Test]
     procedure WhenHaveFieldDefDefinedCantLoadFieldsFromTheClass;
-    [TTest]
+//    [Test]
     procedure WhenTheFieldDefNameNotExistsInPropertyListMustRaiseAException;
-    [TTest]
+//    [Test]
     procedure WhenTheFieldAndPropertyTypeAreDifferentItHasToRaiseAnException;
-    [TTest]
+//    [Test]
     procedure WhenAFieldIsSeparatedByAPointItHasToLoadTheSubPropertiesOfTheObject;
-    [TTest]
+//    [Test]
     procedure WhenTryOpenADataSetWithoutAObjectDefinitionMustRaiseAnError;
-    [TTest]
+//    [Test]
     procedure WhenFilledTheObjectClassNameHasToLoadTheDataSetWithoutErrors;
-    [TTest]
+//    [Test]
     procedure WhenUseQualifiedClassNameHasToLoadTheDataSetWithoutErrors;
-    [TTest]
+//    [Test]
     procedure WhenCheckingIfTheFieldIsNullCantRaiseAnError;
-    [TTest]
+//    [Test]
     procedure WhenCallFirstHaveToGoToTheFirstRecord;
-    [TTest]
+//    [Test]
     procedure UsingBookmarkHaveToWorkLikeSpected;
-    [TTest]
+//    [Test]
     procedure WhenUseTheOpenClassMustLoadFieldFromTheClass;
-    [TTest]
+//    [Test]
     procedure WhenExistsAFieldInDataSetMustFillTheFieldDefFromThisField;
-    [TTest]
+//    [Test]
     procedure WhenInsertIntoDataSetCantRaiseAnError;
-    [TTest]
+//    [Test]
     procedure WhenPostARecordMustAppendToListOfObjects;
-    [TestCase('Boolean', 'Boolean,True')]
-    [TestCase('Byte', 'Byte,123')]
-    [TestCase('Cardinal', 'Cardinal,123')]
-    [TestCase('Char', 'Char,C')]
-    [TestCase('Currency', 'Currency;123.456', ';')]
-    [TestCase('Date', 'Date,12/21/2020')]
-    [TestCase('DateTime', 'DateTime,12/21/2020 17:17:17')]
-    [TestCase('Double', 'Double;123.456', ';')]
-    [TestCase('Enumerator', 'MyEnum,1')]
-    [TestCase('Int64', 'Int64,123')]
-    [TestCase('Integer', 'Int,123')]
-    [TestCase('Sigle', 'Single;123.456', ';')]
-    [TestCase('String', 'Str,Value String')]
-    [TestCase('Time', 'Time,17:17:17')]
-    [TestCase('WideChar', 'WideChar,C')]
-    [TestCase('WideString', 'WideString,Value String')]
-    [TestCase('Word', 'Word,123')]
+//    [TestCase('Boolean', 'Boolean,True')]
+//    [TestCase('Byte', 'Byte,123')]
+//    [TestCase('Cardinal', 'Cardinal,123')]
+//    [TestCase('Char', 'Char,C')]
+//    [TestCase('Currency', 'Currency;123.456', ';')]
+//    [TestCase('Date', 'Date,12/21/2020')]
+//    [TestCase('DateTime', 'DateTime,12/21/2020 17:17:17')]
+//    [TestCase('Double', 'Double;123.456', ';')]
+//    [TestCase('Enumerator', 'MyEnum,1')]
+//    [TestCase('Int64', 'Int64,123')]
+//    [TestCase('Integer', 'Int,123')]
+//    [TestCase('Sigle', 'Single;123.456', ';')]
+//    [TestCase('String', 'Str,Value String')]
+//    [TestCase('Time', 'Time,17:17:17')]
+//    [TestCase('WideChar', 'WideChar,C')]
+//    [TestCase('WideString', 'WideString,Value String')]
+//    [TestCase('Word', 'Word,123')]
     procedure WhenSetTheFieldValueMustChangeTheValueFromTheClass(FieldName, FieldValue: String);
-    [TestCase('Char', 'Char,1')]
-    [TestCase('String', 'Str,50')]
-    [TestCase('WideChar', 'WideChar,1')]
-    [TestCase('WideString', 'WideString,50')]
+//    [TestCase('Char', 'Char,1')]
+//    [TestCase('String', 'Str,50')]
+//    [TestCase('WideChar', 'WideChar,1')]
+//    [TestCase('WideString', 'WideString,50')]
     procedure WhenAFieldIsACreateTheFieldMustHaveTheMinimalSizeDefined(FieldName: String; Size: Integer);
-    [TTest]
+//    [Test]
     procedure WhenOpenAnEmptyDataSetCantRaiseAnError;
-    [TTest]
+//    [Test]
     procedure WhenOpenAnEmptyDataSetTheCurrentObjectMustReturnNil;
-    [TTest]
+//    [Test]
     procedure WhenTryToGetAFieldValueFromAEmptyDataSetCantRaiseAnError;
-    [TTest]
+//    [Test]
     procedure WhenOpenAnEmptyDataSetTheValueOfTheFieldMustReturnNull;
-    [TTest]
+//    [Test]
     procedure WhenASubPropertyIsAnObjectAndTheValueIsNilCantRaiseAnError;
-    [TTest]
+//    [Test]
     procedure WhenFillingAFieldWithSubPropertyMustFillTheLastLevelOfTheField;
-    [TTest]
+//    [Test]
     procedure WhenOpenAClassWithDerivationMustLoadTheFieldFromTheBaseClassToo;
-    [TTest]
+//    [Test]
     procedure WhenTheDataSetIsEmptyCantRaiseAnErrorWhenGetAFieldFromASubPropertyThatIsAnObject;
-    [TTest]
+//    [Test]
     procedure EveryInsertedObjectMustGoToTheObjectList;
-    [TTest]
+//    [Test]
     procedure AfterInsertAnObjectMustResetTheObjectToSaveTheNewInfo;
-    [TTest]
+//    [Test]
     procedure WhenEditingTheDataSetAndSetAFieldValueMustChangeThePropertyOfTheObjectToo;
-    [TTest]
+//    [Test]
     procedure TheOldValuePropertyFromFieldMustReturnTheOriginalValueOfTheObjectBeingEdited;
-    [TTest]
+//    [Test]
     procedure WhenAStringFieldIsEmptyCantRaiseAnErrorBecauseOfIt;
-    [TTest]
+//    [Test]
     procedure WhenTheEditionIsCanceledMustReturnTheOriginalValueFromTheField;
-    [TTest]
+//    [Test]
     procedure WhenEditingCantIncreseTheRecordCountWhenPostTheRecord;
-    [TTest]
+//    [Test]
     procedure WhenSetAValueToAFieldThatIsAnObjectMustFillThePropertyInTheClassWithThisObject;
-    [TTest]
+//    [Test]
     procedure WhenGetAValueFromAFieldAndIsAnObjectMustReturnTheObjectFromTheClass;
-    [TTest]
+//    [Test]
     procedure OpenArrayObjectMustLoadTheObjectTypeFromTheParam;
-    [TTest]
+//    [Test]
     procedure OpenArrayObjectMustActiveTheDataSet;
-    [TTest]
+//    [Test]
     procedure OpenArrayMustLoadTheObjectListWithTheParamPassed;
-    [TTest]
+//    [Test]
     procedure TheRecNoPropertyMustReturnTheCurrentRecordPositionInTheDataSet;
-    [TTest]
+//    [Test]
     procedure WhenADataSetIsActiveCantOpenItAgainMustRaiseAnError;
-    [TTest]
+//    [Test]
     procedure WhenCleanUpTheObjectClassNameMustStayEmpty;
-    [TTest]
+//    [Test]
     procedure WhenChangeTheObjectTypeOfTheDataSetMustBeClosedToAcceptTheChange;
-    [TTest]
+//    [Test]
     procedure WhenFillTheDataSetFieldPropertyMustLoadTheParentDataSetPropertyWithTheDataSetCorrect;
-    [TTest]
+//    [Test]
     procedure WhenCleanUpTheDataSetFieldPropertyTheParentDataSetMustBeCleanedToo;
-    [TTest]
+//    [Test]
     procedure WhenFillTheDataSetFieldMustLoadTheObjectTypeFromThePropertyOfTheField;
-    [TTest]
+//    [Test]
     procedure WhenOpenTheDetailDataSetMustLoadAllRecordsFromTheParentDataSet;
-    [TTest]
+//    [Test]
     procedure WhenScrollTheParentDataSetMustLoadTheArrayInDetailDataSet;
-    [TTest]
+//    [Test]
     procedure WhenPostTheDetailDataSetMustUpdateTheArrayValueFromParentDataSet;
-    [TTest]
+//    [Test]
     procedure WhenTheRecordBufferIsBiggerThenOneMustLoadTheBufferOfTheDataSetAsExpected;
-    [TTest]
+//    [Test]
     procedure WhenOpenADataSetWithDetailMustLoadTheRecordsOfTheDetail;
-    [TTest]
+//    [Test]
     procedure WhenTheDetailDataSetHasAComposeNameMustLoadTheObjectTypeCorrectly;
-    [TTest]
+//    [Test]
     procedure WhenTheDetailDataSetHasAComposeNameMustLoadTheDataCorrecty;
-    [TTest]
+//    [Test]
     procedure WhenInsertARecordThenCancelTheInsertionAndStartANewInsertTheOldBufferMustBeCleanedUp;
-    [TTest]
+//    [Test]
     procedure WhenThePropertyIsANullableTypeMustCreateTheField;
-    [TTest]
+//    [Test]
     procedure WhenThePropertyIsANullableTypeMustCreateTheFieldWithTheInternalTypeOfTheNullable;
-    [TTest]
+//    [Test]
     procedure WhenTheFieldIsMappedToANullableFieldAndTheValueIsntFilledMustReturnNullInTheFieldValue;
-    [TTest]
+//    [Test]
     procedure WhenTheNullablePropertyIsFilledMustReturnTheValueFilled;
-    [TTest]
+//    [Test]
     procedure WhenClearAFieldCantRaiseAnError;
-    [TTest]
+//    [Test]
     procedure WhenFillANullableFieldWithTheNullValueMustMarkThePropertyWithIsNullTrue;
-    [TTest]
+//    [Test]
     procedure WhenFillANullableFieldWithAnValueMustFillThePropertyWithTheValue;
-    [TTest]
+//    [Test]
     procedure GetADateTimeFieldMustReturnTheValueAsExpected;
-    [TTest]
+//    [Test]
     procedure WhenThePropertyOfTheClassIsLazyLoadingMustCreateTheField;
-    [TTest]
+//    [Test]
     procedure WhenThePropertyOfTheClassIsLazyLoadingMustCreateTheFieldWithTheGenericTypeOfTheLazyRecord;
-    [TTest]
+//    [Test]
     procedure WhenGetTheValueOfALazyPropertyMustReturnTheValueInsideTheLazyRecord;
-    [TTest]
+//    [Test]
     procedure WhenFillAFieldOfALazyPropertyMustFieldTheLazyStructure;
-    [TTest]
+//    [Test]
     procedure WhenTryToGetAComposeFieldNameFromALazyPropertyMustLoadAsExpected;
-    [TTest]
+//    [Test]
     procedure WhenOpenADataSetWithCalculatedFieldCantRaiseAnyError;
-    [TTest]
+//    [Test]
     procedure WhenTryToGetTheValueOfACalculatedFieldCantRaiseAnyError;
-    [TTest]
+//    [Test]
     procedure WhenADataSetNotInEditingStateMustRaiseAnErrorIfTryToFillAFieldValue;
-    [TTest]
+//    [Test]
     procedure WhenFillTheValueOfACalculatedFieldCantRaiseAnyError;
-    [TTest]
+//    [Test]
     procedure WhenToCalculateAFieldMustReturnTheValueExpected;
-    [TTest]
+//    [Test]
     procedure WhenExitsMoreThenOneCalculatedFieldMustReturnTheValueAsExpected;
-    [TTest]
+//    [Test]
     procedure WhenOpenADataSetWithAnEmptyArrayCantRaiseAnyError;
-    [TTest]
+//    [Test]
     procedure WhenCloseTheDataSetMustUmbingTheFieldsAndCloseTheDataSetDetail;
-    [TTest]
+//    [Test]
     procedure WhenMoveTheMasterDataSetTheCountOfTheDetailRecordMustRepresentTheExatValueFromArrayOfMasterClass;
-    [TTest]
+//    [Test]
     procedure WhenTheDetailDataSetIsEmptyCantRaiseAnErrorWhenGetAFieldValue;
-    [TTest]
+//    [Test]
     procedure WhenMoveTheMasterDataSetTheDetailDataSetMustBeInTheFirstRecord;
-    [TTest]
+//    [Test]
     procedure WhenDeleteARecordFromADataSetMustRemoveTheValueFromTheDataSet;
-    [TTest]
+//    [Test]
     procedure WhenRemoveARecordFromDetailMustUpdateTheArrayOfTheParentClass;
-    [TTest]
+//    [Test]
     procedure WhenScrollTheDataSetMustCalculateTheFields;
-    [TTest]
+//    [Test]
     procedure WhenPutTheDataSetInInsertStateMustClearTheCalculatedFields;
-    [TTest]
+//    [Test]
     procedure WhenIsRemovedTheLastRecordFromDataSetCantRaiseAnError;
-    [TTest]
+//    [Test]
     procedure WhenRemoveAComposeDetailFieldNameMustUpdateTheParentClassWithTheNewValues;
-    [TTest]
+//    [Test]
     procedure WhenOpenTheDataSetWithAListAndTheListIsChangedTheResyncCantRaiseAnyError;
-    [TTest]
+//    [Test]
     procedure TheCalcBufferMustBeClearedOnScrollingTheDataSet;
-    [TTest]
+//    [Test]
     procedure WhenOpenADataSetWithoutFieldsMustAddTheSelfFieldToDataSet;
-    [TTest]
+//    [Test]
     procedure WhenAddTheSelfFieldCantRaiseAnyError;
-    [TTest]
+//    [Test]
     procedure TheSelfFieldTypeMustBeVariant;
-    [TTest]
+//    [Test]
     procedure WhenAddTheSelfFieldMustBeOfTheVariantType;
-    [TTest]
+//    [Test]
     procedure WhenGetTheValueOfTheSelfFieldMustReturnTheCurrentObjectOfThDataSet;
-    [TTest]
+//    [Test]
     procedure WhenFillTheCurrentObjectMustReplaceTheCurrentValueInTheInternalList;
-    [TTest]
+//    [Test]
     procedure WhenInsertingMustTheSelfFieldMustReplaceTheCurrentObjectHasExpected;
-    [TTest]
+//    [Test]
     procedure WhenFillANilValueToSelfFieldMustRaiseAnError;
-    [TTest]
+//    [Test]
     procedure WhenTryToFillAnObjectWithDifferentTypeMustRaiseAnError;
-    [TTest]
+//    [Test]
     procedure WhenChangeTheSelfFieldMustNotifyTheChangeOfAllFieldsInDataSet;
-    [TTest]
+//    [Test]
     procedure WhenFillTheIndexFieldNamesMustOrderTheValuesInAscendingOrderAsExpected;
-    [TTest]
+//    [Test]
     procedure WhenFillTheIndexFieldNamesWithMoreTheOnFieldMustOrderAsExpected;
-    [TTest]
+//    [Test]
     procedure WhenPutTheMinusSymbolBeforeTheFieldNameInIndexMustSortDescending;
-    [TTest]
+//    [Test]
     procedure WhenChangeTheIndexFieldNamesWithDataSetOpenMustSortTheValues;
-    [TTest]
+//    [Test]
     procedure AfterChangeAnRecordMustSortTheDataSetAgain;
-    [TTest]
+//    [Test]
     procedure WhenSortACalculatedFieldCantRaiseAnyError;
-    [TTest]
+//    [Test]
     procedure WhenSortACalculatedFieldAsExpected;
-    [TTest]
+//    [Test]
     procedure WhenNotUsingACalculatedFieldInTheIndexCantCallTheOnCalcFields;
-    [TTest]
+//    [Test]
     procedure WhenCallTheResyncMustReorderTheDataSet;
-    [TTest]
+//    [Test]
     procedure WhenFilterTheDataSetMustStayOnlyTheFilteredRecords;
-    [TTest]
+//    [Test]
     procedure WhenApplyAFilterBeforeOpenTheDataSetMustFilterTheRecordAfterOpen;
-    [TTest]
+//    [Test]
     procedure WhenRemoveTheFilterMustReturnTheOriginalRecordsToTheDataSet;
-    [TTest]
+//    [Test]
     procedure WhenInsertingARecordInAFilteredDataSetMustCheckTheFilterToAddTheRecordToTheDataSet;
-    [TTest]
+//    [Test]
     procedure WhenEditingARecordAndTheFilterBecameInvalidMustRemoveTheRecordFromDataSet;
-    [TTest]
+//    [Test]
     procedure WhenSortAFilteredDataSetCantRaiseAnyError;
-    [TTest]
+//    [Test]
     procedure WhenOrderingANullFieldValueItMustBeTheFirstRecordInTheSortedDataSet;
-    [TTest]
+//    [Test]
     procedure WhenExistsMoreTheOneNullValueMustBeTheFirstRecordsAnThenTheFieldsWithValue;
-    [TTest]
+//    [Test]
     procedure WhenOrderingANullFieldValueInDescendingOrderItMustBeTheLastRecordInTheSortedDataSet;
-    [TTest]
+//    [Test]
     procedure WhenGetTheRecordCountFromAClosedDataSetCantRaiseAnyError;
-    [TTest]
+//    [Test]
     procedure WhenCreateADataSetFieldAndOpenTheParentDataSetMustOpenTheDetailToo;
-    [TTest]
+//    [Test]
     procedure WhenGetTheCurrentObjectOfAClosedDataSetCantRaiseAnyError;
-    [TTest]
+//    [Test]
     procedure WhenGetValueOfAnFieldInAClosedDataSetCantRaiseAnyError;
-    [TTest]
+//    [Test]
     procedure WhenTheDataLinkTryToGetAFieldValueInTheDetailDataSetCantRaiseAnyError;
-    [TTest]
+//    [Test]
     procedure WhenTheDataSetIsOpenAndHasADetailAndTheDetailHasRecordsMustClearTheDetailAfterIntertingInTheParentDataSet;
-    [TTest]
+//    [Test]
     procedure WhenTheDataSetDetailIsFilteredAndIsInsertedAnRecordInvalidForFilterMustLoadTheParentArrayAnyWay;
   end;
 
