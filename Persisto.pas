@@ -76,11 +76,11 @@ type
 
   ERecursionInsertionError = class(Exception)
   private
-    FRecursionTree: String;
+    FTable: TTable;
   public
-    constructor Create(const RecursionTree: String);
+    constructor Create(const Table: TTable);
 
-    property RecursionTree: String read FRecursionTree write FRecursionTree;
+    property Table: TTable read FTable write FTable;
   end;
 
   ERecursionSelectionError = class(Exception)
@@ -719,45 +719,39 @@ type
     function MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
   end;
 
-  TStateObject = class
+  IObjectOldValue = interface
+    function GetOldValue(const Field: TField): Variant;
+
+    property OldValue[const Field: TField]: Variant read GetOldValue; default;
+  end;
+
+  TObjectOldValue = class(TInterfacedObject, IObjectOldValue)
   private
-    FObject: TObject;
-    FOldValues: TArray<TValue>;
-    FTable: TTable;
+    FCursor: IDatabaseCursor;
 
-    function GetOldValue(const Field: TField): TValue;
-    function GetObject: TObject;
-
-    procedure SetOldValue(const Field: TField; const Value: TValue);
+    function GetOldValue(const Field: TField): Variant;
   public
-    constructor Create(const Table: TTable);
-
-    destructor Destroy; override;
-
-    property &Object: TObject read GetObject;
-    property OldValue[const Field: TField]: TValue read GetOldValue write SetOldValue;
+    constructor Create(const Cursor: IDatabaseCursor);
   end;
 
   TManager = class
   private
     FConnection: IDatabaseConnection;
     FDatabaseManipulator: IDatabaseManipulator;
+    FLoadedObjects: TDictionary<String, TObject>;
     FMapper: TMapper;
     FProcessedObjects: TDictionary<TObject, Boolean>;
     FQueryBuilder: TQueryBuilder;
-    FStateObjects: TDictionary<String, TStateObject>;
 
-    function BuildStateObjectKey(const Table: TTable; const &Object: TObject): String; overload;
-    function BuildStateObjectKey(const Table: TTable; const PrimaryKeyValue: String): String; overload;
-    function GetStateObject(const Table: TTable; const &Object: TObject): TStateObject;
-    function InsertTable(const Table: TTable; const &Object: TObject): Boolean;
-    function LoadStateObject(const Table: TTable; const &Object: TObject; var StateObject: TStateObject): Boolean;
-    function SaveTable(const Table: TTable; const &Object: TObject): Boolean;
-    function UpdateTable(const Table: TTable; const &Object: TObject): Boolean;
+    function LoadOldValueObject(const Table: TTable; const &Object: TObject): IObjectOldValue;
+    function TryLoadOldValueObject(const Table: TTable; const &Object: TObject; var ObjectOldValue: IObjectOldValue): Boolean;
 
-    procedure AddStateObject(const StateObjectKey: String; const StateObject: TStateObject);
-    procedure InternalUpdateTable(const Table: TTable; const &Object: TObject);
+    procedure InsertTable(const Table: TTable; const &Object: TObject);
+    procedure InternalUpdateTable(const Table: TTable; const &Object: TObject; const OldValues: IObjectOldValue);
     procedure ExecuteSchemaScripts;
+    procedure SaveManyValueAssociation(const Table: TTable; const &Object: TObject);
+    procedure SaveTable(const Table: TTable; const &Object: TObject);
+    procedure UpdateTable(const Table: TTable; const &Object: TObject; const ObjectOldValue: IObjectOldValue);
   public
     constructor Create(const Connection: IDatabaseConnection; const DatabaseManipulator: IDatabaseManipulator);
 
@@ -1632,7 +1626,7 @@ var
 
   function BuildStateObjectKey(const QueryTable: TQueryBuilderTable): String;
   begin
-    Result := FQueryBuilder.FManager.BuildStateObjectKey(QueryTable.Table, QueryTable.PrimaryKeyField.DataSetField.AsString);
+    Result := Format('%s.%s', [QueryTable.Table.DatabaseName, QueryTable.PrimaryKeyField.DataSetField.AsString]);
   end;
 
   function BuildStateObjectKeyForManyValueObject(const QueryTable: TQueryBuilderTable): String;
@@ -1665,27 +1659,27 @@ var
     Result := not LoadedObjects.TryAdd(BuildStateObjectKeyForObject(QueryTable), False);
   end;
 
-  function CreateObject(const QueryTable: TQueryBuilderTable): TStateObject;
+  function CreateObject(const QueryTable: TQueryBuilderTable): TObject;
   begin
-    var StateObjectKey := BuildStateObjectKey(QueryTable);
+    var Key := BuildStateObjectKey(QueryTable);
 
-    if not FQueryBuilder.FManager.FStateObjects.TryGetValue(StateObjectKey, Result) then
+    if not FQueryBuilder.FManager.FLoadedObjects.TryGetValue(Key, Result) then
     begin
-      Result := TStateObject.Create(QueryTable.Table);
+      Result := QueryTable.Table.ClassTypeInfo.MetaclassType.Create;
 
-      FQueryBuilder.FManager.AddStateObject(StateObjectKey, Result);
+      FQueryBuilder.FManager.FLoadedObjects.Add(Key, Result);
     end;
   end;
 
-  procedure LoadFieldValues(const QueryTable: TQueryBuilderTable; const StateObject: TStateObject);
+  procedure LoadFieldValues(const QueryTable: TQueryBuilderTable; const &Object: TObject);
   var
     ArrayLength: Integer;
     Field: TField;
     FieldValue: TValue;
     ForeignKeyTable: TQueryBuilderTable;
-    ForeignObject: TStateObject;
+    ForeignObject: TObject;
     ManyValueAssociationTable: TQueryBuilderTable;
-    ManyValueObject: TStateObject;
+    ManyValueObject: TObject;
     QueryField: TQueryBuilderTableField;
 
   begin
@@ -1695,33 +1689,30 @@ var
       FieldValue := GetFieldValue(Field, QueryField.DataSetField);
 
       if Field.IsLazy then
-        Field.LazyValue[StateObject.&Object] := CreateLazyFactory(Field, FieldValue)
+        Field.LazyValue[&Object] := CreateLazyFactory(Field, FieldValue)
       else if Field.Required or not FieldValue.IsEmpty then
-        Field.Value[StateObject.&Object] := FieldValue;
-
-      StateObject.OldValue[Field] := FieldValue;
+        Field.Value[&Object] := FieldValue;
     end;
 
     if Assigned(QueryTable.InheritedTable) then
-      LoadFieldValues(QueryTable.InheritedTable, StateObject);
+      LoadFieldValues(QueryTable.InheritedTable, &Object);
 
     for ForeignKeyTable in QueryTable.ForeignKeyTables do
       if not ForeignKeyTable.PrimaryKeyField.DataSetField.IsNull then
       begin
         ForeignObject := CreateObject(ForeignKeyTable);
-        StateObject.OldValue[ForeignKeyTable.ForeignKeyField.Field] := TValue.FromVariant(ForeignKeyTable.PrimaryKeyField.DataSetField.AsVariant);
 
-        ForeignKeyTable.ForeignKeyField.Field.Value[StateObject.&Object] := ForeignObject.&Object;
+        ForeignKeyTable.ForeignKeyField.Field.Value[&Object] := ForeignObject;
 
         LoadFieldValues(ForeignKeyTable, ForeignObject);
       end;
 
     for Field in QueryTable.LazyManyValueAssociationFields do
-      Field.LazyValue[StateObject.&Object] := CreateLazyFactory(Field, QueryTable.PrimaryKeyField.Field.Value[StateObject.&Object]);
+      Field.LazyValue[&Object] := CreateLazyFactory(Field, QueryTable.PrimaryKeyField.Field.Value[&Object]);
 
     if not QueryTable.ManyValueAssociationTables.IsEmpty and not CheckManyValuePropertyLoaded(QueryTable) then
       for ManyValueAssociationTable in QueryTable.ManyValueAssociationTables do
-        ManyValueAssociationTable.ManyValueAssociationField.Field.Value[StateObject.&Object] := nil;
+        ManyValueAssociationTable.ManyValueAssociationField.Field.Value[&Object] := nil;
 
     for ManyValueAssociationTable in QueryTable.ManyValueAssociationTables do
       if not ManyValueAssociationTable.PrimaryKeyField.DataSetField.IsNull then
@@ -1730,14 +1721,14 @@ var
 
         if not CheckManyValueObjectLoaded(ManyValueAssociationTable) then
         begin
-          FieldValue := ManyValueAssociationTable.ManyValueAssociationField.Field.Value[StateObject.&Object];
+          FieldValue := ManyValueAssociationTable.ManyValueAssociationField.Field.Value[&Object];
 
           ArrayLength := FieldValue.ArrayLength;
           FieldValue.ArrayLength := ArrayLength + 1;
 
-          FieldValue.SetArrayElement(ArrayLength, ManyValueObject.&Object);
+          FieldValue.SetArrayElement(ArrayLength, ManyValueObject);
 
-          ManyValueAssociationTable.ManyValueAssociationField.Field.Value[StateObject.&Object] := FieldValue;
+          ManyValueAssociationTable.ManyValueAssociationField.Field.Value[&Object] := FieldValue;
         end;
 
         LoadFieldValues(ManyValueAssociationTable, ManyValueObject);
@@ -1751,12 +1742,12 @@ begin
 
   while Cursor.Next do
   begin
-    var StateObject := CreateObject(FQueryBuilder.FQueryTable);
+    var &Object := CreateObject(FQueryBuilder.FQueryTable);
 
     if not CheckObjectLoaded(FQueryBuilder.FQueryTable) then
-      Objects := Objects + [StateObject.&Object];
+      Objects := Objects + [&Object];
 
-    LoadFieldValues(FQueryBuilder.FQueryTable, StateObject);
+    LoadFieldValues(FQueryBuilder.FQueryTable, &Object);
   end;
 
   if Length(Objects) = 0 then
@@ -2533,33 +2524,15 @@ end;
 
 { TManager }
 
-procedure TManager.AddStateObject(const StateObjectKey: String; const StateObject: TStateObject);
-begin
-  FStateObjects.Add(StateObjectKey, StateObject);
-end;
-
-function TManager.BuildStateObjectKey(const Table: TTable; const &Object: TObject): String;
-begin
-  Result := BuildStateObjectKey(Table, Table.PrimaryKey.Value[&Object].AsVariant);
-end;
-
-function TManager.BuildStateObjectKey(const Table: TTable; const PrimaryKeyValue: String): String;
-begin
-  Result := PrimaryKeyValue;
-
-  if not PrimaryKeyValue.IsEmpty then
-    Result := Format('%s.%s', [Table.DatabaseName, PrimaryKeyValue]);
-end;
-
 constructor TManager.Create(const Connection: IDatabaseConnection; const DatabaseManipulator: IDatabaseManipulator);
 begin
   inherited Create;
 
   FConnection := Connection;
   FDatabaseManipulator := DatabaseManipulator;
+  FLoadedObjects := TObjectDictionary<String, TObject>.Create([doOwnsValues]);
   FMapper := TMapper.Create;
   FProcessedObjects := TDictionary<TObject, Boolean>.Create;
-  FStateObjects := TObjectDictionary<String, TStateObject>.Create([doOwnsValues]);
 end;
 
 procedure TManager.CreateDatabase;
@@ -2580,7 +2553,7 @@ begin
 
   FQueryBuilder.Free;
 
-  FStateObjects.Free;
+  FLoadedObjects.Free;
 
   inherited;
 end;
@@ -2725,12 +2698,6 @@ begin
   TheUnit.Free;
 end;
 
-function TManager.GetStateObject(const Table: TTable; const &Object: TObject): TStateObject;
-begin
-  if not LoadStateObject(Table, &Object, Result) then
-    raise EForeignObjectNotAllowed.Create;
-end;
-
 procedure TManager.Insert(const Objects: TArray<TObject>);
 begin
   FProcessedObjects.Clear;
@@ -2749,23 +2716,10 @@ begin
   end;
 end;
 
-function TManager.InsertTable(const Table: TTable; const &Object: TObject): Boolean;
+procedure TManager.InsertTable(const Table: TTable; const &Object: TObject);
 var
-  DelayedSave: TArray<TField>;
   FieldValue: TValue;
-  HasManyValueAssociationFields: Boolean;
-  StateObject: TStateObject;
-
-  procedure SaveForeignTable(const Field: TField);
-  begin
-    try
-      if not SaveTable(Field.ForeignKey.ParentTable, FieldValue.AsObject) then
-        raise ERecursionInsertionError.Create(Field.ForeignKey.ParentTable.Name);
-    except
-      on E: ERecursionInsertionError do
-        raise ERecursionInsertionError.Create(Table.Name + '->' + E.RecursionTree);
-    end;
-  end;
+  RecursionInsertionError: ERecursionInsertionError;
 
   procedure DoInsertTable(const Table: TTable; const &Object: TObject);
   begin
@@ -2778,24 +2732,27 @@ var
         DoInsertTable(Table.BaseTable, &Object);
 
       for Field in Table.Fields do
-        if not Field.AutoGenerated then
-          if Field.IsManyValueAssociation then
-            HasManyValueAssociationFields := True
-          else if Field.IsForeignKey and not Field.Required then
-            DelayedSave := DelayedSave + [Field]
-          else
+        if not Field.AutoGenerated and not Field.IsManyValueAssociation and Field.HasValue(&Object, FieldValue) then
+        begin
+          if Field.IsForeignKey then
           begin
-            if Field.HasValue(&Object, FieldValue) and Field.IsForeignKey then
-            begin
-              SaveForeignTable(Field);
+            try
+              SaveTable(Field.ForeignKey.ParentTable, FieldValue.AsObject);
+            except
+              on Error: ERecursionInsertionError do
+              begin
+                RecursionInsertionError := ERecursionInsertionError.Create(Error.Table);
 
-              FieldValue := Field.ForeignKey.ParentTable.PrimaryKey.Value[FieldValue.AsObject];
+                if Error.Table = Field.ForeignKey.ParentTable then
+                  Continue;
+              end;
             end;
 
-            Params.AddParam(Field, FieldValue.AsVariant);
-
-            StateObject.OldValue[Field] := FieldValue;
+            FieldValue := Field.ForeignKey.ParentTable.PrimaryKey.Value[FieldValue.AsObject];
           end;
+
+          Params.AddParam(Field, FieldValue.AsVariant);
+        end;
 
       var Cursor := FConnection.PrepareCursor(FDatabaseManipulator.MakeInsertStatement(Table, Params), Params);
 
@@ -2806,52 +2763,34 @@ var
         FieldValue := GetFieldValue(Field, Cursor.GetDataSet.Fields[FieldIndex]);
 
         Field.Value[&Object] := FieldValue;
-        StateObject.OldValue[Field] := FieldValue;
 
         Inc(FieldIndex);
       end;
+
+      SaveManyValueAssociation(Table, &Object);
     finally
       Params.Free;
     end;
   end;
 
 begin
-  if not FProcessedObjects.TryGetValue(&Object, Result) then
+  if FProcessedObjects.TryAdd(&Object, False) then
   begin
-    DelayedSave := nil;
-    var Field: TField;
-    HasManyValueAssociationFields := False;
-    Result := True;
-    StateObject := TStateObject.Create(Table);
+    RecursionInsertionError := nil;
 
-    FProcessedObjects.Add(&Object, False);
+    DoInsertTable(Table, &Object);
 
-    try
-      DoInsertTable(Table, &Object);
-    except
-      StateObject.Free;
-
-      raise;
-    end;
-
-    AddStateObject(BuildStateObjectKey(Table, &Object), StateObject);
-
-    FProcessedObjects[&Object] := Result;
-
-    if (DelayedSave <> nil) or HasManyValueAssociationFields then
-    begin
-      for Field in DelayedSave do
-        if Field.HasValue(&Object, FieldValue) then
-          SaveForeignTable(Field);
-
-      InternalUpdateTable(Table, &Object);
-    end;
-  end;
+    if Assigned(RecursionInsertionError) then
+      if RecursionInsertionError.Table = Table then
+        InternalUpdateTable(Table, &Object, LoadOldValueObject(Table, &Object))
+      else
+        raise RecursionInsertionError;
+  end
+  else if not FProcessedObjects[&Object] then
+    raise ERecursionInsertionError.Create(Table);
 end;
 
-procedure TManager.InternalUpdateTable(const Table: TTable; const &Object: TObject);
-var
-  StateObject: TStateObject;
+procedure TManager.InternalUpdateTable(const Table: TTable; const &Object: TObject; const OldValues: IObjectOldValue);
 
   procedure DoUpdateTable(const Table: TTable; const &Object: TObject);
   var
@@ -2866,26 +2805,20 @@ var
         DoUpdateTable(Table.BaseTable, &Object);
 
       for var Field in Table.Fields do
-      begin
-        if Field.HasValue(&Object, FieldValue) and Field.IsForeignKey then
+        if not Field.IsManyValueAssociation then
         begin
-          var ForeignObject := FieldValue.AsObject;
-
-          SaveTable(Field.ForeignKey.ParentTable, ForeignObject);
-
-          FieldValue := Field.ForeignKey.ParentTable.PrimaryKey.Value[ForeignObject];
-        end;
-
-        if Field.IsManyValueAssociation then
-          for var A := 0 to Pred(FieldValue.ArrayLength) do
+          if Field.HasValue(&Object, FieldValue) and Field.IsForeignKey then
           begin
-            Field.ManyValueAssociation.ChildField.Value[FieldValue.ArrayElement[A].AsObject] := &Object;
+            var ForeignObject := FieldValue.AsObject;
 
-            SaveTable(Field.ManyValueAssociation.ChildTable, FieldValue.ArrayElement[A].AsObject)
-          end
-        else if StateObject.OldValue[Field].AsVariant <> FieldValue.AsVariant then
-          Params.AddParam(Field, FieldValue.AsVariant);
-      end;
+            SaveTable(Field.ForeignKey.ParentTable, ForeignObject);
+
+            FieldValue := Field.ForeignKey.ParentTable.PrimaryKey.Value[ForeignObject];
+          end;
+
+          if OldValues[Field] <> FieldValue.AsVariant then
+            Params.AddParam(Field, FieldValue.AsVariant);
+        end;
 
       if Params.Count > 0 then
       begin
@@ -2893,75 +2826,21 @@ var
 
         FConnection.PrepareCursor(FDatabaseManipulator.MakeUpdateStatement(Table, Params), Params).Next;
       end;
+
+      SaveManyValueAssociation(Table, &Object);
     finally
       Params.Free;
     end;
   end;
 
 begin
-  StateObject := GetStateObject(Table, &Object);
-
   DoUpdateTable(Table, &Object);
 end;
 
-function TManager.LoadStateObject(const Table: TTable; const &Object: TObject; var StateObject: TStateObject): Boolean;
+function TManager.LoadOldValueObject(const Table: TTable; const &Object: TObject): IObjectOldValue;
 begin
-  Result := FStateObjects.TryGetValue(BuildStateObjectKey(Table, &Object), StateObject);
-
-  if not Result then
-  begin
-    var Comma := EmptyStr;
-    var Params := TParams.Create;
-    var PrimaryKey := Table.PrimaryKey;
-    var SQL := TStringBuilder.Create;
-
-    Params.AddParam(PrimaryKey, PrimaryKey.Value[&Object].AsVariant);
-
-    SQL.Append('select ');
-
-    for var Field in Table.Fields do
-      if not Field.IsManyValueAssociation then
-      begin
-        SQL.Append(Comma);
-
-        SQL.Append(Field.DatabaseName);
-
-        Comma := ', ';
-      end;
-
-    SQL.Append(' from ');
-
-    SQL.Append(Table.DatabaseName);
-
-    SQL.Append(' where ');
-
-    SQL.Append(PrimaryKey.DatabaseName);
-
-    SQL.Append(' = :');
-
-    SQL.Append(PrimaryKey.DatabaseName);
-
-    var Cursor := FConnection.PrepareCursor(SQL.ToString, Params);
-
-    Result := Cursor.Next;
-
-    if Result then
-    begin
-      StateObject := TStateObject.Create(Table);
-
-      var DataSet := Cursor.GetDataSet;
-
-      for var Field in Table.Fields do
-        if not Field.IsManyValueAssociation then
-          StateObject.OldValue[Field] := TValue.From(DataSet.FieldByName(Field.DatabaseName).Value);
-
-      AddStateObject(BuildStateObjectKey(Table, &Object), StateObject);
-    end;
-
-    SQL.Free;
-
-    Params.Free;
-  end;
+  if not TryLoadOldValueObject(Table, &Object, Result) then
+    raise EForeignObjectNotAllowed.Create;
 end;
 
 function TManager.OpenCursor(const SQL: String): IDatabaseCursor;
@@ -2992,15 +2871,29 @@ begin
   end;
 end;
 
-function TManager.SaveTable(const Table: TTable; const &Object: TObject): Boolean;
+procedure TManager.SaveManyValueAssociation(const Table: TTable; const &Object: TObject);
+begin
+  var FieldValue: TValue;
+
+  for var Field in Table.Fields do
+    if Field.IsManyValueAssociation and Field.HasValue(&Object, FieldValue) then
+      for var A := 0 to Pred(FieldValue.ArrayLength) do
+      begin
+        Field.ManyValueAssociation.ChildField.Value[FieldValue.ArrayElement[A].AsObject] := &Object;
+
+        SaveTable(Field.ManyValueAssociation.ChildTable, FieldValue.ArrayElement[A].AsObject)
+      end
+end;
+
+procedure TManager.SaveTable(const Table: TTable; const &Object: TObject);
 var
-  StateObject: TStateObject;
+  ObjectOldValue: IObjectOldValue;
 
 begin
-  if LoadStateObject(Table, &Object, StateObject) then
-    Result := UpdateTable(Table, &Object)
+  if TryLoadOldValueObject(Table, &Object, ObjectOldValue) then
+    UpdateTable(Table, &Object, ObjectOldValue)
   else
-    Result := InsertTable(Table, &Object);
+    InsertTable(Table, &Object);
 end;
 
 function TManager.Select: TQueryBuilder;
@@ -3011,6 +2904,51 @@ begin
   Result := FQueryBuilder;
 end;
 
+function TManager.TryLoadOldValueObject(const Table: TTable; const &Object: TObject; var ObjectOldValue: IObjectOldValue): Boolean;
+begin
+  var Comma := EmptyStr;
+  var Params := TParams.Create;
+  var PrimaryKey := Table.PrimaryKey;
+  var SQL := TStringBuilder.Create;
+
+  Params.AddParam(PrimaryKey, PrimaryKey.Value[&Object].AsVariant);
+
+  SQL.Append('select ');
+
+  for var Field in Table.Fields do
+    if not Field.IsManyValueAssociation then
+    begin
+      SQL.Append(Comma);
+
+      SQL.Append(Field.DatabaseName);
+
+      Comma := ', ';
+    end;
+
+  SQL.Append(' from ');
+
+  SQL.Append(Table.DatabaseName);
+
+  SQL.Append(' where ');
+
+  SQL.Append(PrimaryKey.DatabaseName);
+
+  SQL.Append(' = :');
+
+  SQL.Append(PrimaryKey.DatabaseName);
+
+  var Cursor := FConnection.PrepareCursor(SQL.ToString, Params);
+
+  Result := Cursor.Next;
+
+  if Result then
+    ObjectOldValue := TObjectOldValue.Create(Cursor);
+
+  SQL.Free;
+
+  Params.Free;
+end;
+
 procedure TManager.Update(const Objects: TArray<TObject>);
 begin
   FProcessedObjects.Clear;
@@ -3019,7 +2957,11 @@ begin
 
   try
     for var &Object in Objects do
-      UpdateTable(Mapper.GetTable(&Object.ClassType), &Object);
+    begin
+      var Table := Mapper.GetTable(&Object.ClassType);
+
+      UpdateTable(Table, &Object, LoadOldValueObject(Table, &Object));
+    end;
 
     Transaction.Commit;
   except
@@ -3626,57 +3568,19 @@ begin
   Comparer.Free;
 end;
 
-function TManager.UpdateTable(const Table: TTable; const &Object: TObject): Boolean;
+procedure TManager.UpdateTable(const Table: TTable; const &Object: TObject; const ObjectOldValue: IObjectOldValue);
 begin
-  Result := True;
-
   if FProcessedObjects.TryAdd(&Object, False) then
-    InternalUpdateTable(Table, &Object);
-end;
-
-{ TStateObject }
-
-constructor TStateObject.Create(const Table: TTable);
-begin
-  inherited Create;
-
-  FTable := Table;
-
-  SetLength(FOldValues, FTable.AllFieldCount);
-end;
-
-destructor TStateObject.Destroy;
-begin
-  FObject.Free;
-
-  inherited;
-end;
-
-function TStateObject.GetObject: TObject;
-begin
-  if not Assigned(FObject) then
-    FObject := FTable.ClassTypeInfo.MetaclassType.Create;
-
-  Result := FObject;
-end;
-
-function TStateObject.GetOldValue(const Field: TField): TValue;
-begin
-  Result := FOldValues[Field.Index];
-end;
-
-procedure TStateObject.SetOldValue(const Field: TField; const Value: TValue);
-begin
-  FOldValues[Field.Index] := Value;
+    InternalUpdateTable(Table, &Object, ObjectOldValue);
 end;
 
 { ERecursionInsertionError }
 
-constructor ERecursionInsertionError.Create(const RecursionTree: String);
+constructor ERecursionInsertionError.Create(const Table: TTable);
 begin
-  inherited Create('Error of recursion inserting object, the sequence of error was ' + RecursionTree + ' please check your data and try again!');
+  inherited Create('Error of recursion inserting object');
 
-  FRecursionTree := RecursionTree;
+  FTable := Table;
 end;
 
 { TQueryBuilderTable }
@@ -3777,6 +3681,20 @@ end;
 function TNameComparer.Equals(const Left, Right: String): Boolean;
 begin
   Result := Compare(Left, Right) = 0;
+end;
+
+{ TObjectOldValue }
+
+constructor TObjectOldValue.Create(const Cursor: IDatabaseCursor);
+begin
+  inherited Create;
+
+  FCursor := Cursor;
+end;
+
+function TObjectOldValue.GetOldValue(const Field: TField): Variant;
+begin
+  Result := FCursor.GetDataSet.FieldByName(Field.DatabaseName).Value;
 end;
 
 end.

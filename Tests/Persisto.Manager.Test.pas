@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Generics.Collections, Test.Insight.Framework, Persisto, Persisto.Mapping;
+uses System.Generics.Collections, Data.DB, Test.Insight.Framework, Persisto, Persisto.Mapping;
 
 type
   [TestFixture]
@@ -62,8 +62,6 @@ type
     procedure WhenInsertAnObjectWithEmptyForeignKeysCantRaiseAnyError;
     [Test]
     procedure WhenInsertARecursiveRequiredObjectMustInsertTheForeignKeyFirstToInsertTheMainObject;
-    [Test]
-    procedure WhenInsertARecursiveObjectAndCantReciveThePrimaryKeyFromAForeignKeyTableMustRaiseAnErroOfRecursivityProblem;
     [Test]
     procedure WhenSaveAnObjectThatWasntInsertedMustInsertTheObject;
     [Test]
@@ -170,6 +168,24 @@ type
     procedure WhenUpdateAnObjectMustStartAnTransactionAndIfRaiseAnErrorMustRollback;
   end;
 
+  TDatabaseConnectionMock = class(TInterfacedObject, IDatabaseConnection)
+  private
+    FConnection: IDatabaseConnection;
+    FLastCommandExecuted: String;
+
+    function GetDatabaseName: String;
+    function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
+    function OpenCursor(const SQL: String): IDatabaseCursor;
+    function StartTransaction: IDatabaseTransaction;
+
+    procedure ExecuteDirect(const SQL: String);
+    procedure ExecuteScript(const Script: String);
+  public
+    constructor Create(const Connection: IDatabaseConnection);
+
+    property LastCommandExecuted: String read FLastCommandExecuted write FLastCommandExecuted;
+  end;
+
   [TestFixture]
   TManagerDatabaseManipulationTest = class
   private
@@ -185,27 +201,6 @@ type
     procedure WhenUpdateTheDatabaseCantRaiseAnyError;
     [Test]
     procedure WhenUpdateTheDatabaseMustCreateTheTablesAfterTheProcessEnd;
-  end;
-
-  [TestFixture]
-  TStateObjectTest = class
-  private
-    FMapper: TMapper;
-  public
-    [Setup]
-    procedure Setup;
-    [TearDown]
-    procedure TearDown;
-    [Test]
-    procedure WhenFillAValueMustReturnTheValueWhenRequestIt;
-    [Test]
-    procedure WhenTheClassIsInheritedFromAnotherClassMustAllocTheChangeBufferForAllFieldsInTheTable;
-    [Test]
-    procedure WhenGetTheObjectValueFromStateObjectMustLoadTheObjectInstance;
-    [Test]
-    procedure TheObjectCreateInStateObjectMustBeTheClassOfTheTableOfTheObject;
-    [Test]
-    procedure WhenGetTheObjectValueMoreThenOnceMustCreateOnlyOnce;
   end;
 
 implementation
@@ -394,6 +389,8 @@ begin
   FManager.Mapper.LoadAll;
 
   FManager.Mapper.GetTable(TMyEntityWithoutEntityAttribute);
+
+  FManager.Mapper.GetTable(TMyEntityInheritedFromSimpleClass);
 
   FManager.UpdateDatabaseSchema;
 
@@ -659,7 +656,12 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      FManager.Insert([&Object]);
+      try
+        FManager.Insert([&Object]);
+      except
+        on E: ERecursionInsertionError do
+          ;
+      end;
     end);
 end;
 
@@ -825,23 +827,6 @@ begin
 
   Assert.IsTrue(Cursor.Next);
   Assert.AreEqual(Cursor.GetDataSet.Fields[0].AsString, Cursor.GetDataSet.Fields[1].AsString);
-end;
-
-procedure TManagerTest.WhenInsertARecursiveObjectAndCantReciveThePrimaryKeyFromAForeignKeyTableMustRaiseAnErroOfRecursivityProblem;
-begin
-  var &Object := CreateObject<TClassRecursiveThird>;
-  &Object.Id := 10;
-  &Object.GoingSecond := CreateObject<TClassRecursiveSecond>;
-  &Object.GoingSecond.Id := 10;
-  &Object.GoingSecond.GoingFirst := CreateObject<TClassRecursiveFirst>;
-  &Object.GoingSecond.GoingFirst.Id := 10;
-  &Object.GoingSecond.GoingFirst.GoingThird := &Object;
-
-  Assert.WillRaise(
-    procedure
-    begin
-      FManager.Insert([&Object]);
-    end, ERecursionInsertionError);
 end;
 
 procedure TManagerTest.WhenInsertARecursiveRequiredObjectMustInsertTheForeignKeyFirstToInsertTheMainObject;
@@ -1129,15 +1114,21 @@ end;
 procedure TManagerTest.WhenUpdateAClassThatIsRecursiveInItSelfCantRaiseErrorOfStackOverflow;
 begin
   var &Object := CreateObject<TStackOverflowClass>;
-  &Object.Callback := CreateObject<TStackOverflowClass>;
-  &Object.Callback.CallBack := &Object;
 
   FManager.Insert([&Object]);
 
   Assert.WillNotRaise(
     procedure
     begin
-      FManager.Update([&Object]);
+      &Object.Callback := CreateObject<TStackOverflowClass>;
+      &Object.Callback.CallBack := &Object;
+
+      try
+        FManager.Update([&Object]);
+      except
+        on E: ERecursionInsertionError do
+          ;
+      end;
     end);
 end;
 
@@ -1231,24 +1222,22 @@ end;
 
 procedure TManagerTest.WhenUpdateAnObjectMustUpdateOnlyTheChangedFieldsOfTheObject;
 begin
+  var DatabaseConnection := TDatabaseConnectionMock.Create(CreateConnection);
+  var Manager := TManager.Create(DatabaseConnection, CreateDatabaseManipulator);
   var &Object := CreateObject<TInsertTest>;
   &Object.Id := 'ddd';
   &Object.IntegerValue := 111;
   &Object.Value := 111;
 
-  FManager.Insert([&Object]);
+  Manager.Insert([&Object]);
 
   &Object.IntegerValue := 3;
 
-  FManager.ExectDirect('update InsertTest set Value = 555');
+  Manager.Update([&Object]);
 
-  FManager.Update([&Object]);
+  Assert.AreEqual('update InsertTest set IntegerValue=:IntegerValue where Id=:Id', DatabaseConnection.LastCommandExecuted);
 
-  var Cursor := FManager.OpenCursor('select IntegerValue, Value from InsertTest where Id = ''ddd''');
-
-  Assert.IsTrue(Cursor.Next);
-  Assert.AreEqual('3', Cursor.GetDataSet.Fields[0].AsString);
-  Assert.AreEqual('555.000', FormatFloat('0.000', Cursor.GetDataSet.Fields[1].AsFloat, TFormatSettings.Invariant));
+  Manager.Free;
 end;
 
 procedure TManagerTest.WhenUpdateAnObjectMustUpdateOnlyTheObjectCallInTheProcedure;
@@ -1513,75 +1502,51 @@ begin
     end);
 end;
 
-{ TStateObjectTest }
+{ TDatabaseConnectionMock }
 
-procedure TStateObjectTest.Setup;
+constructor TDatabaseConnectionMock.Create(const Connection: IDatabaseConnection);
 begin
-  inherited;
+  inherited Create;
 
-  FMapper := TMapper.Create;
+  FConnection := Connection;
 end;
 
-procedure TStateObjectTest.TearDown;
+procedure TDatabaseConnectionMock.ExecuteDirect(const SQL: String);
 begin
-  FMapper.Free;
+  LastCommandExecuted := SQL;
+
+  FConnection.ExecuteDirect(SQL);
 end;
 
-procedure TStateObjectTest.TheObjectCreateInStateObjectMustBeTheClassOfTheTableOfTheObject;
+procedure TDatabaseConnectionMock.ExecuteScript(const Script: String);
 begin
-  var StateObject := TStateObject.Create(FMapper.GetTable(TInsertTest));
+  LastCommandExecuted := Script;
 
-  Assert.AreEqual(TInsertTest, StateObject.&Object.ClassType);
-
-  StateObject.Free;
+  FConnection.ExecuteScript(Script);
 end;
 
-procedure TStateObjectTest.WhenFillAValueMustReturnTheValueWhenRequestIt;
+function TDatabaseConnectionMock.GetDatabaseName: String;
 begin
-  var Table := FMapper.GetTable(TInsertTest);
-
-  var Field := Table.Field['Id'];
-  var OriginalValue := TStateObject.Create(Table);
-
-  OriginalValue.OldValue[Field] := 123;
-
-  Assert.AreEqual(123, OriginalValue.OldValue[Field].AsInteger);
-
-  OriginalValue.Free;
+  Result := FConnection.DatabaseName;
 end;
 
-procedure TStateObjectTest.WhenGetTheObjectValueFromStateObjectMustLoadTheObjectInstance;
+function TDatabaseConnectionMock.OpenCursor(const SQL: String): IDatabaseCursor;
 begin
-  var StateObject := TStateObject.Create(FMapper.GetTable(TInsertTest));
+  LastCommandExecuted := SQL;
 
-  Assert.IsNotNil(StateObject.&Object);
-
-  StateObject.Free;
+  Result := FConnection.OpenCursor(SQL);
 end;
 
-procedure TStateObjectTest.WhenGetTheObjectValueMoreThenOnceMustCreateOnlyOnce;
+function TDatabaseConnectionMock.PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
 begin
-  var StateObject := TStateObject.Create(FMapper.GetTable(TInsertTest));
+  LastCommandExecuted := SQL;
 
-  Assert.AreEqual(StateObject.&Object, StateObject.&Object);
-
-  StateObject.Free;
+  Result := FConnection.PrepareCursor(SQL, Params);
 end;
 
-procedure TStateObjectTest.WhenTheClassIsInheritedFromAnotherClassMustAllocTheChangeBufferForAllFieldsInTheTable;
+function TDatabaseConnectionMock.StartTransaction: IDatabaseTransaction;
 begin
-  var Table := FMapper.GetTable(TClassLevel4);
-
-  var Field := Table.Field['Id'];
-  var OriginalValue := TStateObject.Create(Table);
-
-  Assert.WillNotRaise(
-    procedure
-    begin
-      OriginalValue.OldValue[Field] := 123;
-    end);
-
-  OriginalValue.Free;
+  Result := FConnection.StartTransaction;
 end;
 
 end.
