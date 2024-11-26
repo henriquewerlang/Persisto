@@ -57,11 +57,11 @@ begin
     tkFloat:
       Result := 'numeric';
     tkChar, tkWChar:
-      Result := 'nchar';
+      Result := 'char';
     tkInt64:
       Result := 'bigint';
     tkString, tkLString, tkWString, tkUString:
-      Result := 'nvarchar';
+      Result := 'varchar';
   else
     Result := EmptyStr;
   end;
@@ -84,25 +84,17 @@ const
 
   FOREING_KEY_SQL =
     '''
-    select cast(object_id as varchar(20)) Id,
-           name,
-           cast(parent_object_id as varchar(20)) IdTable,
-           cast(referenced_object_id as varchar(20)) IdReferenceTable,
-           null ReferenceField
-      from sys.foreign_keys
-    ''';
-
-  FOREING_KEY_COLUMS_SQL =
-    '''
-    select cast(FKC.constraint_object_id as varchar(20)) + '.' + cast(constraint_column_id as varchar(20)) Id,
-           cast(FKC.constraint_object_id as varchar(20)) IdForeignKey,
-           RC.name
+    select cast(FK.object_id as varchar(20)) Id,
+           FK.name,
+           RC.name ReferenceField,
+           cast(FK.referenced_object_id as varchar(20)) IdReferenceTable,
+           cast(FK.parent_object_id as varchar(20)) IdTable
       from sys.foreign_keys FK
       join sys.foreign_key_columns FKC
         on FKC.constraint_object_id = FK.object_id
       join sys.columns RC
-        on RC.object_id = FKC.referenced_object_id
-       and RC.column_id = FKC.referenced_column_id
+        on RC.object_id = FKC.parent_object_id
+       and RC.column_id = FKC.parent_column_id
     ''';
 
   PRIMARY_KEY_CONSTRAINT_SQL =
@@ -148,6 +140,7 @@ const
            cast(T.object_id as varchar(20)) IdTable,
            case system_type_id
               -- String
+              when 167 then 5
               when 231 then 5
               -- Integer
               when 56 then 1
@@ -166,6 +159,7 @@ const
            C.scale Scale,
            case
               when system_type_id in (231, 239) then C.max_length / 2
+              when system_type_id = 108 then C.precision
               else C.max_length
            end Size,
            case system_type_id
