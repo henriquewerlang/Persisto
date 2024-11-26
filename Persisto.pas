@@ -2719,7 +2719,7 @@ end;
 procedure TManager.InsertTable(const Table: TTable; const &Object: TObject);
 var
   FieldValue: TValue;
-  RecursionInsertionError: ERecursionInsertionError;
+  RecursionTableError: TTable;
 
   procedure DoInsertTable(const Table: TTable; const &Object: TObject);
   begin
@@ -2741,9 +2741,9 @@ var
             except
               on Error: ERecursionInsertionError do
               begin
-                RecursionInsertionError := ERecursionInsertionError.Create(Error.Table);
+                RecursionTableError := Error.Table;
 
-                if Error.Table = Field.ForeignKey.ParentTable then
+                if RecursionTableError = Field.ForeignKey.ParentTable then
                   Continue;
               end;
             end;
@@ -2776,15 +2776,15 @@ var
 begin
   if FProcessedObjects.TryAdd(&Object, False) then
   begin
-    RecursionInsertionError := nil;
+    RecursionTableError := nil;
 
     DoInsertTable(Table, &Object);
 
-    if Assigned(RecursionInsertionError) then
-      if RecursionInsertionError.Table = Table then
+    if Assigned(RecursionTableError) then
+      if RecursionTableError = Table then
         InternalUpdateTable(Table, &Object, LoadOldValueObject(Table, &Object))
       else
-        raise RecursionInsertionError;
+        raise ERecursionInsertionError.Create(RecursionTableError);
   end
   else if not FProcessedObjects[&Object] then
     raise ERecursionInsertionError.Create(Table);
