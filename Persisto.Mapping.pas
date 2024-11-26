@@ -214,11 +214,6 @@ begin
   Result := RttiType.GetMethod('GetValue').ReturnType;
 end;
 
-function GetNullableType(const RttiType: TRttiType): TRttiType;
-begin
-  Result := RttiType.GetMethod('GetValue').ReturnType;
-end;
-
 function IsLazy(const RttiType: TRttiType): Boolean;
 begin
   Result := RttiType.Name.StartsWith(LAZY_TYPE_NAME);
