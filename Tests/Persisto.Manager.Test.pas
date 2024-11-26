@@ -18,12 +18,8 @@ type
   public
     [Setup]
     procedure Setup;
-    [SetupFixture]
-    procedure SetupFixture;
     [TearDown]
     procedure TearDown;
-    [TearDownFixture]
-    procedure TearDownFixture;
     [Test]
     procedure WhenInsertAValueInManagerMustInsertTheValueInDatabaseAsExpected;
     [Test]
@@ -166,6 +162,10 @@ type
     procedure WhenUpdateMustUpdateAllTheObjectsInTheArray;
     [Test]
     procedure WhenUpdateAnObjectMustStartAnTransactionAndIfRaiseAnErrorMustRollback;
+    [Test]
+    procedure WhenInsertingAnUnloadedLazyFieldMustInsertTheKeyValueFromLazyField;
+    [Test]
+    procedure WhenUpdatintAnUnloadedLazyFieldMustUpdateTheKeyValueFromLazyField;
   end;
 
   TDatabaseConnectionMock = class(TInterfacedObject, IDatabaseConnection)
@@ -366,6 +366,10 @@ procedure TManagerTest.PrepareDatabase;
 
     FManager.Insert([WithForeignKey]);
 
+    var MyEntity := CreateObject<TMyEntity>;
+
+    FManager.Insert([MyEntity]);
+
     LazyArrayClass := CreateObject<TLazyArrayClass>;
     LazyArrayClass.Id := 30;
     LazyArrayClass.LazyArray := [CreateObject<TLazyArrayClassChild>, CreateObject<TLazyArrayClassChild>];
@@ -380,7 +384,7 @@ procedure TManagerTest.PrepareDatabase;
 
     var LazyClass := CreateObject<TLazyClass>;
     LazyClass.Id := 10;
-    LazyClass.Lazy := CreateObject<TMyEntity>;
+    LazyClass.Lazy := MyEntity;
 
     FManager.Insert([LazyClass]);
   end;
@@ -390,15 +394,9 @@ begin
 
   FManager.Mapper.GetTable(TMyEntityWithoutEntityAttribute);
 
-  FManager.Mapper.GetTable(TMyEntityInheritedFromSimpleClass);
-
   FManager.UpdateDatabaseSchema;
 
-  FGarbage := TObjectList<TObject>.Create;
-
   InsertData;
-
-  FGarbage.Free;
 end;
 
 procedure TManagerTest.Setup;
@@ -406,17 +404,10 @@ begin
   FConnection := CreateConnection;
   FGarbage := TObjectList<TObject>.Create;
   FManager := TManager.Create(FConnection, CreateDatabaseManipulator);
-end;
 
-procedure TManagerTest.SetupFixture;
-begin
-  RebootDatabase;
-
-  FManager := TManager.Create(CreateConnection, CreateDatabaseManipulator);
+  FManager.CreateDatabase;
 
   PrepareDatabase;
-
-  FManager.Free;
 end;
 
 procedure TManagerTest.TearDown;
@@ -424,14 +415,11 @@ begin
   FConnection := nil;
   NullStrictConvert := True;
 
+  FManager.DropDatabase;
+
   FGarbage.Free;
 
   FManager.Free;
-end;
-
-procedure TManagerTest.TearDownFixture;
-begin
-  DropDatabase;
 end;
 
 procedure TManagerTest.WhenAClassIsInheritedFromAnotherClassMustInsertTheParentClassInTheInsert;
@@ -866,6 +854,25 @@ begin
   Assert.AreEqual('abc', Cursor.GetDataSet.Fields[0].AsString);
   Assert.AreEqual('123', Cursor.GetDataSet.Fields[1].AsString);
   Assert.AreEqual('123.456', FormatFloat('0.000', Cursor.GetDataSet.Fields[2].AsFloat, TFormatSettings.Invariant));
+end;
+
+procedure TManagerTest.WhenInsertingAnUnloadedLazyFieldMustInsertTheKeyValueFromLazyField;
+begin
+  var MyClass := TLazyClass.Create;
+  MyClass.Id := 41;
+  var Table := FManager.Mapper.GetTable(MyClass.ClassType);
+
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyFactory.Create(nil, nil, 100, nil);
+
+  FManager.Insert([MyClass]);
+
+  var Cursor := FManager.OpenCursor('select * from LazyClass where Id = 41');
+
+  Cursor.Next;
+
+  Assert.AreEqual(100, Cursor.GetDataSet.FieldByName('IdLazy').AsInteger);
+
+  MyClass.Free;
 end;
 
 procedure TManagerTest.WhenInsertMustInsertAllTheObjectsInTheArray;
@@ -1465,6 +1472,27 @@ begin
   Object3.FK.Free;
 
   Object3.Free;
+end;
+
+procedure TManagerTest.WhenUpdatintAnUnloadedLazyFieldMustUpdateTheKeyValueFromLazyField;
+begin
+  var MyClass := TLazyClass.Create;
+  MyClass.Id := 41;
+  var Table := FManager.Mapper.GetTable(MyClass.ClassType);
+
+  FManager.Insert([MyClass]);
+
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyFactory.Create(nil, nil, 100, nil);
+
+  FManager.Update([MyClass]);
+
+  var Cursor := FManager.OpenCursor('select * from LazyClass where Id = 41');
+
+  Cursor.Next;
+
+  Assert.AreEqual(100, Cursor.GetDataSet.FieldByName('IdLazy').AsInteger);
+
+  MyClass.Free;
 end;
 
 { TManagerDatabaseManipulationTest }

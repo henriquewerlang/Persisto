@@ -315,6 +315,10 @@ type
     procedure ThePrimaryKeyFieldMustBeMarkedAsRequiredAlways;
     [Test]
     procedure WhenLoadATableWithInheritenceWithoutAnyFieldsCantRaiseLoadError;
+    [Test]
+    procedure WhenTheLazyValueHasOnlyTheKeyLoadedMustReturnTrueInTheFieldValue;
+    [Test]
+    procedure IfTheLazyFieldIsNotLoadedMustReturnValueInTheHasValueFunction;
   end;
 
 implementation
@@ -435,6 +439,19 @@ begin
   var Table := FMapper.GetTable(TForeignKeyClassToSpecialCase);
 
   Assert.AreEqual(stUniqueIdentifier, Table.Field['SpecialTypeForeignKey'].SpecialType)
+end;
+
+procedure TMapperTest.IfTheLazyFieldIsNotLoadedMustReturnValueInTheHasValueFunction;
+begin
+  var MyClass := TLazyClass.Create;
+  var Table := FMapper.GetTable(MyClass.ClassType);
+  var Value: TValue;
+
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyFactory.Create(nil, nil, TValue.Empty, nil);
+
+  Assert.IsFalse(Table.Field['Lazy'].HasValue(MyClass, Value));
+
+  MyClass.Free;
 end;
 
 procedure TMapperTest.MappingAEntityWithForeignKeyToASingleInheritedClassCantRaiseError;
@@ -1482,6 +1499,19 @@ begin
   MyClass.Free;
 
   TheClass.Free;
+end;
+
+procedure TMapperTest.WhenTheLazyValueHasOnlyTheKeyLoadedMustReturnTrueInTheFieldValue;
+begin
+  var MyClass := TLazyClass.Create;
+  var Table := FMapper.GetTable(MyClass.ClassType);
+  var Value: TValue;
+
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyFactory.Create(nil, nil, 1234, nil);
+
+  Assert.IsTrue(Table.Field['Lazy'].HasValue(MyClass, Value));
+
+  MyClass.Free;
 end;
 
 procedure TMapperTest.WhenTheLinkBetweenTheManyValueAssociationAndTheChildTableForeignKeyDontExistsMustRaiseAnError;
