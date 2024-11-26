@@ -862,7 +862,7 @@ begin
   MyClass.Id := 41;
   var Table := FManager.Mapper.GetTable(MyClass.ClassType);
 
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyFactory.Create(nil, nil, 100, nil);
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 100, nil);
 
   FManager.Insert([MyClass]);
 
@@ -1482,7 +1482,7 @@ begin
 
   FManager.Insert([MyClass]);
 
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyFactory.Create(nil, nil, 100, nil);
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 100, nil);
 
   FManager.Update([MyClass]);
 

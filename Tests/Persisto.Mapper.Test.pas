@@ -447,7 +447,7 @@ begin
   var Table := FMapper.GetTable(MyClass.ClassType);
   var Value: TValue;
 
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyFactory.Create(nil, nil, TValue.Empty, nil);
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, TValue.Empty, nil);
 
   Assert.IsFalse(Table.Field['Lazy'].HasValue(MyClass, Value));
 
@@ -924,7 +924,7 @@ begin
   var MyClass := TLazyClass.Create;
   var Table := FMapper.GetTable(MyClass.ClassType);
 
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyFactory.Create(nil, nil, 1234, nil);
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 1234, nil);
 
   Assert.AreEqual(1234, MyClass.Lazy.LazyValue.Key.AsInteger);
 
@@ -1477,7 +1477,7 @@ begin
   var MyClass := TLazyClass.Create;
   var Table := FMapper.GetTable(MyClass.ClassType);
 
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyFactory.Create(nil, nil, 1234, nil);
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 1234, nil);
 
   Assert.AreEqual(1234, Table.Field['Lazy'].Value[MyClass].AsInteger);
 
@@ -1507,7 +1507,7 @@ begin
   var Table := FMapper.GetTable(MyClass.ClassType);
   var Value: TValue;
 
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyFactory.Create(nil, nil, 1234, nil);
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 1234, nil);
 
   Assert.IsTrue(Table.Field['Lazy'].HasValue(MyClass, Value));
 

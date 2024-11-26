@@ -370,7 +370,7 @@ type
     property Tables: TArray<TTable> read GetTables;
   end;
 
-  TLazyFactory = class(TInterfacedObject, ILazyValue)
+  TLazyLoader = class(TInterfacedObject, ILazyValue)
   private
     FFilterField: TField;
     FKeyValue: TValue;
@@ -1564,9 +1564,9 @@ begin
   FName := Name;
 end;
 
-{ TLazyFactory }
+{ TLazyLoader }
 
-constructor TLazyFactory.Create(const Manager: TManager; const FilterField: TField; const KeyValue: TValue; const ResultType: PTypeInfo);
+constructor TLazyLoader.Create(const Manager: TManager; const FilterField: TField; const KeyValue: TValue; const ResultType: PTypeInfo);
 begin
   inherited Create;
 
@@ -1576,12 +1576,12 @@ begin
   FResultType := ResultType;
 end;
 
-function TLazyFactory.GetKey: TValue;
+function TLazyLoader.GetKey: TValue;
 begin
   Result := FKeyValue;
 end;
 
-function TLazyFactory.GetValue: TValue;
+function TLazyLoader.GetValue: TValue;
 begin
   if not FKeyValue.IsEmpty and FLazyValue.IsEmpty then
   begin
@@ -1593,7 +1593,7 @@ begin
   Result := FLazyValue;
 end;
 
-procedure TLazyFactory.SetValue(const Value: TValue);
+procedure TLazyLoader.SetValue(const Value: TValue);
 begin
   FKeyValue := TValue.Empty;
   FLazyValue := Value;
@@ -1617,7 +1617,7 @@ begin
   else
     FilterField := LazyField.ForeignKey.ParentTable.PrimaryKey;
 
-  Result := TLazyFactory.Create(FQueryBuilder.FManager, FilterField, KeyValue, LazyField.LazyType.Handle);
+  Result := TLazyLoader.Create(FQueryBuilder.FManager, FilterField, KeyValue, LazyField.LazyType.Handle);
 end;
 
 function TClassLoader.Load(const ResultType: PTypeInfo): TValue;
