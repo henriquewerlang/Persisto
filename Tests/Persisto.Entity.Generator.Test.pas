@@ -70,6 +70,8 @@ const
 procedure TGenerateUnitTeste.Setup;
 begin
   FManager := TManager.Create(CreateConnection, CreateDatabaseManipulator);
+
+  FManager.CreateDatabase;
 end;
 
 procedure TGenerateUnitTeste.TearDown;
@@ -77,9 +79,9 @@ begin
   if TFile.Exists(FILE_ENTITY) then
     TFile.Delete(FILE_ENTITY);
 
-  FManager.Free;
+  FManager.DropDatabase;
 
-  RebootDatabase;
+  FManager.Free;
 end;
 
 procedure TGenerateUnitTeste.TheTypeOfTheDatabaseFieldMustReflectTheTypeOfThePropertyDeclaration;
