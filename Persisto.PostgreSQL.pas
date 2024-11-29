@@ -166,6 +166,7 @@ const
        where T.relkind = 'r'
          and S.nspname = 'public'
          and FK.contype = 'f'
+         and cardinality(FK.conkey) = 1
     ''';
 
   SEQUENCES_SQL =
