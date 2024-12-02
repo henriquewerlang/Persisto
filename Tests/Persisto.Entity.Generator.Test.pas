@@ -8,8 +8,10 @@ type
   [TestFixture]
   TGenerateUnitTeste = class
   private
+    FManipulator: IDatabaseManipulator;
     FManager: TManager;
 
+    procedure CompareUnit(const UnitDeclaration: String);
     procedure GenerateUnit;
   public
     [Setup]
@@ -38,6 +40,8 @@ type
     procedure WhenTheFieldIsVarCharMustLoadTheSizeAttributeInTheField;
     [Test]
     procedure WhenTheFieldIsANumericTypeMustLoadThePrecisionAttributeInTheField;
+    [Test]
+    procedure WhenTheFieldIsAnUniqueIdentifierMustCreateTheUniqueIdentifierAttributeInTheProperty;
   end;
 
 implementation
@@ -69,7 +73,8 @@ const
 
 procedure TGenerateUnitTeste.Setup;
 begin
-  FManager := TManager.Create(CreateConnection, CreateDatabaseManipulator);
+  FManipulator := CreateDatabaseManipulator;
+  FManager := TManager.Create(CreateConnection, FManipulador);
 
   FManager.CreateDatabase;
 end;
@@ -108,7 +113,7 @@ begin
 
   GenerateUnit;
 
-  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+  CompareUnit(MyUnit);
 end;
 
 procedure TGenerateUnitTeste.WhenGenerateTheUnitMustLoadTheFileWithTheTableInTheDatabaseAsExpected;
@@ -135,7 +140,7 @@ begin
 
   GenerateUnit;
 
-  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+  CompareUnit(MyUnit);
 end;
 
 procedure TGenerateUnitTeste.WhenTheDatabaseHaveMoreThanOneTableMustLoadAllTablesInTheUnit;
@@ -186,7 +191,7 @@ begin
 
   GenerateUnit;
 
-  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+  CompareUnit(MyUnit);
 end;
 
 procedure TGenerateUnitTeste.WhenTheTableHasMoreThenTwoFieldMustLoadThenAllInTheClass;
@@ -217,7 +222,7 @@ begin
 
   GenerateUnit;
 
-  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+  CompareUnit(MyUnit);
 end;
 
 procedure TGenerateUnitTeste.WhenTheTableHasAForeignKeyMustFillTheFieldTypeWithTheClassType;
@@ -255,7 +260,7 @@ begin
 
   GenerateUnit;
 
-  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+  CompareUnit(MyUnit);
 end;
 
 procedure TGenerateUnitTeste.WhenFillTheFunctionToFormatNamesMustLoadTheNamesAsExpected;
@@ -286,7 +291,12 @@ begin
       Result := Name.ToUpper;
     end);
 
-  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+  CompareUnit(MyUnit);
+end;
+
+procedure TGenerateUnitTeste.CompareUnit(const UnitDeclaration: String);
+begin
+  Assert.AreEqual(Format(BASE_UNIT, [UnitDeclaration]), TFile.ReadAllText(FILE_ENTITY));
 end;
 
 procedure TGenerateUnitTeste.GenerateUnit;
@@ -326,7 +336,7 @@ begin
         Result := 'AnotherName';
     end);
 
-  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+  CompareUnit(MyUnit);
 end;
 
 procedure TGenerateUnitTeste.WhenTheNameOfTheTableIsChangedInTheFormattingFunctionMustLoadTheTableNameAttribute;
@@ -361,7 +371,7 @@ begin
         Result := 'AnotherName';
     end);
 
-  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+  CompareUnit(MyUnit);
 end;
 
 procedure TGenerateUnitTeste.WhenTheFieldIsASpecialTypeMustLoadTheFieldTypeAsExpected;
@@ -388,7 +398,7 @@ begin
 
   GenerateUnit;
 
-  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+  CompareUnit(MyUnit);
 end;
 
 procedure TGenerateUnitTeste.WhenTheFieldIsVarCharMustLoadTheSizeAttributeInTheField;
@@ -416,7 +426,7 @@ begin
 
   GenerateUnit;
 
-  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+  CompareUnit(MyUnit);
 end;
 
 procedure TGenerateUnitTeste.WhenTheFieldIsANumericTypeMustLoadThePrecisionAttributeInTheField;
@@ -444,7 +454,33 @@ begin
 
   GenerateUnit;
 
-  Assert.AreEqual(Format(BASE_UNIT, [MyUnit]), TFile.ReadAllText(FILE_ENTITY));
+  CompareUnit(MyUnit);
+end;
+
+procedure TGenerateUnitTeste.WhenTheFieldIsAnUniqueIdentifierMustCreateTheUniqueIdentifierAttributeInTheProperty;
+begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FId: String;
+      published
+        [UniqueIdentifier]
+        property Id: String read FId write FId;
+      end;
+    ''';
+
+  FManager.ExectDirect(Format(
+    '''
+      create table "MyTable" ("Id" %s)
+    ''', [FManipulator.field]);
+
+  GenerateUnit;
+
+  CompareUnit(MyUnit);
 end;
 
 end.
