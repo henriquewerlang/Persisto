@@ -12,10 +12,10 @@ type
     function CreateSequence(const Sequence: TSequence): String;
     function DropSequence(const Sequence: TDatabaseSequence): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
-    function GetFieldType(const Field: TField): String;
+    function GetFieldType(const FieldType: TTypeKind): String;
     function GetMaxNameSize: Integer;
     function GetSchemaTablesScripts: TArray<String>;
-    function GetSpecialFieldType(const Field: TField): String;
+    function GetSpecialFieldType(const SpecialType: TDatabaseSpecialType): String;
     function IsSQLite: Boolean;
   end;
 
@@ -60,9 +60,9 @@ begin
   end;
 end;
 
-function TDatabaseManipulatorSQLite.GetFieldType(const Field: TField): String;
+function TDatabaseManipulatorSQLite.GetFieldType(const FieldType: TTypeKind): String;
 begin
-  case Field.FieldType.TypeKind of
+  case FieldType of
     tkInteger:
       Result := 'integer';
     tkEnumeration:
@@ -183,12 +183,12 @@ begin
     'drop table PersistoDatabaseSequenceWorkArround'];
 end;
 
-function TDatabaseManipulatorSQLite.GetSpecialFieldType(const Field: TField): String;
+function TDatabaseManipulatorSQLite.GetSpecialFieldType(const SpecialType: TDatabaseSpecialType): String;
 const
   SPECIAL_TYPE_MAPPING: array [TDatabaseSpecialType] of String = ('', 'date', 'datetime', 'time', 'text', 'uniqueidentifierchar', 'boolean', 'blob');
 
 begin
-  Result := SPECIAL_TYPE_MAPPING[Field.SpecialType];
+  Result := SPECIAL_TYPE_MAPPING[SpecialType];
 end;
 
 function TDatabaseManipulatorSQLite.IsSQLite: Boolean;

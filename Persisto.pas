@@ -124,10 +124,10 @@ type
     function DropDatabase(const DatabaseName: String): String;
     function DropSequence(const Sequence: TDatabaseSequence): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
-    function GetFieldType(const Field: TField): String;
+    function GetFieldType(const FieldType: TTypeKind): String;
     function GetMaxNameSize: Integer;
     function GetSchemaTablesScripts: TArray<String>;
-    function GetSpecialFieldType(const Field: TField): String;
+    function GetSpecialFieldType(const SpecialType: TDatabaseSpecialType): String;
     function IsSQLite: Boolean;
     function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
     function MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
@@ -2577,11 +2577,12 @@ end;
 procedure TManager.GenerateUnit(const FileName: String; FormatName: TFunc<String, String> = nil);
 const
   FIELD_TYPE: array[TTypeKind] of String = ('', 'Integer', 'Char', 'Integer', 'Double', 'String', '', '', '', 'Char', 'String', 'String', '', '', '', '', 'Int64', '', 'String', '', '', '', '');
-  SPECIAL_FIELD_TYPE: array[TDatabaseSpecialType] of String = ('', 'TDate', 'TDateTime', 'TTime', 'Lazy<String>', 'String', 'Boolean', 'TArray<Byte>');
+  SPECIAL_FIELD_TYPE: array[TDatabaseSpecialType] of String = ('', 'TDate', 'TDateTime', 'TTime', 'Lazy<String>', 'String', 'Boolean', 'Lazy<TArray<Byte>>');
 
 var
   Field: TDatabaseField;
   Table: TDatabaseTable;
+  TheUnit: TStringBuilder;
 
   function FormatTableName: String;
   begin
@@ -2614,6 +2615,11 @@ var
         Result := Format('T%s', [FormatName(ForeignKey.ReferenceTable.Value.Name)]);
   end;
 
+  procedure AddAttribute(const AttributeValue: String);
+  begin
+    TheUnit.AppendLine(Format('    [%s]', [AttributeValue]));
+  end;
+
 begin
   ExecuteSchemaScripts;
 
@@ -2624,7 +2630,7 @@ begin
         Result := Name;
       end;
 
-  var TheUnit := TStringBuilder.Create(5000);
+  TheUnit := TStringBuilder.Create(5000);
 
   TheUnit.AppendLine(Format('unit %s;', [TPath.GetFileNameWithoutExtension(FileName)]));
 
@@ -2672,12 +2678,18 @@ begin
     for Field in Fields do
     begin
       if String.Compare(FormatFieldName, DatabaseFieldName, [coIgnoreCase]) <> 0 then
-        TheUnit.AppendLine(Format('    [FieldName(''%s'')]', [DatabaseFieldName, GetFieldType]));
+        AddAttribute(Format('FieldName(''%s'')', [DatabaseFieldName, GetFieldType]));
 
       if Field.FieldType = tkString then
-        TheUnit.AppendLine(Format('    [Size(%d)]', [Field.Size]))
+        AddAttribute(Format('Size(%d)', [Field.Size]))
       else if Field.FieldType = tkFloat then
-        TheUnit.AppendLine(Format('    [Precision(%d, %d)]', [Field.Size, Field.Scale]));
+        AddAttribute(Format('Precision(%d, %d)', [Field.Size, Field.Scale]))
+      else
+        case Field.SpecialType of
+          stText: AddAttribute('Text');
+          stUniqueIdentifier: AddAttribute('UniqueIdentifier');
+          stBinary: AddAttribute('Binary');
+        end;
 
       TheUnit.AppendLine(Format('    property %0:s: %1:s read F%0:s write F%0:s;', [FormatFieldName, GetFieldType]));
     end;
@@ -3115,9 +3127,9 @@ var
     SQL.Append(' ');
 
     if IsSpecialType(Field) then
-      SQL.Append(FDatabaseManipulator.GetSpecialFieldType(Field))
+      SQL.Append(FDatabaseManipulator.GetSpecialFieldType(Field.SpecialType))
     else
-      SQL.Append(FDatabaseManipulator.GetFieldType(Field));
+      SQL.Append(FDatabaseManipulator.GetFieldType(Field.FieldType.TypeKind));
 
     if FieldNeedSize(Field) then
     begin

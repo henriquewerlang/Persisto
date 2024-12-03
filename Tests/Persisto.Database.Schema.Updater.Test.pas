@@ -104,10 +104,10 @@ type
     function DropDatabase(const DatabaseName: String): String;
     function DropSequence(const Sequence: TDatabaseSequence): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
-    function GetFieldType(const Field: TField): String;
+    function GetFieldType(const FieldType: TTypeKind): String;
     function GetMaxNameSize: Integer;
     function GetSchemaTablesScripts: TArray<String>;
-    function GetSpecialFieldType(const Field: TField): String;
+    function GetSpecialFieldType(const SpecialType: TDatabaseSpecialType): String;
     function IsSQLite: Boolean;
     function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
     function MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
@@ -636,10 +636,10 @@ begin
   Result := FManipulador.GetDefaultValue(DefaultConstraint);
 end;
 
-function TDatabaseManiupulatorMock.GetFieldType(const Field: TField): String;
+function TDatabaseManiupulatorMock.GetFieldType(const FieldType: TTypeKind): String;
 begin
   FFunctionFieldTypeCalled := True;
-  Result := FManipulador.GetFieldType(Field);
+  Result := FManipulador.GetFieldType(FieldType);
 end;
 
 function TDatabaseManiupulatorMock.GetMaxNameSize: Integer;
@@ -652,10 +652,10 @@ begin
   Result := FManipulador.GetSchemaTablesScripts;
 end;
 
-function TDatabaseManiupulatorMock.GetSpecialFieldType(const Field: TField): String;
+function TDatabaseManiupulatorMock.GetSpecialFieldType(const SpecialType: TDatabaseSpecialType): String;
 begin
   FFunctionSpecialTypeCalled := True;
-  Result := FManipulador.GetSpecialFieldType(Field);
+  Result := FManipulador.GetSpecialFieldType(SpecialType);
 end;
 
 function TDatabaseManiupulatorMock.IsSQLite: Boolean;

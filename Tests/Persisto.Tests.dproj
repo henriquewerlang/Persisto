@@ -5,7 +5,7 @@
         <FrameworkType>None</FrameworkType>
         <MainSource>Persisto.Tests.dpr</MainSource>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Debug</Config>
+        <Config Condition="'$(Config)'==''">PostgreSQL</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Console</AppType>
@@ -259,7 +259,6 @@
                     </Platform>
                 </DeployFile>
                 <DeployFile LocalName="Win32\Debug\Delphi.ORM.Tests.exe" Configuration="Debug" Class="ProjectOutput"/>
-                <DeployFile LocalName="Win32\Debug\Persisto.Tests.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployFile LocalName="Win32\Debug\Persisto.Tests.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployFile LocalName="Win32\PostgreSQL\Persisto.Tests.exe" Configuration="PostgreSQL" Class="ProjectOutput"/>
                 <DeployFile LocalName="Win32\SQLite\Persisto.Tests.exe" Configuration="SQLite" Class="ProjectOutput"/>

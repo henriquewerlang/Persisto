@@ -2,7 +2,7 @@
 
 interface
 
-uses Persisto;
+uses Persisto, Persisto.Mapping;
 
 type
   TDatabaseManipulatorInterbase = class(TDatabaseManipulator, IDatabaseManipulator)
@@ -10,10 +10,10 @@ type
     function CreateDatabase(const DatabaseName: String): String;
     function DropDatabase(const DatabaseName: String): String;
     function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
-    function GetFieldType(const Field: TField): String;
+    function GetFieldType(const FieldType: TTypeKind): String;
     function GetMaxNameSize: Integer;
     function GetSchemaTablesScripts: TArray<String>;
-    function GetSpecialFieldType(const Field: TField): String;
+    function GetSpecialFieldType(const SpecialType: TDatabaseSpecialType): String;
   end;
 
 implementation
@@ -37,7 +37,7 @@ begin
   Result := EmptyStr;
 end;
 
-function TDatabaseManipulatorInterbase.GetFieldType(const Field: TField): String;
+function TDatabaseManipulatorInterbase.GetFieldType(const FieldType: TTypeKind): String;
 begin
   Result := EmptyStr;
 end;
@@ -52,7 +52,7 @@ begin
   Result := nil;
 end;
 
-function TDatabaseManipulatorInterbase.GetSpecialFieldType(const Field: TField): String;
+function TDatabaseManipulatorInterbase.GetSpecialFieldType(const SpecialType: TDatabaseSpecialType): String;
 begin
   Result := EmptyStr;
 end;

@@ -2,7 +2,7 @@
 
 interface
 
-uses Persisto, Test.Insight.Framework;
+uses Persisto, Persisto.Mapping, Test.Insight.Framework;
 
 type
   [TestFixture]
@@ -42,6 +42,10 @@ type
     procedure WhenTheFieldIsANumericTypeMustLoadThePrecisionAttributeInTheField;
     [Test]
     procedure WhenTheFieldIsAnUniqueIdentifierMustCreateTheUniqueIdentifierAttributeInTheProperty;
+    [Test]
+    procedure WhenTheFieldIsTextMustAddTheTextAttributeInThePropertyAndTheTypeMustBeALazyString;
+    [Test]
+    procedure WhenTheFieldIsBinaryMustAddTheBinaryAttributeInThePropertyAndTheTypeMustBeALazyByteArray;
   end;
 
 implementation
@@ -74,7 +78,7 @@ const
 procedure TGenerateUnitTeste.Setup;
 begin
   FManipulator := CreateDatabaseManipulator;
-  FManager := TManager.Create(CreateConnection, FManipulador);
+  FManager := TManager.Create(CreateConnection, FManipulator);
 
   FManager.CreateDatabase;
 end;
@@ -401,6 +405,60 @@ begin
   CompareUnit(MyUnit);
 end;
 
+procedure TGenerateUnitTeste.WhenTheFieldIsBinaryMustAddTheBinaryAttributeInThePropertyAndTheTypeMustBeALazyByteArray;
+begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FId: Lazy<TArray<Byte>>;
+      published
+        [Binary]
+        property Id: Lazy<TArray<Byte>> read FId write FId;
+      end;
+    ''';
+
+  FManager.ExectDirect(Format(
+    '''
+      create table "MyTable" ("Id" %s)
+    ''',
+    [FManipulator.GetSpecialFieldType(stBinary)]));
+
+  GenerateUnit;
+
+  CompareUnit(MyUnit);
+end;
+
+procedure TGenerateUnitTeste.WhenTheFieldIsTextMustAddTheTextAttributeInThePropertyAndTheTypeMustBeALazyString;
+begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FId: Lazy<String>;
+      published
+        [Text]
+        property Id: Lazy<String> read FId write FId;
+      end;
+    ''';
+
+  FManager.ExectDirect(Format(
+    '''
+      create table "MyTable" ("Id" %s)
+    ''',
+    [FManipulator.GetSpecialFieldType(stText)]));
+
+  GenerateUnit;
+
+  CompareUnit(MyUnit);
+end;
+
 procedure TGenerateUnitTeste.WhenTheFieldIsVarCharMustLoadTheSizeAttributeInTheField;
 begin
   var MyUnit :=
@@ -476,7 +534,8 @@ begin
   FManager.ExectDirect(Format(
     '''
       create table "MyTable" ("Id" %s)
-    ''', [FManipulator.field]);
+    ''',
+    [FManipulator.GetSpecialFieldType(stUniqueIdentifier)]));
 
   GenerateUnit;
 
