@@ -140,8 +140,8 @@ const
            cast(T.object_id as varchar(20)) IdTable,
            case system_type_id
               -- String
-              when 167 then 5
-              when 231 then 5
+              when 167 then iif(max_length = -1, 0, 5)
+              when 231 then iif(max_length = -1, 0, 5)
               -- Integer
               when 56 then 1
               -- Char
@@ -170,16 +170,44 @@ const
               -- Time
               when 41 then 3
               -- Text
+              when 167 then iif(max_length = -1, 4, 0)
               when 231 then iif(max_length = -1, 4, 0)
               -- Unique Identifier
               when 36 then 5
               -- Boolean
               when 104 then 6
+              -- Binary
+              when 165 then 7
               else 0
            end SpecialType
       from sys.columns C
       join sys.tables T
         on T.object_id = C.object_id
+    ''';
+
+  INDEX_SQL =
+    '''
+    select cast(I.object_id as varchar(20)) + '.' + cast(I.index_id as varchar(20)) Id,
+           cast(I.object_id as varchar(20)) IdTable,
+           I.name,
+           I.is_primary_key IsPrimaryKey,
+           I.is_unique IsUnique
+      from sys.indexes I
+      join sys.tables T
+        on T.object_id = I.object_id
+     where I.index_id > 0
+    ''';
+
+  INDEX_FIELDS_SQL =
+    '''
+    select cast(IC.object_id as varchar(20)) + '.' + cast(IC.index_id as varchar(20)) + '.' + cast(IC.index_column_id as varchar(20)) Id,
+           cast(IC.object_id as varchar(20)) + '.' + cast(IC.column_id as varchar(20)) IdField,
+           cast(IC.object_id as varchar(20)) + '.' + cast(IC.index_id as varchar(20)) IdIndex,
+           IC.index_column_id Position
+      from sys.index_columns IC
+      join sys.tables T
+        on T.object_id = IC.object_id
+     where IC.index_id > 0
     ''';
 
   function CreateView(const Name, SQL: String): String;
@@ -191,6 +219,8 @@ begin
   Result := [
     CreateView('DefaultConstraint', DEFAULT_CONSTRAINT_SQL),
     CreateView('ForeignKey', FOREING_KEY_SQL),
+    CreateView('Index', INDEX_SQL),
+    CreateView('IndexField', INDEX_FIELDS_SQL),
     CreateView('Sequence', SEQUENCES_SQL),
     CreateView('Table', TABLE_SQL),
     CreateView('TableField', COLUMNS_SQL),
@@ -200,7 +230,7 @@ end;
 
 function TDatabaseManipulatorSQLServer.GetSpecialFieldType(const SpecialType: TDatabaseSpecialType): String;
 const
-  FIELD_SPECIAL_TYPE_MAPPING: array [TDatabaseSpecialType] of String = ('', 'date', 'datetime', 'time', 'nvarchar(max)', 'uniqueidentifier', 'bit', 'varbinary(max)');
+  FIELD_SPECIAL_TYPE_MAPPING: array [TDatabaseSpecialType] of String = ('', 'date', 'datetime', 'time', 'varchar(max)', 'uniqueidentifier', 'bit', 'varbinary(max)');
 
 begin
   Result := FIELD_SPECIAL_TYPE_MAPPING[SpecialType];
