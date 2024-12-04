@@ -71,158 +71,196 @@ function TDatabaseManipulatorPostgreSQL.GetSchemaTablesScripts: TArray<String>;
 const
   TABLE_SQL =
     '''
-      select cast(T.oid as varchar(20)) Id,
-             (select cast(C.oid as varchar(20))
-                from pg_constraint C
-               where C.conrelid = T.oid
-                 and contype = 'p') IdPrimaryKeyConstraint,
-             relname collate CI Name
-        from pg_class T
-        join pg_namespace S
-          on S.oid = T.relnamespace
-       where relkind = 'r'
-         and S.nspname = 'public'
+    select cast(T.oid as varchar(20)) Id,
+           (select cast(C.oid as varchar(20))
+              from pg_constraint C
+             where C.conrelid = T.oid
+               and contype = 'p') IdPrimaryKeyConstraint,
+           relname collate CI Name
+      from pg_class T
+      join pg_namespace S
+        on S.oid = T.relnamespace
+     where relkind = 'r'
+       and S.nspname = 'public'
     ''';
 
   COLUMNS_SQL =
     '''
-      select cast(cast(attrelid as bigint) * 100000 + attnum as varchar(20)) Id,
-             cast(attrelid as varchar(20)) IdTable,
-             (select cast(D.oid as varchar(20))
-                from pg_attrdef D
-               where D.adrelid = C.attrelid
-                 and D.adnum = C.attnum) IdDefaultConstraint,
-             case atttypid
-                -- String
-                when 1043 then 5
-                -- Integer
-                when 23 then 1
-                -- Char
-                when 1042 then 2
-                -- Enumeration
-                when 21 then 3
-                -- Float
-                when 700 then 4
-                when 701 then 4
-                when 1700 then 4
-                -- Int64
-                when 20 then 16
-                else 0
-             end FieldType,
-             attname collate CI Name,
-             attnotnull Required,
-             (atttypmod - 4) & 65535 Scale,
-             case
-                when atttypid = 1043 then atttypmod - 4
-                when atttypid = 1700 then ((atttypmod - 4) >> 16) & 65535
-                else ((atttypmod - 4) >> 16) & 65535
-             end Size,
-             case atttypid
-                -- Date
-                when 1082 then 1
-                -- DateTime
-                when 1114 then 2
-                when 1184 then 2
-                when 14722 then 2
-                -- Time
-                when 1083 then 3
-                when 1266 then 3
-                -- Text
-                when 25 then 4
-                when 142 then 4
-                -- Unique Identifier
-                when 2950 then 5
-                -- Boolean
-                when 16 then 6
-                -- Binary
-                when 17 then 7
-                else 0
-             end SpecialType
-        from pg_attribute C
-        join pg_class T
-          on T.oid = C.attrelid
-        join pg_namespace S
-          on S.oid = T.relnamespace
-       where T.relkind = 'r'
-         and S.nspname = 'public'
-         and C.attnum > 0
+    select cast(cast(attrelid as bigint) * 100000 + attnum as varchar(20)) Id,
+           cast(attrelid as varchar(20)) IdTable,
+           (select cast(D.oid as varchar(20))
+              from pg_attrdef D
+             where D.adrelid = C.attrelid
+               and D.adnum = C.attnum) IdDefaultConstraint,
+           case atttypid
+              -- String
+              when 1043 then 5
+              -- Integer
+              when 23 then 1
+              -- Char
+              when 1042 then 2
+              -- Enumeration
+              when 21 then 3
+              -- Float
+              when 700 then 4
+              when 701 then 4
+              when 1700 then 4
+              -- Int64
+              when 20 then 16
+              else 0
+           end FieldType,
+           attname collate CI Name,
+           attnotnull Required,
+           (atttypmod - 4) & 65535 Scale,
+           case
+              when atttypid = 1043 then atttypmod - 4
+              when atttypid = 1700 then ((atttypmod - 4) >> 16) & 65535
+              else ((atttypmod - 4) >> 16) & 65535
+           end Size,
+           case atttypid
+              -- Date
+              when 1082 then 1
+              -- DateTime
+              when 1114 then 2
+              when 1184 then 2
+              when 14722 then 2
+              -- Time
+              when 1083 then 3
+              when 1266 then 3
+              -- Text
+              when 25 then 4
+              when 142 then 4
+              -- Unique Identifier
+              when 2950 then 5
+              -- Boolean
+              when 16 then 6
+              -- Binary
+              when 17 then 7
+              else 0
+           end SpecialType
+      from pg_attribute C
+      join pg_class T
+        on T.oid = C.attrelid
+      join pg_namespace S
+        on S.oid = T.relnamespace
+     where T.relkind = 'r'
+       and S.nspname = 'public'
+       and C.attnum > 0
     ''';
 
   FOREING_KEY_SQL =
     '''
-      select cast(FK.oid as varchar(20)) Id,
-             FK.conname collate CI Name,
-             cast(FK.conrelid as varchar(20)) IdTable,
-             cast(FK.confrelid as varchar(20)) IdReferenceTable,
-             C.attname collate CI ReferenceField
-        from pg_constraint FK
-        join pg_class T
-          on T.oid = FK.conrelid
-        join pg_namespace S
-          on S.oid = T.relnamespace
-        join pg_attribute C
-          on C.attrelid = T.oid
-         and C.attnum = any (FK.conkey)
-       where T.relkind = 'r'
-         and S.nspname = 'public'
-         and FK.contype = 'f'
-         and cardinality(FK.conkey) = 1
+    select cast(FK.oid as varchar(20)) Id,
+           FK.conname collate CI Name,
+           cast(FK.conrelid as varchar(20)) IdTable,
+           cast(FK.confrelid as varchar(20)) IdReferenceTable,
+           C.attname collate CI ReferenceField
+      from pg_constraint FK
+      join pg_class T
+        on T.oid = FK.conrelid
+      join pg_namespace S
+        on S.oid = T.relnamespace
+      join pg_attribute C
+        on C.attrelid = T.oid
+       and C.attnum = any (FK.conkey)
+     where T.relkind = 'r'
+       and S.nspname = 'public'
+       and FK.contype = 'f'
+       and cardinality(FK.conkey) = 1
     ''';
 
   SEQUENCES_SQL =
     '''
-      select cast(S.seqrelid as varchar(20)) Id,
-             C.relname collate CI Name
-        from pg_sequence S
-        join pg_class C
-          on C.oid = S.seqrelid
+    select cast(S.seqrelid as varchar(20)) Id,
+           C.relname collate CI Name
+      from pg_sequence S
+      join pg_class C
+        on C.oid = S.seqrelid
     ''';
 
   DEFAULT_CONSTRAINT_SQL =
     '''
-      select cast(DF.oid as varchar(20)) Id,
-             'df_' || T.relname || '_' || C.attname collate CI Name,
-             (string_to_array(pg_get_expr(DF.adbin, DF.adrelid), ':'))[1] Value
-        from pg_attrdef DF
-        join pg_class T
-          on T.oid = DF.adrelid
-        join pg_namespace S
-          on S.oid = T.relnamespace
-        join pg_attribute C
-          on C.attrelid = DF.adrelid
-         and C.attnum = DF.adnum
-       where T.relkind = 'r'
-         and S.nspname = 'public'
+    select cast(DF.oid as varchar(20)) Id,
+           'df_' || T.relname || '_' || C.attname collate CI Name,
+           (string_to_array(pg_get_expr(DF.adbin, DF.adrelid), ':'))[1] Value
+      from pg_attrdef DF
+      join pg_class T
+        on T.oid = DF.adrelid
+      join pg_namespace S
+        on S.oid = T.relnamespace
+      join pg_attribute C
+        on C.attrelid = DF.adrelid
+       and C.attnum = DF.adnum
+     where T.relkind = 'r'
+       and S.nspname = 'public'
     ''';
 
   PRIMARY_KEY_CONSTRAINT_SQL =
     '''
-      select cast(PK.oid as varchar(20)) Id,
-             PK.conname collate CI Name,
-             C.attname collate CI FieldName
-        from pg_constraint PK
+    select cast(PK.oid as varchar(20)) Id,
+           PK.conname collate CI Name,
+           C.attname collate CI FieldName
+      from pg_constraint PK
+      join pg_class T
+        on T.oid = PK.conrelid
+      join pg_namespace S
+        on S.oid = T.relnamespace
+      join pg_attribute C
+        on C.attrelid = T.oid
+       and C.attnum = any (PK.conkey)
+     where T.relkind = 'r'
+       and S.nspname = 'public'
+       and PK.contype = 'p'
+    ''';
+
+  INDEX_SQL =
+    '''
+    select cast(I.indexrelid as varchar(20)) Id,
+           cast(T.oid as varchar(20)) IdTable,
+           IC.relname Name,
+           I.indisprimary IsPrimaryKey,
+           I.indisunique IsUnique
+      from pg_index I
+      join pg_class IC
+        on IC.oid = I.indexrelid
+      join pg_class T
+        on T.oid = I.indrelid
+      join pg_namespace S
+        on S.oid = T.relnamespace
+     where T.relkind = 'r'
+       and S.nspname = 'public'
+    ''';
+
+  INDEX_FIELDS_SQL =
+    '''
+      select cast(cast(I.indexrelid as bigint) * 100000 + F.attnum as varchar(20)) Id,
+             cast(cast(F.attrelid as bigint) * 100000 + F.attnum as varchar(20)) IdField,
+             cast(I.indexrelid as varchar(20)) IdIndex,
+             array_position(I.indkey, F.attnum) Position
+        from pg_index I
+        join pg_class IC
+          on IC.oid = I.indexrelid
         join pg_class T
-          on T.oid = PK.conrelid
+          on T.oid = I.indrelid
         join pg_namespace S
           on S.oid = T.relnamespace
-        join pg_attribute C
-          on C.attrelid = T.oid
-         and C.attnum = any (PK.conkey)
+        join pg_attribute F
+          on F.attrelid = T.oid
+         and F.attnum = any(I.indkey)
        where T.relkind = 'r'
          and S.nspname = 'public'
-         and PK.contype = 'p'
     ''';
 
   COLLATION_SQL =
     '''
-      do
-        $do$
-      begin
-        if (not exists(select 1 from pg_collation where collname = 'ci')) then
-          create collation CI (Provider = icu, Locale = 'und-u-ks-level2', Deterministic = false);
-        end if;
-      end
+    do
       $do$
+    begin
+      if (not exists(select 1 from pg_collation where collname = 'ci')) then
+        create collation CI (Provider = icu, Locale = 'und-u-ks-level2', Deterministic = false);
+      end if;
+    end
+    $do$
     ''';
 
   function CreateView(const Name, SQL: String): String;
@@ -235,6 +273,8 @@ begin
     COLLATION_SQL,
     CreateView('DefaultConstraint', DEFAULT_CONSTRAINT_SQL),
     CreateView('ForeignKey', FOREING_KEY_SQL),
+    CreateView('Index', INDEX_SQL),
+    CreateView('IndexField', INDEX_FIELDS_SQL),
     CreateView('Sequence', SEQUENCES_SQL),
     CreateView('Table', TABLE_SQL),
     CreateView('TableField', COLUMNS_SQL),
