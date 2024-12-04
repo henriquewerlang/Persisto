@@ -13,6 +13,7 @@ type
   TDatabaseField = class;
   TDatabaseForeignKey = class;
   TDatabaseIndex = class;
+  TDatabaseIndexField = class;
   TDatabasePrimaryKeyConstraint = class;
   TDatabaseSequence = class;
   TDatabaseTable = class;
@@ -311,13 +312,13 @@ type
   private
     FDatabaseName: String;
     FFields: TArray<TField>;
-    FPrimaryKey: Boolean;
-    FUnique: Boolean;
+    FIsPrimaryKey: Boolean;
+    FIsUnique: Boolean;
   public
     property DatabaseName: String read FDatabaseName write FDatabaseName;
     property Fields: TArray<TField> read FFields write FFields;
-    property PrimaryKey: Boolean read FPrimaryKey write FPrimaryKey;
-    property Unique: Boolean read FUnique write FUnique;
+    property IsPrimaryKey: Boolean read FIsPrimaryKey write FIsPrimaryKey;
+    property IsUnique: Boolean read FIsUnique write FIsUnique;
   end;
 
   TMapper = class
@@ -594,14 +595,14 @@ type
     FIndexes: Lazy<TArray<TDatabaseIndex>>;
     FName: String;
     FPrimaryKeyConstraint: TDatabasePrimaryKeyConstraint;
-  public
-    property Indexes: Lazy<TArray<TDatabaseIndex>> read FIndexes write FIndexes;
   published
     [ManyValueAssociationLinkName('Table')]
     property Fields: TArray<TDatabaseField> read FFields write FFields;
     [ManyValueAssociationLinkName('Table')]
     property ForeignKeys: Lazy<TArray<TDatabaseForeignKey>> read FForeignKeys write FForeignKeys;
     property Id: String read FId write FId;
+    [ManyValueAssociationLinkName('Table')]
+    property Indexes: Lazy<TArray<TDatabaseIndex>> read FIndexes write FIndexes;
     property Name: String read FName write FName;
     property PrimaryKeyConstraint: TDatabasePrimaryKeyConstraint read FPrimaryKeyConstraint write FPrimaryKeyConstraint;
   end;
@@ -633,20 +634,37 @@ type
     property Table: TDatabaseTable read FTable write FTable;
   end;
 
+  [TableName('PersistoDatabaseIndex')]
   TDatabaseIndex = class
   private
-    FFields: TArray<TDatabaseField>;
-    FPrimaryKey: Boolean;
+    FFields: TArray<TDatabaseIndexField>;
+    FIsPrimaryKey: Boolean;
     FTable: Lazy<TDatabaseTable>;
-    FUnique: Boolean;
+    FIsUnique: Boolean;
     FName: String;
-  public
-    property Fields: TArray<TDatabaseField> read FFields write FFields;
-    property PrimaryKey: Boolean read FPrimaryKey write FPrimaryKey;
-    property Unique: Boolean read FUnique write FUnique;
+    FId: String;
   published
+    [ManyValueAssociationLinkName('Index')]
+    property Fields: TArray<TDatabaseIndexField> read FFields write FFields;
+    property Id: String read FId write FId;
     property Name: String read FName write FName;
+    property IsPrimaryKey: Boolean read FIsPrimaryKey write FIsPrimaryKey;
     property Table: Lazy<TDatabaseTable> read FTable write FTable;
+    property IsUnique: Boolean read FIsUnique write FIsUnique;
+  end;
+
+  [TableName('PersistoDatabaseIndexField')]
+  TDatabaseIndexField = class
+  private
+    FField: TDatabaseField;
+    FIndex: TDatabaseIndex;
+    FId: String;
+    FPosition: Integer;
+  published
+    property Field: TDatabaseField read FField write FField;
+    property Id: String read FId write FId;
+    property &Index: TDatabaseIndex read FIndex write FIndex;
+    property Position: Integer read FPosition write FPosition;
   end;
 
   [TableName('PersistoDatabaseForeignKey')]
@@ -775,6 +793,9 @@ type
   end;
 
 function Field(const Name: String): TQueryBuilderComparisonHelper;
+
+const
+  DEFAULT_ID_FIELD_NAME = 'Id';
 
 implementation
 
@@ -1025,7 +1046,7 @@ begin
     Result := Field.Name;
 
     if Field.IsForeignKey then
-      Result := 'Id' + Result;
+      Result := DEFAULT_ID_FIELD_NAME + Result;
   end;
 end;
 
@@ -1205,7 +1226,7 @@ begin
       var IndexInfo := IndexAttribute(Attribute);
 
       var Index := CreateIndex(Table, IndexInfo.Name);
-      Index.Unique := Attribute is UniqueIndexAttribute;
+      Index.IsUnique := Attribute is UniqueIndexAttribute;
 
       for var FieldName in IndexInfo.Fields.Split([';']) do
       begin
@@ -1228,7 +1249,7 @@ procedure TMapper.LoadTableInfo(const TypeInfo: TRttiInstanceType; const Table: 
     if Assigned(Attribute) then
       Result := Attribute.Name
     else
-      Result := 'Id';
+      Result := DEFAULT_ID_FIELD_NAME;
   end;
 
   procedure LoadPrimaryKeyInfo;
@@ -1243,8 +1264,8 @@ procedure TMapper.LoadTableInfo(const TypeInfo: TRttiInstanceType; const Table: 
 
       var PrimaryKeyIndex := CreateIndex(Table, Format('PK_%s', [Table.DatabaseName]));
       PrimaryKeyIndex.Fields := [Field];
-      PrimaryKeyIndex.PrimaryKey := True;
-      PrimaryKeyIndex.Unique := True;
+      PrimaryKeyIndex.IsPrimaryKey := True;
+      PrimaryKeyIndex.IsUnique := True;
     end;
   end;
 
@@ -2594,7 +2615,7 @@ var
     Result := Field.Name;
 
     for var ForeignKey in Table.ForeignKeys.Value do
-      if (Result = ForeignKey.ReferenceField) and Result.StartsWith('Id') then
+      if (Result = ForeignKey.ReferenceField) and Result.StartsWith(DEFAULT_ID_FIELD_NAME) then
         Result := Result.Substring(2);
   end;
 
@@ -2618,6 +2639,56 @@ var
   procedure AddAttribute(const AttributeValue: String);
   begin
     TheUnit.AppendLine(Format('    [%s]', [AttributeValue]));
+  end;
+
+  function LoadIndexFieldNames(const Index: TDatabaseIndex): String;
+  begin
+    Result := EmptyStr;
+
+    TArray.Sort<TDatabaseIndexField>(Index.FFields, TDelegatedComparer<TDatabaseIndexField>.Create(
+      function(const Left, Right: TDatabaseIndexField): Integer
+      begin
+        Result := Left.Position - Right.Position;
+      end));
+
+    for var FieldIndex in Index.Fields do
+    begin
+      if not Result.IsEmpty then
+        Result := Result + ', ';
+
+      Result := Result + Format('''%s''', [FieldIndex.Field.Name]);
+    end;
+  end;
+
+  procedure AddIndexAttribute(const Index: TDatabaseIndex);
+  begin
+    if not Index.IsPrimaryKey or (Index.Fields[0].Field.Name <> DEFAULT_ID_FIELD_NAME) then
+    begin
+      var IndexType: String;
+
+      TheUnit.Append('  [');
+
+      if Index.IsPrimaryKey then
+        IndexType := 'PrimaryKey'
+      else
+      begin
+        IndexType := 'Index';
+
+        if Index.IsUnique then
+          IndexType := 'Unique' + IndexType;
+      end;
+
+      TheUnit.Append(IndexType);
+
+      TheUnit.Append('(');
+
+      if not Index.IsPrimaryKey then
+        TheUnit.Append(Format('''%s'', ', [Index.Name]));
+
+      TheUnit.Append(LoadIndexFieldNames(Index));
+
+      TheUnit.AppendLine(')]');
+    end;
   end;
 
 begin
@@ -2660,6 +2731,9 @@ begin
   for Table in Tables do
   begin
     var Fields := Table.Fields;
+
+    for var Index in Table.Indexes.Value do
+      AddIndexAttribute(Index);
 
     TheUnit.AppendLine('  [Entity]');
 
@@ -3092,7 +3166,7 @@ var
     Result := nil;
 
     for var DatabaseIndex in DatabaseTable.Indexes.Value do
-      if DatabaseIndex.PrimaryKey then
+      if DatabaseIndex.IsPrimaryKey then
         Exit(DatabaseIndex);
   end;
 

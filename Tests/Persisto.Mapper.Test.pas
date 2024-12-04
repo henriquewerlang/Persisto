@@ -722,9 +722,9 @@ procedure TMapperTest.ThePrimaryKeyIndexMustBeMarkedAsUniqueAndInPrimaryKey;
 begin
   var Table := FMapper.GetTable(TClassWithPrimaryKey);
 
-  Assert.IsTrue(Table.Indexes[0].PrimaryKey);
+  Assert.IsTrue(Table.Indexes[0].IsPrimaryKey);
 
-  Assert.IsTrue(Table.Indexes[0].Unique);
+  Assert.IsTrue(Table.Indexes[0].IsUnique);
 end;
 
 procedure TMapperTest.ThePrimaryKeyIndexMustLoadThePrimaryKeyFieldInTheIndexFieldList;
@@ -1609,7 +1609,7 @@ procedure TMapperTest.WhenUseTheUniqueIndexAttributeMustMarkTheIndexAsUnique;
 begin
   var Table := FMapper.GetTable(TMyClassWithIndex);
 
-  Assert.IsTrue(Table.Indexes[3].Unique);
+  Assert.IsTrue(Table.Indexes[3].IsUnique);
 end;
 
 end.

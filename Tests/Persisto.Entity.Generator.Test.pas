@@ -46,6 +46,20 @@ type
     procedure WhenTheFieldIsTextMustAddTheTextAttributeInThePropertyAndTheTypeMustBeALazyString;
     [Test]
     procedure WhenTheFieldIsBinaryMustAddTheBinaryAttributeInThePropertyAndTheTypeMustBeALazyByteArray;
+    [Test]
+    procedure WhenATableHasIndexesMustLoadTheIndexAttributeInTheClassWithTheNameAndFieldNames;
+    [Test]
+    procedure WhenTheIndexHasMoreThanOneFieldMustLoadAllFieldsInTheAttribute;
+    [Test]
+    procedure TheFieldOrderInTheIndexAttributeMustBeKeeped;
+    [Test]
+    procedure WhenCreateTheIndexAttributeMustLoadAnAttributeForEveryIndexInTheTable;
+    [Test]
+    procedure WhenTheIndexIsThePrimaryKeyDontNeedToCreateTheIndexAttribute;
+    [Test]
+    procedure WhenTheIndexIsUniqueMustCreateTheUniqueIndexAttribute;
+    [Test]
+    procedure WhenThePrimaryKeyFieldNameIsntIdMustLoadThePrimaryKeyAttributeInTheClass;
   end;
 
 implementation
@@ -91,6 +105,39 @@ begin
   FManager.DropDatabase;
 
   FManager.Free;
+end;
+
+procedure TGenerateUnitTeste.TheFieldOrderInTheIndexAttributeMustBeKeeped;
+begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+
+      [Index('MyIndex', 'Field1', 'Field3', 'Field2')]
+      [Entity]
+      TMyTable = class
+      private
+        FId: Integer;
+        FField1: Integer;
+        FField2: Integer;
+        FField3: Integer;
+      published
+        property Id: Integer read FId write FId;
+        property Field1: Integer read FField1 write FField1;
+        property Field2: Integer read FField2 write FField2;
+        property Field3: Integer read FField3 write FField3;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Id" int, "Field1" int, "Field2" int, "Field3" int);
+      create index "MyIndex" on "MyTable" ("Field1", "Field3", "Field2");
+    ''');
+
+  GenerateUnit;
+
+  CompareUnit(MyUnit);
 end;
 
 procedure TGenerateUnitTeste.TheTypeOfTheDatabaseFieldMustReflectTheTypeOfThePropertyDeclaration;
@@ -267,6 +314,76 @@ begin
   CompareUnit(MyUnit);
 end;
 
+procedure TGenerateUnitTeste.WhenATableHasIndexesMustLoadTheIndexAttributeInTheClassWithTheNameAndFieldNames;
+begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+
+      [Index('MyIndex', 'Field1')]
+      [Entity]
+      TMyTable = class
+      private
+        FId: Integer;
+        FField1: Integer;
+        FField2: Integer;
+        FField3: Integer;
+      published
+        property Id: Integer read FId write FId;
+        property Field1: Integer read FField1 write FField1;
+        property Field2: Integer read FField2 write FField2;
+        property Field3: Integer read FField3 write FField3;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Id" int, "Field1" int, "Field2" int, "Field3" int);
+      create index "MyIndex" on "MyTable" ("Field1");
+    ''');
+
+  GenerateUnit;
+
+  CompareUnit(MyUnit);
+end;
+
+procedure TGenerateUnitTeste.WhenCreateTheIndexAttributeMustLoadAnAttributeForEveryIndexInTheTable;
+begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+
+      [Index('MyIndex1', 'Field1')]
+      [Index('MyIndex2', 'Field1')]
+      [Index('MyIndex3', 'Field1')]
+      [Entity]
+      TMyTable = class
+      private
+        FId: Integer;
+        FField1: Integer;
+        FField2: Integer;
+        FField3: Integer;
+      published
+        property Id: Integer read FId write FId;
+        property Field1: Integer read FField1 write FField1;
+        property Field2: Integer read FField2 write FField2;
+        property Field3: Integer read FField3 write FField3;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Id" int, "Field1" int, "Field2" int, "Field3" int);
+      create index "MyIndex1" on "MyTable" ("Field1");
+      create index "MyIndex2" on "MyTable" ("Field1");
+      create index "MyIndex3" on "MyTable" ("Field1");
+    ''');
+
+  GenerateUnit;
+
+  CompareUnit(MyUnit);
+end;
+
 procedure TGenerateUnitTeste.WhenFillTheFunctionToFormatNamesMustLoadTheNamesAsExpected;
 begin
   var MyUnit :=
@@ -378,6 +495,38 @@ begin
   CompareUnit(MyUnit);
 end;
 
+procedure TGenerateUnitTeste.WhenThePrimaryKeyFieldNameIsntIdMustLoadThePrimaryKeyAttributeInTheClass;
+begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+
+      [PrimaryKey('Field1')]
+      [Entity]
+      TMyTable = class
+      private
+        FId: Integer;
+        FField1: Integer;
+        FField2: Integer;
+        FField3: Integer;
+      published
+        property Id: Integer read FId write FId;
+        property Field1: Integer read FField1 write FField1;
+        property Field2: Integer read FField2 write FField2;
+        property Field3: Integer read FField3 write FField3;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Id" int, "Field1" int, "Field2" int, "Field3" int, primary key ("Field1"));
+    ''');
+
+  GenerateUnit;
+
+  CompareUnit(MyUnit);
+end;
+
 procedure TGenerateUnitTeste.WhenTheFieldIsASpecialTypeMustLoadTheFieldTypeAsExpected;
 begin
   var MyUnit :=
@@ -480,6 +629,103 @@ begin
   FManager.ExectDirect(
     '''
       create table "MyTable" ("Field" varchar(150), "Id" int)
+    ''');
+
+  GenerateUnit;
+
+  CompareUnit(MyUnit);
+end;
+
+procedure TGenerateUnitTeste.WhenTheIndexHasMoreThanOneFieldMustLoadAllFieldsInTheAttribute;
+begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+
+      [Index('MyIndex', 'Field1', 'Field2')]
+      [Entity]
+      TMyTable = class
+      private
+        FId: Integer;
+        FField1: Integer;
+        FField2: Integer;
+        FField3: Integer;
+      published
+        property Id: Integer read FId write FId;
+        property Field1: Integer read FField1 write FField1;
+        property Field2: Integer read FField2 write FField2;
+        property Field3: Integer read FField3 write FField3;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Id" int, "Field1" int, "Field2" int, "Field3" int);
+      create index "MyIndex" on "MyTable" ("Field1", "Field2");
+    ''');
+
+  GenerateUnit;
+
+  CompareUnit(MyUnit);
+end;
+
+procedure TGenerateUnitTeste.WhenTheIndexIsThePrimaryKeyDontNeedToCreateTheIndexAttribute;
+begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FId: Integer;
+        FField1: Integer;
+        FField2: Integer;
+        FField3: Integer;
+      published
+        property Id: Integer read FId write FId;
+        property Field1: Integer read FField1 write FField1;
+        property Field2: Integer read FField2 write FField2;
+        property Field3: Integer read FField3 write FField3;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Id" int, "Field1" int, "Field2" int, "Field3" int, primary key ("Id"));
+    ''');
+
+  GenerateUnit;
+
+  CompareUnit(MyUnit);
+end;
+
+procedure TGenerateUnitTeste.WhenTheIndexIsUniqueMustCreateTheUniqueIndexAttribute;
+begin
+  var MyUnit :=
+    '''
+      TMyTable = class;
+
+      [UniqueIndex('MyIndex', 'Field1')]
+      [Entity]
+      TMyTable = class
+      private
+        FId: Integer;
+        FField1: Integer;
+        FField2: Integer;
+        FField3: Integer;
+      published
+        property Id: Integer read FId write FId;
+        property Field1: Integer read FField1 write FField1;
+        property Field2: Integer read FField2 write FField2;
+        property Field3: Integer read FField3 write FField3;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Id" int, "Field1" int, "Field2" int, "Field3" int);
+      create unique index "MyIndex" on "MyTable" ("Field1");
     ''');
 
   GenerateUnit;
