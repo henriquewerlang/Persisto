@@ -2662,7 +2662,7 @@ var
 
   procedure AddIndexAttribute(const Index: TDatabaseIndex);
   begin
-    if not Index.IsPrimaryKey or (Index.Fields[0].Field.Name <> DEFAULT_ID_FIELD_NAME) then
+    if not Index.IsPrimaryKey or (CompareText(Index.Fields[0].Field.Name, DEFAULT_ID_FIELD_NAME) <> 0) then
     begin
       var IndexType: String;
 
