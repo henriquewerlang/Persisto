@@ -135,13 +135,11 @@ type
     property Name: String read FName write FName;
   end;
 
-  ILazyValue = {$IFDEF DCC} interface{$ELSE} class public {$ENDIF}
-    function GetKey: TValue; {$IFDEF PAS2JS} virtual; abstract; {$ENDIF}
-    function GetValue: TValue; {$IFDEF PAS2JS} virtual; abstract; {$ENDIF}
-{$IFDEF PAS2JS}
-    function GetValueAsync: TValue; virtual; abstract; async;
-{$ENDIF}
-    procedure SetValue(const Value: TValue); {$IFDEF PAS2JS} virtual; abstract; {$ENDIF}
+  ILazyValue = interface
+    function GetKey: TValue;
+    function GetValue: TValue;
+
+    procedure SetValue(const Value: TValue);
 
     property Key: TValue read GetKey;
     property Value: TValue read GetValue write SetValue;
@@ -155,9 +153,7 @@ type
   public
     function GetLazyValue: ILazyValue;
     function GetValue: T;
-{$IFDEF PAS2JS}
-    function GetValueAsync: T; async;
-{$ENDIF}
+
 {$IFDEF DCC}
     class operator Implicit(const Value: Lazy<T>): T;
     class operator Implicit(const Value: T): Lazy<T>;
@@ -167,16 +163,14 @@ type
     property Value: T read GetValue write SetValue;
   end;
 
-  TLazyValue = class({$IFDEF DCC}TInterfacedObject, {$ENDIF}ILazyValue)
+  TLazyValue = class(TInterfacedObject, ILazyValue)
   private
     FValue: TValue;
   protected
-    function GetKey: TValue; {$IFDEF PAS2JS} override; {$ENDIF}
-    function GetValue: TValue; {$IFDEF PAS2JS} override; {$ENDIF}
-{$IFDEF PAS2JS}
-    function GetValueAsync: TValue; override; async;
-{$ENDIF}
-    procedure SetValue(const Value: TValue); {$IFDEF PAS2JS} override; {$ENDIF}
+    function GetKey: TValue;
+    function GetValue: TValue;
+
+    procedure SetValue(const Value: TValue);
   public
     constructor Create(const Info: PTypeInfo);
   end;
@@ -243,13 +237,6 @@ begin
   FValue := Value;
 end;
 
-{$IFDEF PAS2JS}
-
-function TLazyValue.GetValueAsync: TValue;
-begin
-  Result := GetValue;
-end;
-{$ENDIF}
 { Lazy<T> }
 
 function Lazy<T>.GetLazyValue: ILazyValue;
@@ -265,15 +252,7 @@ begin
   Result := LazyValue.Value.AsType<T>;
 end;
 
-{$IFDEF PAS2JS}
-
-function Lazy<T>.GetValueAsync: T;
-begin
-//  Result := LazyValue.GetValueAsync.AsType<T>;
-end;
-{$ENDIF}
 {$IFDEF DCC}
-
 class operator Lazy<T>.Implicit(const Value: T): Lazy<T>;
 begin
   Result.Value := Value;
