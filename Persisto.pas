@@ -1556,7 +1556,7 @@ end;
 
 procedure TField.SetLazyValue(const Instance: TObject; const Value: ILazyValue);
 begin
-  PropertyInfo.PropertyType.GetField('FLazyValue').SetValue(GetRawPointerOfProperty(Instance), TValue.From(Value));
+  PropertyInfo.PropertyType.GetMethod('SetLazyValue').Invoke(TValue.From(GetRawPointerOfProperty(Instance)), TValue.From(Value));
 end;
 
 procedure TField.SetValue(const Instance: TObject; const Value: TValue);

@@ -11,6 +11,12 @@ type
     FContext: TRttiContext;
   public
     [Test]
+    procedure TheGetValueFunctionMustBePublicInTheLazyRecordToDontBeRemovedFromRTTIInformation;
+    [Test]
+    procedure TheGetLazyValueFunctionMustBePublicInTheLazyRecordToDontBeRemovedFromRTTIInformation;
+    [Test]
+    procedure TheSetLazyValueFunctionMustBePublicInTheLazyRecordToDontBeRemovedFromRTTIInformation;
+    [Test]
     procedure WhenLoadTheLazyValueMustReturnTheValueLoaded;
     [Test]
     procedure TheIsLazyFunctionMustReturnTrueIfTheValueIsLazy;
@@ -18,6 +24,8 @@ type
     procedure WhenGetLazyTypeMustReturnTheRttiTypeAsExpected;
     [Test]
     procedure WhenTheLazyValueIsntLoadedMustReturnTheTypeInfoFromTheTypeAsExpected;
+    [Test]
+    procedure WhenFillTheLazyValuePropertyMustReturnTheValueAsExpected;
   end;
 
   [TestFixture]
@@ -85,9 +93,40 @@ uses System.TypInfo, Persisto.Test.Entity, Persisto.Test.Connection;
 
 { TLazyTest }
 
+procedure TLazyTest.TheGetLazyValueFunctionMustBePublicInTheLazyRecordToDontBeRemovedFromRTTIInformation;
+begin
+  var RttiType := FContext.GetType(TypeInfo(Lazy<TMyEntity>));
+
+  Assert.IsNotNil(RttiType.GetMethod('GetLazyValue'));
+end;
+
+procedure TLazyTest.TheGetValueFunctionMustBePublicInTheLazyRecordToDontBeRemovedFromRTTIInformation;
+begin
+  var RttiType := FContext.GetType(TypeInfo(Lazy<TMyEntity>));
+
+  Assert.IsNotNil(RttiType.GetMethod('GetValue'));
+end;
+
 procedure TLazyTest.TheIsLazyFunctionMustReturnTrueIfTheValueIsLazy;
 begin
   Assert.IsTrue(IsLazy(FContext.GetType(TypeInfo(Lazy<TMyEntity>))));
+end;
+
+procedure TLazyTest.TheSetLazyValueFunctionMustBePublicInTheLazyRecordToDontBeRemovedFromRTTIInformation;
+begin
+  var RttiType := FContext.GetType(TypeInfo(Lazy<TMyEntity>));
+
+  Assert.IsNotNil(RttiType.GetMethod('SetLazyValue'));
+end;
+
+procedure TLazyTest.WhenFillTheLazyValuePropertyMustReturnTheValueAsExpected;
+begin
+  var LazyValue: ILazyValue := TLazyLoader.Create(nil, nil, nil, nil);
+  var MyLazy: Lazy<TMyEntity>;
+
+  MyLazy.LazyValue := LazyValue;
+
+  Assert.AreEqual(Pointer(LazyValue), Pointer(MyLazy.LazyValue));
 end;
 
 procedure TLazyTest.WhenGetLazyTypeMustReturnTheRttiTypeAsExpected;

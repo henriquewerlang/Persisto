@@ -153,12 +153,14 @@ type
     function GetLazyValue: ILazyValue;
     function GetValue: T;
 
+    procedure SetLazyValue(const Value: ILazyValue);
+
 {$IFDEF DCC}
     class operator Implicit(const Value: Lazy<T>): T;
     class operator Implicit(const Value: T): Lazy<T>;
 {$ENDIF}
 
-    property LazyValue: ILazyValue read GetLazyValue;
+    property LazyValue: ILazyValue read GetLazyValue write SetLazyValue;
     property Value: T read GetValue write SetValue;
   end;
 
@@ -262,6 +264,11 @@ begin
   Result := Value.Value;
 end;
 {$ENDIF}
+
+procedure Lazy<T>.SetLazyValue(const Value: ILazyValue);
+begin
+  FLazyValue := Value;
+end;
 
 procedure Lazy<T>.SetValue(const Value: T);
 begin
