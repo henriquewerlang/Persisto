@@ -69,6 +69,28 @@ type
     procedure WhenOpenDataSetHaveToLoadFieldListWithPropertiesOfMappedObject;
     [Test]
     procedure TheNameOfFieldMustBeEqualToTheNameOfTheProperty;
+    [Test]
+    procedure WhenThePropertyIsOfIntegerTypeMustCreateTheFieldWithTheTypeExpected;
+    [Test]
+    procedure WhenThePropertyIsOfStringTypeMustCreateTheFieldWithTheTypeExpected;
+    [Test]
+    procedure WhenThePropertyIsOfFloatTypeMustCreateTheFieldWithTheTypeExpected;
+    [Test]
+    procedure WhenThePropertyIsOfInt64TypeMustCreateTheFieldWithTheTypeExpected;
+    [Test]
+    procedure WhenThePropertyIsOfEnumeratorTypeMustCreateTheFieldWithTheTypeExpected;
+    [Test]
+    procedure WhenThePropertyIsOfBooleanTypeMustCreateTheFieldWithTheTypeExpected;
+    [Test]
+    procedure WhenThePropertyIsOfDateTypeMustCreateTheFieldWithTheTypeExpected;
+    [Test]
+    procedure WhenThePropertyIsOfTimeTypeMustCreateTheFieldWithTheTypeExpected;
+    [Test]
+    procedure WhenThePropertyIsOfDateTimeTypeMustCreateTheFieldWithTheTypeExpected;
+    [Test]
+    procedure WhenThePropertyIsOfUniqueIdentifierTypeMustCreateTheFieldWithTheTypeExpected;
+    [Test]
+    procedure WhenTheFieldTypeIsntMappedCanRaiseAnyError;
 
 
 
@@ -3070,6 +3092,13 @@ begin
   MyClass.Free;
 end;
 
+procedure TPersistoDataSetTest.WhenTheFieldTypeIsntMappedCanRaiseAnyError;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  Assert.WillNotRaise(FDataSet.Open);
+end;
+
 procedure TPersistoDataSetTest.WhenTheNullablePropertyIsFilledMustReturnTheValueFilled;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
@@ -3084,6 +3113,96 @@ begin
   DataSet.Free;
 
   MyClass.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenThePropertyIsOfBooleanTypeMustCreateTheFieldWithTheTypeExpected;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(TBooleanField, FDataSet.FieldByName('Boolean').ClassType);
+end;
+
+procedure TPersistoDataSetTest.WhenThePropertyIsOfDateTimeTypeMustCreateTheFieldWithTheTypeExpected;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(TDateTimeField, FDataSet.FieldByName('DateTime').ClassType);
+end;
+
+procedure TPersistoDataSetTest.WhenThePropertyIsOfDateTypeMustCreateTheFieldWithTheTypeExpected;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(TDateField, FDataSet.FieldByName('Date').ClassType);
+end;
+
+procedure TPersistoDataSetTest.WhenThePropertyIsOfEnumeratorTypeMustCreateTheFieldWithTheTypeExpected;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(TIntegerField, FDataSet.FieldByName('Enumerator').ClassType);
+end;
+
+procedure TPersistoDataSetTest.WhenThePropertyIsOfFloatTypeMustCreateTheFieldWithTheTypeExpected;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(TFloatField, FDataSet.FieldByName('Float').ClassType);
+end;
+
+procedure TPersistoDataSetTest.WhenThePropertyIsOfInt64TypeMustCreateTheFieldWithTheTypeExpected;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(TLargeintField, FDataSet.FieldByName('Int64').ClassType);
+end;
+
+procedure TPersistoDataSetTest.WhenThePropertyIsOfIntegerTypeMustCreateTheFieldWithTheTypeExpected;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(TIntegerField, FDataSet.FieldByName('Integer').ClassType);
+end;
+
+procedure TPersistoDataSetTest.WhenThePropertyIsOfStringTypeMustCreateTheFieldWithTheTypeExpected;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(TStringField, FDataSet.FieldByName('String').ClassType);
+end;
+
+procedure TPersistoDataSetTest.WhenThePropertyIsOfTimeTypeMustCreateTheFieldWithTheTypeExpected;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(TTimeField, FDataSet.FieldByName('Time').ClassType);
+end;
+
+procedure TPersistoDataSetTest.WhenThePropertyIsOfUniqueIdentifierTypeMustCreateTheFieldWithTheTypeExpected;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(TStringField, FDataSet.FieldByName('UniqueIdentifier').ClassType);
 end;
 
 procedure TPersistoDataSetTest.WhenThePropertyIsANullableTypeMustCreateTheField;

@@ -179,7 +179,6 @@ type
     procedure InternalCalculateFields(const Buffer: TRecBuf);
     procedure InternalFilter(const NeedResync: Boolean);
     procedure LoadDetailInfo;
-    procedure LoadFieldDefsFromClass;
     procedure LoadFields;
     procedure LoadObjectListFromParentDataSet;
     procedure LoadPropertiesFromFields;
@@ -976,9 +975,7 @@ end;
 
 procedure TPersistoDataSet.InternalInitFieldDefs;
 begin
-//  FieldDefs.Clear;
-//
-//  LoadFieldDefsFromClass;
+
 end;
 
 procedure TPersistoDataSet.InternalLast;
@@ -1071,36 +1068,49 @@ begin
 //  end;
 end;
 
-procedure TPersistoDataSet.LoadFieldDefsFromClass;
-var
-  &Property: TRttiProperty;
-
-  FieldType: TFieldType;
-
-  Size: Integer;
-
-begin
-  for &Property in ObjectType.GetProperties do
-    if &Property.Visibility = mvPublished then
-    begin
-      FieldType := GetFieldInfoFromProperty(&Property, Size);
-
-      FieldDefs.Add(&Property.Name, FieldType, Size);
-    end;
-
-//  FieldDefs.Add(SELF_FIELD_NAME, ftVariant, 0);
-end;
-
 procedure TPersistoDataSet.LoadFields;
 begin
   var Mapper := TMapper.Create;
 
   for var Field in Mapper.GetTable(ObjectType).Fields do
   begin
-    var DataSetField := TStringField.Create(Self);
-    DataSetField.FieldName := Field.Name;
+    var DataSetField: TField := nil;
 
-    DataSetField.SetParentComponent(Self);
+    case Field.SpecialType of
+      stDate: DataSetField := TDateField.Create(Self);
+      stDateTime: DataSetField := TDateTimeField.Create(Self);
+      stTime: DataSetField := TTimeField.Create(Self);
+      stText: ;
+      stUniqueIdentifier: DataSetField := TStringField.Create(Self);
+      stBoolean: DataSetField := TBooleanField.Create(Self);
+      stBinary: ;
+      else
+        case Field.FieldType.TypeKind of
+          tkEnumeration,
+          tkInteger: DataSetField := TIntegerField.Create(Self);
+
+          tkChar,
+          tkWChar,
+          tkUString,
+          tkLString,
+          tkWString,
+          tkString: DataSetField := TStringField.Create(Self);
+
+          tkFloat: DataSetField := TFloatField.Create(Self);
+
+          tkInt64: DataSetField := TLargeintField.Create(Self);
+    //      tkVariant: ;
+    //      tkArray: ;
+    //      tkDynArray: ;
+        end;
+    end;
+
+    if Assigned(DataSetField) then
+    begin
+      DataSetField.FieldName := Field.Name;
+
+      DataSetField.SetParentComponent(Self);
+    end;
   end;
 
   Mapper.Free;
