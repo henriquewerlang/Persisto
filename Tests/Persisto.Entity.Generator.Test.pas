@@ -115,7 +115,7 @@ begin
     '''
       TMyTable = class;
 
-      [Index('MyIndex', 'Field1', 'Field3', 'Field2')]
+      [Index('MyIndex', 'Field1, Field3, Field2')]
       [Entity]
       TMyTable = class
       private
@@ -675,7 +675,7 @@ begin
     '''
       TMyTable = class;
 
-      [Index('MyIndex', 'Field1', 'Field2')]
+      [Index('MyIndex', 'Field1, Field2')]
       [Entity]
       TMyTable = class
       private
