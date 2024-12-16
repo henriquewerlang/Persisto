@@ -2624,16 +2624,39 @@ var
     Result := FormatName(DatabaseFieldName);
   end;
 
-  function GetFieldType: String;
+  function TryGetForeignKeyTable(var TableName: String): Boolean;
   begin
-    Result := FIELD_TYPE[Field.FieldType];
-
-    if Result.IsEmpty then
-      Result := SPECIAL_FIELD_TYPE[Field.SpecialType];
+    TableName := EmptyStr;
 
     for var ForeignKey in Table.ForeignKeys.Value do
       if Field.Name = ForeignKey.ReferenceField then
-        Result := Format('T%s', [FormatName(ForeignKey.ReferenceTable.Value.Name)]);
+        TableName := ForeignKey.ReferenceTable.Value.Name;
+
+    Result := not TableName.IsEmpty;
+  end;
+
+  function IsForeignKeyField: Boolean;
+  var
+    TableName: String;
+
+  begin
+    Result := TryGetForeignKeyTable(TableName);
+  end;
+
+  function GetFieldType: String;
+  var
+    TableName: String;
+
+  begin
+    if TryGetForeignKeyTable(TableName) then
+      Result := Format('T%s', [FormatName(TableName)])
+    else
+    begin
+      Result := FIELD_TYPE[Field.FieldType];
+
+      if Result.IsEmpty then
+        Result := SPECIAL_FIELD_TYPE[Field.SpecialType];
+    end;
   end;
 
   procedure AddAttribute(const AttributeValue: String);
@@ -2764,6 +2787,9 @@ begin
           stUniqueIdentifier: AddAttribute('UniqueIdentifier');
           stBinary: AddAttribute('Binary');
         end;
+
+      if Field.Required and IsForeignKeyField then
+        AddAttribute('Required');
 
       TheUnit.AppendLine(Format('    property %0:s: %1:s read F%0:s write F%0:s;', [FormatFieldName, GetFieldType]));
     end;
