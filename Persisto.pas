@@ -2714,6 +2714,29 @@ var
     end;
   end;
 
+  function IsStoredField: Boolean;
+  begin
+    Result := not Field.Required and not IsForeignKeyField and (Field.FieldType <> tkString);
+  end;
+
+  function GetStoredFunctionName: String;
+  begin
+    Result := Format('Get%sStored', [FormatFieldName]);
+  end;
+
+  function GetFieldStored: String;
+  begin
+    if IsStoredField then
+      Result := Format(' stored %s', [GetStoredFunctionName])
+    else
+      Result := EmptyStr;
+  end;
+
+  function FormatClassName: String;
+  begin
+    Result := Format('T%s', [FormatTableName]);
+  end;
+
 begin
   ExecuteSchemaScripts;
 
@@ -2763,12 +2786,16 @@ begin
     if String.Compare(FormatTableName, Table.Name, [coIgnoreCase]) <> 0 then
       TheUnit.AppendLine(Format('  [TableName(''%s'')]', [Table.Name]));
 
-    TheUnit.AppendLine(Format('  T%s = class', [FormatTableName]));
+    TheUnit.AppendLine(Format('  %s = class', [FormatClassName]));
 
     TheUnit.AppendLine('  private');
 
     for Field in Fields do
       TheUnit.AppendLine(Format('    F%s: %s;', [FormatFieldName, GetFieldType]));
+
+    for Field in Fields do
+      if IsStoredField then
+        TheUnit.AppendLine(Format('    function %s: Boolean;', [GetStoredFunctionName]));
 
     TheUnit.AppendLine('  published');
 
@@ -2791,7 +2818,7 @@ begin
       if Field.Required and IsForeignKeyField then
         AddAttribute('Required');
 
-      TheUnit.AppendLine(Format('    property %0:s: %1:s read F%0:s write F%0:s;', [FormatFieldName, GetFieldType]));
+      TheUnit.AppendLine(Format('    property %0:s: %1:s read F%0:s write F%0:s%2:s;', [FormatFieldName, GetFieldType, GetFieldStored]));
     end;
 
     TheUnit.AppendLine('  end;');
@@ -2802,6 +2829,22 @@ begin
   TheUnit.AppendLine('implementation');
 
   TheUnit.AppendLine;
+
+  for Table in Tables do
+  begin
+    var Fields := Table.Fields;
+
+    for Field in Fields do
+      if IsStoredField then
+        TheUnit.AppendLine(Format(
+          '''
+          function %0:s.Get%1:sStored: Boolean;
+          begin
+            Result := F%1:s <> 0;
+          end;
+
+          ''', [FormatClassName, FormatFieldName]));
+  end;
 
   TheUnit.AppendLine('end.');
 

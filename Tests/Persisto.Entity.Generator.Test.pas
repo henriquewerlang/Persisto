@@ -11,7 +11,8 @@ type
     FManipulator: IDatabaseManipulator;
     FManager: TManager;
 
-    procedure CompareUnit(const UnitDeclaration: String);
+    procedure CompareUnitInterface(const UnitInterface: String);
+    procedure CompareUnitImplementation(const UnitInterface: String; UnitImplementation: String);
     procedure GenerateUnit;
   public
     [Setup]
@@ -64,6 +65,10 @@ type
     procedure WhenComparingTheFieldNameToGenerateThePrimaryKeyAttributeMustBeCaseInsensitivity;
     [Test]
     procedure WhenTheForeignKeyIsNotNullThePropertyMustHaveTheRequiredAttribute;
+    [Test]
+    procedure WhenAFieldIsNullMustCreateTheStoredFunctionForTheFieldProperty;
+    [Test]
+    procedure WhenTheFieldIsOfStringTypeDontHaveToCreateTheStoredFunction;
   end;
 
 implementation
@@ -85,7 +90,7 @@ const
   %s
 
   implementation
-
+  %s
   end.
 
   ''';
@@ -113,7 +118,7 @@ end;
 
 procedure TGenerateUnitTeste.TheFieldOrderInTheIndexAttributeMustBeKeeped;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -135,18 +140,18 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Id" int, "Field1" int, "Field2" int, "Field3" int);
+      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
       create index "MyIndex" on "MyTable" ("Field1", "Field3", "Field2");
     ''');
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.TheTypeOfTheDatabaseFieldMustReflectTheTypeOfThePropertyDeclaration;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -163,17 +168,17 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" bigint, "Id" bigint)
+      create table "MyTable" ("Field" bigint not null, "Id" bigint not null)
     ''');
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenGenerateTheUnitMustLoadTheFileWithTheTableInTheDatabaseAsExpected;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -190,17 +195,17 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" int, "Id" int)
+      create table "MyTable" ("Field" int not null, "Id" int not null)
     ''');
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenTheDatabaseHaveMoreThanOneTableMustLoadAllTablesInTheUnit;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
       TMyTable2 = class;
@@ -239,19 +244,19 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" int, "Id" int);
-      create table "MyTable2" ("Field" int, "Id" int);
-      create table "MyTable3" ("Field" int, "Id" int);
+      create table "MyTable" ("Field" int not null, "Id" int not null);
+      create table "MyTable2" ("Field" int not null, "Id" int not null);
+      create table "MyTable3" ("Field" int not null, "Id" int not null);
     ''');
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenTheTableHasMoreThenTwoFieldMustLoadThenAllInTheClass;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -272,17 +277,17 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field1" int, "Field2" int, "Field3" int, "Id" int)
+      create table "MyTable" ("Field1" int not null, "Field2" int not null, "Field3" int not null, "Id" int not null)
     ''');
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenTheTableHasAForeignKeyMustFillTheFieldTypeWithTheClassType;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
       TMyTable2 = class;
@@ -308,19 +313,55 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable2" ("Id" int, primary key ("Id"));
-      create table "MyTable" ("IdMyTable2" int, "Id" int);
+      create table "MyTable2" ("Id" int not null, primary key ("Id"));
+      create table "MyTable" ("IdMyTable2" int, "Id" int not null);
       alter table "MyTable" add constraint "FK_MyTable_MyTable2" foreign key ("IdMyTable2") references "MyTable2" ("Id");
     ''');
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
+end;
+
+procedure TGenerateUnitTeste.WhenAFieldIsNullMustCreateTheStoredFunctionForTheFieldProperty;
+begin
+  var MyUnitInterface :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FField: Integer;
+        FId: Integer;
+        function GetFieldStored: Boolean;
+      published
+        property Field: Integer read FField write FField stored GetFieldStored;
+        property Id: Integer read FId write FId;
+      end;
+    ''';
+
+  var MyUnitImplementation :=
+    '''
+    function TMyTable.GetFieldStored: Boolean;
+    begin
+      Result := FField <> 0;
+    end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Field" int, "Id" int not null)
+    ''');
+
+  GenerateUnit;
+
+  CompareUnitImplementation(MyUnitInterface, MyUnitImplementation);
 end;
 
 procedure TGenerateUnitTeste.WhenATableHasIndexesMustLoadTheIndexAttributeInTheClassWithTheNameAndFieldNames;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -342,18 +383,18 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Id" int, "Field1" int, "Field2" int, "Field3" int);
+      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
       create index "MyIndex" on "MyTable" ("Field1");
     ''');
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenComparingTheFieldNameToGenerateThePrimaryKeyAttributeMustBeCaseInsensitivity;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -374,17 +415,17 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("id" int, "Field1" int, "Field2" int, "Field3" int, primary key ("id"));
+      create table "MyTable" ("id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null, primary key ("id"));
     ''');
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenCreateTheIndexAttributeMustLoadAnAttributeForEveryIndexInTheTable;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -408,7 +449,7 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Id" int, "Field1" int, "Field2" int, "Field3" int);
+      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
       create index "MyIndex1" on "MyTable" ("Field1");
       create index "MyIndex2" on "MyTable" ("Field1");
       create index "MyIndex3" on "MyTable" ("Field1");
@@ -416,12 +457,12 @@ begin
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenFillTheFunctionToFormatNamesMustLoadTheNamesAsExpected;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMYTABLE = class;
 
@@ -438,7 +479,7 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" int, "Id" int)
+      create table "MyTable" ("Field" int not null, "Id" int not null)
     ''');
 
   FManager.GenerateUnit(FILE_ENTITY,
@@ -447,12 +488,20 @@ begin
       Result := Name.ToUpper;
     end);
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
-procedure TGenerateUnitTeste.CompareUnit(const UnitDeclaration: String);
+procedure TGenerateUnitTeste.CompareUnitImplementation(const UnitInterface: String; UnitImplementation: String);
 begin
-  Assert.AreEqual(Format(BASE_UNIT, [UnitDeclaration]), TFile.ReadAllText(FILE_ENTITY));
+  if not UnitImplementation.IsEmpty then
+    UnitImplementation := #13#10 + UnitImplementation + #13#10;
+
+  Assert.AreEqual(Format(BASE_UNIT, [UnitInterface, UnitImplementation]), TFile.ReadAllText(FILE_ENTITY));
+end;
+
+procedure TGenerateUnitTeste.CompareUnitInterface(const UnitInterface: String);
+begin
+  CompareUnitImplementation(UnitInterface, EmptyStr);
 end;
 
 procedure TGenerateUnitTeste.GenerateUnit;
@@ -462,7 +511,7 @@ end;
 
 procedure TGenerateUnitTeste.WhenTheNameOfTheFieldIsChangedInTheFormattingFunctionMustLoadTheFieldNameAttribute;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -480,7 +529,7 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" int, "Id" int)
+      create table "MyTable" ("Field" int not null, "Id" int not null)
     ''');
 
   FManager.GenerateUnit(FILE_ENTITY,
@@ -492,12 +541,12 @@ begin
         Result := 'AnotherName';
     end);
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenTheNameOfTheTableIsChangedInTheFormattingFunctionMustLoadTheTableNameAttribute;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TAnotherName = class;
 
@@ -515,7 +564,7 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" int, "Id" int)
+      create table "MyTable" ("Field" int not null, "Id" int not null)
     ''');
 
   FManager.GenerateUnit(FILE_ENTITY,
@@ -527,12 +576,12 @@ begin
         Result := 'AnotherName';
     end);
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenThePrimaryKeyFieldNameIsntIdMustLoadThePrimaryKeyAttributeInTheClass;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -554,17 +603,17 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Id" int, "Field1" int, "Field2" int, "Field3" int, primary key ("Field1"));
+      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null, primary key ("Field1"));
     ''');
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenTheFieldIsASpecialTypeMustLoadTheFieldTypeAsExpected;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -581,17 +630,17 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" date, "Id" int)
+      create table "MyTable" ("Field" date not null, "Id" int not null)
     ''');
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenTheFieldIsBinaryMustAddTheBinaryAttributeInThePropertyAndTheTypeMustBeALazyByteArray;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -607,45 +656,18 @@ begin
 
   FManager.ExectDirect(Format(
     '''
-      create table "MyTable" ("Id" %s)
+      create table "MyTable" ("Id" %s not null)
     ''',
     [FManipulator.GetSpecialFieldType(stBinary)]));
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
-procedure TGenerateUnitTeste.WhenTheFieldIsTextMustAddTheTextAttributeInThePropertyAndTheTypeMustBeALazyString;
+procedure TGenerateUnitTeste.WhenTheFieldIsOfStringTypeDontHaveToCreateTheStoredFunction;
 begin
-  var MyUnit :=
-    '''
-      TMyTable = class;
-
-      [Entity]
-      TMyTable = class
-      private
-        FId: Lazy<String>;
-      published
-        [Text]
-        property Id: Lazy<String> read FId write FId;
-      end;
-    ''';
-
-  FManager.ExectDirect(Format(
-    '''
-      create table "MyTable" ("Id" %s)
-    ''',
-    [FManipulator.GetSpecialFieldType(stText)]));
-
-  GenerateUnit;
-
-  CompareUnit(MyUnit);
-end;
-
-procedure TGenerateUnitTeste.WhenTheFieldIsVarCharMustLoadTheSizeAttributeInTheField;
-begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -663,17 +685,72 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" varchar(150), "Id" int)
+      create table "MyTable" ("Field" varchar(150), "Id" int not null)
     ''');
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
+end;
+
+procedure TGenerateUnitTeste.WhenTheFieldIsTextMustAddTheTextAttributeInThePropertyAndTheTypeMustBeALazyString;
+begin
+  var MyUnitInterface :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FId: Lazy<String>;
+      published
+        [Text]
+        property Id: Lazy<String> read FId write FId;
+      end;
+    ''';
+
+  FManager.ExectDirect(Format(
+    '''
+      create table "MyTable" ("Id" %s not null)
+    ''',
+    [FManipulator.GetSpecialFieldType(stText)]));
+
+  GenerateUnit;
+
+  CompareUnitInterface(MyUnitInterface);
+end;
+
+procedure TGenerateUnitTeste.WhenTheFieldIsVarCharMustLoadTheSizeAttributeInTheField;
+begin
+  var MyUnitInterface :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FField: String;
+        FId: Integer;
+      published
+        [Size(150)]
+        property Field: String read FField write FField;
+        property Id: Integer read FId write FId;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Field" varchar(150) not null, "Id" int not null)
+    ''');
+
+  GenerateUnit;
+
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenTheForeignKeyIsNotNullThePropertyMustHaveTheRequiredAttribute;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
       TMyTable2 = class;
@@ -700,19 +777,19 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable2" ("Id" int, primary key ("Id"));
-      create table "MyTable" ("IdMyTable2" int not null, "Id" int);
+      create table "MyTable2" ("Id" int not null, primary key ("Id"));
+      create table "MyTable" ("IdMyTable2" int not null, "Id" int not null);
       alter table "MyTable" add constraint "FK_MyTable_MyTable2" foreign key ("IdMyTable2") references "MyTable2" ("Id");
     ''');
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenTheIndexHasMoreThanOneFieldMustLoadAllFieldsInTheAttribute;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -734,18 +811,18 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Id" int, "Field1" int, "Field2" int, "Field3" int);
+      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
       create index "MyIndex" on "MyTable" ("Field1", "Field2");
     ''');
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenTheIndexIsThePrimaryKeyDontNeedToCreateTheIndexAttribute;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -766,17 +843,17 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Id" int, "Field1" int, "Field2" int, "Field3" int, primary key ("Id"));
+      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null, primary key ("Id"));
     ''');
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenTheIndexIsUniqueMustCreateTheUniqueIndexAttribute;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -798,18 +875,18 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Id" int, "Field1" int, "Field2" int, "Field3" int);
+      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
       create unique index "MyIndex" on "MyTable" ("Field1");
     ''');
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenTheFieldIsANumericTypeMustLoadThePrecisionAttributeInTheField;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -827,17 +904,17 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" numeric(15, 4), "Id" int)
+      create table "MyTable" ("Field" numeric(15, 4) not null, "Id" int not null)
     ''');
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 procedure TGenerateUnitTeste.WhenTheFieldIsAnUniqueIdentifierMustCreateTheUniqueIdentifierAttributeInTheProperty;
 begin
-  var MyUnit :=
+  var MyUnitInterface :=
     '''
       TMyTable = class;
 
@@ -853,13 +930,13 @@ begin
 
   FManager.ExectDirect(Format(
     '''
-      create table "MyTable" ("Id" %s)
+      create table "MyTable" ("Id" %s not null)
     ''',
     [FManipulator.GetSpecialFieldType(stUniqueIdentifier)]));
 
   GenerateUnit;
 
-  CompareUnit(MyUnit);
+  CompareUnitInterface(MyUnitInterface);
 end;
 
 end.
