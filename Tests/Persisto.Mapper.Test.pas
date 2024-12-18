@@ -319,11 +319,13 @@ type
     procedure WhenTheLazyValueHasOnlyTheKeyLoadedMustReturnTrueInTheFieldValue;
     [Test]
     procedure IfTheLazyFieldIsNotLoadedMustReturnValueInTheHasValueFunction;
+    [Test]
+    procedure WhenTheClassHasAnArrayWithTypeNotEqualToObjectCanLoadTheManyValueFromThisProperty;
   end;
 
 implementation
 
-uses System.Variants, System.SysUtils, System.DateUtils, System.TypInfo, Persisto.Test.Entity, Translucent;
+uses System.Variants, System.SysUtils, System.DateUtils, System.TypInfo, Persisto.Test.Entity;
 
 { TMapperTest }
 
@@ -1196,6 +1198,17 @@ begin
     begin
       FMapper.GetTable(TMyEntityForeignKeyAlias);
     end);
+end;
+
+procedure TMapperTest.WhenTheClassHasAnArrayWithTypeNotEqualToObjectCanLoadTheManyValueFromThisProperty;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FMapper.GetTable(TMyClassWithByteArray);
+    end);
+
+  Assert.AreEqual(0, Length(FMapper.GetTable(TMyClassWithByteArray).ManyValueAssociations));
 end;
 
 procedure TMapperTest.WhenTheClassHasASimpleInheritenceMustLoadTheBaseTableProperty;

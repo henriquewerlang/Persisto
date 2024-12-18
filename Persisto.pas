@@ -1151,7 +1151,7 @@ begin
   end;
 
   Field.FIsForeignKey := Field.FieldType.IsInstance;
-  Field.FIsManyValueAssociation := Field.FieldType.IsArray;
+  Field.FIsManyValueAssociation := Field.FieldType.IsArray and Field.FieldType.AsArray.ElementType.IsInstance;
   Field.FRequired := PropertyInfo.HasAttribute<RequiredAttribute> or ((UIntPtr(PropertyInfo.PropInfo^.StoredProc) and (not NativeUInt($FF))) = 0) and not Field.FieldType.IsInstance and not (Field.FieldType is TRttiStringType);
 
   Field.FDatabaseName := GetFieldDatabaseName(Field);

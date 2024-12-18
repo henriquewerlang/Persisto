@@ -1147,6 +1147,15 @@ type
     property Error: Integer read GetError write FError;
   end;
 
+  TMyClassWithByteArray = class
+  private
+    FId: Integer;
+    FMyArray: TArray<Byte>;
+  published
+    property Id: Integer read FId write FId;
+    property MyArray: TArray<Byte> read FMyArray write FMyArray;
+  end;
+
 implementation
 
 uses System.Internal.ExcUtils;
