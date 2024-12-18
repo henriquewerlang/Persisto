@@ -69,6 +69,14 @@ type
     procedure WhenAFieldIsNullMustCreateTheStoredFunctionForTheFieldProperty;
     [Test]
     procedure WhenTheFieldIsOfStringTypeDontHaveToCreateTheStoredFunction;
+    [Test]
+    procedure WhenTheFieldIsOfBinaryTypeDontHaveToCreateTheStoredFunction;
+    [Test]
+    procedure WhenTheFieldIsOfTextTypeDontHaveToCreateTheStoredFunction;
+    [Test]
+    procedure WhenTheFieldTypeIfCharAnAllowNullValueMustCompareTheStoredValueWithTheNullChar;
+    [Test]
+    procedure WhenTheFieldTypeIfBooleanAnAllowNullValueMustCompareTheStoredValueWithTheFalse;
   end;
 
 implementation
@@ -665,6 +673,33 @@ begin
   CompareUnitInterface(MyUnitInterface);
 end;
 
+procedure TGenerateUnitTeste.WhenTheFieldIsOfBinaryTypeDontHaveToCreateTheStoredFunction;
+begin
+  var MyUnitInterface :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FId: Lazy<TArray<Byte>>;
+      published
+        [Binary]
+        property Id: Lazy<TArray<Byte>> read FId write FId;
+      end;
+    ''';
+
+  FManager.ExectDirect(Format(
+    '''
+      create table "MyTable" ("Id" %s)
+    ''',
+    [FManipulator.GetSpecialFieldType(stBinary)]));
+
+  GenerateUnit;
+
+  CompareUnitInterface(MyUnitInterface);
+end;
+
 procedure TGenerateUnitTeste.WhenTheFieldIsOfStringTypeDontHaveToCreateTheStoredFunction;
 begin
   var MyUnitInterface :=
@@ -687,6 +722,33 @@ begin
     '''
       create table "MyTable" ("Field" varchar(150), "Id" int not null)
     ''');
+
+  GenerateUnit;
+
+  CompareUnitInterface(MyUnitInterface);
+end;
+
+procedure TGenerateUnitTeste.WhenTheFieldIsOfTextTypeDontHaveToCreateTheStoredFunction;
+begin
+  var MyUnitInterface :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FId: Lazy<String>;
+      published
+        [Text]
+        property Id: Lazy<String> read FId write FId;
+      end;
+    ''';
+
+  FManager.ExectDirect(Format(
+    '''
+      create table "MyTable" ("Id" %s)
+    ''',
+    [FManipulator.GetSpecialFieldType(stText)]));
 
   GenerateUnit;
 
@@ -746,6 +808,78 @@ begin
   GenerateUnit;
 
   CompareUnitInterface(MyUnitInterface);
+end;
+
+procedure TGenerateUnitTeste.WhenTheFieldTypeIfBooleanAnAllowNullValueMustCompareTheStoredValueWithTheFalse;
+begin
+  var MyUnitInterface :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FField: Boolean;
+        FId: Integer;
+        function GetFieldStored: Boolean;
+      published
+        property Field: Boolean read FField write FField stored GetFieldStored;
+        property Id: Integer read FId write FId;
+      end;
+    ''';
+
+  var MyUnitImplementation :=
+    '''
+    function TMyTable.GetFieldStored: Boolean;
+    begin
+      Result := FField <> False;
+    end;
+    ''';
+
+  FManager.ExectDirect(Format(
+    '''
+      create table "MyTable" ("Field" %s, "Id" int not null)
+    ''', [FManipulator.GetSpecialFieldType(stBoolean)]));
+
+  GenerateUnit;
+
+  CompareUnitImplementation(MyUnitInterface, MyUnitImplementation);
+end;
+
+procedure TGenerateUnitTeste.WhenTheFieldTypeIfCharAnAllowNullValueMustCompareTheStoredValueWithTheNullChar;
+begin
+  var MyUnitInterface :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FField: Char;
+        FId: Integer;
+        function GetFieldStored: Boolean;
+      published
+        property Field: Char read FField write FField stored GetFieldStored;
+        property Id: Integer read FId write FId;
+      end;
+    ''';
+
+  var MyUnitImplementation :=
+    '''
+    function TMyTable.GetFieldStored: Boolean;
+    begin
+      Result := FField <> #0;
+    end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Field" char(1), "Id" int not null)
+    ''');
+
+  GenerateUnit;
+
+  CompareUnitImplementation(MyUnitInterface, MyUnitImplementation);
 end;
 
 procedure TGenerateUnitTeste.WhenTheForeignKeyIsNotNullThePropertyMustHaveTheRequiredAttribute;

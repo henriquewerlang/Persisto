@@ -2716,7 +2716,7 @@ var
 
   function IsStoredField: Boolean;
   begin
-    Result := not Field.Required and not IsForeignKeyField and (Field.FieldType <> tkString);
+    Result := not Field.Required and not IsForeignKeyField and (Field.FieldType <> tkString) and not (Field.SpecialType in [stBinary, stText]);
   end;
 
   function GetStoredFunctionName: String;
@@ -2730,6 +2730,16 @@ var
       Result := Format(' stored %s', [GetStoredFunctionName])
     else
       Result := EmptyStr;
+  end;
+
+  function GetFieldStoredValue: String;
+  begin
+    if Field.FieldType = tkChar then
+      Result := '#0'
+    else if Field.SpecialType = stBoolean then
+      Result := 'False'
+    else
+      Result := '0';
   end;
 
   function FormatClassName: String;
@@ -2840,10 +2850,10 @@ begin
           '''
           function %0:s.Get%1:sStored: Boolean;
           begin
-            Result := F%1:s <> 0;
+            Result := F%1:s <> %s;
           end;
 
-          ''', [FormatClassName, FormatFieldName]));
+          ''', [FormatClassName, FormatFieldName, GetFieldStoredValue]));
   end;
 
   TheUnit.AppendLine('end.');
