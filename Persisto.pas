@@ -2679,7 +2679,7 @@ var
       if not Result.IsEmpty then
         Result := Result + ', ';
 
-      Result := Result + Format('%s', [FieldIndex.Field.Name]);
+      Result := Result + Format('%s', [FormatName(FieldIndex.Field.Name)]);
     end;
   end;
 
@@ -2706,7 +2706,7 @@ var
       TheUnit.Append('(''');
 
       if not Index.IsPrimaryKey then
-        TheUnit.Append(Format('%s'', ''', [Index.Name]));
+        TheUnit.Append(Format('%s'', ''', [FormatName(Index.Name)]));
 
       TheUnit.Append(LoadIndexFieldNames(Index));
 

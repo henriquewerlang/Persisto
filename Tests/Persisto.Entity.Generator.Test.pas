@@ -77,6 +77,10 @@ type
     procedure WhenTheFieldTypeIfCharAnAllowNullValueMustCompareTheStoredValueWithTheNullChar;
     [Test]
     procedure WhenTheFieldTypeIfBooleanAnAllowNullValueMustCompareTheStoredValueWithTheFalse;
+    [Test]
+    procedure WhenGenerateTheIndexAttributeMustFormatTheIndexName;
+    [Test]
+    procedure WhenGenerateTheIndexAttributeMustFormatTheFieldIndexName;
   end;
 
 implementation
@@ -180,6 +184,87 @@ begin
     ''');
 
   GenerateUnit;
+
+  CompareUnitInterface(MyUnitInterface);
+end;
+
+procedure TGenerateUnitTeste.WhenGenerateTheIndexAttributeMustFormatTheFieldIndexName;
+begin
+  var MyUnitInterface :=
+    '''
+      TMyTable = class;
+
+      [Index('MyIndex', 'ChangeName')]
+      [Entity]
+      TMyTable = class
+      private
+        FId: Integer;
+        FChangeName: Integer;
+        FField2: Integer;
+        FField3: Integer;
+      published
+        property Id: Integer read FId write FId;
+        [FieldName('Field1')]
+        property ChangeName: Integer read FChangeName write FChangeName;
+        property Field2: Integer read FField2 write FField2;
+        property Field3: Integer read FField3 write FField3;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
+      create index "MyIndex" on "MyTable" ("Field1");
+    ''');
+
+  FManager.GenerateUnit(FILE_ENTITY,
+    function (Name: String): String
+    begin
+      if Name = 'Field1' then
+        Result := 'ChangeName'
+      else
+        Result := Name;
+    end);
+
+  CompareUnitInterface(MyUnitInterface);
+end;
+
+procedure TGenerateUnitTeste.WhenGenerateTheIndexAttributeMustFormatTheIndexName;
+begin
+  var MyUnitInterface :=
+    '''
+      TMyTable = class;
+
+      [Index('ChangeName', 'Field1')]
+      [Entity]
+      TMyTable = class
+      private
+        FId: Integer;
+        FField1: Integer;
+        FField2: Integer;
+        FField3: Integer;
+      published
+        property Id: Integer read FId write FId;
+        property Field1: Integer read FField1 write FField1;
+        property Field2: Integer read FField2 write FField2;
+        property Field3: Integer read FField3 write FField3;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
+      create index "MyIndex" on "MyTable" ("Field1");
+    ''');
+
+  FManager.GenerateUnit(FILE_ENTITY,
+    function (Name: String): String
+    begin
+      if Name = 'MyIndex' then
+        Result := 'ChangeName'
+      else
+        Result := Name;
+    end);
 
   CompareUnitInterface(MyUnitInterface);
 end;
