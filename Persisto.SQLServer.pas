@@ -145,6 +145,7 @@ const
               -- Integer
               when 56 then 1
               -- Char
+              when 175 then 2
               when 239 then 2
               -- Enumeration
               when 48 then 3
