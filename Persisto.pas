@@ -2677,7 +2677,7 @@ var
     for var FieldIndex in Index.Fields do
     begin
       if not Result.IsEmpty then
-        Result := Result + ', ';
+        Result := Result + ';';
 
       Result := Result + Format('%s', [FormatName(FieldIndex.Field.Name)]);
     end;
