@@ -883,7 +883,7 @@ end;
 
 constructor EFieldIndexNotFound.Create(const Table: TTable; const FieldName: String);
 begin
-  inherited CreateFmt('Field "%s" not found in the table "%s"!', [Table.Name, FieldName]);
+  inherited CreateFmt('Field "%s" not found in the table "%s"!', [FieldName, Table.Name]);
 end;
 
 { ESequenceAlreadyExists }
