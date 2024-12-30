@@ -81,6 +81,8 @@ type
     procedure WhenGenerateTheIndexAttributeMustFormatTheIndexName;
     [Test]
     procedure WhenGenerateTheIndexAttributeMustFormatTheFieldIndexName;
+    [Test]
+    procedure WhenGeneratePropertyClassDeclarationMustBeLazy;
   end;
 
 implementation
@@ -181,6 +183,44 @@ begin
   FManager.ExectDirect(
     '''
       create table "MyTable" ("Field" bigint not null, "Id" bigint not null)
+    ''');
+
+  GenerateUnit;
+
+  CompareUnitInterface(MyUnitInterface);
+end;
+
+procedure TGenerateUnitTeste.WhenGeneratePropertyClassDeclarationMustBeLazy;
+begin
+  var MyUnitInterface :=
+    '''
+      TMyTable = class;
+      TMyTable2 = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FMyTable2: Lazy<TMyTable2>;
+        FId: Integer;
+      published
+        property MyTable2: Lazy<TMyTable2> read FMyTable2 write FMyTable2;
+        property Id: Integer read FId write FId;
+      end;
+
+      [Entity]
+      TMyTable2 = class
+      private
+        FId: Integer;
+      published
+        property Id: Integer read FId write FId;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable2" ("Id" int not null, primary key ("Id"));
+      create table "MyTable" ("IdMyTable2" int, "Id" int not null);
+      alter table "MyTable" add constraint "FK_MyTable_MyTable2" foreign key ("IdMyTable2") references "MyTable2" ("Id");
     ''');
 
   GenerateUnit;
@@ -388,10 +428,10 @@ begin
       [Entity]
       TMyTable = class
       private
-        FMyTable2: TMyTable2;
+        FMyTable2: Lazy<TMyTable2>;
         FId: Integer;
       published
-        property MyTable2: TMyTable2 read FMyTable2 write FMyTable2;
+        property MyTable2: Lazy<TMyTable2> read FMyTable2 write FMyTable2;
         property Id: Integer read FId write FId;
       end;
 
@@ -977,11 +1017,11 @@ begin
       [Entity]
       TMyTable = class
       private
-        FMyTable2: TMyTable2;
+        FMyTable2: Lazy<TMyTable2>;
         FId: Integer;
       published
         [Required]
-        property MyTable2: TMyTable2 read FMyTable2 write FMyTable2;
+        property MyTable2: Lazy<TMyTable2> read FMyTable2 write FMyTable2;
         property Id: Integer read FId write FId;
       end;
 

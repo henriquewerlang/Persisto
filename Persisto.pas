@@ -2649,7 +2649,7 @@ var
 
   begin
     if TryGetForeignKeyTable(TableName) then
-      Result := Format('T%s', [FormatName(TableName)])
+      Result := Format('Lazy<T%s>', [FormatName(TableName)])
     else
     begin
       Result := FIELD_TYPE[Field.FieldType];
