@@ -385,6 +385,8 @@ type
     procedure SetValue(const Value: TValue);
   public
     constructor Create(const Manager: TManager; const FilterField: TField; const KeyValue: TValue; const ResultType: PTypeInfo);
+
+    property FilterField: TField read FFilterField;
   end;
 
   TClassLoader = class
