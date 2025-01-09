@@ -2612,20 +2612,6 @@ var
     Result := FormatName(Table.Name);
   end;
 
-  function DatabaseFieldName: String;
-  begin
-    Result := Field.Name;
-
-    for var ForeignKey in Table.ForeignKeys.Value do
-      if (Result = ForeignKey.ReferenceField) and Result.StartsWith(DEFAULT_ID_FIELD_NAME) then
-        Result := Result.Substring(2);
-  end;
-
-  function FormatFieldName: String;
-  begin
-    Result := FormatName(DatabaseFieldName);
-  end;
-
   function TryGetForeignKeyTable(var TableName: String): Boolean;
   begin
     TableName := EmptyStr;
@@ -2643,6 +2629,16 @@ var
 
   begin
     Result := TryGetForeignKeyTable(TableName);
+  end;
+
+  function FormatFieldName: String;
+  begin
+    Result := Field.Name;
+
+    if IsForeignKeyField and Field.Name.StartsWith(DEFAULT_ID_FIELD_NAME, True) then
+      Result := Result.Substring(2);
+
+    Result := FormatName(Result);
   end;
 
   function GetFieldType: String;
@@ -2813,8 +2809,8 @@ begin
 
     for Field in Fields do
     begin
-      if String.Compare(FormatFieldName, DatabaseFieldName, [coIgnoreCase]) <> 0 then
-        AddAttribute(Format('FieldName(''%s'')', [DatabaseFieldName, GetFieldType]));
+      if IsForeignKeyField and not Field.Name.StartsWith(DEFAULT_ID_FIELD_NAME, True) or not IsForeignKeyField and (String.Compare(FormatFieldName, Field.Name, [coIgnoreCase]) <> 0) then
+        AddAttribute(Format('FieldName(''%s'')', [FormatName(Field.Name), GetFieldType]));
 
       if Field.FieldType = tkString then
         AddAttribute(Format('Size(%d)', [Field.Size]))

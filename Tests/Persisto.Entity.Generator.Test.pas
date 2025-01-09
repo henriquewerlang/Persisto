@@ -200,10 +200,11 @@ begin
       [Entity]
       TMyTable = class
       private
-        FMyTable2: Lazy<TMyTable2>;
+        FMyName: Lazy<TMyTable2>;
         FId: Integer;
       published
-        property MyTable2: Lazy<TMyTable2> read FMyTable2 write FMyTable2;
+        [FieldName('AnotherName')]
+        property MyName: Lazy<TMyTable2> read FMyName write FMyName;
         property Id: Integer read FId write FId;
       end;
 
@@ -219,11 +220,18 @@ begin
   FManager.ExectDirect(
     '''
       create table "MyTable2" ("Id" int not null, primary key ("Id"));
-      create table "MyTable" ("IdMyTable2" int, "Id" int not null);
-      alter table "MyTable" add constraint "FK_MyTable_MyTable2" foreign key ("IdMyTable2") references "MyTable2" ("Id");
+      create table "MyTable" ("AnotherName" int, "Id" int not null);
+      alter table "MyTable" add constraint "FK_MyTable_MyTable2" foreign key ("AnotherName") references "MyTable2" ("Id");
     ''');
 
-  GenerateUnit;
+  FManager.GenerateUnit(FILE_ENTITY,
+    function (Name: String): String
+    begin
+      if Name = 'AnotherName' then
+        Result := 'MyName'
+      else
+        Result := Name;
+    end);
 
   CompareUnitInterface(MyUnitInterface);
 end;
