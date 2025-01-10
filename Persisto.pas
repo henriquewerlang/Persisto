@@ -851,7 +851,8 @@ end;
 type
   TParamsHelper = class helper for TParams
   public
-    procedure AddParam(const Field: TField; const Value: Variant);
+    procedure AddParam(const Field: TField; const Value: Variant); overload;
+    procedure AddParam(const ParamName: String; const Field: TField; const Value: Variant); overload;
   end;
 
 { EFieldNotInCurrentSelection }
@@ -1851,6 +1852,7 @@ const
 
 var
   FieldIndex, TableIndex: Integer;
+  LastAppendedWhereField: TField;
   RecursiveControl: TDictionary<TField, Boolean>;
   SQL: TStringBuilder;
   SQLWhere: TStringBuilder;
@@ -2066,6 +2068,7 @@ var
   begin
     var CurrentTable: TQueryBuilderTable;
     var Field := FindQueryField(FieldToFind, CurrentTable);
+    LastAppendedWhereField := Field;
 
     SQL.Append(CurrentTable.Alias);
 
@@ -2167,7 +2170,7 @@ var
       procedure BuildParamValue;
       begin
         var ParamName := 'P' + ParamIndex.ToString;
-        FParams.CreateParam(ftUnknown, ParamName, ptInput).Value := Comparison.Value;
+        FParams.AddParam(ParamName, LastAppendedWhereField, Comparison.Value);
 
         SQLWhere.Append(':');
 
@@ -3853,11 +3856,16 @@ end;
 { TParamsHelper }
 
 procedure TParamsHelper.AddParam(const Field: TField; const Value: Variant);
+begin
+  AddParam(Field.DatabaseName, Field, Value);
+end;
+
+procedure TParamsHelper.AddParam(const ParamName: String; const Field: TField; const Value: Variant);
 var
   Param: TParam;
 
 begin
-  Param := CreateParam(Field.DatabaseType, Field.DatabaseName, ptInput);
+  Param := CreateParam(Field.DatabaseType, ParamName, ptInput);
 
   if VarIsClear(Value) or VarIsStr(Value) and (Value = EmptyStr) then
     Param.Value := NULL
