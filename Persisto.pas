@@ -425,6 +425,7 @@ type
     FManyValueAssociationTables: TList<TQueryBuilderTable>;
     FPrimaryKeyField: TQueryBuilderTableField;
     FTable: TTable;
+    FLazyTables: TList<TQueryBuilderTable>;
   public
     constructor Create(const ForeignKeyField: TForeignKey); overload;
     constructor Create(const ManyValueAssociationField: TManyValueAssociation); overload;
@@ -438,6 +439,7 @@ type
     property ForeignKeyTables: TList<TQueryBuilderTable> read FForeignKeyTables write FForeignKeyTables;
     property InheritedTable: TQueryBuilderTable read FInheritedTable write FInheritedTable;
     property LazyManyValueAssociationFields: TArray<TField> read FLazyManyValueAssociationFields write FLazyManyValueAssociationFields;
+    property LazyTables: TList<TQueryBuilderTable> read FLazyTables write FLazyTables;
     property ManyValueAssociationField: TManyValueAssociation read FManyValueAssociationField write FManyValueAssociationField;
     property ManyValueAssociationTables: TList<TQueryBuilderTable> read FManyValueAssociationTables write FManyValueAssociationTables;
     property PrimaryKeyField: TQueryBuilderTableField read FPrimaryKeyField write FPrimaryKeyField;
@@ -1847,10 +1849,9 @@ const
 
 var
   FieldIndex, TableIndex: Integer;
-
   RecursiveControl: TDictionary<TField, Boolean>;
-
   SQL: TStringBuilder;
+  SQLWhere: TStringBuilder;
 
   procedure RemoveLastSQLChar;
   begin
@@ -1862,6 +1863,14 @@ var
     SQL.Append(QueryTable.Alias).Append('.').Append(Field.DatabaseName);
   end;
 
+  function MakeTableAlias(const QueryTable: TQueryBuilderTable): TQueryBuilderTable;
+  begin
+    QueryTable.Alias := 'T' + TableIndex.ToString;
+    Result := QueryTable;
+
+    Inc(TableIndex);
+  end;
+
   procedure LoadFieldList(const QueryTable: TQueryBuilderTable; const ForeignFieldToIgnore: TField = nil);
   var
     DatabaseField: TQueryBuilderTableField;
@@ -1871,9 +1880,7 @@ var
     ForeignKeyTable, ManyValueAssociationTable: TQueryBuilderTable;
 
   begin
-    QueryTable.Alias := 'T' + TableIndex.ToString;
-
-    Inc(TableIndex);
+    MakeTableAlias(QueryTable);
 
     for Field in QueryTable.Table.Fields do
       if Field.IsInheritedLink then
@@ -1894,6 +1901,9 @@ var
 
         if Field.InPrimaryKey then
           QueryTable.PrimaryKeyField := DatabaseField;
+
+        if Field.IsLazy then
+          QueryTable.LazyTables.Add(MakeTableAlias(TQueryBuilderTable.Create(Field.ForeignKey)));
 
         if FieldIndex > 1 then
           SQL.Append(',');
@@ -1938,48 +1948,53 @@ var
       end;
   end;
 
+  procedure MakeJoin(const QueryTable: TQueryBuilderTable; const QueryTableField: TField; const ForeignQueryTable: TQueryBuilderTable; const ForeignField: TField);
+  begin
+    SQL.Append(' left join ');
+
+    SQL.Append(ForeignQueryTable.Table.DatabaseName).Append(' ').Append(ForeignQueryTable.Alias);
+
+    SQL.Append(' on ');
+
+    AppendFieldName(ForeignQueryTable, QueryTableField);
+
+    SQL.Append('=');
+
+    AppendFieldName(QueryTable, ForeignField);
+  end;
+
+  procedure MakeForeignKeyJoin(const QueryTable, ForeignQueryTable: TQueryBuilderTable; const LinkField: TField);
+  begin
+    MakeJoin(QueryTable, QueryTable.PrimaryKeyField.Field, ForeignQueryTable, LinkField);
+  end;
+
+  procedure MakeManyValueAssociationJoin(const QueryTable, ManyValueAssociationTable: TQueryBuilderTable);
+  begin
+    MakeJoin(QueryTable, ManyValueAssociationTable.ManyValueAssociationField.ChildField, ManyValueAssociationTable, QueryTable.PrimaryKeyField.Field);
+  end;
+
   procedure BuildJoin(const QueryTable: TQueryBuilderTable);
-  var
-    ManyValueAssociationTable, ForeignKeyTable: TQueryBuilderTable;
 
-    procedure MakeJoin(const QueryTable: TQueryBuilderTable; const QueryTableField: TField; const ForeignQueryTable: TQueryBuilderTable; const ForeignField: TField);
+    procedure MakeForeignKeyJoinRecursive(const QueryTable, ForeignQueryTable: TQueryBuilderTable; const LinkField: TField);
     begin
-      SQL.Append(' left join ');
-
-      SQL.Append(ForeignQueryTable.Table.DatabaseName).Append(' ').Append(ForeignQueryTable.Alias);
-
-      SQL.Append(' on ');
-
-      AppendFieldName(ForeignQueryTable, QueryTableField);
-
-      SQL.Append('=');
-
-      AppendFieldName(QueryTable, ForeignField);
-    end;
-
-    procedure MakeForeignKeyJoin(const QueryTable, ForeignQueryTable: TQueryBuilderTable; const LinkField: TField);
-    begin
-      MakeJoin(QueryTable, QueryTable.PrimaryKeyField.Field, ForeignQueryTable, LinkField);
+      MakeForeignKeyJoin(QueryTable, ForeignQueryTable, LinkField);
 
       BuildJoin(ForeignQueryTable);
     end;
 
-    procedure MakeManyValueAssociationJoin(const QueryTable, ManyValueAssociationTable: TQueryBuilderTable);
+  begin
+    if Assigned(QueryTable.InheritedTable) then
+      MakeForeignKeyJoinRecursive(QueryTable, QueryTable.InheritedTable, QueryTable.Table.PrimaryKey);
+
+    for var ForeignKeyTable in QueryTable.ForeignKeyTables do
+      MakeForeignKeyJoinRecursive(QueryTable, ForeignKeyTable, ForeignKeyTable.ForeignKeyField.Field);
+
+    for var ManyValueAssociationTable in QueryTable.ManyValueAssociationTables do
     begin
-      MakeJoin(QueryTable, ManyValueAssociationTable.ManyValueAssociationField.ChildField, ManyValueAssociationTable, QueryTable.PrimaryKeyField.Field);
+      MakeManyValueAssociationJoin(QueryTable, ManyValueAssociationTable);
 
       BuildJoin(ManyValueAssociationTable);
     end;
-
-  begin
-    if Assigned(QueryTable.InheritedTable) then
-      MakeForeignKeyJoin(QueryTable, QueryTable.InheritedTable, QueryTable.Table.PrimaryKey);
-
-    for ForeignKeyTable in QueryTable.ForeignKeyTables do
-      MakeForeignKeyJoin(QueryTable, ForeignKeyTable, ForeignKeyTable.ForeignKeyField.Field);
-
-    for ManyValueAssociationTable in QueryTable.ManyValueAssociationTables do
-      MakeManyValueAssociationJoin(QueryTable, ManyValueAssociationTable);
   end;
 
   function FindQueryField(const FieldNameToFind: TQueryBuilderFieldSearch; var CurrentTable: TQueryBuilderTable): TField;
@@ -1999,7 +2014,15 @@ var
             Exit(FindTable);
 
         if Assigned(QueryTable.InheritedTable) then
-          Result := FindTable(QueryTable.InheritedTable, FieldName);
+          Exit(FindTable(QueryTable.InheritedTable, FieldName));
+
+        for var FindTable in QueryTable.LazyTables do
+          if FindTable.ForeignKeyField.Field.Name = FieldName then
+          begin
+            MakeForeignKeyJoin(CurrentTable, FindTable, FindTable.ForeignKeyField.Field);
+
+            Exit(FindTable);
+          end;
       end;
     end;
 
@@ -2033,7 +2056,7 @@ var
     Result := FindField(FieldName);
   end;
 
-  procedure AppendFullFieldName(const FieldToFind: TQueryBuilderFieldSearch);
+  procedure AppendFullFieldName(const SQL: TStringBuilder; const FieldToFind: TQueryBuilderFieldSearch);
   begin
     var CurrentTable: TQueryBuilderTable;
     var Field := FindQueryField(FieldToFind, CurrentTable);
@@ -2053,7 +2076,7 @@ var
 
       for var Field in FOrderByFields do
       begin
-        AppendFullFieldName(Field.Field);
+        AppendFullFieldName(SQL, Field.Field);
 
         if not Field.Ascending then
           SQL.Append(' desc');
@@ -2075,7 +2098,7 @@ var
       begin
         BuildWhereCondition(Comparison.Left);
 
-        SQL.Append(Operator);
+        SQLWhere.Append(Operator);
 
         BuildWhereCondition(Comparison.Right);
       end;
@@ -2087,18 +2110,18 @@ var
           var LogicalOperation := (DoComparison.Operarion = qbcoOr) and (Comparison.Operarion = qbcoAnd);
 
           if LogicalOperation then
-            SQL.Append('(');
+            SQLWhere.Append('(');
 
           BuildWhereCondition(DoComparison);
 
           if LogicalOperation then
-            SQL.Append(')');
+            SQLWhere.Append(')');
         end;
 
       begin
         DoBuildLogical(Comparison.Left);
 
-        SQL.Append(Operator);
+        SQLWhere.Append(Operator);
 
         DoBuildLogical(Comparison.Right);
       end;
@@ -2107,7 +2130,7 @@ var
       begin
         BuildWhereCondition(Comparison.Left);
 
-        SQL.Append(' between ');
+        SQLWhere.Append(' between ');
 
         BuildWhereCondition(Comparison.Right);
       end;
@@ -2116,7 +2139,7 @@ var
       begin
         BuildWhereCondition(Comparison.Left);
 
-        SQL.Append(' like ');
+        SQLWhere.Append(' like ');
 
         BuildWhereCondition(Comparison.Right);
       end;
@@ -2125,12 +2148,12 @@ var
       begin
         BuildWhereCondition(Comparison.Left);
 
-        SQL.Append(' is null');
+        SQLWhere.Append(' is null');
       end;
 
       procedure BuildLogicalNot;
       begin
-        SQL.Append('not ');
+        SQLWhere.Append('not ');
 
         BuildWhereCondition(Comparison.Left);
       end;
@@ -2140,9 +2163,9 @@ var
         var ParamName := 'P' + ParamIndex.ToString;
         FParams.CreateParam(ftUnknown, ParamName, ptInput).Value := Comparison.Value;
 
-        SQL.Append(':');
+        SQLWhere.Append(':');
 
-        SQL.Append(ParamName);
+        SQLWhere.Append(ParamName);
 
         Inc(ParamIndex);
       end;
@@ -2152,7 +2175,7 @@ var
         qbcoAnd: BuildLogical(' and ');
         qbcoBetween: BuildBetween;
         qbcoEqual: BuildComparison('=');
-        qbcoFieldName: AppendFullFieldName(Comparison.Field);
+        qbcoFieldName: AppendFullFieldName(SQLWhere, Comparison.Field);
         qbcoGreaterThan: BuildComparison('>');
         qbcoGreaterThanOrEqual: BuildComparison('>=');
         qbcoIsNull: BuildIsNull;
@@ -2170,10 +2193,15 @@ var
     if Assigned(FQueryWhere.FComparison) then
     begin
       ParamIndex := 1;
+      SQLWhere := TStringBuilder.Create;
 
-      SQL.Append(' where ');
+      SQLWhere.Append(' where ');
 
       BuildWhereCondition(FQueryWhere.FComparison);
+
+      SQL.Append(SQLWhere);
+
+      SQLWhere.Free;
     end;
   end;
 
@@ -3751,8 +3779,10 @@ end;
 constructor TQueryBuilderTable.Create(const Table: TTable);
 begin
   inherited Create;
+
   FDatabaseFields := TObjectList<TQueryBuilderTableField>.Create;
   FForeignKeyTables := TObjectList<TQueryBuilderTable>.Create;
+  FLazyTables := TObjectList<TQueryBuilderTable>.Create;
   FManyValueAssociationTables := TObjectList<TQueryBuilderTable>.Create;
   FTable := Table;
 end;
@@ -3777,9 +3807,11 @@ begin
 
   FManyValueAssociationTables.Free;
 
-  InheritedTable.Free;
+  FInheritedTable.Free;
 
   FDatabaseFields.Free;
+
+  FLazyTables.Free;
 
   inherited;
 end;

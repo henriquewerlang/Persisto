@@ -166,6 +166,8 @@ type
     procedure WhenInsertingAnUnloadedLazyFieldMustInsertTheKeyValueFromLazyField;
     [Test]
     procedure WhenUpdatintAnUnloadedLazyFieldMustUpdateTheKeyValueFromLazyField;
+    [Test]
+    procedure WhenUseALazyFieldInTheFieldMustLoadTheJoinForTheFilterWorks;
   end;
 
   TDatabaseConnectionMock = class(TInterfacedObject, IDatabaseConnection)
@@ -387,6 +389,14 @@ procedure TManagerTest.PrepareDatabase;
     LazyClass.Lazy := MyEntity;
 
     FManager.Insert([LazyClass]);
+
+    var LazyFieldChild := CreateObject<TLazyFilterChild>;
+    LazyFieldChild.Field := 'Value';
+
+    var LazyFilter := CreateObject<TLazyFilter>;
+    LazyFilter.LazyField := LazyFieldChild;
+
+    FManager.Insert([LazyFilter]);
   end;
 
 begin
@@ -1493,6 +1503,13 @@ begin
   Assert.AreEqual(100, Cursor.GetDataSet.FieldByName('IdLazy').AsInteger);
 
   MyClass.Free;
+end;
+
+procedure TManagerTest.WhenUseALazyFieldInTheFieldMustLoadTheJoinForTheFilterWorks;
+begin
+  var Value := FManager.Select.All.From<TLazyFilter>.Where(Field('LazyField.Field') = 'Value').Open.One;
+
+  Assert.IsNotNil(Value);
 end;
 
 { TManagerDatabaseManipulationTest }

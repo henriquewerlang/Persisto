@@ -1156,6 +1156,29 @@ type
     property MyArray: TArray<Byte> read FMyArray write FMyArray;
   end;
 
+  [Entity]
+  TLazyFilterChild = class
+  private
+    FId: String;
+    FField: String;
+  published
+    [NewUniqueIdentifier, UniqueIdentifier]
+    property Id: String read FId write FId;
+    [Size(150)]
+    property Field: String read FField write FField;
+  end;
+
+  [Entity]
+  TLazyFilter = class
+  private
+    FId: String;
+    FLazyField: Lazy<TLazyFilterChild>;
+  published
+    [NewUniqueIdentifier, UniqueIdentifier]
+    property Id: String read FId write FId;
+    property LazyField: Lazy<TLazyFilterChild> read FLazyField write FLazyField;
+  end;
+
 implementation
 
 uses System.Internal.ExcUtils;
