@@ -1874,10 +1874,9 @@ var
   procedure LoadFieldList(const QueryTable: TQueryBuilderTable; const ForeignFieldToIgnore: TField = nil);
   var
     DatabaseField: TQueryBuilderTableField;
-
     Field: TField;
-
-    ForeignKeyTable, ManyValueAssociationTable: TQueryBuilderTable;
+    ForeignKeyTable: TQueryBuilderTable;
+    ManyValueAssociationTable: TQueryBuilderTable;
 
   begin
     MakeTableAlias(QueryTable);
@@ -1901,9 +1900,6 @@ var
 
         if Field.InPrimaryKey then
           QueryTable.PrimaryKeyField := DatabaseField;
-
-        if Field.IsLazy then
-          QueryTable.LazyTables.Add(MakeTableAlias(TQueryBuilderTable.Create(Field.ForeignKey)));
 
         if FieldIndex > 1 then
           SQL.Append(',');
@@ -2018,10 +2014,18 @@ var
 
         for var FindTable in QueryTable.LazyTables do
           if FindTable.ForeignKeyField.Field.Name = FieldName then
-          begin
-            MakeForeignKeyJoin(CurrentTable, FindTable, FindTable.ForeignKeyField.Field);
-
             Exit(FindTable);
+
+        for var Field in QueryTable.Table.Fields do
+          if Field.Name = FieldName then
+          begin
+            var LazyTable := MakeTableAlias(TQueryBuilderTable.Create(Field.ForeignKey));
+
+            QueryTable.LazyTables.Add(LazyTable);
+
+            MakeJoin(CurrentTable, CurrentTable.Table.PrimaryKey, LazyTable, Field);
+
+            Exit(LazyTable);
           end;
       end;
     end;
