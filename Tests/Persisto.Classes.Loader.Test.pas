@@ -80,6 +80,8 @@ type
     procedure WhenSelectingAClassWithManyValueAssociationWithCircularReferenteMustLoadTheReferenceCircularTreeWithTheManyValueInformationToo;
     [Test]
     procedure WhenLoadAClassWithManyValueAssociationMoreThenOneTimeMustResetTheArrayEveryTime;
+    [Test]
+    procedure WhenTheLazyValueIsntAnObjectOrArrayCantRaiseErrorWhenAreLoading;
   end;
 
 implementation
@@ -158,7 +160,9 @@ var
     Object13.Integer := 1;
     Object13.Text := 'Text';
 
-    Objects := [Object1, Object2, Object3, Object7, Object11, Object12, Object13];
+    var Object14 := CreateObject<TLazyFilter>;
+
+    Objects := [Object1, Object2, Object3, Object7, Object11, Object12, Object13, Object14];
   end;
 
 begin
@@ -517,6 +521,15 @@ begin
     procedure
     begin
       FManager.Select.All.From<TManyValueAssociationParent>.Open.One;
+    end);
+end;
+
+procedure TClassLoaderTest.WhenTheLazyValueIsntAnObjectOrArrayCantRaiseErrorWhenAreLoading;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Select.All.From<TLazyFilter>.Open.One;
     end);
 end;
 

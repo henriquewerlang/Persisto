@@ -1639,8 +1639,10 @@ begin
 
   if LazyField.IsManyValueAssociation then
     FilterField := LazyField.ManyValueAssociation.ChildField
+  else if LazyField.IsForeignKey then
+    FilterField := LazyField.ForeignKey.ParentTable.PrimaryKey
   else
-    FilterField := LazyField.ForeignKey.ParentTable.PrimaryKey;
+    FilterField := nil;
 
   Result := TLazyLoader.Create(FQueryBuilder.FManager, FilterField, KeyValue, LazyField.LazyType.Handle);
 end;
@@ -3857,8 +3859,10 @@ var
 begin
   Param := CreateParam(Field.DatabaseType, Field.DatabaseName, ptInput);
 
-  if VarIsStr(Value) and (Value = EmptyStr) then
+  if VarIsClear(Value) or VarIsStr(Value) and (Value = EmptyStr) then
     Param.Value := NULL
+  else if Field.SpecialType = stUniqueIdentifier then
+    Param.AsGuid := StringToGUID(Value)
   else
     Param.Value := Value;
 end;

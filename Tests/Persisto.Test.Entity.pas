@@ -1173,10 +1173,13 @@ type
   private
     FId: String;
     FLazyField: Lazy<TLazyFilterChild>;
+    FLazyString: Lazy<String>;
   published
     [NewUniqueIdentifier, UniqueIdentifier]
     property Id: String read FId write FId;
     property LazyField: Lazy<TLazyFilterChild> read FLazyField write FLazyField;
+    [Text]
+    property LazyString: Lazy<String> read FLazyString write FLazyString;
   end;
 
 implementation
