@@ -168,6 +168,12 @@ type
     procedure WhenUpdatintAnUnloadedLazyFieldMustUpdateTheKeyValueFromLazyField;
     [Test]
     procedure WhenUseALazyFieldInTheFieldMustLoadTheJoinForTheFilterWorks;
+    [Test]
+    procedure WhenRemoveAnObjectMustDeleteTheRecordFromDatabase;
+    [Test]
+    procedure WhenRemoveAnObjectMustStartATransaction;
+    [Test]
+    procedure WhenDeleteAnObjectMustRemoveOnlyThisObject;
   end;
 
   TDatabaseConnectionMock = class(TInterfacedObject, IDatabaseConnection)
@@ -471,6 +477,24 @@ begin
 
   Assert.IsTrue(Cursor.Next);
   Assert.AreEqual(35, Cursor.GetDataSet.Fields[0].AsInteger);
+end;
+
+procedure TManagerTest.WhenDeleteAnObjectMustRemoveOnlyThisObject;
+begin
+  var LazyArrayClass := CreateObject<TLazyArrayClass>;
+  LazyArrayClass.Id := 1;
+
+  FManager.Insert([LazyArrayClass]);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Delete([LazyArrayClass]);
+    end);
+
+  var Objects := FManager.Select.All.From<TLazyArrayClass>.Open.All;
+
+  Assert.AreEqual(2, Length(Objects));
 end;
 
 procedure TManagerTest.WhenDontFindTheFieldInTheOrderByClauseMustRaiseAnError;
@@ -939,6 +963,37 @@ begin
 
   Assert.AreEqual(1, Length(Objects));
   Assert.AreEqual(3, Objects[0].Id);
+end;
+
+procedure TManagerTest.WhenRemoveAnObjectMustDeleteTheRecordFromDatabase;
+begin
+  var Objects := FManager.Select.All.From<TLazyArrayClassChild>.Open.All;
+
+  FManager.Delete(TArray<TObject>(Objects));
+
+  Objects := FManager.Select.All.From<TLazyArrayClassChild>.Open.All;
+
+  Assert.AreEqual(0, Length(Objects));
+end;
+
+procedure TManagerTest.WhenRemoveAnObjectMustStartATransaction;
+begin
+  var LazyArrayClass := CreateObject<TLazyArrayClass>;
+  LazyArrayClass.Id := 1;
+
+  FManager.Insert([LazyArrayClass]);
+
+  var Objects := FManager.Select.All.From<TLazyArrayClass>.OrderBy.Field('Id').Open.All;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      FManager.Delete(TArray<TObject>(Objects));
+    end, Exception);
+
+  Objects := FManager.Select.All.From<TLazyArrayClass>.Open.All;
+
+  Assert.AreEqual(3, Length(Objects));
 end;
 
 procedure TManagerTest.WhenSaveAnObjectMoreThenOnceItMustBeSavedOnlyOnceInTheDatabase;

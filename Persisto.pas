@@ -784,7 +784,7 @@ type
     function Select: TQueryBuilder;
 
     procedure CreateDatabase;
-    procedure Delete(const &Object: TObject);
+    procedure Delete(const Objects: TArray<TObject>);
     procedure DropDatabase;
     procedure ExectDirect(const SQL: String);
     procedure GenerateUnit(const FileName: String; FormatName: TFunc<String, String> = nil);
@@ -815,6 +815,9 @@ type
   public
     constructor Create(const MaxLength: Integer);
   end;
+
+const
+  STRING_BUILDER_START_CAPACITY = $2FF;
 
 function Field(const Name: String): TQueryBuilderComparisonHelper;
 begin
@@ -1847,9 +1850,6 @@ begin
 end;
 
 function TQueryBuilder.BuildCommand: String;
-const
-  STRING_BUILDER_START_CAPACITY = $2FF;
-
 var
   FieldIndex, TableIndex: Integer;
   LastAppendedWhereField: TField;
@@ -2202,7 +2202,7 @@ var
     if Assigned(FQueryWhere.FComparison) then
     begin
       ParamIndex := 1;
-      SQLWhere := TStringBuilder.Create;
+      SQLWhere := TStringBuilder.Create(STRING_BUILDER_START_CAPACITY);
 
       SQLWhere.Append(' where ');
 
@@ -2600,9 +2600,51 @@ begin
   FConnection.ExecuteScript(FDatabaseManipulator.CreateDatabase(FConnection.DatabaseName));
 end;
 
-procedure TManager.Delete(const &Object: TObject);
+procedure TManager.Delete(const Objects: TArray<TObject>);
 begin
+  var Params := TParams.Create;
+  var SQL := TStringBuilder.Create(STRING_BUILDER_START_CAPACITY);
+  var Table: TTable;
+  var Transaction := FConnection.StartTransaction;
 
+  try
+    try
+      for var &Object in Objects do
+      begin
+        Table := Mapper.GetTable(&Object.ClassType);
+
+        Params.Clear;
+
+        Params.AddParam('Key', Table.PrimaryKey, Table.PrimaryKey.GetValue(&Object).AsVariant);
+
+        SQL.Clear;
+
+        SQL.Append('delete from ');
+
+        SQL.Append(Table.DatabaseName);
+
+        SQL.Append(' where ');
+
+        SQL.Append(Table.PrimaryKey.DatabaseName);
+
+        SQL.Append('=:Key');
+
+        var Cursor := PrepareCursor(SQL.ToString, Params);
+
+        Cursor.Next;
+      end;
+
+      Transaction.Commit;
+    except
+      Transaction.Rollback;
+
+      raise;
+    end;
+  finally
+    Params.Free;
+
+    SQL.Free;
+  end;
 end;
 
 destructor TManager.Destroy;
@@ -2792,7 +2834,7 @@ begin
         Result := Name;
       end;
 
-  TheUnit := TStringBuilder.Create(5000);
+  TheUnit := TStringBuilder.Create(STRING_BUILDER_START_CAPACITY);
 
   TheUnit.AppendLine(Format('unit %s;', [TPath.GetFileNameWithoutExtension(FileName)]));
 
@@ -3109,7 +3151,7 @@ begin
   var Comma := EmptyStr;
   var Params := TParams.Create;
   var PrimaryKey := Table.PrimaryKey;
-  var SQL := TStringBuilder.Create;
+  var SQL := TStringBuilder.Create(STRING_BUILDER_START_CAPACITY);
 
   Params.AddParam(PrimaryKey, PrimaryKey.Value[&Object].AsVariant);
 
@@ -3654,7 +3696,7 @@ var
 begin
   Comparer := TNameComparer.Create(FDatabaseManipulator.MaxNameSize);
   RecreateTables := TDictionary<TTable, TDatabaseTable>.Create;
-  SQL := TStringBuilder.Create(5000);
+  SQL := TStringBuilder.Create(STRING_BUILDER_START_CAPACITY);
 
   ExecuteSchemaScripts;
 
