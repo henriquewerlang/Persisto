@@ -30,7 +30,7 @@ begin
   for var &Type in Context.GetTypes do
     for var Attribute in &Type.GetAttributes do
       if Attribute is EntityAttribute then
-        Proc(&Type.Name);
+        Proc(&Type.QualifiedName);
 end;
 
 end.
