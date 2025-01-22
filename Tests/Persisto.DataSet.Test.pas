@@ -113,23 +113,17 @@ type
     procedure WhenFillAnEmptyClassNameCantRaiseAnyError;
     [Test]
     procedure WhenTheClassHasAnArrayPropertyMustLoadTheFieldAsADataSetField;
-
-
-
-//    [Test]
+    [Test]
     procedure AfterOpenTheFieldMustLoadTheValuesFromTheObjectClass;
-//    [Test]
+    [Test]
     procedure WhenNavigateByDataSetMustHaveToShowTheValuesFromTheList;
-//    [Test]
+    [Test]
     procedure WhenNavigatingBackHaveToLoadTheListValuesAsExpected;
-//    [Test]
-    procedure WhenHaveFieldDefDefinedCantLoadFieldsFromTheClass;
-//    [Test]
-    procedure WhenTheFieldDefNameNotExistsInPropertyListMustRaiseAException;
-//    [Test]
-    procedure WhenTheFieldAndPropertyTypeAreDifferentItHasToRaiseAnException;
-//    [Test]
+    [Test]
     procedure WhenAFieldIsSeparatedByAPointItHasToLoadTheSubPropertiesOfTheObject;
+
+
+
 //    [Test]
     procedure WhenTryOpenADataSetWithoutAObjectDefinitionMustRaiseAnError;
 //    [Test]
@@ -314,17 +308,11 @@ type
 //    [Test]
     procedure TheSelfFieldTypeMustBeVariant;
 //    [Test]
-    procedure WhenAddTheSelfFieldMustBeOfTheVariantType;
-//    [Test]
     procedure WhenGetTheValueOfTheSelfFieldMustReturnTheCurrentObjectOfThDataSet;
 //    [Test]
     procedure WhenFillTheCurrentObjectMustReplaceTheCurrentValueInTheInternalList;
 //    [Test]
     procedure WhenInsertingMustTheSelfFieldMustReplaceTheCurrentObjectHasExpected;
-//    [Test]
-    procedure WhenFillANilValueToSelfFieldMustRaiseAnError;
-//    [Test]
-    procedure WhenTryToFillAnObjectWithDifferentTypeMustRaiseAnError;
 //    [Test]
     procedure WhenChangeTheSelfFieldMustNotifyTheChangeOfAllFieldsInDataSet;
 //    [Test]
@@ -551,19 +539,18 @@ end;
 
 procedure TPersistoDataSetTest.AfterOpenTheFieldMustLoadTheValuesFromTheObjectClass;
 begin
-  var DataSet := TPersistoDataSet.Create(nil);
   var MyObject := TMyTestClass.Create;
   MyObject.Id := 123456;
   MyObject.Name := 'MyName';
   MyObject.Value := 5477.555;
 
-//  DataSet.OpenObject(MyObject);
+  FDataSet.Objects := [MyObject];
 
-  Assert.AreEqual(123456, DataSet.FieldByName('Id').AsInteger);
-  Assert.AreEqual('MyName', DataSet.FieldByName('Name').AsString);
-  Assert.AreEqual(5477.555, DataSet.FieldByName('Value').AsFloat);
+  FDataSet.Open;
 
-  DataSet.Free;
+  Assert.AreEqual(123456, FDataSet.FieldByName('Id').AsInteger);
+  Assert.AreEqual('MyName', FDataSet.FieldByName('Name').AsString);
+  Assert.AreEqual(FloatToStr(5477.555), FDataSet.FieldByName('Value').AsString);
 end;
 
 procedure TPersistoDataSetTest.DestroyObjects(DataSet: TPersistoDataSet);
@@ -878,23 +865,6 @@ begin
   MyObject.Free;
 end;
 
-procedure TPersistoDataSetTest.WhenAddTheSelfFieldMustBeOfTheVariantType;
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-  var Field := TStringField.Create(DataSet);
-  Field.FieldName := 'Self';
-
-  Field.DataSet := DataSet;
-
-  Assert.WillRaise(
-    procedure
-    begin
-//      DataSet.OpenClass<TMyTestClass>;
-    end, ESelfFieldTypeWrong);
-
-  DataSet.Free;
-end;
-
 procedure TPersistoDataSetTest.WhenAFieldIsACreateTheFieldMustHaveTheMinimalSizeDefined(FieldName: String; Size: Integer);
 begin
   var DataSet := TPersistoDataSet.Create(nil);
@@ -908,21 +878,20 @@ end;
 
 procedure TPersistoDataSetTest.WhenAFieldIsSeparatedByAPointItHasToLoadTheSubPropertiesOfTheObject;
 begin
-  var DataSet := TPersistoDataSet.Create(nil);
+  var Field := TWideStringField.Create(FDataSet);
+  Field.FieldName := 'AnotherObject.AnotherObject.AnotherName';
   var MyObject := TMyTestClass.Create;
   MyObject.AnotherObject := TAnotherObject.Create;
   MyObject.AnotherObject.AnotherObject := TAnotherObject.Create;
   MyObject.AnotherObject.AnotherObject.AnotherName := 'MyName';
 
-  DataSet.FieldDefs.Add('AnotherObject.AnotherObject.AnotherName', ftString, 50);
+  Field.SetParentComponent(FDataSet);
 
-//  DataSet.OpenObject(MyObject);
+  FDataSet.Objects := [MyObject];
 
-  Assert.AreEqual('MyName', DataSet.FieldByName('AnotherObject.AnotherObject.AnotherName').AsString);
+  FDataSet.Open;
 
-  DataSet.Free;
-
-  MyObject.Free;
+  Assert.AreEqual('MyName', FDataSet.FieldByName('AnotherObject.AnotherObject.AnotherName').AsString);
 end;
 
 procedure TPersistoDataSetTest.WhenAppendADataSourceInDataSetCantRaiseAnyError;
@@ -1525,23 +1494,6 @@ begin
     end);
 end;
 
-procedure TPersistoDataSetTest.WhenFillANilValueToSelfFieldMustRaiseAnError;
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-
-//  DataSet.OpenClass<TMyTestClass>;
-
-  DataSet.Insert;
-
-  Assert.WillRaise(
-    procedure
-    begin
-      TPersistoObjectField(DataSet.FieldByName('Self')).AsObject := nil;
-    end, ESelfFieldNotAllowEmptyValue);
-
-  DataSet.Free;
-end;
-
 procedure TPersistoDataSetTest.WhenFillANullableFieldWithAnValueMustFillThePropertyWithTheValue;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
@@ -1976,24 +1928,6 @@ begin
   Assert.AreEqual(MyObject, FDataSet.CurrentObject);
 end;
 
-procedure TPersistoDataSetTest.WhenHaveFieldDefDefinedCantLoadFieldsFromTheClass;
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-  var MyObject := TMyTestClass.Create;
-
-  DataSet.FieldDefs.Add('Id', ftInteger);
-  DataSet.FieldDefs.Add('Name', ftString, 20);
-  DataSet.FieldDefs.Add('Value', ftFloat);
-
-//  DataSet.OpenObject(MyObject);
-
-  Assert.AreEqual(3, DataSet.FieldDefs.Count);
-
-  DataSet.Free;
-
-  MyObject.Free;
-end;
-
 procedure TPersistoDataSetTest.WhenInsertARecordThenCancelTheInsertionAndStartANewInsertTheOldBufferMustBeCleanedUp;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
@@ -2161,8 +2095,7 @@ end;
 
 procedure TPersistoDataSetTest.WhenNavigateByDataSetMustHaveToShowTheValuesFromTheList;
 begin
-  var DataSet := TPersistoDataSet.Create(nil);
-  var MyList := TObjectList<TMyTestClass>.Create;
+  var MyList := TList<TObject>.Create;
 
   for var A := 1 to 10 do
   begin
@@ -2174,26 +2107,25 @@ begin
     MyList.Add(MyObject);
   end;
 
-//  DataSet.OpenList<TMyTestClass>(MyList);
+  FDataSet.Objects := MyList.ToArray;
+
+  FDataSet.Open;
 
   for var B := 1 to 10 do
   begin
-    Assert.AreEqual(B, DataSet.FieldByName('Id').AsInteger);
-    Assert.AreEqual(Format('Name%d', [B]), DataSet.FieldByName('Name').AsString);
-    Assert.AreEqual(B + B, DataSet.FieldByName('Value').AsFloat);
+    Assert.AreEqual(B, FDataSet.FieldByName('Id').AsInteger);
+    Assert.AreEqual(Format('Name%d', [B]), FDataSet.FieldByName('Name').AsString);
+    Assert.AreEqual(B + B, FDataSet.FieldByName('Value').AsFloat);
 
-    DataSet.Next;
+    FDataSet.Next;
   end;
-
-  DataSet.Free;
 
   MyList.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenNavigatingBackHaveToLoadTheListValuesAsExpected;
 begin
-  var DataSet := TPersistoDataSet.Create(nil);
-  var MyList := TObjectList<TMyTestClass>.Create;
+  var MyList := TList<TObject>.Create;
 
   for var A := 1 to 10 do
   begin
@@ -2205,20 +2137,20 @@ begin
     MyList.Add(MyObject);
   end;
 
-//  DataSet.OpenList<TMyTestClass>(MyList);
+  FDataSet.Objects := MyList.ToArray;
 
-  DataSet.Last;
+  FDataSet.Open;
+
+  FDataSet.Last;
 
   for var B := 10 downto 1 do
   begin
-    Assert.AreEqual(B, DataSet.FieldByName('Id').AsInteger);
-    Assert.AreEqual(Format('Name%d', [B]), DataSet.FieldByName('Name').AsString);
-    Assert.AreEqual(B + B, DataSet.FieldByName('Value').AsFloat);
+    Assert.AreEqual(B, FDataSet.FieldByName('Id').AsInteger);
+    Assert.AreEqual(Format('Name%d', [B]), FDataSet.FieldByName('Name').AsString);
+    Assert.AreEqual(B + B, FDataSet.FieldByName('Value').AsFloat);
 
-    DataSet.Prior;
+    FDataSet.Prior;
   end;
-
-  DataSet.Free;
 
   MyList.Free;
 end;
@@ -3064,42 +2996,6 @@ begin
     Item.Free;
 end;
 
-procedure TPersistoDataSetTest.WhenTheFieldAndPropertyTypeAreDifferentItHasToRaiseAnException;
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-  var MyObject := TMyTestClass.Create;
-
-  DataSet.FieldDefs.Add('Name', ftInteger);
-
-  Assert.WillRaise(
-    procedure
-    begin
-//      DataSet.OpenObject(MyObject);
-    end, EPropertyWithDifferentType);
-
-  DataSet.Free;
-
-  MyObject.Free;
-end;
-
-procedure TPersistoDataSetTest.WhenTheFieldDefNameNotExistsInPropertyListMustRaiseAException;
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-  var MyObject := TMyTestClass.Create;
-
-  DataSet.FieldDefs.Add('InvalidPropertyName', ftInteger);
-
-  Assert.WillRaise(
-    procedure
-    begin
-//      DataSet.OpenObject(MyObject);
-    end, EPropertyNameDoesNotExist);
-
-  DataSet.Free;
-
-  MyObject.Free;
-end;
-
 procedure TPersistoDataSetTest.WhenTheFieldIsCharTypeTheSizeMustBeOne;
 begin
   FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
@@ -3234,7 +3130,7 @@ begin
 
   FDataSet.Open;
 
-  Assert.AreEqual(TStringField, FDataSet.FieldByName('String').ClassType);
+  Assert.AreEqual(TWideStringField, FDataSet.FieldByName('String').ClassType);
 end;
 
 procedure TPersistoDataSetTest.WhenThePropertyIsOfTimeTypeMustCreateTheFieldWithTheTypeExpected;
@@ -3252,7 +3148,7 @@ begin
 
   FDataSet.Open;
 
-  Assert.AreEqual(TStringField, FDataSet.FieldByName('UniqueIdentifier').ClassType);
+  Assert.AreEqual(TWideStringField, FDataSet.FieldByName('UniqueIdentifier').ClassType);
 end;
 
 procedure TPersistoDataSetTest.WhenThePropertyIsANullableTypeMustCreateTheField;
@@ -3352,29 +3248,6 @@ begin
     begin
       FDataSet.ObjectClass := TMyTestClass;
     end, EDatabaseError);
-end;
-
-procedure TPersistoDataSetTest.WhenTryToFillAnObjectWithDifferentTypeMustRaiseAnError;
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-
-//  DataSet.OpenClass(TMyTestClass);
-
-  DataSet.Insert;
-
-  Assert.WillRaise(
-    procedure
-    begin
-      var MyObject := TAnotherObject.Create;
-
-      try
-        TPersistoObjectField(DataSet.FieldByName('Self')).AsObject := MyObject;
-      finally
-        MyObject.Free;
-      end;
-    end, ESelfFieldDifferentObjectType);
-
-  DataSet.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenTryToGetAComposeFieldNameFromALazyPropertyMustLoadAsExpected;

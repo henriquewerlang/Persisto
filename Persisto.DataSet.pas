@@ -25,12 +25,6 @@ type
   EObjectTypeNotFound = class(Exception)
   end;
 
-  EPropertyNameDoesNotExist = class(Exception);
-  EPropertyWithDifferentType = class(Exception);
-  ESelfFieldDifferentObjectType = class(Exception);
-  ESelfFieldNotAllowEmptyValue = class(Exception);
-  ESelfFieldTypeWrong = class(Exception);
-
   TPersistoBuffer = class
   public
     CurrentObject: TObject;
@@ -170,13 +164,11 @@ type
     function GetPropertyAndObjectFromField(Field: TField; var Instance: TValue; var &Property: TRttiProperty): Boolean;
     function GetRecordInfoFromActiveBuffer: TPersistoBuffer;
     function GetRecordInfoFromBuffer(const Buffer: TRecBuf): TPersistoBuffer;
-    function IsSelfField(Field: TField): Boolean;
 
     procedure CheckCalculatedFields;
     procedure CheckIterator;
     procedure CheckIteratorData(const NeedResync, GoFirstRecord: Boolean);
     procedure CheckObjectTypeLoaded;
-    procedure CheckSelfFieldType;
     procedure GetPropertyValue(const &Property: TRttiProperty; var Instance: TValue);
     procedure GoToPosition(const Position: Cardinal; const CalculateFields: Boolean);
     procedure InternalCalculateFields(const Buffer: TRecBuf);
@@ -480,17 +472,6 @@ begin
     raise EDataSetWithoutObjectDefinition.Create;
 end;
 
-procedure TPersistoDataSet.CheckSelfFieldType;
-//var
-//  Field: TField;
-//
-begin
-//  Field := FindField(SELF_FIELD_NAME);
-//
-//  if Assigned(Field) and (Field.DataType <> ftVariant) then
-//    raise ESelfFieldTypeWrong.Create('The Self field must be of the variant type!');
-end;
-
 procedure TPersistoDataSet.ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf);
 //var
 //  A: Integer;
@@ -638,46 +619,41 @@ begin
 end;
 
 function TPersistoDataSet.GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TValueBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF};
-//var
+var
 //  &Property: TRttiProperty;
 //
-//  Value: TValue;
+  Value: TValue;
 
 begin
-  Exit(False);
-//  Result := {$IFDEF PAS2JS}NULL{$ELSE}False{$ENDIF};
-//
-//  if IsSelfField(Field) then
-//    Value := TValue.From(GetInternalCurrentObject)
-//  else if Field.FieldKind = fkData then
-//  begin
+  Result := {$IFDEF PAS2JS}NULL{$ELSE}False{$ENDIF};
+
+  if Field.FieldKind = fkData then
+  begin
+    Value := ObjectType.GetProperty(Field.FieldName).GetValue(CurrentObject);
+
 //    if GetPropertyAndObjectFromField(Field, Value, &Property) then
 //      GetPropertyValue(&Property, Value);
-//  end
+  end;
 //  else if Field.FieldKind = fkCalculated then
 //    Value := GetRecordInfoFromActiveBuffer.CalculedFieldBuffer[FCalculatedFields[Field]];
-//
-//  if not Value.IsEmpty then
-//  begin
-//{$IFDEF PAS2JS}
-//    Result := Value.AsJSValue;
-//
-//    if Field is TDateTimeField then
-//      Result := TJSDate.New(FormatDateTime('yyyy-mm-dd"T"hh":"nn":"ss"', Double(Result)));
-//{$ELSE}
-//    Result := True;
-//
-//    if Assigned(Buffer) then
-//      if Field is TStringField then
-//      begin
-//        var StringData := Value.AsType<AnsiString>;
-//        var StringSize := Length(StringData);
-//
-//        if StringSize > 0 then
-//          Move(PAnsiChar(@StringData[1])^, PAnsiChar(@Buffer[0])^, StringSize);
-//
-//        Buffer[StringSize] := 0;
-//      end
+
+  if not Value.IsEmpty then
+  begin
+{$IFDEF PAS2JS}
+    Result := Value.AsJSValue;
+
+    if Field is TDateTimeField then
+      Result := TJSDate.New(FormatDateTime('yyyy-mm-dd"T"hh":"nn":"ss"', Double(Result)));
+{$ELSE}
+    Result := True;
+
+    if Assigned(Buffer) then
+      if Field is TWideStringField then
+      begin
+        var StringValue := Value.AsString;
+
+        StrLCopy(PChar(@Buffer[0]), @StringValue[1], StringValue.Length)
+      end
 //      else if Field is TDateTimeField then
 //      begin
 //        var DataTimeValue: TValueBuffer;
@@ -688,10 +664,10 @@ begin
 //
 //        DataConvert(Field, DataTimeValue, Buffer, True);
 //      end
-//      else
-//        Value.ExtractRawData(@Buffer[0]);
-//{$ENDIF}
-//  end;
+      else
+        Value.ExtractRawData(@Buffer[0]);
+{$ENDIF}
+  end;
 end;
 
 function TPersistoDataSet.GetFieldInfoFromProperty(&Property: TRttiProperty; var Size: Integer): TFieldType;
@@ -801,7 +777,7 @@ var
 
 begin
   case GetMode of
-    gmCurrent:;
+    gmCurrent: Result := grOk;
 //      if FIterator.CurrentPosition = 0 then
 //        Result := grError;
     gmNext:
@@ -1002,8 +978,8 @@ var
 
         if Assigned(Size) then
           Result := Size.Size
-        else
-          Result := 0;
+        else if FieldType in [ftString, ftWideString] then
+          Result := Succ(dsMaxStringSize) * SizeOf(Char);
       end;
     end;
 
@@ -1027,9 +1003,10 @@ var
             tkLString,
             tkUString,
             tkWChar,
+            tkWString,
 {$ENDIF}
             tkChar,
-            tkString: FieldType := ftString;
+            tkString: FieldType := ftWideString;
 
 {$IFDEF PAS2JS}
             tkBool,
@@ -1072,8 +1049,6 @@ var
 
 {$IFDEF DCC}
             tkInt64: FieldType := ftLargeint;
-
-            tkWString: FieldType := ftWideString;
 {$ENDIF}
 
             tkDynArray: FieldType := ftDataSet;
@@ -1088,13 +1063,18 @@ var
   end;
 
 begin
-  LoadedClasses := TList<TRttiInstanceType>.Create;
+  if FieldCount = 0 then
+  begin
+    LoadedClasses := TList<TRttiInstanceType>.Create;
 
-  FieldDefs.Clear;
+    FieldDefs.Clear;
 
-  LoadFieldDefs(ObjectType, EmptyStr);
+    LoadFieldDefs(ObjectType, EmptyStr);
 
-  LoadedClasses.Free;
+    LoadedClasses.Free;
+  end
+  else
+    InitFieldDefsFromFields;
 end;
 
 procedure TPersistoDataSet.InternalLast;
@@ -1119,7 +1099,7 @@ begin
 //    if FieldCount = 0 then
 //      LoadFieldDefsFromClass
 //    else
-//      InitFieldDefsFromFields;
+//
 //
 //  if FieldCount = 0 then
 //    CreateFields;
@@ -1128,8 +1108,8 @@ begin
 //
 //  LoadPropertiesFromFields;
 //
-//  BindFields(True);
-//
+  BindFields(True);
+
 //  CheckCalculatedFields;
 //
 //  LoadObjectListFromParentDataSet;
@@ -1160,12 +1140,6 @@ end;
 function TPersistoDataSet.IsCursorOpen: Boolean;
 begin
   Result := Assigned(FCursor);
-end;
-
-function TPersistoDataSet.IsSelfField(Field: TField): Boolean;
-begin
-//  Result := Field.FieldName = SELF_FIELD_NAME;
-  Result := False;
 end;
 
 procedure TPersistoDataSet.GoToPosition(const Position: Cardinal; const CalculateFields: Boolean);
@@ -1746,7 +1720,7 @@ constructor TPersistoObjectField.Create(AOwner: TComponent);
 begin
   inherited;
 
-  SetDataType(ftVariant);
+  SetDataType(ftObject);
 
 {$IFDEF DCC}
   SetLength(FBuffer, SizeOf(TObject));
