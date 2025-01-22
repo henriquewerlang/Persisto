@@ -2,7 +2,7 @@
 
 interface
 
-uses System.SysUtils, System.Rtti, Data.DB, System.Generics.Collections, Persisto.DataSet, Test.Insight.Framework;
+uses System.SysUtils, System.Rtti, Data.DB, System.Generics.Collections, Persisto.DataSet, Test.Insight.Framework, Persisto.Mapping;
 
 type
   [TestFixture]
@@ -90,30 +90,32 @@ type
     [Test]
     procedure WhenThePropertyIsOfUniqueIdentifierTypeMustCreateTheFieldWithTheTypeExpected;
     [Test]
+    procedure WhenThePropertyIsOfClassTypeMustCreateTheFieldWithTheTypeExpected;
+    [Test]
     procedure WhenTheFieldTypeIsntMappedCanRaiseAnyError;
+    [Test]
+    procedure WhenTheDataSetHasFieldsLoadedCantReloadThisFields;
+    [Test]
+    procedure WhenUpdateFieldDefsMustLoadTheFieldInformationInTheFieldDefsCollection;
+    [Test]
+    procedure WhenTheFieldIsCharTypeTheSizeMustBeOne;
+    [Test]
+    procedure WhenTheFieldIsStringTypeTheSizeMustBeTheValueFromAttribute;
+    [Test]
+    procedure WhenLoadAClassWithAForeignKeyMustLoadTheForeignKeyFieldInTheFieldList;
+    [Test]
+    procedure WhenCreateAFieldOfOneObjectClassMustLoadAllClassLevelsInTheFieldName;
+    [Test]
+    procedure WhenChangeTheObjectTypeFromTheDataSetMustMarkTheFieldDefsToUpdateAgain;
+    [Test]
+    procedure WhenTryToLoadTheClassNameAndTheTypeDontExistsMustRaiseAnError;
+    [Test]
+    procedure WhenFillAnEmptyClassNameCantRaiseAnyError;
+    [Test]
+    procedure WhenTheClassHasAnArrayPropertyMustLoadTheFieldAsADataSetField;
 
 
 
-//    [TestCase('Array', 'MyArray,ftDataSet')]
-//    [TestCase('Boolean', 'Boolean,ftBoolean')]
-//    [TestCase('Byte', 'Byte,ftByte')]
-//    [TestCase('Cardinal', 'Cardinal,ftLongWord')]
-//    [TestCase('Char', 'Char,ftString')]
-//    [TestCase('Class', 'Class,ftVariant')]
-//    [TestCase('Currency', 'Currency,ftCurrency')]
-//    [TestCase('Date', 'Date,ftDate')]
-//    [TestCase('DateTime', 'DateTime,ftDateTime')]
-//    [TestCase('Double', 'Double,ftFloat')]
-//    [TestCase('Enumerator', 'MyEnum,ftInteger')]
-//    [TestCase('Int64', 'Int64,ftLargeint')]
-//    [TestCase('Integer', 'Int,ftInteger')]
-//    [TestCase('Sigle', 'Single,ftSingle')]
-//    [TestCase('String', 'Str,ftString')]
-//    [TestCase('Time', 'Time,ftTime')]
-//    [TestCase('WideChar', 'WideChar,ftString')]
-//    [TestCase('WideString', 'WideString,ftWideString')]
-//    [TestCase('Word', 'Word,ftWord')]
-    procedure TheFieldTypeMustMatchWithPropertyType(FieldName: String; TypeToCompare: TFieldType);
 //    [Test]
     procedure AfterOpenTheFieldMustLoadTheValuesFromTheObjectClass;
 //    [Test]
@@ -391,7 +393,7 @@ type
     property Id: String read FId write FId;
   end;
 
-  TMyTestClass = class
+   TMyTestClass = class
   private
     FId: Integer;
     FName: String;
@@ -437,7 +439,7 @@ type
     FInt64: Int64;
     FSingle: Single;
     FCurrency: Currency;
-    FClass: TObject;
+    FClass: TMyTestClass;
     FMyEnum: TMyEnumerator;
     FMyArray: TArray<TMyTestClassTypes>;
   published
@@ -445,7 +447,7 @@ type
     property Byte: Byte read FByte write FByte;
     property Cardinal: Cardinal read FCardinal write FCardinal;
     property Char: AnsiChar read FChar write FChar;
-    property &Class: TObject read FClass write FClass;
+    property &Class: TMyTestClass read FClass write FClass;
     property Currency: Currency read FCurrency write FCurrency;
     property Date: TDate read FDate write FDate;
     property DateTime: TDateTime read FDateTime write FDateTime;
@@ -566,14 +568,17 @@ end;
 
 procedure TPersistoDataSetTest.DestroyObjects(DataSet: TPersistoDataSet);
 begin
-//  DataSet.First;
-//
-//  while not DataSet.Eof do
-//  begin
-//    DataSet.GetCurrentObject<TObject>.Free;
-//
-//    DataSet.Next;
-//  end;
+  if DataSet.Active then
+  begin
+    DataSet.First;
+
+    while not DataSet.Eof do
+    begin
+      DataSet.GetCurrentObject<TObject>.Free;
+
+      DataSet.Next;
+    end;
+  end;
 end;
 
 procedure TPersistoDataSetTest.EveryInsertedObjectMustGoToTheObjectList;
@@ -727,20 +732,6 @@ begin
 
   for var Item in List do
     Item.Free;
-end;
-
-procedure TPersistoDataSetTest.TheFieldTypeMustMatchWithPropertyType(FieldName: String; TypeToCompare: TFieldType);
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-  var MyObject := TMyTestClassTypes.Create;
-
-//  DataSet.OpenObject(MyObject);
-
-  Assert.AreEqual(TypeToCompare, DataSet.FieldByName(FieldName).DataType);
-
-  DataSet.Free;
-
-  MyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.TheNameOfFieldMustBeEqualToTheNameOfTheProperty;
@@ -973,6 +964,15 @@ begin
     Item.Free;
 end;
 
+procedure TPersistoDataSetTest.WhenTheClassHasAnArrayPropertyMustLoadTheFieldAsADataSetField;
+begin
+  FDataSet.ObjectClass := TMyTestClassTypes;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(ftDataSet, FDataSet.FieldByName('MyArray').DataType);
+end;
+
 procedure TPersistoDataSetTest.WhenTheDataLinkTryToGetAFieldValueInTheDetailDataSetCantRaiseAnyError;
 begin
 //  var DataLink := TDataLinkMock.Create;
@@ -1063,6 +1063,17 @@ begin
   DataSetDetail.Free;
 
   DataSet.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenTheDataSetHasFieldsLoadedCantReloadThisFields;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+  var Field := TIntegerField.Create(FDataSet);
+  Field.FieldName := 'Integer';
+
+  Field.SetParentComponent(FDataSet);
+
+  Assert.WillNotRaise(FDataSet.Open);
 end;
 
 procedure TPersistoDataSetTest.WhenTheDataSetIsCloseAndTryToGetTheRecordCountMustRaiseError;
@@ -1505,6 +1516,15 @@ begin
   TheValue.Free;
 end;
 
+procedure TPersistoDataSetTest.WhenFillAnEmptyClassNameCantRaiseAnyError;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FDataSet.ObjectClassName := EmptyStr;
+    end);
+end;
+
 procedure TPersistoDataSetTest.WhenFillANilValueToSelfFieldMustRaiseAnError;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
@@ -1720,15 +1740,11 @@ end;
 
 procedure TPersistoDataSetTest.WhenFillTheObjectListAndOpenTheDataSetTheRecordCountMustBeEqualTheLengthOfTheObjectList;
 begin
-  var MyObject := TMyTestClass.Create;
-
-  FDataSet.Objects := [MyObject, MyObject, MyObject];
+  FDataSet.Objects := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
 
   FDataSet.Open;
 
   Assert.AreEqual(3, FDataSet.RecordCount);
-
-  MyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenFillTheObjectListAndOpenTheDataSetWithAnEmptyArrayMustRaiseError;
@@ -2400,7 +2416,7 @@ begin
 
   FDataSet.Open;
 
-  Assert.AreEqual(4, FDataSet.FieldCount);
+  Assert.AreEqual(7, FDataSet.FieldCount);
 end;
 
 procedure TPersistoDataSetTest.WhenOpenTheDataSetWithAListAndTheListIsChangedTheResyncCantRaiseAnyError;
@@ -2446,8 +2462,6 @@ begin
   FDataSet.Open;
 
   Assert.IsFalse(FDataSet.Eof);
-
-  MyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenOpenTheDetailDataSetMustLoadAllRecordsFromTheParentDataSet;
@@ -2734,6 +2748,15 @@ begin
   DataSet.Free;
 
   MyList.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenLoadAClassWithAForeignKeyMustLoadTheForeignKeyFieldInTheFieldList;
+begin
+  FDataSet.ObjectClass := TMyEntityForeignKeyAlias;
+
+  FDataSet.Open;
+
+  Assert.IsNotNil(FDataSet.FindField('ForeignKey.SimpleProperty'));
 end;
 
 procedure TPersistoDataSetTest.WhenLoadTheObjectClassNameMustLoadTheObjectTypeInfoWithTheObjectType;
@@ -3077,6 +3100,15 @@ begin
   MyObject.Free;
 end;
 
+procedure TPersistoDataSetTest.WhenTheFieldIsCharTypeTheSizeMustBeOne;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(1, FDataSet.FieldByName('Char').Size);
+end;
+
 procedure TPersistoDataSetTest.WhenTheFieldIsMappedToANullableFieldAndTheValueIsntFilledMustReturnNullInTheFieldValue;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
@@ -3090,6 +3122,15 @@ begin
   DataSet.Free;
 
   MyClass.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenTheFieldIsStringTypeTheSizeMustBeTheValueFromAttribute;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(150, FDataSet.FieldByName('String').Size);
 end;
 
 procedure TPersistoDataSetTest.WhenTheFieldTypeIsntMappedCanRaiseAnyError;
@@ -3122,6 +3163,15 @@ begin
   FDataSet.Open;
 
   Assert.AreEqual(TBooleanField, FDataSet.FieldByName('Boolean').ClassType);
+end;
+
+procedure TPersistoDataSetTest.WhenThePropertyIsOfClassTypeMustCreateTheFieldWithTheTypeExpected;
+begin
+  FDataSet.ObjectClass := TMyTestClassTypes;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(TPersistoObjectField, FDataSet.FieldByName('Class').ClassType);
 end;
 
 procedure TPersistoDataSetTest.WhenThePropertyIsOfDateTimeTypeMustCreateTheFieldWithTheTypeExpected;
@@ -3382,9 +3432,27 @@ begin
   DataSet.Free;
 end;
 
+procedure TPersistoDataSetTest.WhenTryToLoadTheClassNameAndTheTypeDontExistsMustRaiseAnError;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      FDataSet.ObjectClassName := 'InvlaidType';
+    end, EObjectTypeNotFound);
+end;
+
 procedure TPersistoDataSetTest.WhenTryToOpenTheDataSetWithoutAnObjectInformationMustRaiseAnError;
 begin
   Assert.WillRaise(FDataSet.Open, EDataSetWithoutObjectDefinition);
+end;
+
+procedure TPersistoDataSetTest.WhenUpdateFieldDefsMustLoadTheFieldInformationInTheFieldDefsCollection;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  FDataSet.FieldDefs.Update;
+
+  Assert.GreaterThan(4, FDataSet.FieldDefs.Count);
 end;
 
 procedure TPersistoDataSetTest.WhenUseQualifiedClassNameHasToLoadTheDataSetWithoutErrors;
@@ -3508,6 +3576,17 @@ begin
 
   for var Item in MyArray do
     Item.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenChangeTheObjectTypeFromTheDataSetMustMarkTheFieldDefsToUpdateAgain;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  FDataSet.FieldDefs.Update;
+
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  Assert.IsFalse(FDataSet.FieldDefs.Updated);
 end;
 
 procedure TPersistoDataSetTest.WhenChangeTheObjectTypeOfTheDataSetMustBeClosedToAcceptTheChange;
@@ -3665,6 +3744,15 @@ begin
   DataSetDetail.Free;
 
   DataSet.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenCreateAFieldOfOneObjectClassMustLoadAllClassLevelsInTheFieldName;
+begin
+  FDataSet.ObjectClass := TMyTestClassTypes;
+
+  FDataSet.Open;
+
+  Assert.IsNotNil(FDataSet.FieldByName('Class.AnotherObject.AnotherName').ClassType);
 end;
 
 procedure TPersistoDataSetTest.WhenDeleteARecordFromADataSetMustRemoveTheValueFromTheDataSet;
