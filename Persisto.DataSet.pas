@@ -620,8 +620,8 @@ end;
 
 function TPersistoDataSet.GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TValueBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF};
 var
-//  &Property: TRttiProperty;
-//
+  FieldName: String;
+  &Property: TRttiProperty;
   Value: TValue;
 
 begin
@@ -629,10 +629,18 @@ begin
 
   if Field.FieldKind = fkData then
   begin
-    Value := ObjectType.GetProperty(Field.FieldName).GetValue(CurrentObject);
+    &Property := nil;
+    Value := CurrentObject;
 
-//    if GetPropertyAndObjectFromField(Field, Value, &Property) then
-//      GetPropertyValue(&Property, Value);
+    for FieldName in Field.FieldName.Split(['.']) do
+    begin
+      if Assigned(&Property) then
+        &Property := &Property.PropertyType.AsInstance.GetProperty(FieldName)
+      else
+        &Property := ObjectType.GetProperty(FieldName);
+
+      Value := &Property.GetValue(Value.AsObject);
+    end;
   end;
 //  else if Field.FieldKind = fkCalculated then
 //    Value := GetRecordInfoFromActiveBuffer.CalculedFieldBuffer[FCalculatedFields[Field]];

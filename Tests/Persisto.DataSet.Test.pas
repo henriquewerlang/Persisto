@@ -121,25 +121,11 @@ type
     procedure WhenNavigatingBackHaveToLoadTheListValuesAsExpected;
     [Test]
     procedure WhenAFieldIsSeparatedByAPointItHasToLoadTheSubPropertiesOfTheObject;
-
-
-
-//    [Test]
-    procedure WhenTryOpenADataSetWithoutAObjectDefinitionMustRaiseAnError;
-//    [Test]
-    procedure WhenFilledTheObjectClassNameHasToLoadTheDataSetWithoutErrors;
-//    [Test]
-    procedure WhenUseQualifiedClassNameHasToLoadTheDataSetWithoutErrors;
-//    [Test]
-    procedure WhenCheckingIfTheFieldIsNullCantRaiseAnError;
-//    [Test]
+    [Test]
     procedure WhenCallFirstHaveToGoToTheFirstRecord;
-//    [Test]
-    procedure UsingBookmarkHaveToWorkLikeSpected;
-//    [Test]
-    procedure WhenUseTheOpenClassMustLoadFieldFromTheClass;
-//    [Test]
-    procedure WhenExistsAFieldInDataSetMustFillTheFieldDefFromThisField;
+
+
+
 //    [Test]
     procedure WhenInsertIntoDataSetCantRaiseAnError;
 //    [Test]
@@ -787,39 +773,6 @@ begin
   MyObject.Free;
 end;
 
-procedure TPersistoDataSetTest.UsingBookmarkHaveToWorkLikeSpected;
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-  var MyList := TObjectList<TMyTestClass>.Create;
-
-  for var A := 1 to 10 do
-  begin
-    var MyObject := TMyTestClass.Create;
-    MyObject.Id := A;
-    MyObject.Name := Format('Name%d', [A]);
-    MyObject.Value := A + A;
-
-    MyList.Add(MyObject);
-  end;
-
-//  DataSet.OpenList<TMyTestClass>(MyList);
-
-  for var A := 1 to 4 do
-    DataSet.Next;
-
-  var Bookmark := DataSet.Bookmark;
-
-  DataSet.First;
-
-  DataSet.Bookmark := Bookmark;
-
-  Assert.AreEqual('Name5', DataSet.FieldByName('Name').AsString);
-
-  DataSet.Free;
-
-  MyList.Free;
-end;
-
 procedure TPersistoDataSetTest.WhenADataSetIsActiveCantOpenItAgainMustRaiseAnError;
 begin
   var DataSet := TPersistoDataSet.Create(nil);
@@ -1256,8 +1209,7 @@ end;
 
 procedure TPersistoDataSetTest.WhenCallFirstHaveToGoToTheFirstRecord;
 begin
-  var DataSet := TPersistoDataSet.Create(nil);
-  var MyList := TObjectList<TMyTestClass>.Create;
+  var MyList := TList<TObject>.Create;
 
   for var A := 1 to 10 do
   begin
@@ -1269,16 +1221,16 @@ begin
     MyList.Add(MyObject);
   end;
 
-//  DataSet.OpenList<TMyTestClass>(MyList);
+  FDataSet.Objects := MyList.ToArray;
 
-  while not DataSet.Eof do
-    DataSet.Next;
+  FDataSet.Open;
 
-  DataSet.First;
+  while not FDataSet.Eof do
+    FDataSet.Next;
 
-  Assert.AreEqual('Name1', DataSet.FieldByName('Name').AsString);
+  FDataSet.First;
 
-  DataSet.Free;
+  Assert.AreEqual('Name1', FDataSet.FieldByName('Name').AsString);
 
   MyList.Free;
 end;
@@ -1370,21 +1322,6 @@ begin
   DataSet.Free;
 
   MyClass.Free;
-end;
-
-procedure TPersistoDataSetTest.WhenExistsAFieldInDataSetMustFillTheFieldDefFromThisField;
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-  var Field := TStringField.Create(DataSet);
-  Field.FieldName := 'Name';
-
-  Field.DataSet := DataSet;
-
-//  DataSet.OpenClass<TMyTestClass>;
-
-  Assert.AreEqual(1, DataSet.FieldDefs.Count);
-
-  DataSet.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenExistsMoreTheOneNullValueMustBeTheFirstRecordsAnThenTheFieldsWithValue;
@@ -1535,17 +1472,6 @@ begin
   DataSet.Free;
 
   MyClass.Free;
-end;
-
-procedure TPersistoDataSetTest.WhenFilledTheObjectClassNameHasToLoadTheDataSetWithoutErrors;
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-
-  DataSet.ObjectClassName := 'TMyTestClass';
-
-  Assert.WillNotRaise(DataSet.Open);
-
-  DataSet.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenFillingAFieldWithSubPropertyMustFillTheLastLevelOfTheField;
@@ -3211,19 +3137,6 @@ begin
   MyClass.Free;
 end;
 
-procedure TPersistoDataSetTest.WhenTryOpenADataSetWithoutAObjectDefinitionMustRaiseAnError;
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-
-  Assert.WillRaise(
-    procedure
-    begin
-      DataSet.Open;
-    end, EDataSetWithoutObjectDefinition);
-
-  DataSet.Free;
-end;
-
 procedure TPersistoDataSetTest.WhenTryToChangeTheObjectClassNameWithAnOpenDataSetMustRaiseAnError;
 begin
   FDataSet.ObjectClassName := TMyTestClass.QualifiedClassName;
@@ -3326,28 +3239,6 @@ begin
   FDataSet.FieldDefs.Update;
 
   Assert.GreaterThan(4, FDataSet.FieldDefs.Count);
-end;
-
-procedure TPersistoDataSetTest.WhenUseQualifiedClassNameHasToLoadTheDataSetWithoutErrors;
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-
-  DataSet.ObjectClassName := 'Persisto.DataSet.Test.TMyTestClass';
-
-  Assert.WillNotRaise(DataSet.Open);
-
-  DataSet.Free;
-end;
-
-procedure TPersistoDataSetTest.WhenUseTheOpenClassMustLoadFieldFromTheClass;
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-
-//  DataSet.OpenClass(TMyTestClass);
-
-  Assert.AreEqual(5, DataSet.FieldCount);
-
-  DataSet.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenTheRecordBufferIsBiggerThenOneMustLoadTheBufferOfTheDataSetAsExpected;
@@ -3500,24 +3391,6 @@ begin
 //  DataSet.Free;
 //
 //  DataLink.Free;
-end;
-
-procedure TPersistoDataSetTest.WhenCheckingIfTheFieldIsNullCantRaiseAnError;
-begin
-  var DataSet := TPersistoDataSet.Create(nil);
-  var MyObject := TMyTestClass.Create;
-
-//  DataSet.OpenObject(MyObject);
-
-  Assert.WillNotRaise(
-    procedure
-    begin
-      DataSet.FieldByName('Id').IsNull;
-    end);
-
-  DataSet.Free;
-
-  MyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenCleanUpTheDataSetFieldPropertyTheParentDataSetMustBeCleanedToo;
