@@ -17,11 +17,6 @@ type
     constructor Create;
   end;
 
-  EObjectArrayCantBeEmpty = class(Exception)
-  public
-    constructor Create;
-  end;
-
   EObjectTypeNotFound = class(Exception)
   end;
 
@@ -1441,14 +1436,14 @@ end;
 
 procedure TPersistoDataSet.SetObjects(const Value: TArray<TObject>);
 begin
+  FObjectList.Clear;
+
   if Assigned(Value) then
   begin
     FObjectList.AddRange(Value);
 
     ObjectClass := FObjectList.First.ClassType
-  end
-  else
-    raise EObjectArrayCantBeEmpty.Create;
+  end;
 end;
 
 procedure TPersistoDataSet.SetObjectType(const Value: TRttiInstanceType);
@@ -1770,13 +1765,6 @@ end;
 constructor EDataSetNotInEditingState.Create;
 begin
   inherited Create('Dataset not in edit or insert mode');
-end;
-
-{ EObjectArrayCantBeEmpty }
-
-constructor EObjectArrayCantBeEmpty.Create;
-begin
-  inherited Create('The object list can''t be emtpy!');
 end;
 
 { TPersistoCursor }

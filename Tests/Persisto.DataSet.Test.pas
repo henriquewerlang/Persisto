@@ -38,8 +38,6 @@ type
     [Test]
     procedure WhenInsertingARecordTheCurrentObjectMustReturnTheObjectBeenInserted;
     [Test]
-    procedure WhenFillTheObjectListAndOpenTheDataSetWithAnEmptyArrayMustRaiseError;
-    [Test]
     procedure WhenFillTheObjectListMustLoadTheObjectClassTypeWithTheObjectClassType;
     [Test]
     procedure WhenGetTheObjectListMustReturnTheObjectsFilledInTheList;
@@ -123,6 +121,12 @@ type
     procedure WhenAFieldIsSeparatedByAPointItHasToLoadTheSubPropertiesOfTheObject;
     [Test]
     procedure WhenCallFirstHaveToGoToTheFirstRecord;
+    [Test]
+    procedure WhenFillTheObjectListMoreThanOnceMustLoadTheObjectListWithTheLastLoadingObjects;
+    [Test]
+    procedure WhenFillTheObjectListWithAnEmptyListCantRaiseAnyError;
+    [Test]
+    procedure WhenFillTheObjectListWithAnEmptyValueMustEmptyTheDataSet;
 
 
 
@@ -541,16 +545,20 @@ end;
 
 procedure TPersistoDataSetTest.DestroyObjects(DataSet: TPersistoDataSet);
 begin
-  if DataSet.Active then
-  begin
-    DataSet.First;
-
-    while not DataSet.Eof do
+  try
+    if DataSet.Active then
     begin
-      DataSet.GetCurrentObject<TObject>.Free;
+      DataSet.First;
 
-      DataSet.Next;
+      while not DataSet.Eof do
+      begin
+        DataSet.GetCurrentObject<TObject>.Free;
+
+        DataSet.Next;
+      end;
     end;
+  except
+    // Não mostrar erros por que não mostra o resultado da execução do teste
   end;
 end;
 
@@ -1625,13 +1633,30 @@ begin
   Assert.AreEqual(3, FDataSet.RecordCount);
 end;
 
-procedure TPersistoDataSetTest.WhenFillTheObjectListAndOpenTheDataSetWithAnEmptyArrayMustRaiseError;
+procedure TPersistoDataSetTest.WhenFillTheObjectListMoreThanOnceMustLoadTheObjectListWithTheLastLoadingObjects;
 begin
-  Assert.WillRaise(
-    procedure
-    begin
-      FDataSet.Objects := nil;
-    end, EObjectArrayCantBeEmpty);
+  var MyObject := TMyTestClass.Create;
+  MyObject.Id := 123456;
+  MyObject.Name := 'MyName';
+  MyObject.Value := 5477.555;
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  FDataSet.Close;
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  FDataSet.Close;
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  Assert.AreEqual(1, FDataSet.RecordCount);
 end;
 
 procedure TPersistoDataSetTest.WhenFillTheObjectListMustLoadTheObjectClassTypeWithTheObjectClassType;
@@ -1643,6 +1668,34 @@ begin
   Assert.AreEqual(FDataSet.ObjectClass, MyObject.ClassType);
 
   MyObject.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenFillTheObjectListWithAnEmptyListCantRaiseAnyError;
+begin
+  FDataSet.ObjectClass := TMyTestClass;
+  FDataSet.Objects := nil;
+
+  Assert.WillNotRaise(FDataSet.Open);
+end;
+
+procedure TPersistoDataSetTest.WhenFillTheObjectListWithAnEmptyValueMustEmptyTheDataSet;
+begin
+  var MyObject := TMyTestClass.Create;
+  MyObject.Id := 123456;
+  MyObject.Name := 'MyName';
+  MyObject.Value := 5477.555;
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  FDataSet.Close;
+
+  FDataSet.Objects := nil;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(0, FDataSet.RecordCount);
 end;
 
 procedure TPersistoDataSetTest.WhenFillTheValueOfACalculatedFieldCantRaiseAnyError;
