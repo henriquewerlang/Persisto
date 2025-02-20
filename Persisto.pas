@@ -756,6 +756,21 @@ type
     constructor Create(const Cursor: IDatabaseCursor);
   end;
 
+  TEntityGenerator = class
+  private
+    FDatabaseFieldComparer: TDelegatedComparer<TDatabaseField>;
+    FDatabaseIndexFieldComparer: TDelegatedComparer<TDatabaseIndexField>;
+    FManager: TManager;
+
+    function CompareDatabaseFieldName(const Left, Right: TDatabaseField): Integer;
+  public
+    constructor Create(const Manager: TManager);
+
+    destructor Destroy; override;
+
+    procedure GenerateUnit(const FileName: String; FormatName: TFunc<String, String>);
+  end;
+
   TManager = class
   private
     FConnection: IDatabaseConnection;
@@ -1760,6 +1775,8 @@ var
           FieldValue.SetArrayElement(ArrayLength, ManyValueObject);
 
           ManyValueAssociationTable.ManyValueAssociationField.Field.Value[&Object] := FieldValue;
+
+          ManyValueAssociationTable.ManyValueAssociationField.ChildField.SetValue(ManyValueObject, &Object);
         end;
 
         LoadFieldValues(ManyValueAssociationTable, ManyValueObject);
@@ -2676,268 +2693,13 @@ begin
     ExectDirect(SQL);
 end;
 
-procedure TManager.GenerateUnit(const FileName: String; FormatName: TFunc<String, String> = nil);
-const
-  FIELD_TYPE: array[TTypeKind] of String = ('', 'Integer', 'Char', 'Integer', 'Double', 'String', '', '', '', 'Char', 'String', 'String', '', '', '', '', 'Int64', '', 'String', '', '', '', '');
-  SPECIAL_FIELD_TYPE: array[TDatabaseSpecialType] of String = ('', 'TDate', 'TDateTime', 'TTime', 'Lazy<String>', 'String', 'Boolean', 'Lazy<TArray<Byte>>');
-
-var
-  Field: TDatabaseField;
-  Table: TDatabaseTable;
-  TheUnit: TStringBuilder;
-
-  function FormatTableName: String;
-  begin
-    Result := FormatName(Table.Name);
-  end;
-
-  function TryGetForeignKeyTable(var TableName: String): Boolean;
-  begin
-    TableName := EmptyStr;
-
-    for var ForeignKey in Table.ForeignKeys.Value do
-      if Field.Name = ForeignKey.ReferenceField then
-        TableName := ForeignKey.ReferenceTable.Value.Name;
-
-    Result := not TableName.IsEmpty;
-  end;
-
-  function IsForeignKeyField: Boolean;
-  var
-    TableName: String;
-
-  begin
-    Result := TryGetForeignKeyTable(TableName);
-  end;
-
-  function FormatFieldName: String;
-  begin
-    Result := Field.Name;
-
-    if IsForeignKeyField and Field.Name.StartsWith(DEFAULT_ID_FIELD_NAME, True) then
-      Result := Result.Substring(2);
-
-    Result := FormatName(Result);
-  end;
-
-  function GetFieldType: String;
-  var
-    TableName: String;
-
-  begin
-    if TryGetForeignKeyTable(TableName) then
-      Result := Format('Lazy<T%s>', [FormatName(TableName)])
-    else
-    begin
-      Result := FIELD_TYPE[Field.FieldType];
-
-      if Result.IsEmpty then
-        Result := SPECIAL_FIELD_TYPE[Field.SpecialType];
-    end;
-  end;
-
-  procedure AddAttribute(const AttributeValue: String);
-  begin
-    TheUnit.AppendLine(Format('    [%s]', [AttributeValue]));
-  end;
-
-  function LoadIndexFieldNames(const Index: TDatabaseIndex): String;
-  begin
-    Result := EmptyStr;
-
-    TArray.Sort<TDatabaseIndexField>(Index.FFields, TDelegatedComparer<TDatabaseIndexField>.Create(
-      function(const Left, Right: TDatabaseIndexField): Integer
-      begin
-        Result := Left.Position - Right.Position;
-      end));
-
-    for var FieldIndex in Index.Fields do
-    begin
-      if not Result.IsEmpty then
-        Result := Result + ';';
-
-      Result := Result + Format('%s', [FormatName(FieldIndex.Field.Name)]);
-    end;
-  end;
-
-  procedure AddIndexAttribute(const Index: TDatabaseIndex);
-  begin
-    if not Index.IsPrimaryKey or (CompareText(Index.Fields[0].Field.Name, DEFAULT_ID_FIELD_NAME) <> 0) then
-    begin
-      var IndexType: String;
-
-      TheUnit.Append('  [');
-
-      if Index.IsPrimaryKey then
-        IndexType := 'PrimaryKey'
-      else
-      begin
-        IndexType := 'Index';
-
-        if Index.IsUnique then
-          IndexType := 'Unique' + IndexType;
-      end;
-
-      TheUnit.Append(IndexType);
-
-      TheUnit.Append('(''');
-
-      if not Index.IsPrimaryKey then
-        TheUnit.Append(Format('%s'', ''', [FormatName(Index.Name)]));
-
-      TheUnit.Append(LoadIndexFieldNames(Index));
-
-      TheUnit.AppendLine(''')]');
-    end;
-  end;
-
-  function IsStoredField: Boolean;
-  begin
-    Result := not Field.Required and not IsForeignKeyField and (Field.FieldType <> tkString) and not (Field.SpecialType in [stBinary, stText]);
-  end;
-
-  function GetStoredFunctionName: String;
-  begin
-    Result := Format('Get%sStored', [FormatFieldName]);
-  end;
-
-  function GetFieldStored: String;
-  begin
-    if IsStoredField then
-      Result := Format(' stored %s', [GetStoredFunctionName])
-    else
-      Result := EmptyStr;
-  end;
-
-  function GetFieldStoredValue: String;
-  begin
-    if Field.FieldType = tkChar then
-      Result := '#0'
-    else if Field.SpecialType = stBoolean then
-      Result := 'False'
-    else
-      Result := '0';
-  end;
-
-  function FormatClassName: String;
-  begin
-    Result := Format('T%s', [FormatTableName]);
-  end;
-
+procedure TManager.GenerateUnit(const FileName: String; FormatName: TFunc<String, String>);
 begin
-  ExecuteSchemaScripts;
+  var EntityGenerator := TEntityGenerator.Create(Self);
 
-  if not Assigned(FormatName) then
-    FormatName :=
-      function (Name: String): String
-      begin
-        Result := Name;
-      end;
+  EntityGenerator.GenerateUnit(FileName, FormatName);
 
-  TheUnit := TStringBuilder.Create(STRING_BUILDER_START_CAPACITY);
-
-  TheUnit.AppendLine(Format('unit %s;', [TPath.GetFileNameWithoutExtension(FileName)]));
-
-  TheUnit.AppendLine;
-
-  TheUnit.AppendLine('interface');
-
-  TheUnit.AppendLine;
-
-  TheUnit.AppendLine('uses Persisto.Mapping;');
-
-  TheUnit.AppendLine;
-
-  TheUnit.AppendLine('{$M+}');
-
-  TheUnit.AppendLine;
-
-  TheUnit.AppendLine('type');
-
-  var Tables := Select.All.From<TDatabaseTable>.OrderBy.Field('Name').Open.All;
-
-  for Table in Tables do
-    TheUnit.AppendLine(Format('  T%s = class;', [FormatTableName]));
-
-  TheUnit.AppendLine;
-
-  for Table in Tables do
-  begin
-    var Fields := Table.Fields;
-
-    for var Index in Table.Indexes.Value do
-      AddIndexAttribute(Index);
-
-    TheUnit.AppendLine('  [Entity]');
-
-    if String.Compare(FormatTableName, Table.Name, [coIgnoreCase]) <> 0 then
-      TheUnit.AppendLine(Format('  [TableName(''%s'')]', [Table.Name]));
-
-    TheUnit.AppendLine(Format('  %s = class', [FormatClassName]));
-
-    TheUnit.AppendLine('  private');
-
-    for Field in Fields do
-      TheUnit.AppendLine(Format('    F%s: %s;', [FormatFieldName, GetFieldType]));
-
-    for Field in Fields do
-      if IsStoredField then
-        TheUnit.AppendLine(Format('    function %s: Boolean;', [GetStoredFunctionName]));
-
-    TheUnit.AppendLine('  published');
-
-    for Field in Fields do
-    begin
-      if IsForeignKeyField and not Field.Name.StartsWith(DEFAULT_ID_FIELD_NAME, True) or not IsForeignKeyField and (String.Compare(FormatFieldName, Field.Name, [coIgnoreCase]) <> 0) then
-        AddAttribute(Format('FieldName(''%s'')', [FormatName(Field.Name), GetFieldType]));
-
-      if Field.FieldType = tkString then
-        AddAttribute(Format('Size(%d)', [Field.Size]))
-      else if Field.FieldType = tkFloat then
-        AddAttribute(Format('Precision(%d, %d)', [Field.Size, Field.Scale]))
-      else
-        case Field.SpecialType of
-          stText: AddAttribute('Text');
-          stUniqueIdentifier: AddAttribute('UniqueIdentifier');
-          stBinary: AddAttribute('Binary');
-        end;
-
-      if Field.Required and IsForeignKeyField then
-        AddAttribute('Required');
-
-      TheUnit.AppendLine(Format('    property %0:s: %1:s read F%0:s write F%0:s%2:s;', [FormatFieldName, GetFieldType, GetFieldStored]));
-    end;
-
-    TheUnit.AppendLine('  end;');
-
-    TheUnit.AppendLine;
-  end;
-
-  TheUnit.AppendLine('implementation');
-
-  TheUnit.AppendLine;
-
-  for Table in Tables do
-  begin
-    var Fields := Table.Fields;
-
-    for Field in Fields do
-      if IsStoredField then
-        TheUnit.AppendLine(Format(
-          '''
-          function %0:s.Get%1:sStored: Boolean;
-          begin
-            Result := F%1:s <> %s;
-          end;
-
-          ''', [FormatClassName, FormatFieldName, GetFieldStoredValue]));
-  end;
-
-  TheUnit.AppendLine('end.');
-
-  TFile.WriteAllText(FileName, TheUnit.ToString);
-
-  TheUnit.Free;
+  EntityGenerator.Free;
 end;
 
 procedure TManager.Insert(const Objects: TArray<TObject>);
@@ -3948,6 +3710,309 @@ end;
 function TObjectOldValue.GetOldValue(const Field: TField): Variant;
 begin
   Result := FCursor.GetDataSet.FieldByName(Field.DatabaseName).Value;
+end;
+
+{ TEntityGenerator }
+
+function TEntityGenerator.CompareDatabaseFieldName(const Left, Right: TDatabaseField): Integer;
+
+  function IsPrimaryKey(const DatabaseField: TDatabaseField): Integer;
+  begin
+    if (DatabaseField.Name = DEFAULT_ID_FIELD_NAME) or Assigned(DatabaseField.Table.PrimaryKeyConstraint) and (DatabaseField.Table.PrimaryKeyConstraint.FieldName = DatabaseField.Name) then
+      Result := -1
+    else
+      Result := 0;
+  end;
+
+begin
+  Result := IsPrimaryKey(Left) - IsPrimaryKey(Right);
+
+  if Result = 0 then
+    Result := CompareText(Left.Name, Right.Name);
+end;
+
+constructor TEntityGenerator.Create(const Manager: TManager);
+begin
+  inherited Create;
+
+  FDatabaseFieldComparer := TDelegatedComparer<TDatabaseField>.Create(CompareDatabaseFieldName);
+  FDatabaseIndexFieldComparer := TDelegatedComparer<TDatabaseIndexField>.Create(
+    function(const Left, Right: TDatabaseIndexField): Integer
+    begin
+      Result := Left.Position - Right.Position;
+    end);
+  FManager := Manager;
+end;
+
+destructor TEntityGenerator.Destroy;
+begin
+  FDatabaseFieldComparer.Free;
+
+  FDatabaseIndexFieldComparer.Free;
+
+  inherited;
+end;
+
+procedure TEntityGenerator.GenerateUnit(const FileName: String; FormatName: TFunc<String, String>);
+const
+  FIELD_TYPE: array[TTypeKind] of String = ('', 'Integer', 'Char', 'Integer', 'Double', 'String', '', '', '', 'Char', 'String', 'String', '', '', '', '', 'Int64', '', 'String', '', '', '', '');
+  SPECIAL_FIELD_TYPE: array[TDatabaseSpecialType] of String = ('', 'TDate', 'TDateTime', 'TTime', 'Lazy<String>', 'String', 'Boolean', 'Lazy<TArray<Byte>>');
+
+var
+  Field: TDatabaseField;
+  Table: TDatabaseTable;
+  TheUnit: TStringBuilder;
+
+  function FormatTableName: String;
+  begin
+    Result := FormatName(Table.Name);
+  end;
+
+  function TryGetForeignKeyTable(var TableName: String): Boolean;
+  begin
+    TableName := EmptyStr;
+
+    for var ForeignKey in Table.ForeignKeys.Value do
+      if Field.Name = ForeignKey.ReferenceField then
+        TableName := ForeignKey.ReferenceTable.Value.Name;
+
+    Result := not TableName.IsEmpty;
+  end;
+
+  function IsForeignKeyField: Boolean;
+  var
+    TableName: String;
+
+  begin
+    Result := TryGetForeignKeyTable(TableName);
+  end;
+
+  function FormatFieldName: String;
+  begin
+    Result := Field.Name;
+
+    if IsForeignKeyField and Field.Name.StartsWith(DEFAULT_ID_FIELD_NAME, True) then
+      Result := Result.Substring(2);
+
+    Result := FormatName(Result);
+  end;
+
+  function GetFieldType: String;
+  var
+    TableName: String;
+
+  begin
+    if TryGetForeignKeyTable(TableName) then
+      Result := Format('Lazy<T%s>', [FormatName(TableName)])
+    else
+    begin
+      Result := FIELD_TYPE[Field.FieldType];
+
+      if Result.IsEmpty then
+        Result := SPECIAL_FIELD_TYPE[Field.SpecialType];
+    end;
+  end;
+
+  procedure AddAttribute(const AttributeValue: String);
+  begin
+    TheUnit.AppendLine(Format('    [%s]', [AttributeValue]));
+  end;
+
+  function LoadIndexFieldNames(const Index: TDatabaseIndex): String;
+  begin
+    Result := EmptyStr;
+
+    TArray.Sort<TDatabaseIndexField>(Index.FFields, FDatabaseIndexFieldComparer);
+
+    for var FieldIndex in Index.Fields do
+    begin
+      if not Result.IsEmpty then
+        Result := Result + ';';
+
+      Result := Result + Format('%s', [FormatName(FieldIndex.Field.Name)]);
+    end;
+  end;
+
+  procedure AddIndexAttribute(const Index: TDatabaseIndex);
+  begin
+    if not Index.IsPrimaryKey or (CompareText(Index.Fields[0].Field.Name, DEFAULT_ID_FIELD_NAME) <> 0) then
+    begin
+      var IndexType: String;
+
+      TheUnit.Append('  [');
+
+      if Index.IsPrimaryKey then
+        IndexType := 'PrimaryKey'
+      else
+      begin
+        IndexType := 'Index';
+
+        if Index.IsUnique then
+          IndexType := 'Unique' + IndexType;
+      end;
+
+      TheUnit.Append(IndexType);
+
+      TheUnit.Append('(''');
+
+      if not Index.IsPrimaryKey then
+        TheUnit.Append(Format('%s'', ''', [FormatName(Index.Name)]));
+
+      TheUnit.Append(LoadIndexFieldNames(Index));
+
+      TheUnit.AppendLine(''')]');
+    end;
+  end;
+
+  function IsStoredField: Boolean;
+  begin
+    Result := not Field.Required and not IsForeignKeyField and (Field.FieldType <> tkString) and not (Field.SpecialType in [stBinary, stText]);
+  end;
+
+  function GetStoredFunctionName: String;
+  begin
+    Result := Format('Get%sStored', [FormatFieldName]);
+  end;
+
+  function GetFieldStored: String;
+  begin
+    if IsStoredField then
+      Result := Format(' stored %s', [GetStoredFunctionName])
+    else
+      Result := EmptyStr;
+  end;
+
+  function GetFieldStoredValue: String;
+  begin
+    if Field.FieldType = tkChar then
+      Result := '#0'
+    else if Field.SpecialType = stBoolean then
+      Result := 'False'
+    else
+      Result := '0';
+  end;
+
+  function FormatClassName: String;
+  begin
+    Result := Format('T%s', [FormatTableName]);
+  end;
+
+begin
+  FManager.ExecuteSchemaScripts;
+
+  if not Assigned(FormatName) then
+    FormatName :=
+      function (Name: String): String
+      begin
+        Result := Name;
+      end;
+
+  TheUnit := TStringBuilder.Create(STRING_BUILDER_START_CAPACITY);
+
+  TheUnit.AppendLine(Format('unit %s;', [TPath.GetFileNameWithoutExtension(FileName)]));
+
+  TheUnit.AppendLine;
+
+  TheUnit.AppendLine('interface');
+
+  TheUnit.AppendLine;
+
+  TheUnit.AppendLine('uses Persisto.Mapping;');
+
+  TheUnit.AppendLine;
+
+  TheUnit.AppendLine('{$M+}');
+
+  TheUnit.AppendLine;
+
+  TheUnit.AppendLine('type');
+
+  var Tables := FManager.Select.All.From<TDatabaseTable>.OrderBy.Field('Name').Open.All;
+
+  for Table in Tables do
+    TheUnit.AppendLine(Format('  T%s = class;', [FormatTableName]));
+
+  TheUnit.AppendLine;
+
+  for Table in Tables do
+  begin
+    var Fields := Table.Fields;
+
+    TArray.Sort<TDatabaseField>(Fields, FDatabaseFieldComparer);
+
+    for var Index in Table.Indexes.Value do
+      AddIndexAttribute(Index);
+
+    TheUnit.AppendLine('  [Entity]');
+
+    if String.Compare(FormatTableName, Table.Name, [coIgnoreCase]) <> 0 then
+      TheUnit.AppendLine(Format('  [TableName(''%s'')]', [Table.Name]));
+
+    TheUnit.AppendLine(Format('  %s = class', [FormatClassName]));
+
+    TheUnit.AppendLine('  private');
+
+    for Field in Fields do
+      TheUnit.AppendLine(Format('    F%s: %s;', [FormatFieldName, GetFieldType]));
+
+    for Field in Fields do
+      if IsStoredField then
+        TheUnit.AppendLine(Format('    function %s: Boolean;', [GetStoredFunctionName]));
+
+    TheUnit.AppendLine('  published');
+
+    for Field in Fields do
+    begin
+      if IsForeignKeyField and not Field.Name.StartsWith(DEFAULT_ID_FIELD_NAME, True) or not IsForeignKeyField and (String.Compare(FormatFieldName, Field.Name, [coIgnoreCase]) <> 0) then
+        AddAttribute(Format('FieldName(''%s'')', [Field.Name, GetFieldType]));
+
+      if Field.FieldType = tkString then
+        AddAttribute(Format('Size(%d)', [Field.Size]))
+      else if Field.FieldType = tkFloat then
+        AddAttribute(Format('Precision(%d, %d)', [Field.Size, Field.Scale]))
+      else
+        case Field.SpecialType of
+          stText: AddAttribute('Text');
+          stUniqueIdentifier: AddAttribute('UniqueIdentifier');
+          stBinary: AddAttribute('Binary');
+        end;
+
+      if Field.Required and IsForeignKeyField then
+        AddAttribute('Required');
+
+      TheUnit.AppendLine(Format('    property %0:s: %1:s read F%0:s write F%0:s%2:s;', [FormatFieldName, GetFieldType, GetFieldStored]));
+    end;
+
+    TheUnit.AppendLine('  end;');
+
+    TheUnit.AppendLine;
+  end;
+
+  TheUnit.AppendLine('implementation');
+
+  TheUnit.AppendLine;
+
+  for Table in Tables do
+  begin
+    var Fields := Table.Fields;
+
+    for Field in Fields do
+      if IsStoredField then
+        TheUnit.AppendLine(Format(
+          '''
+          function %0:s.Get%1:sStored: Boolean;
+          begin
+            Result := F%1:s <> %s;
+          end;
+
+          ''', [FormatClassName, FormatFieldName, GetFieldStoredValue]));
+  end;
+
+  TheUnit.AppendLine('end.');
+
+  TFile.WriteAllText(FileName, TheUnit.ToString);
+
+  TheUnit.Free;
 end;
 
 end.

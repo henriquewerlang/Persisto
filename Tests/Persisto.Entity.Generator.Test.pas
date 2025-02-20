@@ -83,6 +83,12 @@ type
     procedure WhenGenerateTheIndexAttributeMustFormatTheFieldIndexName;
     [Test]
     procedure WhenGeneratePropertyClassDeclarationMustBeLazy;
+    [Test]
+    procedure TheListOfFieldsHasToBeSortedAlphabetically;
+    [Test]
+    procedure WhenTheFieldIsInThePrimaryKeyConstraintMustBeInTheBeginningOfPropertiesDeclaration;
+    [Test]
+    procedure WhenTheFieldNameIsIdMustBeInTheBeginningOfThePropertiesDeclaration;
   end;
 
 implementation
@@ -140,12 +146,42 @@ begin
       [Entity]
       TMyTable = class
       private
-        FId: Integer;
+        FField1: Integer;
+        FField2: Integer;
+        FField3: Integer;
+        FMyId: Integer;
+      published
+        property Field1: Integer read FField1 write FField1;
+        property Field2: Integer read FField2 write FField2;
+        property Field3: Integer read FField3 write FField3;
+        property MyId: Integer read FMyId write FMyId;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("MyId" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
+      create index "MyIndex" on "MyTable" ("Field1", "Field3", "Field2");
+    ''');
+
+  GenerateUnit;
+
+  CompareUnitInterface(MyUnitInterface);
+end;
+
+procedure TGenerateUnitTeste.TheListOfFieldsHasToBeSortedAlphabetically;
+begin
+  var MyUnitInterface :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
         FField1: Integer;
         FField2: Integer;
         FField3: Integer;
       published
-        property Id: Integer read FId write FId;
         property Field1: Integer read FField1 write FField1;
         property Field2: Integer read FField2 write FField2;
         property Field3: Integer read FField3 write FField3;
@@ -154,8 +190,7 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
-      create index "MyIndex" on "MyTable" ("Field1", "Field3", "Field2");
+      create table "MyTable" ("Field3" int not null, "Field1" int not null, "Field2" int not null);
     ''');
 
   GenerateUnit;
@@ -173,16 +208,16 @@ begin
       TMyTable = class
       private
         FField: Int64;
-        FId: Int64;
+        FMyId: Int64;
       published
         property Field: Int64 read FField write FField;
-        property Id: Int64 read FId write FId;
+        property MyId: Int64 read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" bigint not null, "Id" bigint not null)
+      create table "MyTable" ("Field" bigint not null, "MyId" bigint not null)
     ''');
 
   GenerateUnit;
@@ -200,12 +235,12 @@ begin
       [Entity]
       TMyTable = class
       private
-        FMyName: Lazy<TMyTable2>;
         FId: Integer;
+        FMyName: Lazy<TMyTable2>;
       published
+        property Id: Integer read FId write FId;
         [FieldName('AnotherName')]
         property MyName: Lazy<TMyTable2> read FMyName write FMyName;
-        property Id: Integer read FId write FId;
       end;
 
       [Entity]
@@ -246,22 +281,22 @@ begin
       [Entity]
       TMyTable = class
       private
-        FId: Integer;
         FChangeName: Integer;
         FField2: Integer;
         FField3: Integer;
+        FMyId: Integer;
       published
-        property Id: Integer read FId write FId;
         [FieldName('Field1')]
         property ChangeName: Integer read FChangeName write FChangeName;
         property Field2: Integer read FField2 write FField2;
         property Field3: Integer read FField3 write FField3;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
+      create table "MyTable" ("MyId" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
       create index "MyIndex" on "MyTable" ("Field1");
     ''');
 
@@ -287,21 +322,21 @@ begin
       [Entity]
       TMyTable = class
       private
-        FId: Integer;
         FField1: Integer;
         FField2: Integer;
         FField3: Integer;
+        FMyId: Integer;
       published
-        property Id: Integer read FId write FId;
         property Field1: Integer read FField1 write FField1;
         property Field2: Integer read FField2 write FField2;
         property Field3: Integer read FField3 write FField3;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
+      create table "MyTable" ("MyId" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
       create index "MyIndex" on "MyTable" ("Field1");
     ''');
 
@@ -327,16 +362,16 @@ begin
       TMyTable = class
       private
         FField: Integer;
-        FId: Integer;
+        FMyId: Integer;
       published
         property Field: Integer read FField write FField;
-        property Id: Integer read FId write FId;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" int not null, "Id" int not null)
+      create table "MyTable" ("Field" int not null, "MyId" int not null)
     ''');
 
   GenerateUnit;
@@ -356,38 +391,38 @@ begin
       TMyTable = class
       private
         FField: Integer;
-        FId: Integer;
+        FMyId: Integer;
       published
         property Field: Integer read FField write FField;
-        property Id: Integer read FId write FId;
+        property MyId: Integer read FMyId write FMyId;
       end;
 
       [Entity]
       TMyTable2 = class
       private
         FField: Integer;
-        FId: Integer;
+        FMyId: Integer;
       published
         property Field: Integer read FField write FField;
-        property Id: Integer read FId write FId;
+        property MyId: Integer read FMyId write FMyId;
       end;
 
       [Entity]
       TMyTable3 = class
       private
         FField: Integer;
-        FId: Integer;
+        FMyId: Integer;
       published
         property Field: Integer read FField write FField;
-        property Id: Integer read FId write FId;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" int not null, "Id" int not null);
-      create table "MyTable2" ("Field" int not null, "Id" int not null);
-      create table "MyTable3" ("Field" int not null, "Id" int not null);
+      create table "MyTable" ("Field" int not null, "MyId" int not null);
+      create table "MyTable2" ("Field" int not null, "MyId" int not null);
+      create table "MyTable3" ("Field" int not null, "MyId" int not null);
     ''');
 
   GenerateUnit;
@@ -407,18 +442,18 @@ begin
         FField1: Integer;
         FField2: Integer;
         FField3: Integer;
-        FId: Integer;
+        FMyId: Integer;
       published
         property Field1: Integer read FField1 write FField1;
         property Field2: Integer read FField2 write FField2;
         property Field3: Integer read FField3 write FField3;
-        property Id: Integer read FId write FId;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field1" int not null, "Field2" int not null, "Field3" int not null, "Id" int not null)
+      create table "MyTable" ("Field1" int not null, "Field2" int not null, "Field3" int not null, "MyId" int not null)
     ''');
 
   GenerateUnit;
@@ -436,11 +471,11 @@ begin
       [Entity]
       TMyTable = class
       private
-        FMyTable2: Lazy<TMyTable2>;
         FId: Integer;
+        FMyTable2: Lazy<TMyTable2>;
       published
-        property MyTable2: Lazy<TMyTable2> read FMyTable2 write FMyTable2;
         property Id: Integer read FId write FId;
+        property MyTable2: Lazy<TMyTable2> read FMyTable2 write FMyTable2;
       end;
 
       [Entity]
@@ -474,11 +509,11 @@ begin
       TMyTable = class
       private
         FField: Integer;
-        FId: Integer;
+        FMyId: Integer;
         function GetFieldStored: Boolean;
       published
         property Field: Integer read FField write FField stored GetFieldStored;
-        property Id: Integer read FId write FId;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
@@ -492,7 +527,7 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" int, "Id" int not null)
+      create table "MyTable" ("Field" int, "MyId" int not null)
     ''');
 
   GenerateUnit;
@@ -510,21 +545,21 @@ begin
       [Entity]
       TMyTable = class
       private
-        FId: Integer;
         FField1: Integer;
         FField2: Integer;
         FField3: Integer;
+        FMyId: Integer;
       published
-        property Id: Integer read FId write FId;
         property Field1: Integer read FField1 write FField1;
         property Field2: Integer read FField2 write FField2;
         property Field3: Integer read FField3 write FField3;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
+      create table "MyTable" ("MyId" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
       create index "MyIndex" on "MyTable" ("Field1");
     ''');
 
@@ -576,21 +611,21 @@ begin
       [Entity]
       TMyTable = class
       private
-        FId: Integer;
         FField1: Integer;
         FField2: Integer;
         FField3: Integer;
+        FMyId: Integer;
       published
-        property Id: Integer read FId write FId;
         property Field1: Integer read FField1 write FField1;
         property Field2: Integer read FField2 write FField2;
         property Field3: Integer read FField3 write FField3;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
+      create table "MyTable" ("MyId" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
       create index "MyIndex1" on "MyTable" ("Field1");
       create index "MyIndex2" on "MyTable" ("Field1");
       create index "MyIndex3" on "MyTable" ("Field1");
@@ -611,16 +646,16 @@ begin
       TMYTABLE = class
       private
         FFIELD: Integer;
-        FID: Integer;
+        FMYID: Integer;
       published
         property FIELD: Integer read FFIELD write FFIELD;
-        property ID: Integer read FID write FID;
+        property MYID: Integer read FMYID write FMYID;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" int not null, "Id" int not null)
+      create table "MyTable" ("Field" int not null, "MyId" int not null)
     ''');
 
   FManager.GenerateUnit(FILE_ENTITY,
@@ -660,17 +695,17 @@ begin
       TMyTable = class
       private
         FAnotherName: Integer;
-        FId: Integer;
+        FMyId: Integer;
       published
         [FieldName('Field')]
         property AnotherName: Integer read FAnotherName write FAnotherName;
-        property Id: Integer read FId write FId;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" int not null, "Id" int not null)
+      create table "MyTable" ("Field" int not null, "MyId" int not null)
     ''');
 
   FManager.GenerateUnit(FILE_ENTITY,
@@ -696,16 +731,16 @@ begin
       TAnotherName = class
       private
         FField: Integer;
-        FId: Integer;
+        FMyId: Integer;
       published
         property Field: Integer read FField write FField;
-        property Id: Integer read FId write FId;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" int not null, "Id" int not null)
+      create table "MyTable" ("Field" int not null, "MyId" int not null)
     ''');
 
   FManager.GenerateUnit(FILE_ENTITY,
@@ -730,21 +765,21 @@ begin
       [Entity]
       TMyTable = class
       private
-        FId: Integer;
         FField1: Integer;
         FField2: Integer;
         FField3: Integer;
+        FMyId: Integer;
       published
-        property Id: Integer read FId write FId;
         property Field1: Integer read FField1 write FField1;
         property Field2: Integer read FField2 write FField2;
         property Field3: Integer read FField3 write FField3;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null, primary key ("Field1"));
+      create table "MyTable" ("MyId" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null, primary key ("Field1"));
     ''');
 
   GenerateUnit;
@@ -762,16 +797,16 @@ begin
       TMyTable = class
       private
         FField: TDate;
-        FId: Integer;
+        FMyId: Integer;
       published
         property Field: TDate read FField write FField;
-        property Id: Integer read FId write FId;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" date not null, "Id" int not null)
+      create table "MyTable" ("Field" date not null, "MyId" int not null)
     ''');
 
   GenerateUnit;
@@ -800,6 +835,38 @@ begin
       create table "MyTable" ("Id" %s not null)
     ''',
     [FManipulator.GetSpecialFieldType(stBinary)]));
+
+  GenerateUnit;
+
+  CompareUnitInterface(MyUnitInterface);
+end;
+
+procedure TGenerateUnitTeste.WhenTheFieldIsInThePrimaryKeyConstraintMustBeInTheBeginningOfPropertiesDeclaration;
+begin
+  var MyUnitInterface :=
+    '''
+      TMyTable = class;
+
+      [PrimaryKey('Key')]
+      [Entity]
+      TMyTable = class
+      private
+        FKey: Integer;
+        FField1: Integer;
+        FField2: Integer;
+        FField3: Integer;
+      published
+        property Key: Integer read FKey write FKey;
+        property Field1: Integer read FField1 write FField1;
+        property Field2: Integer read FField2 write FField2;
+        property Field3: Integer read FField3 write FField3;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Field3" int not null, "Field1" int not null, "Field2" int not null, "Key" int not null, primary key ("Key"));
+    ''');
 
   GenerateUnit;
 
@@ -843,17 +910,17 @@ begin
       TMyTable = class
       private
         FField: String;
-        FId: Integer;
+        FMyId: Integer;
       published
         [Size(150)]
         property Field: String read FField write FField;
-        property Id: Integer read FId write FId;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" varchar(150), "Id" int not null)
+      create table "MyTable" ("Field" varchar(150), "MyId" int not null)
     ''');
 
   GenerateUnit;
@@ -925,17 +992,48 @@ begin
       TMyTable = class
       private
         FField: String;
-        FId: Integer;
+        FMyId: Integer;
       published
         [Size(150)]
         property Field: String read FField write FField;
-        property Id: Integer read FId write FId;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" varchar(150) not null, "Id" int not null)
+      create table "MyTable" ("Field" varchar(150) not null, "MyId" int not null)
+    ''');
+
+  GenerateUnit;
+
+  CompareUnitInterface(MyUnitInterface);
+end;
+
+procedure TGenerateUnitTeste.WhenTheFieldNameIsIdMustBeInTheBeginningOfThePropertiesDeclaration;
+begin
+  var MyUnitInterface :=
+    '''
+      TMyTable = class;
+
+      [Entity]
+      TMyTable = class
+      private
+        FField1: Integer;
+        FField2: Integer;
+        FField3: Integer;
+        FMyId: Integer;
+      published
+        property Field1: Integer read FField1 write FField1;
+        property Field2: Integer read FField2 write FField2;
+        property Field3: Integer read FField3 write FField3;
+        property MyId: Integer read FMyId write FMyId;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Field3" int not null, "Field1" int not null, "MyId" int not null, "Field2" int not null);
     ''');
 
   GenerateUnit;
@@ -953,11 +1051,11 @@ begin
       TMyTable = class
       private
         FField: Boolean;
-        FId: Integer;
+        FMyId: Integer;
         function GetFieldStored: Boolean;
       published
         property Field: Boolean read FField write FField stored GetFieldStored;
-        property Id: Integer read FId write FId;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
@@ -971,7 +1069,7 @@ begin
 
   FManager.ExectDirect(Format(
     '''
-      create table "MyTable" ("Field" %s, "Id" int not null)
+      create table "MyTable" ("Field" %s, "MyId" int not null)
     ''', [FManipulator.GetSpecialFieldType(stBoolean)]));
 
   GenerateUnit;
@@ -989,11 +1087,11 @@ begin
       TMyTable = class
       private
         FField: Char;
-        FId: Integer;
+        FMyId: Integer;
         function GetFieldStored: Boolean;
       published
         property Field: Char read FField write FField stored GetFieldStored;
-        property Id: Integer read FId write FId;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
@@ -1007,7 +1105,7 @@ begin
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" char(1), "Id" int not null)
+      create table "MyTable" ("Field" char(1), "MyId" int not null)
     ''');
 
   GenerateUnit;
@@ -1025,12 +1123,12 @@ begin
       [Entity]
       TMyTable = class
       private
-        FMyTable2: Lazy<TMyTable2>;
         FId: Integer;
+        FMyTable2: Lazy<TMyTable2>;
       published
+        property Id: Integer read FId write FId;
         [Required]
         property MyTable2: Lazy<TMyTable2> read FMyTable2 write FMyTable2;
-        property Id: Integer read FId write FId;
       end;
 
       [Entity]
@@ -1064,21 +1162,21 @@ begin
       [Entity]
       TMyTable = class
       private
-        FId: Integer;
         FField1: Integer;
         FField2: Integer;
         FField3: Integer;
+        FMyId: Integer;
       published
-        property Id: Integer read FId write FId;
         property Field1: Integer read FField1 write FField1;
         property Field2: Integer read FField2 write FField2;
         property Field3: Integer read FField3 write FField3;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
+      create table "MyTable" ("MyId" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
       create index "MyIndex" on "MyTable" ("Field1", "Field2");
     ''');
 
@@ -1128,21 +1226,21 @@ begin
       [Entity]
       TMyTable = class
       private
-        FId: Integer;
         FField1: Integer;
         FField2: Integer;
         FField3: Integer;
+        FMyId: Integer;
       published
-        property Id: Integer read FId write FId;
         property Field1: Integer read FField1 write FField1;
         property Field2: Integer read FField2 write FField2;
         property Field3: Integer read FField3 write FField3;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Id" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
+      create table "MyTable" ("MyId" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null);
       create unique index "MyIndex" on "MyTable" ("Field1");
     ''');
 
@@ -1161,17 +1259,17 @@ begin
       TMyTable = class
       private
         FField: Double;
-        FId: Integer;
+        FMyId: Integer;
       published
         [Precision(15, 4)]
         property Field: Double read FField write FField;
-        property Id: Integer read FId write FId;
+        property MyId: Integer read FMyId write FMyId;
       end;
     ''';
 
   FManager.ExectDirect(
     '''
-      create table "MyTable" ("Field" numeric(15, 4) not null, "Id" int not null)
+      create table "MyTable" ("Field" numeric(15, 4) not null, "MyId" int not null)
     ''');
 
   GenerateUnit;
