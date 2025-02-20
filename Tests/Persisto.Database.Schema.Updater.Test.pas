@@ -585,7 +585,7 @@ begin
 
   var Table := FManager.Select.All.From<TDatabaseTable>.Where(Field('Name') = TableName).Open.One;
 
-  Assert.IsNotNil(Table.PrimaryKeyConstraint);
+  Assert.IsNotNil(Table.PrimaryKeyIndex);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheTableIsntMappedMustDropTheTable;

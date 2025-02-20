@@ -72,10 +72,10 @@ const
   TABLE_SQL =
     '''
     select cast(T.oid as varchar(20)) Id,
-           (select cast(C.oid as varchar(20))
-              from pg_constraint C
-             where C.conrelid = T.oid
-               and contype = 'p') IdPrimaryKeyConstraint,
+           (select cast(I.indexrelid as varchar(20)) Id
+              from pg_index I
+             where I.indrelid = T.oid
+               and I.indisprimary = true) IdPrimaryKeyIndex,
            relname collate CI Name
       from pg_class T
       join pg_namespace S
@@ -195,24 +195,6 @@ const
        and S.nspname = 'public'
     ''';
 
-  PRIMARY_KEY_CONSTRAINT_SQL =
-    '''
-    select cast(PK.oid as varchar(20)) Id,
-           PK.conname collate CI Name,
-           C.attname collate CI FieldName
-      from pg_constraint PK
-      join pg_class T
-        on T.oid = PK.conrelid
-      join pg_namespace S
-        on S.oid = T.relnamespace
-      join pg_attribute C
-        on C.attrelid = T.oid
-       and C.attnum = any (PK.conkey)
-     where T.relkind = 'r'
-       and S.nspname = 'public'
-       and PK.contype = 'p'
-    ''';
-
   INDEX_SQL =
     '''
     select cast(I.indexrelid as varchar(20)) Id,
@@ -277,8 +259,7 @@ begin
     CreateView('IndexField', INDEX_FIELDS_SQL),
     CreateView('Sequence', SEQUENCES_SQL),
     CreateView('Table', TABLE_SQL),
-    CreateView('TableField', COLUMNS_SQL),
-    CreateView('PrimaryKeyConstraint', PRIMARY_KEY_CONSTRAINT_SQL)
+    CreateView('TableField', COLUMNS_SQL)
     ];
 end;
 

@@ -89,6 +89,10 @@ type
     procedure WhenTheFieldIsInThePrimaryKeyConstraintMustBeInTheBeginningOfPropertiesDeclaration;
     [Test]
     procedure WhenTheFieldNameIsIdMustBeInTheBeginningOfThePropertiesDeclaration;
+    [Test]
+    procedure WhenThePrimaryKeyHasMoreThanOneFieldMustLoadAllFieldInThePrimaryKeyAttribute;
+    [Test]
+    procedure ThePrimaryKeyFieldsMustMeInTheBegingingOfThePropertiesDeclaration;
   end;
 
 implementation
@@ -191,6 +195,38 @@ begin
   FManager.ExectDirect(
     '''
       create table "MyTable" ("Field3" int not null, "Field1" int not null, "Field2" int not null);
+    ''');
+
+  GenerateUnit;
+
+  CompareUnitInterface(MyUnitInterface);
+end;
+
+procedure TGenerateUnitTeste.ThePrimaryKeyFieldsMustMeInTheBegingingOfThePropertiesDeclaration;
+begin
+  var MyUnitInterface :=
+    '''
+      TMyTable = class;
+
+      [PrimaryKey('Field1;Field3')]
+      [Entity]
+      TMyTable = class
+      private
+        FField1: Integer;
+        FField3: Integer;
+        FAField: Integer;
+        FField2: Integer;
+      published
+        property Field1: Integer read FField1 write FField1;
+        property Field3: Integer read FField3 write FField3;
+        property AField: Integer read FAField write FAField;
+        property Field2: Integer read FField2 write FField2;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Field3" int not null, "Field1" int not null, "AField" int not null, "Field2" int not null, primary key ("Field1", "Field3"));
     ''');
 
   GenerateUnit;
@@ -780,6 +816,38 @@ begin
   FManager.ExectDirect(
     '''
       create table "MyTable" ("MyId" int not null, "Field1" int not null, "Field2" int not null, "Field3" int not null, primary key ("Field1"));
+    ''');
+
+  GenerateUnit;
+
+  CompareUnitInterface(MyUnitInterface);
+end;
+
+procedure TGenerateUnitTeste.WhenThePrimaryKeyHasMoreThanOneFieldMustLoadAllFieldInThePrimaryKeyAttribute;
+begin
+  var MyUnitInterface :=
+    '''
+      TMyTable = class;
+
+      [PrimaryKey('Field1;Field2;Field3')]
+      [Entity]
+      TMyTable = class
+      private
+        FField1: Integer;
+        FField2: Integer;
+        FField3: Integer;
+        FMyId: Integer;
+      published
+        property Field1: Integer read FField1 write FField1;
+        property Field2: Integer read FField2 write FField2;
+        property Field3: Integer read FField3 write FField3;
+        property MyId: Integer read FMyId write FMyId;
+      end;
+    ''';
+
+  FManager.ExectDirect(
+    '''
+      create table "MyTable" ("Field3" int not null, "Field1" int not null, "MyId" int not null, "Field2" int not null, primary key ("Field1", "Field2", "Field3"));
     ''');
 
   GenerateUnit;

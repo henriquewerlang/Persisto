@@ -14,7 +14,6 @@ type
   TDatabaseForeignKey = class;
   TDatabaseIndex = class;
   TDatabaseIndexField = class;
-  TDatabasePrimaryKeyConstraint = class;
   TDatabaseSequence = class;
   TDatabaseTable = class;
 {$M-}
@@ -457,12 +456,12 @@ type
     FQueryOrderBy: TObject;
     FQueryTable: TQueryBuilderTable;
     FQueryWhere: TQueryBuilderWhere;
+    FTable: TTable;
 
     function BuildCommand: String;
     function OpenCursor: IDatabaseCursor;
 
     procedure AfterOpenDataSet(DataSet: TDataSet);
-    procedure LoadTable(const Table: TTable);
   public
     constructor Create(const Manager: TManager);
 
@@ -598,7 +597,7 @@ type
     FId: String;
     FIndexes: Lazy<TArray<TDatabaseIndex>>;
     FName: String;
-    FPrimaryKeyConstraint: TDatabasePrimaryKeyConstraint;
+    FPrimaryKeyIndex: Lazy<TDatabaseIndex>;
   published
     [ManyValueAssociationLinkName('Table')]
     property Fields: TArray<TDatabaseField> read FFields write FFields;
@@ -608,7 +607,7 @@ type
     [ManyValueAssociationLinkName('Table')]
     property Indexes: Lazy<TArray<TDatabaseIndex>> read FIndexes write FIndexes;
     property Name: String read FName write FName;
-    property PrimaryKeyConstraint: TDatabasePrimaryKeyConstraint read FPrimaryKeyConstraint write FPrimaryKeyConstraint;
+    property PrimaryKeyIndex: Lazy<TDatabaseIndex> read FPrimaryKeyIndex write FPrimaryKeyIndex;
   end;
 
   [TableName('PersistoDatabaseTableField')]
@@ -661,13 +660,13 @@ type
   TDatabaseIndexField = class
   private
     FField: TDatabaseField;
-    FIndex: TDatabaseIndex;
+    FIndex: Lazy<TDatabaseIndex>;
     FId: String;
     FPosition: Integer;
   published
     property Field: TDatabaseField read FField write FField;
     property Id: String read FId write FId;
-    property &Index: TDatabaseIndex read FIndex write FIndex;
+    property &Index: Lazy<TDatabaseIndex> read FIndex write FIndex;
     property Position: Integer read FPosition write FPosition;
   end;
 
@@ -708,18 +707,6 @@ type
     property Id: String read FId write FId;
     property Name: String read FName write FName;
     property Value: String read FValue write FValue;
-  end;
-
-  [TableName('PersistoDatabasePrimaryKeyConstraint')]
-  TDatabasePrimaryKeyConstraint = class
-  private
-    FId: String;
-    FName: String;
-    FFieldName: String;
-  published
-    property FieldName: String read FFieldName write FFieldName;
-    property Id: String read FId write FId;
-    property Name: String read FName write FName;
   end;
 
   [TableName('PersistoDatabaseSequence')]
@@ -1824,7 +1811,7 @@ end;
 
 function TQueryBuilderFrom.From<T>(const Table: TTable): TQueryBuilderWhere<T>;
 begin
-  FQueryBuilder.LoadTable(Table);
+  FQueryBuilder.FTable := Table;
 
   Result := TQueryBuilderWhere<T>.Create(FQueryBuilder);
 end;
@@ -2237,6 +2224,10 @@ begin
   SQL := TStringBuilder.Create(STRING_BUILDER_START_CAPACITY);
   TableIndex := 1;
 
+  FQueryTable.Free;
+
+  FQueryTable := TQueryBuilderTable.Create(FTable);
+
   FParams.Clear;
 
   try
@@ -2288,11 +2279,6 @@ begin
   FLoader.Free;
 
   inherited;
-end;
-
-procedure TQueryBuilder.LoadTable(const Table: TTable);
-begin
-  FQueryTable := TQueryBuilderTable.Create(Table);
 end;
 
 function TQueryBuilder.OpenCursor: IDatabaseCursor;
@@ -3500,7 +3486,7 @@ begin
 //          end;
 //        end;
 
-      if not Assigned(DatabaseTable.PrimaryKeyConstraint) then
+      if not Assigned(DatabaseTable.PrimaryKeyIndex.Value) then
         CreateTablePrimaryKey;
     end;
 
@@ -3717,8 +3703,19 @@ end;
 function TEntityGenerator.CompareDatabaseFieldName(const Left, Right: TDatabaseField): Integer;
 
   function IsPrimaryKey(const DatabaseField: TDatabaseField): Integer;
+
+    function FieldIsInPrimaryKey: Boolean;
+    begin
+      Result := False;
+
+      if Assigned(DatabaseField.Table.PrimaryKeyIndex.Value) then
+        for var KeyField in DatabaseField.Table.PrimaryKeyIndex.Value.Fields do
+          if KeyField.Field.Name = DatabaseField.Name then
+            Exit(True);
+    end;
+
   begin
-    if (DatabaseField.Name = DEFAULT_ID_FIELD_NAME) or Assigned(DatabaseField.Table.PrimaryKeyConstraint) and (DatabaseField.Table.PrimaryKeyConstraint.FieldName = DatabaseField.Name) then
+    if (DatabaseField.Name = DEFAULT_ID_FIELD_NAME) or FieldIsInPrimaryKey then
       Result := -1
     else
       Result := 0;
