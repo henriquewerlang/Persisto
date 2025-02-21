@@ -31,6 +31,8 @@ begin
     for var Attribute in &Type.GetAttributes do
       if Attribute is EntityAttribute then
         Proc(&Type.QualifiedName);
+
+  Context.Free;
 end;
 
 end.

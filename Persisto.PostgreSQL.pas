@@ -247,7 +247,7 @@ const
 
   function CreateView(const Name, SQL: String): String;
   begin
-    Result := Format('create temp view PersistoDatabase%s as (%s)', [Name, SQL]);
+    Result := Format('create or replace temp view PersistoDatabase%s as (%s)', [Name, SQL]);
   end;
 
 begin

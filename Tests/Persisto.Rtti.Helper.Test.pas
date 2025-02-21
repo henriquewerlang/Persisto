@@ -70,6 +70,8 @@ begin
   var RttiType := Context.GetType(TypeInfo(TArray<Integer>));
 
   Assert.AreEqual(TRttiDynamicArrayType.ClassName, RttiType.AsArray.ClassName);
+
+  Context.Free;
 end;
 
 procedure TRttiTypeHelperTest.WhenGetAnAttributeMustReturnTheChosenAttribute;
@@ -81,6 +83,8 @@ begin
   Assert.IsNotNil(Attribute);
 
   Assert.AreEqual(TMyAttribute.ClassName, Attribute.ClassName);
+
+  Context.Free;
 end;
 
 procedure TRttiTypeHelperTest.WhenTheTypeIsAnArrayMustReturnTrueIsTheFunctionIsArray;
@@ -90,6 +94,8 @@ begin
   var RttiType := Context.GetType(TypeInfo(TArray<Integer>));
 
   Assert.IsTrue(RttiType.IsArray);
+
+  Context.Free;
 end;
 
 { TValueHelperTest }

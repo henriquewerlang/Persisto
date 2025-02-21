@@ -408,9 +408,13 @@ procedure TManagerTest.PrepareDatabase;
 begin
   FManager.Mapper.LoadAll;
 
-  FManager.Mapper.GetTable(TMyEntityWithoutEntityAttribute);
-
   FManager.UpdateDatabaseSchema;
+
+  FManager.ExectDirect(
+    '''
+      create table MyEntityWithoutEntityAttribute (Id int, Name varchar(150), Value numeric(15, 7));
+    '''
+    );
 
   InsertData;
 end;

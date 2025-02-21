@@ -593,21 +593,21 @@ type
   TDatabaseTable = class
   private
     FFields: TArray<TDatabaseField>;
-    FForeignKeys: Lazy<TArray<TDatabaseForeignKey>>;
+    FForeignKeys: TArray<TDatabaseForeignKey>;
     FId: String;
-    FIndexes: Lazy<TArray<TDatabaseIndex>>;
     FName: String;
-    FPrimaryKeyIndex: Lazy<TDatabaseIndex>;
+    FIndexes: TArray<TDatabaseIndex>;
+    FPrimaryKeyIndex: TDatabaseIndex;
+  public
+    property ForeignKeys: TArray<TDatabaseForeignKey> read FForeignKeys write FForeignKeys;
+    property Indexes: TArray<TDatabaseIndex> read FIndexes write FIndexes;
+    property PrimaryKeyIndex: TDatabaseIndex read FPrimaryKeyIndex write FPrimaryKeyIndex;
   published
     [ManyValueAssociationLinkName('Table')]
     property Fields: TArray<TDatabaseField> read FFields write FFields;
     [ManyValueAssociationLinkName('Table')]
-    property ForeignKeys: Lazy<TArray<TDatabaseForeignKey>> read FForeignKeys write FForeignKeys;
     property Id: String read FId write FId;
-    [ManyValueAssociationLinkName('Table')]
-    property Indexes: Lazy<TArray<TDatabaseIndex>> read FIndexes write FIndexes;
     property Name: String read FName write FName;
-    property PrimaryKeyIndex: Lazy<TDatabaseIndex> read FPrimaryKeyIndex write FPrimaryKeyIndex;
   end;
 
   [TableName('PersistoDatabaseTableField')]
@@ -642,7 +642,7 @@ type
   private
     FFields: TArray<TDatabaseIndexField>;
     FIsPrimaryKey: Boolean;
-    FTable: Lazy<TDatabaseTable>;
+    FIdTable: String;
     FIsUnique: Boolean;
     FName: String;
     FId: String;
@@ -650,9 +650,9 @@ type
     [ManyValueAssociationLinkName('Index')]
     property Fields: TArray<TDatabaseIndexField> read FFields write FFields;
     property Id: String read FId write FId;
+    property IdTable: String read FIdTable write FIdTable;
     property Name: String read FName write FName;
     property IsPrimaryKey: Boolean read FIsPrimaryKey write FIsPrimaryKey;
-    property Table: Lazy<TDatabaseTable> read FTable write FTable;
     property IsUnique: Boolean read FIsUnique write FIsUnique;
   end;
 
@@ -676,14 +676,17 @@ type
     FId: String;
     FName: String;
     FReferenceField: String;
-    FReferenceTable: Lazy<TDatabaseTable>;
-    FTable: Lazy<TDatabaseTable>;
+    FReferenceTable: TDatabaseTable;
+    FIdTable: String;
+    FIdReferenceTable: String;
+  public
+    property ReferenceTable: TDatabaseTable read FReferenceTable write FReferenceTable;
   published
     property Id: String read FId write FId;
+    property IdReferenceTable: String read FIdReferenceTable write FIdReferenceTable;
     property Name: String read FName write FName;
     property ReferenceField: String read FReferenceField write FReferenceField;
-    property ReferenceTable: Lazy<TDatabaseTable> read FReferenceTable write FReferenceTable;
-    property Table: Lazy<TDatabaseTable> read FTable write FTable;
+    property IdTable: String read FIdTable write FIdTable;
   end;
 
   TDatabaseCheckConstraint = class
@@ -728,6 +731,37 @@ type
     function MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
   end;
 
+  TDatabaseSchema = class
+  private
+    FManager: TManager;
+
+    procedure ExecuteSchemaScripts;
+  public
+    Indexes: TArray<TDatabaseIndex>;
+    Sequences: TArray<TDatabaseSequence>;
+    Tables: TArray<TDatabaseTable>;
+
+    constructor Create(const Manager: TManager);
+
+    procedure LoadForeignKeys;
+    procedure LoadIndexes;
+    procedure LoadSequences;
+    procedure LoadTables;
+  end;
+
+  TSchemaUpdater = class
+  private
+    FDatabaseManipulator: IDatabaseManipulator;
+    FDatabaseSchema: TDatabaseSchema;
+    FManager: TManager;
+  public
+    constructor Create(const Manager: TManager);
+
+    destructor Destroy; override;
+
+    procedure Update;
+  end;
+
   IObjectOldValue = interface
     function GetOldValue(const Field: TField): Variant;
 
@@ -746,7 +780,10 @@ type
   TEntityGenerator = class
   private
     FDatabaseFieldComparer: TDelegatedComparer<TDatabaseField>;
+    FDatabaseIndexComparer: TDelegatedComparer<TDatabaseIndex>;
     FDatabaseIndexFieldComparer: TDelegatedComparer<TDatabaseIndexField>;
+    FDatabaseSchema: TDatabaseSchema;
+    FDatabaseTableComparer: TDelegatedComparer<TDatabaseTable>;
     FManager: TManager;
 
     function CompareDatabaseFieldName(const Left, Right: TDatabaseField): Integer;
@@ -772,7 +809,6 @@ type
 
     procedure InsertTable(const Table: TTable; const &Object: TObject);
     procedure InternalUpdateTable(const Table: TTable; const &Object: TObject; const OldValues: IObjectOldValue);
-    procedure ExecuteSchemaScripts;
     procedure SaveManyValueAssociation(const Table: TTable; const &Object: TObject);
     procedure SaveTable(const Table: TTable; const &Object: TObject);
     procedure UpdateTable(const Table: TTable; const &Object: TObject; const ObjectOldValue: IObjectOldValue);
@@ -2673,12 +2709,6 @@ begin
   FConnection.ExecuteDirect(SQL);
 end;
 
-procedure TManager.ExecuteSchemaScripts;
-begin
-  for var SQL in FDatabaseManipulator.GetSchemaTablesScripts do
-    ExectDirect(SQL);
-end;
-
 procedure TManager.GenerateUnit(const FileName: String; FormatName: TFunc<String, String>);
 begin
   var EntityGenerator := TEntityGenerator.Create(Self);
@@ -2962,6 +2992,598 @@ begin
 end;
 
 procedure TManager.UpdateDatabaseSchema;
+begin
+  var Updater := TSchemaUpdater.Create(Self);
+
+  try
+    Updater.Update;
+  finally
+    Updater.Free;
+  end;
+end;
+
+procedure TManager.UpdateTable(const Table: TTable; const &Object: TObject; const ObjectOldValue: IObjectOldValue);
+begin
+  if FProcessedObjects.TryAdd(&Object, False) then
+    InternalUpdateTable(Table, &Object, ObjectOldValue);
+end;
+
+{ ERecursionInsertionError }
+
+constructor ERecursionInsertionError.Create(const Table: TTable);
+begin
+  inherited Create('Error of recursion inserting object');
+
+  FTable := Table;
+end;
+
+{ TQueryBuilderTable }
+
+constructor TQueryBuilderTable.Create(const Table: TTable);
+begin
+  inherited Create;
+
+  FDatabaseFields := TObjectList<TQueryBuilderTableField>.Create;
+  FForeignKeyTables := TObjectList<TQueryBuilderTable>.Create;
+  FLazyTables := TObjectList<TQueryBuilderTable>.Create;
+  FManyValueAssociationTables := TObjectList<TQueryBuilderTable>.Create;
+  FTable := Table;
+end;
+
+constructor TQueryBuilderTable.Create(const ForeignKeyField: TForeignKey);
+begin
+  Create(ForeignKeyField.ParentTable);
+
+  FForeignKeyField := ForeignKeyField;
+end;
+
+constructor TQueryBuilderTable.Create(const ManyValueAssociationField: TManyValueAssociation);
+begin
+  Create(ManyValueAssociationField.ChildTable);
+
+  FManyValueAssociationField := ManyValueAssociationField;
+end;
+
+destructor TQueryBuilderTable.Destroy;
+begin
+  FForeignKeyTables.Free;
+
+  FManyValueAssociationTables.Free;
+
+  FInheritedTable.Free;
+
+  FDatabaseFields.Free;
+
+  FLazyTables.Free;
+
+  inherited;
+end;
+
+{ TQueryBuilderTableField }
+
+constructor TQueryBuilderTableField.Create(const Field: TField; const FieldIndex: Integer);
+begin
+  inherited Create;
+
+  FField := Field;
+  FFieldAlias := 'F' + FieldIndex.ToString;
+end;
+
+{ ERecursionSelectionError }
+
+constructor ERecursionSelectionError.Create(const RecursionTree: String);
+begin
+  inherited Create('Error of recursion selecting object, the sequence of error was ' + RecursionTree + ' please change any field in the list to lazy!');
+
+  FRecursionTree := RecursionTree;
+end;
+
+{ TQueryBuilderFieldSearch }
+
+constructor TQueryBuilderFieldSearch.Create(const FieldName: String);
+begin
+  inherited Create;
+
+  FFieldName := FieldName;
+end;
+
+{ TParamsHelper }
+
+procedure TParamsHelper.AddParam(const Field: TField; const Value: Variant);
+begin
+  AddParam(Field.DatabaseName, Field, Value);
+end;
+
+procedure TParamsHelper.AddParam(const ParamName: String; const Field: TField; const Value: Variant);
+var
+  Param: TParam;
+
+begin
+  Param := CreateParam(Field.DatabaseType, ParamName, ptInput);
+
+  if VarIsClear(Value) or VarIsStr(Value) and (Value = EmptyStr) then
+    Param.Value := NULL
+  else if Field.SpecialType = stUniqueIdentifier then
+    Param.AsGuid := StringToGUID(Value)
+  else
+    Param.Value := Value;
+end;
+
+{ TNameComparer }
+
+function TNameComparer.Compare(const Left, Right: String): Integer;
+begin
+  Result := CompareText(Left.Substring(0, FMaxLength), Right.Substring(0, FMaxLength));
+end;
+
+constructor TNameComparer.Create(const MaxLength: Integer);
+begin
+  inherited Create;
+
+  FMaxLength := MaxLength;
+end;
+
+function TNameComparer.Equals(const Left, Right: String): Boolean;
+begin
+  Result := Compare(Left, Right) = 0;
+end;
+
+{ TObjectOldValue }
+
+constructor TObjectOldValue.Create(const Cursor: IDatabaseCursor);
+begin
+  inherited Create;
+
+  FCursor := Cursor;
+end;
+
+function TObjectOldValue.GetOldValue(const Field: TField): Variant;
+begin
+  Result := FCursor.GetDataSet.FieldByName(Field.DatabaseName).Value;
+end;
+
+{ TEntityGenerator }
+
+function TEntityGenerator.CompareDatabaseFieldName(const Left, Right: TDatabaseField): Integer;
+
+  function IsPrimaryKey(const DatabaseField: TDatabaseField): Integer;
+
+    function FieldIsInPrimaryKey: Boolean;
+    begin
+      Result := False;
+
+      if Assigned(DatabaseField.Table.PrimaryKeyIndex) then
+        for var KeyField in DatabaseField.Table.PrimaryKeyIndex.Fields do
+          if KeyField.Field.Name = DatabaseField.Name then
+            Exit(True);
+    end;
+
+  begin
+    if (DatabaseField.Name = DEFAULT_ID_FIELD_NAME) or FieldIsInPrimaryKey then
+      Result := -1
+    else
+      Result := 0;
+  end;
+
+begin
+  Result := IsPrimaryKey(Left) - IsPrimaryKey(Right);
+
+  if Result = 0 then
+    Result := CompareText(Left.Name, Right.Name);
+end;
+
+constructor TEntityGenerator.Create(const Manager: TManager);
+begin
+  inherited Create;
+
+  FDatabaseFieldComparer := TDelegatedComparer<TDatabaseField>.Create(CompareDatabaseFieldName);
+  FDatabaseIndexFieldComparer := TDelegatedComparer<TDatabaseIndexField>.Create(
+    function(const Left, Right: TDatabaseIndexField): Integer
+    begin
+      Result := Left.Position - Right.Position;
+    end);
+  FDatabaseIndexComparer := TDelegatedComparer<TDatabaseIndex>.Create(
+    function(const Left, Right: TDatabaseIndex): Integer
+    begin
+      Result := CompareText(Left.IdTable, Right.IdTable);
+    end);
+  FDatabaseSchema := TDatabaseSchema.Create(Manager);
+  FDatabaseTableComparer := TDelegatedComparer<TDatabaseTable>.Create(
+    function(const Left, Right: TDatabaseTable): Integer
+    begin
+      Result := CompareText(Left.Name, Right.Name);
+    end);
+  FManager := Manager;
+end;
+
+destructor TEntityGenerator.Destroy;
+begin
+  FDatabaseFieldComparer.Free;
+
+  FDatabaseIndexFieldComparer.Free;
+
+  FDatabaseIndexComparer.Free;
+
+  FDatabaseSchema.Free;
+
+  FDatabaseTableComparer.Free;
+
+  inherited;
+end;
+
+procedure TEntityGenerator.GenerateUnit(const FileName: String; FormatName: TFunc<String, String>);
+const
+  FIELD_TYPE: array[TTypeKind] of String = ('', 'Integer', 'Char', 'Integer', 'Double', 'String', '', '', '', 'Char', 'String', 'String', '', '', '', '', 'Int64', '', 'String', '', '', '', '');
+  SPECIAL_FIELD_TYPE: array[TDatabaseSpecialType] of String = ('', 'TDate', 'TDateTime', 'TTime', 'Lazy<String>', 'String', 'Boolean', 'Lazy<TArray<Byte>>');
+
+var
+  Field: TDatabaseField;
+  SearchIndex: TDatabaseIndex;
+  Table: TDatabaseTable;
+  TheUnit: TStringBuilder;
+
+  function FormatTableName: String;
+  begin
+    Result := FormatName(Table.Name);
+  end;
+
+  function TryGetForeignKeyTable(var TableName: String): Boolean;
+  begin
+    TableName := EmptyStr;
+
+    for var ForeignKey in Table.ForeignKeys do
+      if Field.Name = ForeignKey.ReferenceField then
+        TableName := ForeignKey.ReferenceTable.Name;
+
+    Result := not TableName.IsEmpty;
+  end;
+
+  function IsForeignKeyField: Boolean;
+  var
+    TableName: String;
+
+  begin
+    Result := TryGetForeignKeyTable(TableName);
+  end;
+
+  function FormatFieldName: String;
+  begin
+    Result := Field.Name;
+
+    if IsForeignKeyField and Field.Name.StartsWith(DEFAULT_ID_FIELD_NAME, True) then
+      Result := Result.Substring(2);
+
+    Result := FormatName(Result);
+  end;
+
+  function GetFieldType: String;
+  var
+    TableName: String;
+
+  begin
+    if TryGetForeignKeyTable(TableName) then
+      Result := Format('Lazy<T%s>', [FormatName(TableName)])
+    else
+    begin
+      Result := FIELD_TYPE[Field.FieldType];
+
+      if Result.IsEmpty then
+        Result := SPECIAL_FIELD_TYPE[Field.SpecialType];
+    end;
+  end;
+
+  procedure AddAttribute(const AttributeValue: String);
+  begin
+    TheUnit.AppendLine(Format('    [%s]', [AttributeValue]));
+  end;
+
+  function LoadIndexFieldNames(const Index: TDatabaseIndex): String;
+  begin
+    Result := EmptyStr;
+
+    TArray.Sort<TDatabaseIndexField>(Index.FFields, FDatabaseIndexFieldComparer);
+
+    for var FieldIndex in Index.Fields do
+    begin
+      if not Result.IsEmpty then
+        Result := Result + ';';
+
+      Result := Result + Format('%s', [FormatName(FieldIndex.Field.Name)]);
+    end;
+  end;
+
+  procedure AddIndexAttribute(const Index: TDatabaseIndex);
+  begin
+    if not Index.IsPrimaryKey or (CompareText(Index.Fields[0].Field.Name, DEFAULT_ID_FIELD_NAME) <> 0) then
+    begin
+      var IndexType: String;
+
+      TheUnit.Append('  [');
+
+      if Index.IsPrimaryKey then
+        IndexType := 'PrimaryKey'
+      else
+      begin
+        IndexType := 'Index';
+
+        if Index.IsUnique then
+          IndexType := 'Unique' + IndexType;
+      end;
+
+      TheUnit.Append(IndexType);
+
+      TheUnit.Append('(''');
+
+      if not Index.IsPrimaryKey then
+        TheUnit.Append(Format('%s'', ''', [FormatName(Index.Name)]));
+
+      TheUnit.Append(LoadIndexFieldNames(Index));
+
+      TheUnit.AppendLine(''')]');
+    end;
+  end;
+
+  function IsStoredField: Boolean;
+  begin
+    Result := not Field.Required and not IsForeignKeyField and (Field.FieldType <> tkString) and not (Field.SpecialType in [stBinary, stText]);
+  end;
+
+  function GetStoredFunctionName: String;
+  begin
+    Result := Format('Get%sStored', [FormatFieldName]);
+  end;
+
+  function GetFieldStored: String;
+  begin
+    if IsStoredField then
+      Result := Format(' stored %s', [GetStoredFunctionName])
+    else
+      Result := EmptyStr;
+  end;
+
+  function GetFieldStoredValue: String;
+  begin
+    if Field.FieldType = tkChar then
+      Result := '#0'
+    else if Field.SpecialType = stBoolean then
+      Result := 'False'
+    else
+      Result := '0';
+  end;
+
+  function FormatClassName: String;
+  begin
+    Result := Format('T%s', [FormatTableName]);
+  end;
+
+begin
+  SearchIndex := TDatabaseIndex.Create;
+
+  if not Assigned(FormatName) then
+    FormatName :=
+      function (Name: String): String
+      begin
+        Result := Name;
+      end;
+
+  FDatabaseSchema.LoadTables;
+
+  FDatabaseSchema.LoadIndexes;
+
+  FDatabaseSchema.LoadForeignKeys;
+
+  TArray.Sort<TDatabaseTable>(FDatabaseSchema.Tables, FDatabaseTableComparer);
+
+  TheUnit := TStringBuilder.Create(STRING_BUILDER_START_CAPACITY);
+
+  TheUnit.AppendLine(Format('unit %s;', [TPath.GetFileNameWithoutExtension(FileName)]));
+
+  TheUnit.AppendLine;
+
+  TheUnit.AppendLine('interface');
+
+  TheUnit.AppendLine;
+
+  TheUnit.AppendLine('uses Persisto.Mapping;');
+
+  TheUnit.AppendLine;
+
+  TheUnit.AppendLine('{$M+}');
+
+  TheUnit.AppendLine;
+
+  TheUnit.AppendLine('type');
+
+  for Table in FDatabaseSchema.Tables do
+    TheUnit.AppendLine(Format('  T%s = class;', [FormatTableName]));
+
+  TheUnit.AppendLine;
+
+  for Table in FDatabaseSchema.Tables do
+  begin
+    var Fields := Table.Fields;
+
+    TArray.Sort<TDatabaseField>(Fields, FDatabaseFieldComparer);
+
+    for var Index in Table.Indexes do
+      AddIndexAttribute(Index);
+
+    TheUnit.AppendLine('  [Entity]');
+
+    if String.Compare(FormatTableName, Table.Name, [coIgnoreCase]) <> 0 then
+      TheUnit.AppendLine(Format('  [TableName(''%s'')]', [Table.Name]));
+
+    TheUnit.AppendLine(Format('  %s = class', [FormatClassName]));
+
+    TheUnit.AppendLine('  private');
+
+    for Field in Fields do
+      TheUnit.AppendLine(Format('    F%s: %s;', [FormatFieldName, GetFieldType]));
+
+    for Field in Fields do
+      if IsStoredField then
+        TheUnit.AppendLine(Format('    function %s: Boolean;', [GetStoredFunctionName]));
+
+    TheUnit.AppendLine('  published');
+
+    for Field in Fields do
+    begin
+      if IsForeignKeyField and not Field.Name.StartsWith(DEFAULT_ID_FIELD_NAME, True) or not IsForeignKeyField and (String.Compare(FormatFieldName, Field.Name, [coIgnoreCase]) <> 0) then
+        AddAttribute(Format('FieldName(''%s'')', [Field.Name, GetFieldType]));
+
+      if Field.FieldType = tkString then
+        AddAttribute(Format('Size(%d)', [Field.Size]))
+      else if Field.FieldType = tkFloat then
+        AddAttribute(Format('Precision(%d, %d)', [Field.Size, Field.Scale]))
+      else
+        case Field.SpecialType of
+          stText: AddAttribute('Text');
+          stUniqueIdentifier: AddAttribute('UniqueIdentifier');
+          stBinary: AddAttribute('Binary');
+        end;
+
+      if Field.Required and IsForeignKeyField then
+        AddAttribute('Required');
+
+      TheUnit.AppendLine(Format('    property %0:s: %1:s read F%0:s write F%0:s%2:s;', [FormatFieldName, GetFieldType, GetFieldStored]));
+    end;
+
+    TheUnit.AppendLine('  end;');
+
+    TheUnit.AppendLine;
+  end;
+
+  TheUnit.AppendLine('implementation');
+
+  TheUnit.AppendLine;
+
+  for Table in FDatabaseSchema.Tables do
+    for Field in Table.Fields do
+      if IsStoredField then
+        TheUnit.AppendLine(Format(
+          '''
+          function %0:s.Get%1:sStored: Boolean;
+          begin
+            Result := F%1:s <> %s;
+          end;
+
+          ''', [FormatClassName, FormatFieldName, GetFieldStoredValue]));
+
+  TheUnit.AppendLine('end.');
+
+  TFile.WriteAllText(FileName, TheUnit.ToString);
+
+  TheUnit.Free;
+
+  SearchIndex.Free;
+end;
+
+{ TDatabaseSchema }
+
+constructor TDatabaseSchema.Create(const Manager: TManager);
+begin
+  inherited Create;
+
+  FManager := Manager;
+
+  ExecuteSchemaScripts;
+end;
+
+procedure TDatabaseSchema.ExecuteSchemaScripts;
+begin
+  for var SQL in FManager.FDatabaseManipulator.GetSchemaTablesScripts do
+    FManager.ExectDirect(SQL);
+end;
+
+procedure TDatabaseSchema.LoadForeignKeys;
+var
+  TableComparer: TDelegatedComparer<TDatabaseTable>;
+
+  function FindReferenceTable(const Id: String): TDatabaseTable;
+  begin
+    var SearchTable := TDatabaseTable.Create;
+    SearchTable.Id := Id;
+    var Position: NativeInt;
+    Result := nil;
+
+    if TArray.BinarySearch<TDatabaseTable>(Tables, SearchTable, Position, TableComparer) then
+      Result := Tables[Position];
+
+    SearchTable.Free;
+  end;
+
+begin
+  var CurrentPosition: NativeInt := 0;
+  var ForeignKeys := FManager.Select.All.From<TDatabaseForeignKey>.OrderBy.Field('IdTable').Open.All;
+  TableComparer := TDelegatedComparer<TDatabaseTable>.Create(
+    function (const Left, Right: TDatabaseTable): Integer
+    begin
+      Result := CompareText(Left.Id, Right.Id);
+    end);
+
+  for var Table in Tables do
+    while (CurrentPosition < Length(ForeignKeys)) and (ForeignKeys[CurrentPosition].IdTable = Table.Id) do
+    begin
+      var ForeignKey := ForeignKeys[CurrentPosition];
+
+      ForeignKey.ReferenceTable := FindReferenceTable(ForeignKey.IdReferenceTable);
+      Table.ForeignKeys := Table.ForeignKeys + [ForeignKey];
+
+      Inc(CurrentPosition);
+    end;
+
+  TableComparer.Free;
+end;
+
+procedure TDatabaseSchema.LoadIndexes;
+begin
+  var CurrentPosition: NativeInt := 0;
+  Indexes := FManager.Select.All.From<TDatabaseIndex>.OrderBy.Field('IdTable').Open.All;
+
+  for var Table in Tables do
+    while (CurrentPosition < Length(Indexes)) and (Indexes[CurrentPosition].IdTable = Table.Id) do
+    begin
+      var Index := Indexes[CurrentPosition];
+
+      Table.Indexes := Table.Indexes + [Index];
+
+      if Index.IsPrimaryKey then
+        Table.PrimaryKeyIndex := Index;
+
+      Inc(CurrentPosition);
+    end;
+end;
+
+procedure TDatabaseSchema.LoadSequences;
+begin
+  Sequences := FManager.Select.All.From<TDatabaseSequence>.OrderBy.Field('Id').Open.All;
+end;
+
+procedure TDatabaseSchema.LoadTables;
+begin
+  Tables := FManager.Select.All.From<TDatabaseTable>.OrderBy.Field('Id').Open.All;
+end;
+
+{ TSchemaUpdater }
+
+constructor TSchemaUpdater.Create(const Manager: TManager);
+begin
+  inherited Create;
+
+  FDatabaseSchema := TDatabaseSchema.Create(Manager);
+  FManager := Manager;
+
+  FDatabaseManipulator := FManager.FDatabaseManipulator;
+end;
+
+destructor TSchemaUpdater.Destroy;
+begin
+  FDatabaseSchema.Free;
+
+  inherited;
+end;
+
+procedure TSchemaUpdater.Update;
 var
   Comparer: TNameComparer;
   DatabaseField: TDatabaseField;
@@ -2982,7 +3604,7 @@ var
 
   procedure ExecuteDirect(const SQL: String);
   begin
-    ExectDirect(SQL);
+    FManager.ExectDirect(SQL);
   end;
 
   procedure ExecuteSQL;
@@ -3063,15 +3685,6 @@ var
 //      DropIndex(DatabaseIndex);
 
 //    FDatabaseManipulator.CreateIndex(Index);
-  end;
-
-  function GetPrimaryKeyDatabaseIndex: TDatabaseIndex;
-  begin
-    Result := nil;
-
-    for var DatabaseIndex in DatabaseTable.Indexes.Value do
-      if DatabaseIndex.IsPrimaryKey then
-        Exit(DatabaseIndex);
   end;
 
   procedure AppendDefaultConstraint(const Field: TField);
@@ -3394,7 +4007,7 @@ var
   begin
     Result := False;
 
-    for var DatabaseForeignKey in DatabaseTable.ForeignKeys.Value do
+    for var DatabaseForeignKey in DatabaseTable.ForeignKeys do
       if Comparer.Equals(ForeignKey.DatabaseName, DatabaseForeignKey.Name) then
         Exit(True);
   end;
@@ -3422,10 +4035,13 @@ var
     DatabaseTables := TDictionary<String, TDatabaseTable>.Create(Comparer);
     Tables := TDictionary<String, TTable>.Create(Comparer);
 
-    for var Table in Mapper.Tables do
-      Tables.Add(Table.DatabaseName, Table);
+    for var Table in FManager.Mapper.Tables do
+      if Table.ClassTypeInfo.HasAttribute<EntityAttribute> then
+        Tables.Add(Table.DatabaseName, Table);
 
-    for var DatabaseTable in Select.All.From<TDatabaseTable>.Open.All do
+    FDatabaseSchema.LoadTables;
+
+    for var DatabaseTable in FDatabaseSchema.Tables do
       DatabaseTables.Add(DatabaseTable.Name, DatabaseTable);
   end;
 
@@ -3434,19 +4050,19 @@ var
     DatabaseSequences := TDictionary<String, TDatabaseSequence>.Create(Comparer);
     Sequences := TDictionary<String, TSequence>.Create(Comparer);
 
-    for var DatabaseSequence in Select.All.From<TDatabaseSequence>.Open.All do
-      DatabaseSequences.Add(DatabaseSequence.Name, DatabaseSequence);
+    for var Sequence in FManager.Mapper.Sequences do
+       Sequences.Add(Sequence.Name, Sequence);
 
-    for var Sequence in Mapper.Sequences do
-      Sequences.Add(Sequence.Name, Sequence);
+    FDatabaseSchema.LoadSequences;
+
+    for var DatabaseSequence in FDatabaseSchema.Sequences do
+      DatabaseSequences.Add(DatabaseSequence.Name, DatabaseSequence);
   end;
 
 begin
   Comparer := TNameComparer.Create(FDatabaseManipulator.MaxNameSize);
   RecreateTables := TDictionary<TTable, TDatabaseTable>.Create;
   SQL := TStringBuilder.Create(STRING_BUILDER_START_CAPACITY);
-
-  ExecuteSchemaScripts;
 
   LoadTables;
 
@@ -3485,19 +4101,15 @@ begin
 //            end;
 //          end;
 //        end;
-
-      if not Assigned(DatabaseTable.PrimaryKeyIndex.Value) then
-        CreateTablePrimaryKey;
     end;
 
   for Table in Tables.Values do
-    Save(Table.DefaultRecords.ToArray);
+    FManager.Save(Table.DefaultRecords.ToArray);
 
-//  for Table in Tables.Values do
-//  begin
-//    DatabaseTable := Schema.Table[Table.DatabaseName];
-//
-//    if Assigned(DatabaseTable) then
+  FDatabaseSchema.LoadIndexes;
+
+  for Table in Tables.Values do
+    if DatabaseTables.TryGetValue(Table.DatabaseName, DatabaseTable) then
 //      for Index in Table.Indexes do
 //      begin
 //        if Index.PrimaryKey then
@@ -3509,7 +4121,10 @@ begin
 //          or (DatabaseIndex.Unique xor Index.Unique) then
 //          RecreateIndex(Index, DatabaseIndex);
 //      end;
-//  end;
+      if not Assigned(DatabaseTable.PrimaryKeyIndex) then
+        CreateTablePrimaryKey;
+
+  FDatabaseSchema.LoadForeignKeys;
 
   if not FDatabaseManipulator.IsSQLite then
     for Table in Tables.Values do
@@ -3518,7 +4133,7 @@ begin
           CreateForeignKey;
 
   for DatabaseTable in DatabaseTables.Values do
-    for DatabaseForeignKey in DatabaseTable.ForeignKeys.Value do
+    for DatabaseForeignKey in DatabaseTable.ForeignKeys do
       if not Tables.TryGetValue(DatabaseTable.Name, Table) or not CheckDatabaseForeignKeyExists then
         DropForeignKey;
 
@@ -3556,460 +4171,6 @@ begin
   SQL.Free;
 
   Comparer.Free;
-end;
-
-procedure TManager.UpdateTable(const Table: TTable; const &Object: TObject; const ObjectOldValue: IObjectOldValue);
-begin
-  if FProcessedObjects.TryAdd(&Object, False) then
-    InternalUpdateTable(Table, &Object, ObjectOldValue);
-end;
-
-{ ERecursionInsertionError }
-
-constructor ERecursionInsertionError.Create(const Table: TTable);
-begin
-  inherited Create('Error of recursion inserting object');
-
-  FTable := Table;
-end;
-
-{ TQueryBuilderTable }
-
-constructor TQueryBuilderTable.Create(const Table: TTable);
-begin
-  inherited Create;
-
-  FDatabaseFields := TObjectList<TQueryBuilderTableField>.Create;
-  FForeignKeyTables := TObjectList<TQueryBuilderTable>.Create;
-  FLazyTables := TObjectList<TQueryBuilderTable>.Create;
-  FManyValueAssociationTables := TObjectList<TQueryBuilderTable>.Create;
-  FTable := Table;
-end;
-
-constructor TQueryBuilderTable.Create(const ForeignKeyField: TForeignKey);
-begin
-  Create(ForeignKeyField.ParentTable);
-
-  FForeignKeyField := ForeignKeyField;
-end;
-
-constructor TQueryBuilderTable.Create(const ManyValueAssociationField: TManyValueAssociation);
-begin
-  Create(ManyValueAssociationField.ChildTable);
-
-  FManyValueAssociationField := ManyValueAssociationField;
-end;
-
-destructor TQueryBuilderTable.Destroy;
-begin
-  FForeignKeyTables.Free;
-
-  FManyValueAssociationTables.Free;
-
-  FInheritedTable.Free;
-
-  FDatabaseFields.Free;
-
-  FLazyTables.Free;
-
-  inherited;
-end;
-
-{ TQueryBuilderTableField }
-
-constructor TQueryBuilderTableField.Create(const Field: TField; const FieldIndex: Integer);
-begin
-  inherited Create;
-
-  FField := Field;
-  FFieldAlias := 'F' + FieldIndex.ToString;
-end;
-
-{ ERecursionSelectionError }
-
-constructor ERecursionSelectionError.Create(const RecursionTree: String);
-begin
-  inherited Create('Error of recursion selecting object, the sequence of error was ' + RecursionTree + ' please change any field in the list to lazy!');
-
-  FRecursionTree := RecursionTree;
-end;
-
-{ TQueryBuilderFieldSearch }
-
-constructor TQueryBuilderFieldSearch.Create(const FieldName: String);
-begin
-  inherited Create;
-
-  FFieldName := FieldName;
-end;
-
-{ TParamsHelper }
-
-procedure TParamsHelper.AddParam(const Field: TField; const Value: Variant);
-begin
-  AddParam(Field.DatabaseName, Field, Value);
-end;
-
-procedure TParamsHelper.AddParam(const ParamName: String; const Field: TField; const Value: Variant);
-var
-  Param: TParam;
-
-begin
-  Param := CreateParam(Field.DatabaseType, ParamName, ptInput);
-
-  if VarIsClear(Value) or VarIsStr(Value) and (Value = EmptyStr) then
-    Param.Value := NULL
-  else if Field.SpecialType = stUniqueIdentifier then
-    Param.AsGuid := StringToGUID(Value)
-  else
-    Param.Value := Value;
-end;
-
-{ TNameComparer }
-
-function TNameComparer.Compare(const Left, Right: String): Integer;
-begin
-  Result := CompareText(Left.Substring(0, FMaxLength), Right.Substring(0, FMaxLength));
-end;
-
-constructor TNameComparer.Create(const MaxLength: Integer);
-begin
-  inherited Create;
-
-  FMaxLength := MaxLength;
-end;
-
-function TNameComparer.Equals(const Left, Right: String): Boolean;
-begin
-  Result := Compare(Left, Right) = 0;
-end;
-
-{ TObjectOldValue }
-
-constructor TObjectOldValue.Create(const Cursor: IDatabaseCursor);
-begin
-  inherited Create;
-
-  FCursor := Cursor;
-end;
-
-function TObjectOldValue.GetOldValue(const Field: TField): Variant;
-begin
-  Result := FCursor.GetDataSet.FieldByName(Field.DatabaseName).Value;
-end;
-
-{ TEntityGenerator }
-
-function TEntityGenerator.CompareDatabaseFieldName(const Left, Right: TDatabaseField): Integer;
-
-  function IsPrimaryKey(const DatabaseField: TDatabaseField): Integer;
-
-    function FieldIsInPrimaryKey: Boolean;
-    begin
-      Result := False;
-
-      if Assigned(DatabaseField.Table.PrimaryKeyIndex.Value) then
-        for var KeyField in DatabaseField.Table.PrimaryKeyIndex.Value.Fields do
-          if KeyField.Field.Name = DatabaseField.Name then
-            Exit(True);
-    end;
-
-  begin
-    if (DatabaseField.Name = DEFAULT_ID_FIELD_NAME) or FieldIsInPrimaryKey then
-      Result := -1
-    else
-      Result := 0;
-  end;
-
-begin
-  Result := IsPrimaryKey(Left) - IsPrimaryKey(Right);
-
-  if Result = 0 then
-    Result := CompareText(Left.Name, Right.Name);
-end;
-
-constructor TEntityGenerator.Create(const Manager: TManager);
-begin
-  inherited Create;
-
-  FDatabaseFieldComparer := TDelegatedComparer<TDatabaseField>.Create(CompareDatabaseFieldName);
-  FDatabaseIndexFieldComparer := TDelegatedComparer<TDatabaseIndexField>.Create(
-    function(const Left, Right: TDatabaseIndexField): Integer
-    begin
-      Result := Left.Position - Right.Position;
-    end);
-  FManager := Manager;
-end;
-
-destructor TEntityGenerator.Destroy;
-begin
-  FDatabaseFieldComparer.Free;
-
-  FDatabaseIndexFieldComparer.Free;
-
-  inherited;
-end;
-
-procedure TEntityGenerator.GenerateUnit(const FileName: String; FormatName: TFunc<String, String>);
-const
-  FIELD_TYPE: array[TTypeKind] of String = ('', 'Integer', 'Char', 'Integer', 'Double', 'String', '', '', '', 'Char', 'String', 'String', '', '', '', '', 'Int64', '', 'String', '', '', '', '');
-  SPECIAL_FIELD_TYPE: array[TDatabaseSpecialType] of String = ('', 'TDate', 'TDateTime', 'TTime', 'Lazy<String>', 'String', 'Boolean', 'Lazy<TArray<Byte>>');
-
-var
-  Field: TDatabaseField;
-  Table: TDatabaseTable;
-  TheUnit: TStringBuilder;
-
-  function FormatTableName: String;
-  begin
-    Result := FormatName(Table.Name);
-  end;
-
-  function TryGetForeignKeyTable(var TableName: String): Boolean;
-  begin
-    TableName := EmptyStr;
-
-    for var ForeignKey in Table.ForeignKeys.Value do
-      if Field.Name = ForeignKey.ReferenceField then
-        TableName := ForeignKey.ReferenceTable.Value.Name;
-
-    Result := not TableName.IsEmpty;
-  end;
-
-  function IsForeignKeyField: Boolean;
-  var
-    TableName: String;
-
-  begin
-    Result := TryGetForeignKeyTable(TableName);
-  end;
-
-  function FormatFieldName: String;
-  begin
-    Result := Field.Name;
-
-    if IsForeignKeyField and Field.Name.StartsWith(DEFAULT_ID_FIELD_NAME, True) then
-      Result := Result.Substring(2);
-
-    Result := FormatName(Result);
-  end;
-
-  function GetFieldType: String;
-  var
-    TableName: String;
-
-  begin
-    if TryGetForeignKeyTable(TableName) then
-      Result := Format('Lazy<T%s>', [FormatName(TableName)])
-    else
-    begin
-      Result := FIELD_TYPE[Field.FieldType];
-
-      if Result.IsEmpty then
-        Result := SPECIAL_FIELD_TYPE[Field.SpecialType];
-    end;
-  end;
-
-  procedure AddAttribute(const AttributeValue: String);
-  begin
-    TheUnit.AppendLine(Format('    [%s]', [AttributeValue]));
-  end;
-
-  function LoadIndexFieldNames(const Index: TDatabaseIndex): String;
-  begin
-    Result := EmptyStr;
-
-    TArray.Sort<TDatabaseIndexField>(Index.FFields, FDatabaseIndexFieldComparer);
-
-    for var FieldIndex in Index.Fields do
-    begin
-      if not Result.IsEmpty then
-        Result := Result + ';';
-
-      Result := Result + Format('%s', [FormatName(FieldIndex.Field.Name)]);
-    end;
-  end;
-
-  procedure AddIndexAttribute(const Index: TDatabaseIndex);
-  begin
-    if not Index.IsPrimaryKey or (CompareText(Index.Fields[0].Field.Name, DEFAULT_ID_FIELD_NAME) <> 0) then
-    begin
-      var IndexType: String;
-
-      TheUnit.Append('  [');
-
-      if Index.IsPrimaryKey then
-        IndexType := 'PrimaryKey'
-      else
-      begin
-        IndexType := 'Index';
-
-        if Index.IsUnique then
-          IndexType := 'Unique' + IndexType;
-      end;
-
-      TheUnit.Append(IndexType);
-
-      TheUnit.Append('(''');
-
-      if not Index.IsPrimaryKey then
-        TheUnit.Append(Format('%s'', ''', [FormatName(Index.Name)]));
-
-      TheUnit.Append(LoadIndexFieldNames(Index));
-
-      TheUnit.AppendLine(''')]');
-    end;
-  end;
-
-  function IsStoredField: Boolean;
-  begin
-    Result := not Field.Required and not IsForeignKeyField and (Field.FieldType <> tkString) and not (Field.SpecialType in [stBinary, stText]);
-  end;
-
-  function GetStoredFunctionName: String;
-  begin
-    Result := Format('Get%sStored', [FormatFieldName]);
-  end;
-
-  function GetFieldStored: String;
-  begin
-    if IsStoredField then
-      Result := Format(' stored %s', [GetStoredFunctionName])
-    else
-      Result := EmptyStr;
-  end;
-
-  function GetFieldStoredValue: String;
-  begin
-    if Field.FieldType = tkChar then
-      Result := '#0'
-    else if Field.SpecialType = stBoolean then
-      Result := 'False'
-    else
-      Result := '0';
-  end;
-
-  function FormatClassName: String;
-  begin
-    Result := Format('T%s', [FormatTableName]);
-  end;
-
-begin
-  FManager.ExecuteSchemaScripts;
-
-  if not Assigned(FormatName) then
-    FormatName :=
-      function (Name: String): String
-      begin
-        Result := Name;
-      end;
-
-  TheUnit := TStringBuilder.Create(STRING_BUILDER_START_CAPACITY);
-
-  TheUnit.AppendLine(Format('unit %s;', [TPath.GetFileNameWithoutExtension(FileName)]));
-
-  TheUnit.AppendLine;
-
-  TheUnit.AppendLine('interface');
-
-  TheUnit.AppendLine;
-
-  TheUnit.AppendLine('uses Persisto.Mapping;');
-
-  TheUnit.AppendLine;
-
-  TheUnit.AppendLine('{$M+}');
-
-  TheUnit.AppendLine;
-
-  TheUnit.AppendLine('type');
-
-  var Tables := FManager.Select.All.From<TDatabaseTable>.OrderBy.Field('Name').Open.All;
-
-  for Table in Tables do
-    TheUnit.AppendLine(Format('  T%s = class;', [FormatTableName]));
-
-  TheUnit.AppendLine;
-
-  for Table in Tables do
-  begin
-    var Fields := Table.Fields;
-
-    TArray.Sort<TDatabaseField>(Fields, FDatabaseFieldComparer);
-
-    for var Index in Table.Indexes.Value do
-      AddIndexAttribute(Index);
-
-    TheUnit.AppendLine('  [Entity]');
-
-    if String.Compare(FormatTableName, Table.Name, [coIgnoreCase]) <> 0 then
-      TheUnit.AppendLine(Format('  [TableName(''%s'')]', [Table.Name]));
-
-    TheUnit.AppendLine(Format('  %s = class', [FormatClassName]));
-
-    TheUnit.AppendLine('  private');
-
-    for Field in Fields do
-      TheUnit.AppendLine(Format('    F%s: %s;', [FormatFieldName, GetFieldType]));
-
-    for Field in Fields do
-      if IsStoredField then
-        TheUnit.AppendLine(Format('    function %s: Boolean;', [GetStoredFunctionName]));
-
-    TheUnit.AppendLine('  published');
-
-    for Field in Fields do
-    begin
-      if IsForeignKeyField and not Field.Name.StartsWith(DEFAULT_ID_FIELD_NAME, True) or not IsForeignKeyField and (String.Compare(FormatFieldName, Field.Name, [coIgnoreCase]) <> 0) then
-        AddAttribute(Format('FieldName(''%s'')', [Field.Name, GetFieldType]));
-
-      if Field.FieldType = tkString then
-        AddAttribute(Format('Size(%d)', [Field.Size]))
-      else if Field.FieldType = tkFloat then
-        AddAttribute(Format('Precision(%d, %d)', [Field.Size, Field.Scale]))
-      else
-        case Field.SpecialType of
-          stText: AddAttribute('Text');
-          stUniqueIdentifier: AddAttribute('UniqueIdentifier');
-          stBinary: AddAttribute('Binary');
-        end;
-
-      if Field.Required and IsForeignKeyField then
-        AddAttribute('Required');
-
-      TheUnit.AppendLine(Format('    property %0:s: %1:s read F%0:s write F%0:s%2:s;', [FormatFieldName, GetFieldType, GetFieldStored]));
-    end;
-
-    TheUnit.AppendLine('  end;');
-
-    TheUnit.AppendLine;
-  end;
-
-  TheUnit.AppendLine('implementation');
-
-  TheUnit.AppendLine;
-
-  for Table in Tables do
-  begin
-    var Fields := Table.Fields;
-
-    for Field in Fields do
-      if IsStoredField then
-        TheUnit.AppendLine(Format(
-          '''
-          function %0:s.Get%1:sStored: Boolean;
-          begin
-            Result := F%1:s <> %s;
-          end;
-
-          ''', [FormatClassName, FormatFieldName, GetFieldStoredValue]));
-  end;
-
-  TheUnit.AppendLine('end.');
-
-  TFile.WriteAllText(FileName, TheUnit.ToString);
-
-  TheUnit.Free;
 end;
 
 end.

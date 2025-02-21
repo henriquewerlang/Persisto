@@ -10,6 +10,10 @@ type
   private
     FManager: TManager;
 
+    function LoadForeignKeys(const TableName: String): TArray<TDatabaseForeignKey>;
+    function LoadIndexes(const TableName: String): TArray<TDatabaseIndex>;
+    function LoadTable(const Name: String): TDatabaseTable;
+
     procedure LoadSchemaTables;
   public
     [Setup]
@@ -90,6 +94,8 @@ type
     procedure WhenTheRequiredFieldIsAnUniqueIdentifierTheFakeDefaultValueMustBeAGUIDEmpty;
     [Test]
     procedure TheFakeDefaultConstraintMustBeCleanedUpFromTheField;
+    [Test]
+    procedure CanOnlyCreateTableWithEntityAttribute;
   end;
 
   TDatabaseManiupulatorMock = class(TInterfacedObject, IDatabaseManipulator)
@@ -121,6 +127,19 @@ uses System.Rtti, Persisto.Test.Entity, Persisto.Test.Connection;
 
 { TDatabaseSchemaUpdaterTest }
 
+procedure TDatabaseSchemaUpdaterTest.CanOnlyCreateTableWithEntityAttribute;
+begin
+  FManager.Mapper.GetTable(TClassWithoutEntityAttribute);
+
+  FManager.UpdateDatabaseSchema;
+
+  LoadSchemaTables;
+
+  var Table := FManager.Select.All.From<TDatabaseTable>.Where(Field('Name') = 'ClassWithoutEntityAttribute').Open.One;
+
+  Assert.IsNil(Table);
+end;
+
 procedure TDatabaseSchemaUpdaterTest.IfTheForeignKeyExistsInDatabaseButNotExistsInTheMapperTheForeignKeyMustBeRemoved;
 begin
   FManager.ExectDirect('create table ClassWithForeignKey (Id int not null, constraint PK primary key (Id))');
@@ -132,7 +151,7 @@ begin
 
   LoadSchemaTables;
 
-  var ForeignKeys := FManager.Select.All.From<TDatabaseForeignKey>.Where(Field('Table.Name') = 'ClassWithPrimaryKey').Open.All;
+  var ForeignKeys := LoadForeignKeys('ClassWithPrimaryKey');
 
   Assert.AreEqual(0, Length(ForeignKeys));
 end;
@@ -145,7 +164,7 @@ begin
 
   LoadSchemaTables;
 
-  var ForeignKeys := FManager.Select.All.From<TDatabaseForeignKey>.Where(Field('Table.Name') = 'InsertTestWithForeignKey').Open.All;
+  var ForeignKeys := LoadForeignKeys('InsertTestWithForeignKey');
 
   Assert.AreEqual(2, Length(ForeignKeys));
 end;
@@ -156,7 +175,7 @@ begin
 
   LoadSchemaTables;
 
-  var ForeignKeys := FManager.Select.All.From<TDatabaseForeignKey>.Where(Field('Table.Name') = 'InsertTestWithForeignKey').Open.All;
+  var ForeignKeys := LoadForeignKeys('InsertTestWithForeignKey');
 
   Assert.AreEqual(2, Length(ForeignKeys));
 end;
@@ -189,12 +208,27 @@ begin
     end);
 end;
 
+function TDatabaseSchemaUpdaterTest.LoadForeignKeys(const TableName: String): TArray<TDatabaseForeignKey>;
+begin
+  Result := FManager.Select.All.From<TDatabaseForeignKey>.Where(Field('IdTable') = LoadTable(TableName).Id).Open.All;
+end;
+
+function TDatabaseSchemaUpdaterTest.LoadIndexes(const TableName: String): TArray<TDatabaseIndex>;
+begin
+  Result := FManager.Select.All.From<TDatabaseIndex>.Where(Field('IdTable') = FManager.Select.All.From<TDatabaseTable>.Where(Field('Name') = TableName).Open.One.Id).Open.All;
+end;
+
 procedure TDatabaseSchemaUpdaterTest.LoadSchemaTables;
 begin
   var Manipulator := CreateDatabaseManipulator;
 
   for var SQL in Manipulator.GetSchemaTablesScripts do
     FManager.ExectDirect(SQL);
+end;
+
+function TDatabaseSchemaUpdaterTest.LoadTable(const Name: String): TDatabaseTable;
+begin
+  Result := FManager.Select.All.From<TDatabaseTable>.Where(Field('Name') = Name).Open.One;
 end;
 
 procedure TDatabaseSchemaUpdaterTest.OnlyTheTableNoExistingTableMustCreatedInTheDatabase;
@@ -447,7 +481,7 @@ begin
       FManager.UpdateDatabaseSchema;
     end);
 
-  var DatabaseTable := FManager.Select.All.From<TDatabaseForeignKey>.Where(Field('Table.Name') = 'ClassWithForeignKey2').Open.One;
+  var DatabaseTable := LoadTable('ClassWithForeignKey2');
 
   Assert.IsNil(DatabaseTable);
 end;
@@ -551,7 +585,7 @@ begin
 
   Assert.IsNotNil(Sequence);
 
-  Assert.AreEqual('MySequence', Sequence.Name)
+  Assert.AreEqual('MySequence'.ToLower, Sequence.Name.ToLower);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheSequenceNotExistsInTheMapperMustBeDroped;
@@ -583,9 +617,10 @@ begin
 
   LoadSchemaTables;
 
-  var Table := FManager.Select.All.From<TDatabaseTable>.Where(Field('Name') = TableName).Open.One;
+  var Indexes := LoadIndexes(TableName);
 
-  Assert.IsNotNil(Table.PrimaryKeyIndex);
+  Assert.AreEqual(1, Length(Indexes));
+  Assert.IsTrue(Indexes[0].IsPrimaryKey);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheTableIsntMappedMustDropTheTable;

@@ -906,6 +906,7 @@ type
     property Id: Double read FId write FId;
   end;
 
+  [Entity]
   TPrimarySpecialType = class
   private
     FId: String;
@@ -1067,6 +1068,7 @@ type
     property CallBack: TStackOverflowClass read GetCallBack write FCallBack;
   end;
 
+  [Entity]
   TMyClassWithAllFieldsType = class
   private
     FBigint: Int64;
@@ -1180,6 +1182,14 @@ type
     property LazyField: Lazy<TLazyFilterChild> read FLazyField write FLazyField;
     [Text]
     property LazyString: Lazy<String> read FLazyString write FLazyString;
+  end;
+
+  TClassWithoutEntityAttribute = class
+  private
+    FId: String;
+  published
+    [Size(20)]
+    property Id: String read FId write FId;
   end;
 
 implementation
