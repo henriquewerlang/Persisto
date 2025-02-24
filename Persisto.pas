@@ -123,7 +123,7 @@ type
     function CreateSequence(const Sequence: TSequence): String;
     function DropDatabase(const DatabaseName: String): String;
     function DropSequence(const Sequence: TDatabaseSequence): String;
-    function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
+    function GetDefaultValue(const Field: TField): String;
     function GetFieldType(const FieldType: TTypeKind): String;
     function GetMaxNameSize: Integer;
     function GetSchemaTablesScripts: TArray<String>;
@@ -3699,7 +3699,7 @@ var
 
       SQL.Append('(');
 
-      SQL.Append(FDatabaseManipulator.GetDefaultValue(Field.DefaultConstraint));
+      SQL.Append(FDatabaseManipulator.GetDefaultValue(Field));
 
       SQL.Append(')');
     end;

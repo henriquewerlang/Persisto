@@ -9,7 +9,7 @@ type
   private
     function CreateDatabase(const DatabaseName: String): String;
     function DropDatabase(const DatabaseName: String): String;
-    function GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
+    function GetDefaultValue(const Field: TField): String;
     function GetFieldType(const FieldType: TTypeKind): String;
     function GetMaxNameSize: Integer;
     function GetSchemaTablesScripts: TArray<String>;
@@ -32,7 +32,7 @@ begin
   Result := 'drop database';
 end;
 
-function TDatabaseManipulatorInterbase.GetDefaultValue(const DefaultConstraint: TDefaultConstraint): String;
+function TDatabaseManipulatorInterbase.GetDefaultValue(const Field: TField): String;
 begin
   Result := EmptyStr;
 end;
