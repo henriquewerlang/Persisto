@@ -98,21 +98,6 @@ const
        and RC.column_id = FKC.parent_column_id
     ''';
 
-  PRIMARY_KEY_CONSTRAINT_SQL =
-    '''
-    select cast(PK.object_id as varchar(20)) Id,
-           PK.name,
-           C.name FieldName
-      from sys.key_constraints PK
-      join sys.index_columns IC
-        on IC.object_id = PK.parent_object_id
-       and IC.index_id = PK.unique_index_id
-      join sys.columns C
-        on C.object_id = IC.object_id
-       and C.column_id = IC.column_id
-     where PK.type = 'PK'
-    ''';
-
   SEQUENCES_SQL =
     '''
     select cast(object_id as varchar(20)) Id,
@@ -123,7 +108,6 @@ const
   TABLE_SQL =
     '''
        select cast(T.object_id as varchar(20)) Id,
-              cast(PK.object_id as varchar(20)) IdPrimaryKeyConstraint,
               T.name
          from sys.tables T
     left join sys.key_constraints PK
@@ -225,8 +209,7 @@ begin
     CreateView('IndexField', INDEX_FIELDS_SQL),
     CreateView('Sequence', SEQUENCES_SQL),
     CreateView('Table', TABLE_SQL),
-    CreateView('TableField', COLUMNS_SQL),
-    CreateView('PrimaryKeyConstraint', PRIMARY_KEY_CONSTRAINT_SQL)
+    CreateView('TableField', COLUMNS_SQL)
     ];
 end;
 
