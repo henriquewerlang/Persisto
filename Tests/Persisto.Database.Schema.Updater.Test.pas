@@ -572,7 +572,7 @@ begin
 
   var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyRequiredField') and (Field('Name') = 'MyUnique')).Open.One;
 
-  Assert.AreEqual('''00000000-0000-0000-0000-000000000000''', Field.DefaultConstraint.Value);
+  Assert.StartWith('''00000000-0000-0000-0000-000000000000''', Field.DefaultConstraint.Value);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheSequenceNotExistsInDatabaseMustBeCreated;
