@@ -84,6 +84,8 @@ type
     procedure WhenTheLazyValueIsntAnObjectOrArrayCantRaiseErrorWhenAreLoading;
     [Test]
     procedure WhenLoadAManyValueAssociationTheChildClassMustHaveTheLinkPropertyLoadedWithTheParentClassPointer;
+    [Test]
+    procedure WhenLoadALazyManyValueAssociationTheChildLinkFieldMustBeLoadedWithTheParentClassValue;
   end;
 
 implementation
@@ -230,6 +232,13 @@ begin
   var Objects := FManager.Select.All.From<TMyEntityWithManyValueAssociation>.Open.One;
 
   Assert.AreEqual(3, Length(Objects.ManyValueAssociationList));
+end;
+
+procedure TClassLoaderTest.WhenLoadALazyManyValueAssociationTheChildLinkFieldMustBeLoadedWithTheParentClassValue;
+begin
+  var LazyClass := FManager.Select.All.From<TMyManyValue>.Open.One;
+
+  Assert.IsTrue(LazyClass.Childs[0].MyManyValue.GetLazyValue.Key.IsEmpty);
 end;
 
 procedure TClassLoaderTest.WhenLoadAllObjectsFromAManyValueAssociationMustReturnAUniqueInstanceOfEachObject;

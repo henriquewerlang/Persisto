@@ -321,6 +321,8 @@ type
     procedure IfTheLazyFieldIsNotLoadedMustReturnValueInTheHasValueFunction;
     [Test]
     procedure WhenTheClassHasAnArrayWithTypeNotEqualToObjectCanLoadTheManyValueFromThisProperty;
+    [Test]
+    procedure WhenSetTheFieldValueAndTheFieldIsLazyMustReturnTheValueFilled;
   end;
 
 implementation
@@ -1175,6 +1177,23 @@ begin
   Assert.IsTrue(Field.IsManyValueAssociation, 'Is many value association');
 
   Assert.IsTrue(Field.IsLazy, 'Is lazy');
+end;
+
+procedure TMapperTest.WhenSetTheFieldValueAndTheFieldIsLazyMustReturnTheValueFilled;
+begin
+  var MyClass := TLazyClass.Create;
+  var MyEntity := TMyEntity.Create;
+  var Table := FMapper.GetTable(MyClass.ClassType);
+
+  var LazyField := Table.Field['Lazy'];
+
+  LazyField.Value[MyClass] := MyEntity;
+
+  Assert.AreEqual(MyEntity, LazyField.Value[MyEntity].AsObject);
+
+  MyClass.Free;
+
+  MyEntity.Free;
 end;
 
 procedure TMapperTest.WhenTheAttributeIsASequenceMustLoadTheNameOfTheSequenceInTheDefaultConstraint;

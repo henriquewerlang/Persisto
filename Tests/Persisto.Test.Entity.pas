@@ -217,13 +217,13 @@ type
   private
     FId: String;
     FManyValueAssociation: TMyEntityWithManyValueAssociation;
-    FMyManyValue: TMyManyValue;
+    FMyManyValue: Lazy<TMyManyValue>;
     FValue: Integer;
   published
     [NewUniqueIdentifier, UniqueIdentifier]
     property Id: String read FId write FId;
     property ManyValueAssociation: TMyEntityWithManyValueAssociation read FManyValueAssociation write FManyValueAssociation;
-    property MyManyValue: TMyManyValue read FMyManyValue write FMyManyValue;
+    property MyManyValue: Lazy<TMyManyValue> read FMyManyValue write FMyManyValue;
     property Value: Integer read FValue write FValue;
   end;
 
