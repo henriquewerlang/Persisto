@@ -149,9 +149,17 @@ type
     property Value: TValue read GetValue write SetValue;
   end;
 
+  ILazyManager = interface
+    function GetLazyValue: ILazyValue;
+
+    procedure SetLazyValue(const Value: ILazyValue);
+  end;
+
   Lazy<T> = record
   private
-    FLazyValue: ILazyValue;
+    FLazyManager: ILazyManager;
+
+    function GetLazyManager: ILazyManager;
 
     procedure SetValue(const Value: T);
   public
@@ -161,12 +169,24 @@ type
     procedure SetLazyValue(const Value: ILazyValue);
 
 {$IFDEF DCC}
+    class operator Initialize(out Dest: Lazy<T>);
     class operator Implicit(const Value: Lazy<T>): T;
     class operator Implicit(const Value: T): Lazy<T>;
 {$ENDIF}
 
     property LazyValue: ILazyValue read GetLazyValue write SetLazyValue;
     property Value: T read GetValue write SetValue;
+  end;
+
+  TLazyManager = class(TInterfacedObject, ILazyManager)
+  private
+    FLazyValue: ILazyValue;
+
+    function GetLazyValue: ILazyValue;
+
+    procedure SetLazyValue(const Value: ILazyValue);
+  public
+    constructor Create(const AType: PTypeInfo);
   end;
 
   TLazyValue = class(TInterfacedObject, ILazyValue)
@@ -245,12 +265,17 @@ end;
 
 { Lazy<T> }
 
+function Lazy<T>.GetLazyManager: ILazyManager;
+begin
+  if not Assigned(FLazyManager) then
+    FLazyManager := TLazyManager.Create(TypeInfo(T));
+
+  Result := FLazyManager;
+end;
+
 function Lazy<T>.GetLazyValue: ILazyValue;
 begin
-  if not Assigned(FLazyValue) then
-    FLazyValue := TLazyValue.Create(TypeInfo(T));
-
-  Result := FLazyValue;
+  Result := GetLazyManager.GetLazyValue;
 end;
 
 function Lazy<T>.GetValue: T;
@@ -264,6 +289,11 @@ begin
   Result.Value := Value;
 end;
 
+class operator Lazy<T>.Initialize(out Dest: Lazy<T>);
+begin
+  Dest.GetLazyManager;
+end;
+
 class operator Lazy<T>.Implicit(const Value: Lazy<T>): T;
 begin
   Result := Value.Value;
@@ -272,7 +302,7 @@ end;
 
 procedure Lazy<T>.SetLazyValue(const Value: ILazyValue);
 begin
-  FLazyValue := Value;
+  GetLazyManager.SetLazyValue(Value);
 end;
 
 procedure Lazy<T>.SetValue(const Value: T);
@@ -469,6 +499,23 @@ end;
 constructor BinaryAttribute.Create;
 begin
   inherited Create(stBinary, 0, 0);
+end;
+
+{ TLazyManager }
+
+constructor TLazyManager.Create(const AType: PTypeInfo);
+begin
+  FLazyValue := TLazyValue.Create(AType);
+end;
+
+function TLazyManager.GetLazyValue: ILazyValue;
+begin
+  Result := FLazyValue;
+end;
+
+procedure TLazyManager.SetLazyValue(const Value: ILazyValue);
+begin
+  FLazyValue := Value;
 end;
 
 end.

@@ -1189,7 +1189,7 @@ begin
 
   LazyField.Value[MyClass] := MyEntity;
 
-  Assert.AreEqual(MyEntity, LazyField.Value[MyEntity].AsObject);
+  Assert.AreEqual(MyEntity, LazyField.Value[MyClass].AsObject);
 
   MyClass.Free;
 

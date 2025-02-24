@@ -236,7 +236,7 @@ type
     function GetIsLazy: Boolean;
     function GetLazyValue(const Instance: TObject): ILazyValue;
     function GetPropertyValue(const Instance: TObject): TValue;
-    function GetRawPointerOfProperty(const Instance: TObject): Pointer;
+    function GetRawPointerOfProperty(const Instance: TObject): TValue;
     function GetValue(const Instance: TObject): TValue;
 
     procedure SetLazyValue(const Instance: TObject; const Value: ILazyValue);
@@ -1555,7 +1555,7 @@ end;
 
 function TField.GetLazyValue(const Instance: TObject): ILazyValue;
 begin
-  Result := PropertyInfo.PropertyType.GetMethod('GetLazyValue').Invoke(TValue.From(GetRawPointerOfProperty(Instance)), []).AsType<ILazyValue>;
+  Result := PropertyInfo.PropertyType.GetMethod('GetLazyValue').Invoke(GetRawPointerOfProperty(Instance), []).AsType<ILazyValue>;
 end;
 
 function TField.GetPropertyValue(const Instance: TObject): TValue;
@@ -1563,9 +1563,12 @@ begin
   Result := PropertyInfo.GetValue(Instance);
 end;
 
-function TField.GetRawPointerOfProperty(const Instance: TObject): Pointer;
+function TField.GetRawPointerOfProperty(const Instance: TObject): TValue;
 begin
-  Result := PByte(Instance) + (IntPtr(PropertyInfo.PropInfo^.GetProc) and (not PROPSLOT_MASK));
+  if PropertyInfo.Parent.AsInstance.MetaclassType <> Instance.ClassType then
+    raise EInvalidCast.Create('Invalid instance type!');
+
+  Result := PropertyInfo.GetValue(Instance);
 end;
 
 function TField.GetValue(const Instance: TObject): TValue;
@@ -1601,7 +1604,7 @@ end;
 
 procedure TField.SetLazyValue(const Instance: TObject; const Value: ILazyValue);
 begin
-  PropertyInfo.PropertyType.GetMethod('SetLazyValue').Invoke(TValue.From(GetRawPointerOfProperty(Instance)), TValue.From(Value));
+  PropertyInfo.PropertyType.GetMethod('SetLazyValue').Invoke(GetRawPointerOfProperty(Instance), TValue.From(Value));
 end;
 
 procedure TField.SetValue(const Instance: TObject; const Value: TValue);
