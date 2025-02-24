@@ -605,7 +605,6 @@ type
   published
     [ManyValueAssociationLinkName('Table')]
     property Fields: TArray<TDatabaseField> read FFields write FFields;
-    [ManyValueAssociationLinkName('Table')]
     property Id: String read FId write FId;
     property Name: String read FName write FName;
   end;
@@ -622,7 +621,7 @@ type
     FScale: Word;
     FSize: Word;
     FSpecialType: TDatabaseSpecialType;
-    FTable: TDatabaseTable;
+    FTable: Lazy<TDatabaseTable>;
   public
     property Check: TDatabaseCheckConstraint read FCheck write FCheck;
   published
@@ -634,7 +633,7 @@ type
     property Scale: Word read FScale write FScale;
     property Size: Word read FSize write FSize;
     property SpecialType: TDatabaseSpecialType read FSpecialType write FSpecialType;
-    property Table: TDatabaseTable read FTable write FTable;
+    property Table: Lazy<TDatabaseTable> read FTable write FTable;
   end;
 
   [TableName('PersistoDatabaseIndex')]
@@ -3152,8 +3151,8 @@ function TEntityGenerator.CompareDatabaseFieldName(const Left, Right: TDatabaseF
     begin
       Result := False;
 
-      if Assigned(DatabaseField.Table.PrimaryKeyIndex) then
-        for var KeyField in DatabaseField.Table.PrimaryKeyIndex.Fields do
+      if Assigned(DatabaseField.Table.Value.PrimaryKeyIndex) then
+        for var KeyField in DatabaseField.Table.Value.PrimaryKeyIndex.Fields do
           if KeyField.Field.Name = DatabaseField.Name then
             Exit(True);
     end;
