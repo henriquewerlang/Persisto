@@ -238,7 +238,11 @@ procedure TClassLoaderTest.WhenLoadALazyManyValueAssociationTheChildLinkFieldMus
 begin
   var LazyClass := FManager.Select.All.From<TMyManyValue>.Open.One;
 
-  Assert.IsTrue(LazyClass.Childs[0].MyManyValue.GetLazyValue.Key.IsEmpty);
+  FManager.ExectDirect('delete from MyChildLink');
+
+  FManager.ExectDirect('delete from MyManyValue');
+
+  Assert.AreEqual(LazyClass, LazyClass.Childs[0].MyManyValue.Value);
 end;
 
 procedure TClassLoaderTest.WhenLoadAllObjectsFromAManyValueAssociationMustReturnAUniqueInstanceOfEachObject;
@@ -261,11 +265,9 @@ end;
 
 procedure TClassLoaderTest.WhenLoadAManyValueAssociationTheChildClassMustHaveTheLinkPropertyLoadedWithTheParentClassPointer;
 begin
-  var Parent := FManager.Select.All.From<TMyEntityWithManyValueAssociation>.Open.One;
+  var LazyClass := FManager.Select.All.From<TMyEntityWithManyValueAssociation>.Open.One;
 
-  var Objects := FManager.Select.All.From<TMyEntityWithManyValueAssociation>.Open.One;
-
-  Assert.AreEqual(Parent, Objects.ManyValueAssociationList[0].ManyValueAssociation);
+  Assert.AreEqual(LazyClass, LazyClass.ManyValueAssociationList[0].ManyValueAssociation);
 end;
 
 procedure TClassLoaderTest.WhenLoadAnEmptyForeignKeyCantCreateTheForiegnKeyObject;

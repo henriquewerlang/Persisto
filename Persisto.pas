@@ -1800,11 +1800,11 @@ var
           FieldValue.SetArrayElement(ArrayLength, ManyValueObject);
 
           ManyValueAssociationTable.ManyValueAssociationField.Field.Value[&Object] := FieldValue;
-
-          ManyValueAssociationTable.ManyValueAssociationField.ChildField.SetValue(ManyValueObject, &Object);
         end;
 
         LoadFieldValues(ManyValueAssociationTable, ManyValueObject);
+
+        ManyValueAssociationTable.ManyValueAssociationField.ChildField.SetValue(ManyValueObject, &Object);
       end;
   end;
 
