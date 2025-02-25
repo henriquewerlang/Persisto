@@ -86,6 +86,8 @@ type
     procedure WhenLoadAManyValueAssociationTheChildClassMustHaveTheLinkPropertyLoadedWithTheParentClassPointer;
     [Test]
     procedure WhenLoadALazyManyValueAssociationTheChildLinkFieldMustBeLoadedWithTheParentClassValue;
+    [Test]
+    procedure WhenTheLazyValueIsTheSameForMoreThanOneClassMustUseTheSameLoaderInAllClasses;
   end;
 
 implementation
@@ -153,6 +155,14 @@ var
     Object11.Lazy.Value.Id := 1;
     Object11.Lazy.Value.Name := 'Name';
 
+    var Object15 := CreateObject<TLazyClass>;
+    Object15.Id := 2;
+    Object15.Lazy := Object11.Lazy;
+
+    var Object16 := CreateObject<TLazyClass>;
+    Object16.Id := 3;
+    Object16.Lazy := Object11.Lazy;
+
     var Object12 := CreateObject<TClassWithNullableProperty>;
     Object12.Id := 20;
 
@@ -166,7 +176,7 @@ var
 
     var Object14 := CreateObject<TLazyFilter>;
 
-    Objects := [Object1, Object2, Object3, Object7, Object11, Object12, Object13, Object14];
+    Objects := [Object1, Object2, Object3, Object7, Object11, Object12, Object13, Object14, Object15, Object16];
   end;
 
 begin
@@ -553,6 +563,23 @@ begin
     begin
       FManager.Select.All.From<TLazyFilter>.Open.One;
     end);
+end;
+
+procedure TClassLoaderTest.WhenTheLazyValueIsTheSameForMoreThanOneClassMustUseTheSameLoaderInAllClasses;
+begin
+  var MyEntity := FManager.Select.All.From<TMyEntity>.Open.One;
+
+  var LazyClass := FManager.Select.All.From<TLazyClass>.Open.All;
+
+  FManager.ExectDirect('delete from LazyClass');
+
+  FManager.ExectDirect('delete from MyEntity');
+
+  Assert.AreEqual(MyEntity, LazyClass[0].Lazy.Value);
+
+  Assert.AreEqual(MyEntity, LazyClass[1].Lazy.Value);
+
+  Assert.AreEqual(MyEntity, LazyClass[2].Lazy.Value);
 end;
 
 procedure TClassLoaderTest.WhenTryToLoadASingleObjectFromAnEmptyTableCantRaiseAnyError;

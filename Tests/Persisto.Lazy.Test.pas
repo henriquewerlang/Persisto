@@ -43,6 +43,8 @@ type
     procedure WhenFillTheValueMustReturnTheFilledValue;
     [Test]
     procedure WhenTheLazyValueIsUnloadedMustReturnTheValueEmptyButWithTheTypeInfoLoaded;
+    [Test]
+    procedure WhenCreateTheLazyValueWithOneValueMustReturnThisValue;
   end;
 
   [TestFixture]
@@ -159,12 +161,23 @@ end;
 
 procedure TLazyValueTest.Setup;
 begin
-  FLazyValue := TLazyValue.Create(nil);
+  FLazyValue := TLazyValue.Create(nil, nil);
 end;
 
 procedure TLazyValueTest.TearDown;
 begin
   FLazyValue := nil;
+end;
+
+procedure TLazyValueTest.WhenCreateTheLazyValueWithOneValueMustReturnThisValue;
+begin
+  var MyObject := TObject.Create;
+
+  FLazyValue := TLazyValue.Create(TypeInfo(TObject), @MyObject);
+
+  Assert.AreEqual(MyObject, FLazyValue.Value.AsObject);
+
+  MyObject.Free;
 end;
 
 procedure TLazyValueTest.WhenFillTheValueMustReturnTheFilledValue;
@@ -181,7 +194,7 @@ end;
 
 procedure TLazyValueTest.WhenTheLazyValueIsUnloadedMustReturnTheValueEmptyButWithTheTypeInfoLoaded;
 begin
-  FLazyValue := TLazyValue.Create(TypeInfo(TObject));
+  FLazyValue := TLazyValue.Create(TypeInfo(TObject), nil);
 
   Assert.AreEqual(TypeInfo(TObject), FLazyValue.Value.TypeInfo);
 end;

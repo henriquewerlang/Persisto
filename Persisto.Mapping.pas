@@ -198,7 +198,7 @@ type
 
     procedure SetValue(const Value: TValue);
   public
-    constructor Create(const Info: PTypeInfo);
+    constructor Create(const Info: PTypeInfo; const Value: Pointer);
   end;
 
   TRttiTypeHelper = class helper for TRttiType
@@ -241,11 +241,11 @@ end;
 
 { TLazyValue }
 
-constructor TLazyValue.Create(const Info: PTypeInfo);
+constructor TLazyValue.Create(const Info: PTypeInfo; const Value: Pointer);
 begin
   inherited Create;
 
-  TValue.Make(nil, Info, FValue);
+  TValue.Make(Value, Info, FValue);
 end;
 
 function TLazyValue.GetKey: TValue;
@@ -505,7 +505,7 @@ end;
 
 constructor TLazyManager.Create(const AType: PTypeInfo);
 begin
-  FLazyValue := TLazyValue.Create(AType);
+  FLazyValue := TLazyValue.Create(AType, nil);
 end;
 
 function TLazyManager.GetLazyValue: ILazyValue;

@@ -1695,9 +1695,14 @@ function TClassLoader.Load(const ResultType: PTypeInfo): TValue;
 var
   LoadedObjects: TDictionary<String, Boolean>;
 
-  function BuildStateObjectKey(const QueryTable: TQueryBuilderTable): String;
+  function BuildStateObjectKey(const TableName, Key: String): String; overload;
   begin
-    Result := Format('%s.%s', [QueryTable.Table.DatabaseName, QueryTable.PrimaryKeyField.DataSetField.AsString]);
+    Result := TableName + '.' + Key;
+  end;
+
+  function BuildStateObjectKey(const QueryTable: TQueryBuilderTable): String; overload;
+  begin
+    Result := BuildStateObjectKey(QueryTable.Table.DatabaseName, QueryTable.PrimaryKeyField.DataSetField.AsString);
   end;
 
   function BuildStateObjectKeyForManyValueObject(const QueryTable: TQueryBuilderTable): String;
@@ -1742,6 +1747,20 @@ var
     end;
   end;
 
+  function CheckLazyFactory(const LazyField: TField; const KeyValue: TValue): ILazyValue;
+  begin
+    if LazyField.IsForeignKey then
+    begin
+      var Key := BuildStateObjectKey(LazyField.ForeignKey.ParentTable.DatabaseName, KeyValue.ToString);
+      var &Object: TObject;
+
+      if FQueryBuilder.FManager.FLoadedObjects.TryGetValue(Key, &Object) then
+        Exit(TLazyValue.Create(&Object.ClassInfo, @&Object));
+    end;
+
+    Result := CreateLazyFactory(LazyField, KeyValue);
+  end;
+
   procedure LoadFieldValues(const QueryTable: TQueryBuilderTable; const &Object: TObject);
   var
     ArrayLength: Integer;
@@ -1760,7 +1779,7 @@ var
       FieldValue := GetFieldValue(Field, QueryField.DataSetField);
 
       if Field.IsLazy then
-        Field.LazyValue[&Object] := CreateLazyFactory(Field, FieldValue)
+        Field.LazyValue[&Object] := CheckLazyFactory(Field, FieldValue)
       else if Field.Required or not FieldValue.IsEmpty then
         Field.Value[&Object] := FieldValue;
     end;
@@ -1799,12 +1818,11 @@ var
 
           FieldValue.SetArrayElement(ArrayLength, ManyValueObject);
 
+          ManyValueAssociationTable.ManyValueAssociationField.ChildField.Value[ManyValueObject] := &Object;
           ManyValueAssociationTable.ManyValueAssociationField.Field.Value[&Object] := FieldValue;
         end;
 
         LoadFieldValues(ManyValueAssociationTable, ManyValueObject);
-
-        ManyValueAssociationTable.ManyValueAssociationField.ChildField.Value[ManyValueObject] := &Object;
       end;
   end;
 
@@ -2776,7 +2794,7 @@ var
           Params.AddParam(Field, FieldValue.AsVariant);
         end;
 
-      var Cursor := FConnection.PrepareCursor(FDatabaseManipulator.MakeInsertStatement(Table, Params), Params);
+      var Cursor := PrepareCursor(FDatabaseManipulator.MakeInsertStatement(Table, Params), Params);
 
       Cursor.Next;
 
@@ -2846,7 +2864,7 @@ procedure TManager.InternalUpdateTable(const Table: TTable; const &Object: TObje
       begin
         Params.AddParam(Table.PrimaryKey, Table.PrimaryKey.Value[&Object].AsVariant);
 
-        FConnection.PrepareCursor(FDatabaseManipulator.MakeUpdateStatement(Table, Params), Params).Next;
+        PrepareCursor(FDatabaseManipulator.MakeUpdateStatement(Table, Params), Params).Next;
       end;
 
       SaveManyValueAssociation(Table, &Object);
@@ -2959,7 +2977,7 @@ begin
 
   SQL.Append(PrimaryKey.DatabaseName);
 
-  var Cursor := FConnection.PrepareCursor(SQL.ToString, Params);
+  var Cursor := PrepareCursor(SQL.ToString, Params);
 
   Result := Cursor.Next;
 
@@ -3193,7 +3211,7 @@ begin
   FDatabaseTableComparer := TDelegatedComparer<TDatabaseTable>.Create(
     function(const Left, Right: TDatabaseTable): Integer
     begin
-      Result := CompareText(Left.Name, Right.Name);
+      Result := CompareStr(Left.Name, Right.Name);
     end);
   FManager := Manager;
 end;
