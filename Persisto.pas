@@ -1804,7 +1804,7 @@ var
 
         LoadFieldValues(ManyValueAssociationTable, ManyValueObject);
 
-        ManyValueAssociationTable.ManyValueAssociationField.ChildField.SetValue(ManyValueObject, &Object);
+        ManyValueAssociationTable.ManyValueAssociationField.ChildField.Value[ManyValueObject] := &Object;
       end;
   end;
 
