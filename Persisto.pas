@@ -3211,7 +3211,7 @@ begin
   FDatabaseTableComparer := TDelegatedComparer<TDatabaseTable>.Create(
     function(const Left, Right: TDatabaseTable): Integer
     begin
-      Result := CompareStr(Left.Name, Right.Name);
+      Result := CompareText(Left.Name, Right.Name);
     end);
   FManager := Manager;
 end;
