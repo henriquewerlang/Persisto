@@ -87,16 +87,6 @@ end;
 
 function TDatabaseManipulatorSQLite.GetSchemaTablesScripts: TArray<String>;
 const
-  PRIMARY_KEY_CONSTRAINT_SQL =
-    '''
-    select cast('PK_' || T.name as varchar(250)) Id,
-           cast('PK_' || T.name as varchar(250)) Name,
-           cast(PK.name as varchar(250)) FieldName
-      from PersistoDatabaseTable T,
-           pragma_table_info(T.name) PK
-     where PK.pk = 1
-    ''';
-
   DEFAULT_CONSTRAINT_SQL =
     'select null Id, null Name, null Value';
 
@@ -121,9 +111,6 @@ const
   TABLE_SQL =
     '''
     select cast(T.name as varchar(250)) Id,
-           cast((select cast('PK_' || T.name as varchar(250))
-                   from pragma_table_info(T.name) PK
-                  where PK.pk = 1) as varchar(250)) IdPrimaryKeyConstraint,
            cast(T.name as varchar(250)) Name
       from sqlite_master T
      where T.type = 'table'
@@ -132,9 +119,9 @@ const
 
   COLUMNS_SQL =
     '''
-    select cast(T.name || '#' || C.name as varchar(250)) Id,
+    select cast(T.Id || '#' || C.name as varchar(250)) Id,
            null IdDefaultConstraint,
-           cast(T.name as varchar(250)) IdTable,
+           T.Id IdTable,
            case lower(substr(type, 1, iif(instr(type, '(') > 0, 7, length(type))))
               when 'varchar' then 5
               when 'integer' then 1
@@ -167,6 +154,31 @@ const
            pragma_table_info(T.name) C
     ''';
 
+
+  INDEX_SQL =
+    '''
+    select I.name Id,
+           T.name IdTable,
+           I.name Name,
+           case
+              when origin = 'pk' then 1
+              else 0
+           end IsPrimaryKey,
+           I."unique" IsUnique
+      from PersistoDatabaseTable T,
+           pragma_index_list(T.name) I
+    ''';
+
+  INDEX_FIELDS_SQL =
+    '''
+    select cast(I.Name || '#' || IC.Name as varchar(250)) Id,
+           cast(I.IdTable || '#' || IC.name as varchar(250)) IdField,
+           I.name IdIndex,
+           IC.cid Position
+      from PersistoDatabaseIndex I,
+           pragma_index_info(I.name) IC
+    ''';
+
   function CreateView(const Name, SQL: String): String;
   begin
     Result := Format('create temp view if not exists PersistoDatabase%s as %s', [Name, SQL]);
@@ -174,12 +186,13 @@ const
 
 begin
   Result := ['create table PersistoDatabaseSequenceWorkArround (sequence integer primary key autoincrement)',
-    CreateView('Sequence', SEQUENCES_SQL),
-    CreateView('Table', TABLE_SQL),
     CreateView('DefaultConstraint', DEFAULT_CONSTRAINT_SQL),
     CreateView('ForeignKey', FOREING_KEY_SQL),
+    CreateView('Index', INDEX_SQL),
+    CreateView('IndexField', INDEX_FIELDS_SQL),
+    CreateView('Sequence', SEQUENCES_SQL),
+    CreateView('Table', TABLE_SQL),
     CreateView('TableField', COLUMNS_SQL),
-    CreateView('PrimaryKeyConstraint', PRIMARY_KEY_CONSTRAINT_SQL),
     'drop table PersistoDatabaseSequenceWorkArround'];
 end;
 
