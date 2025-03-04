@@ -137,6 +137,7 @@ type
   ILazyValue = interface
     function GetKey: TValue;
     function GetValue: TValue;
+    function HasValue: Boolean;
 
     procedure SetValue(const Value: TValue);
 
@@ -160,6 +161,7 @@ type
   public
     function GetLazyValue: ILazyValue;
     function GetValue: T;
+    function HasValue: Boolean;
 
     procedure SetLazyValue(const Value: ILazyValue);
 
@@ -190,6 +192,7 @@ type
   protected
     function GetKey: TValue;
     function GetValue: TValue;
+    function HasValue: Boolean;
 
     procedure SetValue(const Value: TValue);
   public
@@ -253,6 +256,11 @@ begin
   Result := FValue;
 end;
 
+function TLazyValue.HasValue: Boolean;
+begin
+  Result := not FValue.IsEmpty;
+end;
+
 procedure TLazyValue.SetValue(const Value: TValue);
 begin
   FValue := Value;
@@ -276,6 +284,11 @@ end;
 function Lazy<T>.GetValue: T;
 begin
   Result := LazyValue.Value.AsType<T>;
+end;
+
+function Lazy<T>.HasValue: Boolean;
+begin
+  Result := LazyValue.HasValue;
 end;
 
 {$IFDEF DCC}

@@ -380,6 +380,7 @@ type
 
     function GetKey: TValue;
     function GetValue: TValue;
+    function HasValue: Boolean;
 
     procedure SetValue(const Value: TValue);
   public
@@ -1660,6 +1661,11 @@ begin
   end;
 
   Result := FLazyValue;
+end;
+
+function TLazyLoader.HasValue: Boolean;
+begin
+  Result := not FKeyValue.IsEmpty or not FLazyValue.IsEmpty;
 end;
 
 procedure TLazyLoader.SetValue(const Value: TValue);

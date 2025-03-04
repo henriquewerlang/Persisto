@@ -26,6 +26,8 @@ type
     procedure WhenTheLazyValueIsntLoadedMustReturnTheTypeInfoFromTheTypeAsExpected;
     [Test]
     procedure WhenFillTheLazyValuePropertyMustReturnTheValueAsExpected;
+    [Test]
+    procedure WhenTheLazyValueIsFilledTheHasValueFunctionMustReturnTrue;
   end;
 
   [TestFixture]
@@ -45,6 +47,8 @@ type
     procedure WhenTheLazyValueIsUnloadedMustReturnTheValueEmptyButWithTheTypeInfoLoaded;
     [Test]
     procedure WhenCreateTheLazyValueWithOneValueMustReturnThisValue;
+    [Test]
+    procedure WhenTheValueIsFilledTheHasValueFunctionMustReturnTrue;
   end;
 
   [TestFixture]
@@ -68,6 +72,10 @@ type
     procedure WhenTheValueIsntLoadedMustLoadTheValueFromDatabase;
     [Test]
     procedure WhenTheLazyKeyIsEmptyCantTryToLoadTheValueFromDatabase;
+    [Test]
+    procedure WhenTheKeyIsLoadedTheHasValueMustReturnTrue;
+    [Test]
+    procedure WhenTheValueIsLoadedTheHasValueMustReturnTrue;
   end;
 
   [TestFixture]
@@ -150,11 +158,22 @@ begin
   MyEntity.Free;
 end;
 
+procedure TLazyTest.WhenTheLazyValueIsFilledTheHasValueFunctionMustReturnTrue;
+begin
+  var MyLazy: Lazy<TMyEntity>;
+
+  MyLazy.LazyValue.Value := 10;
+
+  Assert.IsTrue(MyLazy.HasValue);
+end;
+
 procedure TLazyTest.WhenTheLazyValueIsntLoadedMustReturnTheTypeInfoFromTheTypeAsExpected;
 begin
   var LazyClass := TLazyClass.Create;
 
   Assert.AreEqual(TypeInfo(TMyEntity), LazyClass.Lazy.LazyValue.Value.TypeInfo);
+
+  LazyClass.Free;
 end;
 
 { TLazyValueTest }
@@ -197,6 +216,13 @@ begin
   FLazyValue := TLazyValue.Create(TypeInfo(TObject), nil);
 
   Assert.AreEqual(TypeInfo(TObject), FLazyValue.Value.TypeInfo);
+end;
+
+procedure TLazyValueTest.WhenTheValueIsFilledTheHasValueFunctionMustReturnTrue;
+begin
+  FLazyValue.Value := 10;
+
+  Assert.IsTrue(FLazyValue.HasValue);
 end;
 
 { TLazyLoaderObjectTest }
@@ -251,6 +277,13 @@ begin
   Assert.AreEqual(10, LazyFactory.Key.AsInteger);
 end;
 
+procedure TLazyLoaderObjectTest.WhenTheKeyIsLoadedTheHasValueMustReturnTrue;
+begin
+  var LazyFactory := TLazyLoader.Create(nil, nil, 10, nil) as ILazyValue;
+
+  Assert.IsTrue(LazyFactory.HasValue);
+end;
+
 procedure TLazyLoaderObjectTest.WhenTheLazyKeyIsEmptyCantTryToLoadTheValueFromDatabase;
 begin
   var LazyFactory := TLazyLoader.Create(nil, nil, nil, nil) as ILazyValue;
@@ -260,6 +293,15 @@ begin
     begin
       LazyFactory.Value;
     end);
+end;
+
+procedure TLazyLoaderObjectTest.WhenTheValueIsLoadedTheHasValueMustReturnTrue;
+begin
+  var LazyFactory := TLazyLoader.Create(nil, nil, nil, nil) as ILazyValue;
+
+  LazyFactory.Value := 10;
+
+  Assert.IsTrue(LazyFactory.HasValue);
 end;
 
 procedure TLazyLoaderObjectTest.WhenTheValueIsntLoadedMustLoadTheValueFromDatabase;
