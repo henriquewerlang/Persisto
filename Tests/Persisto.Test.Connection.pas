@@ -31,6 +31,7 @@ implementation
 uses
   System.IOUtils,
 {$IFDEF POSTGRESQL}
+  System.Types,
   FireDAC.Phys.PG,
   FireDAC.Phys.PGDef,
   Persisto.PostgreSQL,
@@ -113,6 +114,7 @@ begin
   Configuration.Database := DatabaseName.ToLower;
   Configuration.Password := GetEnvironmentVariable('POSTGRESQL_PASSWORD');
   Configuration.UserName := GetEnvironmentVariable('POSTGRESQL_USERNAME');
+  Configuration.GUIDEndian := TEndian.Little;
 
   if Driver.VendorLib.IsEmpty or Connection.Connection.Params.UserName.IsEmpty and Connection.Connection.Params.Password.IsEmpty then
     raise EPostgreSQLConfigurationError.Create;
