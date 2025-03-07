@@ -809,6 +809,27 @@ type
     property ForeignKey: TMyEntity read FForeignKey write FForeignKey;
   end;
 
+  [Entity]
+  [PrimaryKey('Value')]
+  TClassWithNamedPrimaryKey = class
+  private
+    FValue: Integer;
+  published
+    property Value: Integer read FValue write FValue;
+  end;
+
+  [Entity]
+  [PrimaryKey('Field')]
+  TClassWithForeignKeyNamedLinked = class
+  private
+    FField: Integer;
+    FFK: TClassWithNamedPrimaryKey;
+  published
+    property Field: Integer read FField write FField;
+    [FieldName('Another')]
+    property FK: TClassWithNamedPrimaryKey read FFK write FFK;
+  end;
+
   TManyValueClassBase = class;
 
   [Entity]

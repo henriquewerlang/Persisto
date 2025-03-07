@@ -2031,7 +2031,7 @@ var
 
   procedure MakeForeignKeyJoin(const QueryTable, ForeignQueryTable: TQueryBuilderTable; const LinkField: TField);
   begin
-    MakeJoin(QueryTable, QueryTable.PrimaryKeyField.Field, ForeignQueryTable, LinkField);
+    MakeJoin(QueryTable, ForeignQueryTable.PrimaryKeyField.Field, ForeignQueryTable, LinkField);
   end;
 
   procedure MakeManyValueAssociationJoin(const QueryTable, ManyValueAssociationTable: TQueryBuilderTable);

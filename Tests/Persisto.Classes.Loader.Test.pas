@@ -88,6 +88,8 @@ type
     procedure WhenLoadALazyManyValueAssociationTheChildLinkFieldMustBeLoadedWithTheParentClassValue;
     [Test]
     procedure WhenTheLazyValueIsTheSameForMoreThanOneClassMustUseTheSameLoaderInAllClasses;
+    [Test]
+    procedure WhenSelectAnEntityWithTheForeignKeyFieldNamedMustLoadTheClassWithoutError;
   end;
 
 implementation
@@ -187,6 +189,8 @@ begin
   FManagerInsert.Mapper.GetTable(TManyValueAssociationParent);
 
   FManagerInsert.Mapper.GetTable(TMyManyValue);
+
+  FManagerInsert.Mapper.GetTable(TClassWithForeignKeyNamedLinked);
 
   LoadObjects;
 
@@ -509,6 +513,15 @@ begin
   var &Object := FManager.Select.All.From<TClassWithNullableProperty>.Open.One;
 
   Assert.IsFalse(&Object.NullableStored);
+end;
+
+procedure TClassLoaderTest.WhenSelectAnEntityWithTheForeignKeyFieldNamedMustLoadTheClassWithoutError;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Select.All.From<TClassWithForeignKeyNamedLinked>.Open.One;
+    end);
 end;
 
 procedure TClassLoaderTest.WhenSelectingAChildTableWithAForeignKeyCantRaiseRecursionErrorThatNotReal;
