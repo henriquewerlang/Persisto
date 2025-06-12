@@ -9,6 +9,7 @@ type
   private
     function CreateDatabase(const DatabaseName: String): String;
     function DropDatabase(const DatabaseName: String): String;
+    function GetDefaultDatabaseName: String;
     function GetDefaultValue(const Field: TField): String;
     function GetFieldType(const FieldType: TTypeKind): String;
     function GetMaxNameSize: Integer;
@@ -30,6 +31,11 @@ end;
 function TDatabaseManipulatorInterbase.DropDatabase(const DatabaseName: String): String;
 begin
   Result := 'drop database';
+end;
+
+function TDatabaseManipulatorInterbase.GetDefaultDatabaseName: String;
+begin
+  Result := EmptyStr;
 end;
 
 function TDatabaseManipulatorInterbase.GetDefaultValue(const Field: TField): String;

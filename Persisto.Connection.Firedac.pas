@@ -39,6 +39,7 @@ type
 
     procedure ExecuteDirect(const SQL: String);
     procedure ExecuteScript(const Script: String);
+    procedure SetDatabaseName(const Value: String);
   public
     constructor Create;
 
@@ -156,6 +157,11 @@ end;
 function TDatabaseConnectionFireDAC.PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
 begin
   Result := TDatabaseCursorFireDAC.Create(Connection, SQL, Params);
+end;
+
+procedure TDatabaseConnectionFireDAC.SetDatabaseName(const Value: String);
+begin
+  FConnection.Params.Database := Value;
 end;
 
 function TDatabaseConnectionFireDAC.StartTransaction: IDatabaseTransaction;

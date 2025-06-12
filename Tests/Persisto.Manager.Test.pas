@@ -188,6 +188,7 @@ type
 
     procedure ExecuteDirect(const SQL: String);
     procedure ExecuteScript(const Script: String);
+    procedure SetDatabaseName(const Value: String);
   public
     constructor Create(const Connection: IDatabaseConnection);
 
@@ -1646,6 +1647,11 @@ begin
   LastCommandExecuted := SQL;
 
   Result := FConnection.PrepareCursor(SQL, Params);
+end;
+
+procedure TDatabaseConnectionMock.SetDatabaseName(const Value: String);
+begin
+
 end;
 
 function TDatabaseConnectionMock.StartTransaction: IDatabaseTransaction;

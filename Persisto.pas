@@ -113,8 +113,9 @@ type
 
     procedure ExecuteDirect(const SQL: String);
     procedure ExecuteScript(const Script: String);
+    procedure SetDatabaseName(const Value: String);
 
-    property DatabaseName: String read GetDatabaseName;
+    property DatabaseName: String read GetDatabaseName write SetDatabaseName;
   end;
 
   IDatabaseManipulator = interface
@@ -123,6 +124,7 @@ type
     function CreateSequence(const Sequence: TSequence): String;
     function DropDatabase(const DatabaseName: String): String;
     function DropSequence(const Sequence: TDatabaseSequence): String;
+    function GetDefaultDatabaseName: String;
     function GetDefaultValue(const Field: TField): String;
     function GetFieldType(const FieldType: TTypeKind): String;
     function GetMaxNameSize: Integer;
@@ -132,6 +134,7 @@ type
     function MakeInsertStatement(const Table: TTable; const Params: TParams): String;
     function MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
 
+    property DefaultDatabaseName: String read GetDefaultDatabaseName;
     property MaxNameSize: Integer read GetMaxNameSize;
   end;
 
@@ -2662,7 +2665,15 @@ end;
 
 procedure TManager.CreateDatabase;
 begin
-  FConnection.ExecuteScript(FDatabaseManipulator.CreateDatabase(FConnection.DatabaseName));
+  var CurrentDatabaseName := FConnection.DatabaseName;
+
+  try
+    FConnection.DatabaseName := FDatabaseManipulator.DefaultDatabaseName;
+
+    FConnection.ExecuteScript(FDatabaseManipulator.CreateDatabase(CurrentDatabaseName));
+  finally
+    FConnection.DatabaseName := CurrentDatabaseName;
+  end;
 end;
 
 procedure TManager.Delete(const Objects: TArray<TObject>);

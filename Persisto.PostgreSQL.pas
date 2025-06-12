@@ -9,6 +9,7 @@ type
   private
     function CreateDatabase(const DatabaseName: String): String;
     function DropDatabase(const DatabaseName: String): String;
+    function GetDefaultDatabaseName: String;
     function GetDefaultValue(const Field: TField): String;
     function GetFieldType(const FieldType: TTypeKind): String;
     function GetMaxNameSize: Integer;
@@ -24,12 +25,17 @@ uses System.SysUtils, System.Rtti, System.TypInfo;
 
 function TDatabaseManipulatorPostgreSQL.CreateDatabase(const DatabaseName: String): String;
 begin
-  Result := Format('create database %s', [DatabaseName]);
+  Result := Format('create database "%s"', [DatabaseName]);
 end;
 
 function TDatabaseManipulatorPostgreSQL.DropDatabase(const DatabaseName: String): String;
 begin
   Result := Format('drop database if exists %s with (force)', [DatabaseName]);
+end;
+
+function TDatabaseManipulatorPostgreSQL.GetDefaultDatabaseName: String;
+begin
+  Result := 'postgres';
 end;
 
 function TDatabaseManipulatorPostgreSQL.GetDefaultValue(const Field: TField): String;

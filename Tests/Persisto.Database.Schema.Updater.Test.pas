@@ -109,6 +109,7 @@ type
     function CreateSequence(const Sequence: TSequence): String;
     function DropDatabase(const DatabaseName: String): String;
     function DropSequence(const Sequence: TDatabaseSequence): String;
+    function GetDefaultDatabaseName: String;
     function GetDefaultValue(const Field: TField): String;
     function GetFieldType(const FieldType: TTypeKind): String;
     function GetMaxNameSize: Integer;
@@ -663,6 +664,11 @@ end;
 function TDatabaseManiupulatorMock.DropSequence(const Sequence: TDatabaseSequence): String;
 begin
   Result := FManipulador.DropSequence(Sequence);
+end;
+
+function TDatabaseManiupulatorMock.GetDefaultDatabaseName: String;
+begin
+  Result := 'Default';
 end;
 
 function TDatabaseManiupulatorMock.GetDefaultValue(const Field: TField): String;

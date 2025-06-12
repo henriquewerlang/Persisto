@@ -9,6 +9,7 @@ type
   private
     function CreateDatabase(const DatabaseName: String): String;
     function DropDatabase(const DatabaseName: String): String;
+    function GetDefaultDatabaseName: String;
     function GetDefaultValue(const Field: TField): String;
     function GetFieldType(const FieldType: TTypeKind): String;
     function GetMaxNameSize: Integer;
@@ -31,6 +32,11 @@ end;
 function TDatabaseManipulatorSQLServer.DropDatabase(const DatabaseName: String): String;
 begin
   Result := Format('use master;'#13#10'alter database %0:s set single_user with rollback immediate;'#13#10'drop database if exists %0:s;', [DatabaseName]);
+end;
+
+function TDatabaseManipulatorSQLServer.GetDefaultDatabaseName: String;
+begin
+  Result := 'master';
 end;
 
 function TDatabaseManipulatorSQLServer.GetDefaultValue(const Field: TField): String;

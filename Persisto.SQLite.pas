@@ -11,6 +11,7 @@ type
     function DropDatabase(const DatabaseName: String): String;
     function CreateSequence(const Sequence: TSequence): String;
     function DropSequence(const Sequence: TDatabaseSequence): String;
+    function GetDefaultDatabaseName: String;
     function GetDefaultValue(const Field: TField): String;
     function GetFieldType(const FieldType: TTypeKind): String;
     function GetMaxNameSize: Integer;
@@ -43,6 +44,11 @@ end;
 function TDatabaseManipulatorSQLite.DropSequence(const Sequence: TDatabaseSequence): String;
 begin
   Result := Format('delete from sqlite_sequence where name = ''%s''', [Sequence.Name]);
+end;
+
+function TDatabaseManipulatorSQLite.GetDefaultDatabaseName: String;
+begin
+  Result := EmptyStr;
 end;
 
 function TDatabaseManipulatorSQLite.GetDefaultValue(const Field: TField): String;
