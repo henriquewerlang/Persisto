@@ -1184,6 +1184,12 @@ begin
 end;
 
 procedure TMapper.LoadFieldInfo(const Table: TTable; const PropertyInfo: TRttiInstanceProperty; const Field: TField);
+
+  function IsArrayType: Boolean;
+  begin
+    Result := (Field.FieldType is TRttiArrayType) or (Field.FieldType is TRttiDynamicArrayType) or (Field.FieldType is TRttiStringType);
+  end;
+
 begin
   Field.FFieldType := PropertyInfo.PropertyType;
   Field.FIndex := Length(Table.FFields);
@@ -1201,7 +1207,7 @@ begin
 
   Field.FIsForeignKey := Field.FieldType.IsInstance;
   Field.FIsManyValueAssociation := Field.FieldType.IsArray and Field.FieldType.AsArray.ElementType.IsInstance;
-  Field.FRequired := PropertyInfo.HasAttribute<RequiredAttribute> or ((UIntPtr(PropertyInfo.PropInfo^.StoredProc) and (not NativeUInt($FF))) = 0) and not Field.FieldType.IsInstance and not (Field.FieldType is TRttiStringType);
+  Field.FRequired := PropertyInfo.HasAttribute<RequiredAttribute> or ((UIntPtr(PropertyInfo.PropInfo^.StoredProc) and (not NativeUInt($FF))) = 0) and not Field.FieldType.IsInstance and not IsArrayType;
 
   Field.FDatabaseName := GetFieldDatabaseName(Field);
 

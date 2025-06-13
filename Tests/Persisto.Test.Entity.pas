@@ -1110,11 +1110,14 @@ type
     FNullField: Integer;
     FDefaultInternalFunction: String;
     FNullFieldStored: Boolean;
+    FBinary: TArray<Byte>;
   public
     property NullFieldStored: Boolean read FNullFieldStored write FNullFieldStored;
   published
     property Boolean: Boolean read FBoolean write FBoolean;
     property Bigint: Int64 read FBigint write FBigint;
+    [Binary]
+    property Binary: TArray<Byte> read FBinary write FBinary;
     property Byte: Byte read FByte write FByte;
     property Char: Char read FChar write FChar;
     [CurrentDate]
