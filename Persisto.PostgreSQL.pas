@@ -121,12 +121,17 @@ const
            end FieldType,
            attname collate CI Name,
            attnotnull Required,
-           (atttypmod - 4) & 65535 Scale,
-           case
-              when atttypid = 1043 then atttypmod - 4
-              when atttypid = 1700 then ((atttypmod - 4) >> 16) & 65535
-              else ((atttypmod - 4) >> 16) & 65535
-           end Size,
+           coalesce(case
+                       when atttypid = 1700 then coalesce(information_schema._pg_numeric_scale(atttypid, atttypmod), 10)
+                       when atttypid in (700, 701) then 10
+                       else 0
+                    end, 0) Scale,
+           coalesce(case
+                       when atttypid = 1043 then coalesce(information_schema._pg_char_max_length(atttypid, atttypmod), 1000)
+                       when atttypid = 1700 then coalesce(information_schema._pg_numeric_precision(atttypid, atttypmod), 18)
+                       when atttypid in (700, 701) then 20
+                       else 0
+                    end, 0) Size,
            case atttypid
               -- Date
               when 1082 then 1
