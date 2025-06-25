@@ -110,7 +110,7 @@ begin
   Configuration.Database := DatabaseName;
   Configuration.Password := GetEnvironmentVariable('POSTGRESQL_PASSWORD');
   Configuration.UserName := GetEnvironmentVariable('POSTGRESQL_USERNAME');
-  Configuration.GUIDEndian := TEndian.Little;
+  Configuration.GUIDEndian := TEndian.Big;
 
   if Driver.VendorLib.IsEmpty or Connection.Connection.Params.UserName.IsEmpty and Connection.Connection.Params.Password.IsEmpty then
     raise EPostgreSQLConfigurationError.Create;
