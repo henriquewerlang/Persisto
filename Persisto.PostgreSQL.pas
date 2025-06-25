@@ -30,7 +30,7 @@ end;
 
 function TDatabaseManipulatorPostgreSQL.DropDatabase(const DatabaseName: String): String;
 begin
-  Result := Format('drop database if exists %s with (force)', [DatabaseName]);
+  Result := Format('drop database if exists "%s" with (force)', [DatabaseName]);
 end;
 
 function TDatabaseManipulatorPostgreSQL.GetDefaultDatabaseName: String;
