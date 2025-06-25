@@ -201,24 +201,24 @@ procedure TClassLoaderTest.Setup;
 begin
   FObjects := TObjectList<TObject>.Create;
 
-  RebootDatabase;
-
   var Connection := CreateConnection;
   FManager := TManager.Create(Connection, CreateDatabaseManipulator);
   FManagerInsert := TManager.Create(Connection, CreateDatabaseManipulator);
+
+  FManager.CreateDatabase;
 
   InsertDatabaseData(Connection);
 end;
 
 procedure TClassLoaderTest.TearDown;
 begin
+  FManager.DropDatabase;
+
   FObjects.Free;
 
   FManager.Free;
 
   FManagerInsert.Free;
-
-  DropDatabase;
 end;
 
 procedure TClassLoaderTest.TheChildOfAChildObjectMustBeLoadedAsExpected;

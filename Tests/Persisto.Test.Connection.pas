@@ -8,10 +8,6 @@ function CreateConnection: IDatabaseConnection;
 function CreateConnectionNamed(const DatabaseName: String): IDatabaseConnection;
 function CreateDatabaseManipulator: IDatabaseManipulator;
 
-procedure CreateDatabase;
-procedure DropDatabase;
-procedure RebootDatabase;
-
 {$IFDEF POSTGRESQL}
 type
   EPostgreSQLConfigurationError = class(Exception)
@@ -111,7 +107,7 @@ begin
   Connection.Connection.DriverName := 'PG';
 
   var Configuration := Connection.Connection.Params as TFDPhysPGConnectionDefParams;
-  Configuration.Database := DatabaseName.ToLower;
+  Configuration.Database := DatabaseName;
   Configuration.Password := GetEnvironmentVariable('POSTGRESQL_PASSWORD');
   Configuration.UserName := GetEnvironmentVariable('POSTGRESQL_USERNAME');
   Configuration.GUIDEndian := TEndian.Little;
@@ -185,59 +181,6 @@ begin
 {$ELSE}
   RaiseConfigurationSelectionError;
 {$ENDIF}
-end;
-
-procedure CreateDatabaseNamed(const DatabaseName: String);
-begin
-{$IFDEF POSTGRESQL}
-  var Connection := CreateConnectionNamed('postgres');
-
-  Connection.ExecuteDirect(Format('create database %s', [DatabaseName]));
-{$ELSEIF DEFINED(SQLSERVER)}
-  var Connection := CreateConnectionNamed('master');
-
-  Connection.ExecuteDirect(Format('create database %s', [DatabaseName]));
-{$ELSEIF DEFINED(INTERBASE)}
-{$ELSEIF DEFINED(SQLITE)}
-{$ELSE}
-  RaiseConfigurationSelectionError;
-{$ENDIF}
-end;
-
-procedure CreateDatabase;
-begin
-  CreateDatabaseNamed(DATABASE_NAME);
-end;
-
-procedure DropDatabase;
-begin
-  try
-    var DatabaseName := FormatDatabaseName(DATABASE_NAME);
-
-{$IFDEF POSTGRESQL}
-    var Connection := CreateConnectionNamed('postgres');
-
-    Connection.ExecuteDirect(Format('drop database if exists %s with (force)', [DatabaseName]));
-{$ELSEIF DEFINED(SQLSERVER)}
-    var Connection := CreateConnectionNamed('master');
-
-    Connection.ExecuteDirect(Format('drop database if exists %s', [DatabaseName]));
-{$ELSEIF DEFINED(INTERBASE)}
-{$ELSEIF DEFINED(SQLITE)}
-    if TFile.Exists(DatabaseName) then
-      TFile.Delete(DatabaseName);
-{$ELSE}
-  RaiseConfigurationSelectionError;
-{$ENDIF}
-  except
-  end;
-end;
-
-procedure RebootDatabase;
-begin
-  DropDatabase;
-
-  CreateDatabase;
 end;
 
 {$IFDEF POSTGRESQL}

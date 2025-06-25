@@ -245,18 +245,18 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.Setup;
 begin
-  RebootDatabase;
-
   FManager := TManager.Create(CreateConnection, CreateDatabaseManipulator);
 
   FManager.Mapper.LoadAll;
+
+  FManager.CreateDatabase;
 end;
 
 procedure TDatabaseSchemaUpdaterTest.TearDown;
 begin
-  FManager.Free;
+  FManager.DropDatabase;
 
-  DropDatabase;
+  FManager.Free;
 end;
 
 procedure TDatabaseSchemaUpdaterTest.TheFakeDefaultConstraintMustBeCleanedUpFromTheField;

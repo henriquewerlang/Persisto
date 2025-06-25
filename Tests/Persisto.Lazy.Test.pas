@@ -229,8 +229,6 @@ end;
 
 procedure TLazyLoaderObjectTest.LoadDatabaseData;
 begin
-  RebootDatabase;
-
   FManager.Mapper.GetTable(TLazyClass);
 
   FManager.UpdateDatabaseSchema;
@@ -244,11 +242,15 @@ procedure TLazyLoaderObjectTest.Setup;
 begin
   FManager := TManager.Create(CreateConnection, CreateDatabaseManipulator);
 
+  FManager.CreateDatabase;
+
   LoadDatabaseData;
 end;
 
 procedure TLazyLoaderObjectTest.TearDown;
 begin
+  FManager.DropDatabase;
+
   FManager.Free;
 end;
 
@@ -317,8 +319,6 @@ end;
 
 procedure TLazyLoaderManyValueTest.LoadDatabaseData;
 begin
-  RebootDatabase;
-
   FManager.Mapper.GetTable(TLazyArrayClassChild);
 
   FManager.UpdateDatabaseSchema;
@@ -334,11 +334,15 @@ procedure TLazyLoaderManyValueTest.Setup;
 begin
   FManager := TManager.Create(CreateConnection, CreateDatabaseManipulator);
 
+  FManager.CreateDatabase;
+
   LoadDatabaseData;
 end;
 
 procedure TLazyLoaderManyValueTest.TearDown;
 begin
+  FManager.DropDatabase;
+
   FManager.Free;
 end;
 
