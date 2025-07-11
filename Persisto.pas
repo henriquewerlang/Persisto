@@ -92,6 +92,11 @@ type
     property RecursionTree: String read FRecursionTree write FRecursionTree;
   end;
 
+  TDatabaseTransaction = class(TInterfacedObject)
+  public
+    destructor Destroy; override;
+  end;
+
   IDatabaseCursor = interface
     ['{19CBD0F4-8766-4F1D-8E88-F7E03E6A5E28}']
     function GetDataSet: TDataSet;
@@ -109,7 +114,7 @@ type
     function GetDatabaseName: String;
     function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
     function OpenCursor(const SQL: String): IDatabaseCursor;
-    function StartTransaction: IDatabaseTransaction;
+    function StartTransaction: TDatabaseTransaction;
 
     procedure ExecuteDirect(const SQL: String);
     procedure ExecuteScript(const Script: String);
@@ -823,6 +828,7 @@ type
     function OpenCursor(const SQL: String): IDatabaseCursor;
     function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
     function Select: TQueryBuilder;
+    function StartTransaction: IDatabaseTransaction;
 
     procedure CreateDatabase;
     procedure Delete(const Objects: TArray<TObject>);
@@ -2687,41 +2693,35 @@ begin
   var Params := TParams.Create;
   var SQL := TStringBuilder.Create(STRING_BUILDER_START_CAPACITY);
   var Table: TTable;
-  var Transaction := FConnection.StartTransaction;
+  var Transaction := StartTransaction;
 
   try
-    try
-      for var &Object in Objects do
-      begin
-        Table := Mapper.GetTable(&Object.ClassType);
+    for var &Object in Objects do
+    begin
+      Table := Mapper.GetTable(&Object.ClassType);
 
-        Params.Clear;
+      Params.Clear;
 
-        Params.AddParam('Key', Table.PrimaryKey, Table.PrimaryKey.GetValue(&Object).AsVariant);
+      Params.AddParam('Key', Table.PrimaryKey, Table.PrimaryKey.GetValue(&Object).AsVariant);
 
-        SQL.Clear;
+      SQL.Clear;
 
-        SQL.Append('delete from ');
+      SQL.Append('delete from ');
 
-        SQL.Append(Table.DatabaseName);
+      SQL.Append(Table.DatabaseName);
 
-        SQL.Append(' where ');
+      SQL.Append(' where ');
 
-        SQL.Append(Table.PrimaryKey.DatabaseName);
+      SQL.Append(Table.PrimaryKey.DatabaseName);
 
-        SQL.Append('=:Key');
+      SQL.Append('=:Key');
 
-        var Cursor := PrepareCursor(SQL.ToString, Params);
+      var Cursor := PrepareCursor(SQL.ToString, Params);
 
-        Cursor.Next;
-      end;
-
-      Transaction.Commit;
-    except
-      Transaction.Rollback;
-
-      raise;
+      Cursor.Next;
     end;
+
+    Transaction.Commit;
   finally
     Params.Free;
 
@@ -2763,20 +2763,14 @@ end;
 
 procedure TManager.Insert(const Objects: TArray<TObject>);
 begin
+  var Transaction := StartTransaction;
+
   FProcessedObjects.Clear;
 
-  var Transaction := FConnection.StartTransaction;
+  for var &Object in Objects do
+    InsertTable(Mapper.GetTable(&Object.ClassType), &Object);
 
-  try
-    for var &Object in Objects do
-      InsertTable(Mapper.GetTable(&Object.ClassType), &Object);
-
-    Transaction.Commit;
-  except
-    Transaction.Rollback;
-
-    raise;
-  end;
+  Transaction.Commit;
 end;
 
 procedure TManager.InsertTable(const Table: TTable; const &Object: TObject);
@@ -2918,20 +2912,14 @@ end;
 
 procedure TManager.Save(const Objects: TArray<TObject>);
 begin
+  var Transaction := StartTransaction;
+
   FProcessedObjects.Clear;
 
-  var Transaction := FConnection.StartTransaction;
+  for var &Object in Objects do
+    SaveTable(Mapper.GetTable(&Object.ClassType), &Object);
 
-  try
-    for var &Object in Objects do
-      SaveTable(Mapper.GetTable(&Object.ClassType), &Object);
-
-    Transaction.Commit;
-  except
-    Transaction.Rollback;
-
-    raise;
-  end;
+  Transaction.Commit;
 end;
 
 procedure TManager.SaveManyValueAssociation(const Table: TTable; const &Object: TObject);
@@ -2965,6 +2953,11 @@ begin
 
   FQueryBuilder := TQueryBuilder.Create(Self);
   Result := FQueryBuilder;
+end;
+
+function TManager.StartTransaction: IDatabaseTransaction;
+begin
+  Result := FConnection.StartTransaction as IDatabaseTransaction;
 end;
 
 function TManager.TryLoadOldValueObject(const Table: TTable; const &Object: TObject; var ObjectOldValue: IObjectOldValue): Boolean;
@@ -3014,24 +3007,18 @@ end;
 
 procedure TManager.Update(const Objects: TArray<TObject>);
 begin
+  var Transaction := StartTransaction;
+
   FProcessedObjects.Clear;
 
-  var Transaction := FConnection.StartTransaction;
+  for var &Object in Objects do
+  begin
+    var Table := Mapper.GetTable(&Object.ClassType);
 
-  try
-    for var &Object in Objects do
-    begin
-      var Table := Mapper.GetTable(&Object.ClassType);
-
-      UpdateTable(Table, &Object, LoadOldValueObject(Table, &Object));
-    end;
-
-    Transaction.Commit;
-  except
-    Transaction.Rollback;
-
-    raise;
+    UpdateTable(Table, &Object, LoadOldValueObject(Table, &Object));
   end;
+
+  Transaction.Commit;
 end;
 
 procedure TManager.UpdateDatabaseSchema;
@@ -4214,6 +4201,15 @@ begin
   SQL.Free;
 
   Comparer.Free;
+end;
+
+{ TDatabaseTransaction }
+
+destructor TDatabaseTransaction.Destroy;
+begin
+  (Self as IDatabaseTransaction).Rollback;
+
+  inherited;
 end;
 
 end.

@@ -18,7 +18,7 @@ type
     destructor Destroy; override;
   end;
 
-  TDatabaseTransactionZeosLib = class(TInterfacedObject, IDatabaseTransaction)
+  TDatabaseTransactionZeosLib = class(TDatabaseTransaction, IDatabaseTransaction)
   private
     FConnection: TZConnection;
 
@@ -34,7 +34,7 @@ type
 
     function OpenCursor(const SQL: String): IDatabaseCursor;
     function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
-    function StartTransaction: IDatabaseTransaction;
+    function StartTransaction: TDatabaseTransaction;
 
     procedure ExecuteDirect(const SQL: String);
   public
@@ -80,7 +80,7 @@ begin
   Result := TDatabaseCursorZeosLib.Create(Connection, SQL, Params);
 end;
 
-function TDatabaseConnectionZeosLib.StartTransaction: IDatabaseTransaction;
+function TDatabaseConnectionZeosLib.StartTransaction: TDatabaseTransaction;
 begin
   Result := TDatabaseTransactionZeosLib.Create(Connection);
 end;

@@ -20,7 +20,7 @@ type
     destructor Destroy; override;
   end;
 
-  TDatabaseTransactionUnidac = class(TInterfacedObject, IDatabaseTransaction)
+  TDatabaseTransactionUnidac = class(TDatabaseTransaction, IDatabaseTransaction)
   private
     FConnection: TDatabaseConnectionUnidac;
 
@@ -36,7 +36,7 @@ type
 
     function OpenCursor(const SQL: String): IDatabaseCursor;
     function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
-    function StartTransaction: IDatabaseTransaction;
+    function StartTransaction: TDatabaseTransaction;
 
     procedure ExecuteDirect(const SQL: String);
   public
@@ -132,7 +132,7 @@ begin
   Result := TDatabaseCursorUnidac.Create(Connection, SQL, Params);
 end;
 
-function TDatabaseConnectionUnidac.StartTransaction: IDatabaseTransaction;
+function TDatabaseConnectionUnidac.StartTransaction: TDatabaseTransaction;
 begin
   Result := TDatabaseTransactionUnidac.Create(Self);
 end;

@@ -184,7 +184,7 @@ type
     function GetDatabaseName: String;
     function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
     function OpenCursor(const SQL: String): IDatabaseCursor;
-    function StartTransaction: IDatabaseTransaction;
+    function StartTransaction: TDatabaseTransaction;
 
     procedure ExecuteDirect(const SQL: String);
     procedure ExecuteScript(const Script: String);
@@ -1651,7 +1651,7 @@ begin
 
 end;
 
-function TDatabaseConnectionMock.StartTransaction: IDatabaseTransaction;
+function TDatabaseConnectionMock.StartTransaction: TDatabaseTransaction;
 begin
   Result := FConnection.StartTransaction;
 end;

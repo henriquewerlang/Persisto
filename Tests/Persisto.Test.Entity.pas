@@ -1124,7 +1124,7 @@ type
     property Date: TDate read FDate write FDate;
     [CurrentDateTime]
     property DateTime: TDateTime read FDateTime write FDateTime;
-    [NewUniqueIdentifier, Size(30)]
+    [NewUniqueIdentifier, UniqueIdentifier]
     property DefaultField: String read FDefaultField write FDefaultField;
     [NewUniqueIdentifier, UniqueIdentifier]
     property DefaultInternalFunction: String read FDefaultInternalFunction write FDefaultInternalFunction;

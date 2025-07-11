@@ -18,7 +18,7 @@ type
     destructor Destroy; override;
   end;
 
-  TDatabaseTransactionFireDAC = class(TInterfacedObject, IDatabaseTransaction)
+  TDatabaseTransactionFireDAC = class(TDatabaseTransaction, IDatabaseTransaction)
   private
     FConnection: TFDConnection;
 
@@ -35,7 +35,7 @@ type
     function GetDatabaseName: String;
     function PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
     function OpenCursor(const SQL: String): IDatabaseCursor;
-    function StartTransaction: IDatabaseTransaction;
+    function StartTransaction: TDatabaseTransaction;
 
     procedure ExecuteDirect(const SQL: String);
     procedure ExecuteScript(const Script: String);
@@ -164,7 +164,7 @@ begin
   FConnection.Params.Database := Value;
 end;
 
-function TDatabaseConnectionFireDAC.StartTransaction: IDatabaseTransaction;
+function TDatabaseConnectionFireDAC.StartTransaction: TDatabaseTransaction;
 begin
   Result := TDatabaseTransactionFireDAC.Create(Connection);
 end;
