@@ -3568,7 +3568,7 @@ end;
 procedure TDatabaseSchema.LoadIndexes;
 begin
   var CurrentPosition: NativeInt := 0;
-  Indexes := FManager.Select.All.From<TDatabaseIndex>.OrderBy.Field('IdTable').Open.All;
+  Indexes := FManager.Select.All.From<TDatabaseIndex>.OrderBy.Field('IdTable').Field('IsPrimaryKey', False).Field('IsUnique', False).Field('Name').Open.All;
 
   for var Table in Tables do
     while (CurrentPosition < Length(Indexes)) and (Indexes[CurrentPosition].IdTable = Table.Id) do
