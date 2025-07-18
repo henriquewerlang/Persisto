@@ -1346,7 +1346,7 @@ procedure TMapperTest.WhenTheFieldHasTheBinaryAttributeMustLoadTheSpecialTypeAsE
 begin
   var Table := FMapper.GetTable(TMyClassWithAllFieldsType);
 
-  Assert.AreEqual(stBinary, Table.Field['Binary'].SpecialType);
+  Assert.AreEqual(stBinary, Table.Field['BinaryField'].SpecialType);
 end;
 
 procedure TMapperTest.WhenTheFieldHasTheFixedValueAttributeMustLoadTheValueInTheDefaultConstraint;
@@ -1412,7 +1412,7 @@ procedure TMapperTest.WhenTheFieldIsBinaryCantBeRequiredByDefault;
 begin
   var Table := FMapper.GetTable(TMyClassWithAllFieldsType);
 
-  Assert.IsFalse(Table.Field['Binary'].Required);
+  Assert.IsFalse(Table.Field['BinaryField'].Required);
 end;
 
 procedure TMapperTest.WhenTheFieldIsBooleanTypeMustLoadTheSpecialTypeWithBoolean;
