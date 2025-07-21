@@ -3355,7 +3355,7 @@ var
 
   function IsStoredField: Boolean;
   begin
-    Result := not Field.Required and not IsForeignKeyField and (Field.FieldType <> tkString) and not (Field.SpecialType in [stBinary, stText]);
+    Result := not Field.Required and not IsForeignKeyField and (Field.FieldType <> tkString) and not (Field.SpecialType in [stBinary, stText, stUniqueIdentifier]);
   end;
 
   function GetStoredFunctionName: String;
@@ -3471,6 +3471,9 @@ begin
           stUniqueIdentifier: AddAttribute('UniqueIdentifier');
           stBinary: AddAttribute('Binary');
         end;
+
+      if (Field.SpecialType = stUniqueIdentifier) and SameText(Field.Name, DEFAULT_ID_FIELD_NAME) then
+        AddAttribute('NewUniqueIdentifier');
 
       if Field.Required and IsForeignKeyField then
         AddAttribute('Required');
