@@ -134,6 +134,7 @@ begin
   var DatabaseName := GetDatabaseName;
   var Executor := TFDScript.Create(nil);
   Executor.Connection := FConnection;
+  Executor.ScriptOptions.BreakOnError := True;
   Executor.SQLScripts.Add.SQL.Text := Script;
   FConnection.Params.Database := EmptyStr;
 
