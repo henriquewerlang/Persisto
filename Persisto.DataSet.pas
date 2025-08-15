@@ -7,17 +7,9 @@ uses System.Classes, System.Rtti, System.Generics.Collections, System.SysUtils, 
 type
   TPersistoDataSet = class;
 
-  EDataSetNotInEditingState = class(Exception)
-  public
-    constructor Create;
-  end;
-
   EDataSetWithoutObjectDefinition = class(Exception)
   public
     constructor Create;
-  end;
-
-  EObjectTypeNotFound = class(Exception)
   end;
 
   TPersistoBuffer = class
@@ -854,9 +846,7 @@ begin
   RTTIType := FContext.FindType(ObjectClassName);
 
   if Assigned(RTTIType) then
-    ObjectType := RttiType.AsInstance
-  else if not Value.IsEmpty then
-    raise EObjectTypeNotFound.CreateFmt('Type not found %s!', [Value]);
+    ObjectType := RttiType.AsInstance;
 end;
 
 procedure TPersistoDataSet.SetObjects(const Value: TArray<TObject>);
@@ -922,13 +912,6 @@ end;
 constructor EDataSetWithoutObjectDefinition.Create;
 begin
   inherited Create('Must load a object information property like ObjectClass or ObjectClassName!');
-end;
-
-{ EDataSetNotInEditingState }
-
-constructor EDataSetNotInEditingState.Create;
-begin
-  inherited Create('Dataset not in edit or insert mode');
 end;
 
 { TPersistoCursor }

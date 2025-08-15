@@ -106,6 +106,8 @@ type
     [Test]
     procedure WhenChangeTheObjectTypeFromTheDataSetMustMarkTheFieldDefsToUpdateAgain;
     [Test]
+    procedure WhenLoadAnInvalidClassNameInThePropertyCantRaiseAnyError;
+    [Test]
     procedure WhenTryToLoadTheClassNameAndTheTypeDontExistsMustRaiseAnError;
     [Test]
     procedure WhenFillAnEmptyClassNameCantRaiseAnyError;
@@ -708,6 +710,15 @@ begin
   Assert.IsNotNil(FDataSet.FindField('ForeignKey.SimpleProperty'));
 end;
 
+procedure TPersistoDataSetTest.WhenLoadAnInvalidClassNameInThePropertyCantRaiseAnyError;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FDataSet.ObjectClassName := 'InvalidType';
+    end);
+end;
+
 procedure TPersistoDataSetTest.WhenLoadTheObjectClassNameMustLoadTheObjectTypeInfoWithTheObjectType;
 begin
   FDataSet.ObjectClassName := TMyTestClass.QualifiedClassName;
@@ -892,11 +903,13 @@ end;
 
 procedure TPersistoDataSetTest.WhenTryToLoadTheClassNameAndTheTypeDontExistsMustRaiseAnError;
 begin
+  FDataSet.ObjectClassName := 'InvalidType';
+
   Assert.WillRaise(
     procedure
     begin
-      FDataSet.ObjectClassName := 'InvlaidType';
-    end, EObjectTypeNotFound);
+      FDataSet.Open;
+    end, EDataSetWithoutObjectDefinition);
 end;
 
 procedure TPersistoDataSetTest.WhenTryToOpenTheDataSetWithoutAnObjectInformationMustRaiseAnError;
