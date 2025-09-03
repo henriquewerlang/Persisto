@@ -639,18 +639,19 @@ var
   end;
 
 begin
-  if FieldCount = 0 then
-  begin
-    LoadedClasses := TList<TRttiInstanceType>.Create;
+  if not (csDesigning in ComponentState) then
+    if FieldCount = 0 then
+    begin
+      LoadedClasses := TList<TRttiInstanceType>.Create;
 
-    FieldDefs.Clear;
+      FieldDefs.Clear;
 
-    LoadFieldDefs(ObjectType, EmptyStr);
+      LoadFieldDefs(ObjectType, EmptyStr);
 
-    LoadedClasses.Free;
-  end
-  else
-    InitFieldDefsFromFields;
+      LoadedClasses.Free;
+    end
+    else
+      InitFieldDefsFromFields;
 end;
 
 procedure TPersistoDataSet.InternalLast;
@@ -660,6 +661,9 @@ end;
 
 procedure TPersistoDataSet.InternalOpen;
 begin
+  if csDesigning in ComponentState then
+    Exit;
+
   CheckObjectTypeLoaded;
 
   if not FieldDefs.Updated then

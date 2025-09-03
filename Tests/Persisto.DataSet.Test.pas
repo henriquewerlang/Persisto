@@ -129,6 +129,10 @@ type
     procedure WhenFillTheObjectListWithAnEmptyListCantRaiseAnyError;
     [Test]
     procedure WhenFillTheObjectListWithAnEmptyValueMustEmptyTheDataSet;
+    [Test]
+    procedure WhenTryToOpenTheDataSetInDesigningTimeCantRaiseAnyError;
+    [Test]
+    procedure WhenTryToGetTheFieldListInDesigningTimeCantRaiseAnyError;
   end;
 
 {$M+}
@@ -232,6 +236,9 @@ type
     constructor Create(CallbackProc: TProc<TPersistoDataSet>);
 
     procedure OnCalcFields(DataSet: TDataSet);
+  end;
+
+  TPersistoDataSetHack = class(TPersistoDataSet)
   end;
 
 implementation
@@ -901,6 +908,17 @@ begin
     end, EDatabaseError);
 end;
 
+procedure TPersistoDataSetTest.WhenTryToGetTheFieldListInDesigningTimeCantRaiseAnyError;
+begin
+  TPersistoDataSetHack(FDataSet).SetDesigning(True);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FDataSet.FieldDefs.Update;
+    end);
+end;
+
 procedure TPersistoDataSetTest.WhenTryToLoadTheClassNameAndTheTypeDontExistsMustRaiseAnError;
 begin
   FDataSet.ObjectClassName := 'InvalidType';
@@ -910,6 +928,13 @@ begin
     begin
       FDataSet.Open;
     end, EDataSetWithoutObjectDefinition);
+end;
+
+procedure TPersistoDataSetTest.WhenTryToOpenTheDataSetInDesigningTimeCantRaiseAnyError;
+begin
+  TPersistoDataSetHack(FDataSet).SetDesigning(True);
+
+  Assert.WillNotRaise(FDataSet.Open);
 end;
 
 procedure TPersistoDataSetTest.WhenTryToOpenTheDataSetWithoutAnObjectInformationMustRaiseAnError;
