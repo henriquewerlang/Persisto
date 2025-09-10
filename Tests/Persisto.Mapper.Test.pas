@@ -327,6 +327,10 @@ type
     procedure WhenTheFieldHasTheBinaryAttributeMustLoadTheSpecialTypeAsExpected;
     [Test]
     procedure WhenTheFieldIsBinaryCantBeRequiredByDefault;
+    [Test]
+    procedure WhenGetTableByQualifiedNameMustReturnTheTableInformationHasExpected;
+    [Test]
+    procedure WhenGetTableByNameAndTheClassNameNotExistsCantRaiseAnyError;
   end;
 
 implementation
@@ -956,6 +960,20 @@ begin
   MyClass.Free;
 
   MyEntity.Free;
+end;
+
+procedure TMapperTest.WhenGetTableByNameAndTheClassNameNotExistsCantRaiseAnyError;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FMapper.GetTable('Invalid Class Name');
+    end);
+end;
+
+procedure TMapperTest.WhenGetTableByQualifiedNameMustReturnTheTableInformationHasExpected;
+begin
+  Assert.AreEqual(FMapper.GetTable(TLazyClass), FMapper.GetTable(TLazyClass.QualifiedClassName));
 end;
 
 procedure TMapperTest.WhenGetTheLazyValueFromAFieldMustReturnTheInternalInstanceOfTheInterface;

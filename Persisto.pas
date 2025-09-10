@@ -369,6 +369,7 @@ type
     destructor Destroy; override;
 
     function GetTable(const ClassInfo: TClass): TTable; overload;
+    function GetTable(const QualifiedClassName: String): TTable; overload;
     function GetTable(const RttiInstanceType: TRttiInstanceType): TTable; overload;
     function GetTable(const TypeInfo: PTypeInfo): TTable; overload;
 
@@ -1134,6 +1135,16 @@ end;
 function TMapper.GetTable(const RttiInstanceType: TRttiInstanceType): TTable;
 begin
   Result := LoadTable(RttiInstanceType);
+end;
+
+function TMapper.GetTable(const QualifiedClassName: String): TTable;
+begin
+  var RttiType := FContext.FindType(QualifiedClassName);
+
+  if Assigned(RttiType) then
+    Result := GetTable(RttiType.AsInstance)
+  else
+    Result := nil;
 end;
 
 function TMapper.GetTableDatabaseName(const Table: TTable): String;
