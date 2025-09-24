@@ -9,8 +9,8 @@ type
   TClassLoaderTest = class
   private
     FObjects: TList<TObject>;
-    FManager: TManager;
-    FManagerInsert: TManager;
+    FManager: TPersistoManager;
+    FManagerInsert: TPersistoManager;
 
     function CreateObject<T: class, constructor>: T;
 
@@ -204,8 +204,12 @@ begin
   FObjects := TObjectList<TObject>.Create;
 
   var Connection := CreateConnection;
-  FManager := TManager.Create(Connection, CreateDatabaseManipulator);
-  FManagerInsert := TManager.Create(Connection, CreateDatabaseManipulator);
+  FManager := TPersistoManager.Create(nil);
+  FManager.Connection := Connection;
+  FManager.Manipulator := CreateDatabaseManipulator;
+  FManagerInsert := TPersistoManager.Create(nil);
+  FManagerInsert.Connection := Connection;
+  FManagerInsert.Manipulator := CreateDatabaseManipulator;
 
   FManager.CreateDatabase;
 

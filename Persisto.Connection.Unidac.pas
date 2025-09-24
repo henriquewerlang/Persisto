@@ -5,7 +5,7 @@ interface
 uses Persisto, Uni, Data.DB;
 
 type
-  TDatabaseConnectionUnidac = class;
+  TPersistoConnectionUnidac = class;
 
   TDatabaseCursorUnidac = class(TInterfacedObject, IDatabaseCursor)
   private
@@ -22,15 +22,15 @@ type
 
   TDatabaseTransactionUnidac = class(TDatabaseTransaction, IDatabaseTransaction)
   private
-    FConnection: TDatabaseConnectionUnidac;
+    FConnection: TPersistoConnectionUnidac;
 
     procedure Commit;
     procedure Rollback;
   public
-    constructor Create(const Connection: TDatabaseConnectionUnidac);
+    constructor Create(const Connection: TPersistoConnectionUnidac);
   end;
 
-  TDatabaseConnectionUnidac = class(TInterfacedObject, IDatabaseConnection)
+  TPersistoConnectionUnidac = class(TInterfacedObject, IDatabaseConnection)
   private
     FConnection: TUniConnection;
 
@@ -39,12 +39,8 @@ type
     function StartTransaction: TDatabaseTransaction;
 
     procedure ExecuteDirect(const SQL: String);
-  public
-    constructor Create;
-
-    destructor Destroy; override;
-
-    property Connection: TUniConnection read FConnection;
+  published
+    property Connection: TUniConnection read FConnection write FConnection;
   end;
 
 implementation
@@ -96,43 +92,24 @@ begin
   Result := not FQuery.Eof;
 end;
 
-{ TDatabaseConnectionUnidac }
+{ TPersistoConnectionUnidac }
 
-constructor TDatabaseConnectionUnidac.Create;
-begin
-  inherited;
-
-  CoInitialize(nil);
-
-  FConnection := TUniConnection.Create(nil);
-  FConnection.Options.DisconnectedMode := True;
-  FConnection.Pooling := True;
-  FConnection.PoolingOptions.MaxPoolSize := 500;
-end;
-
-destructor TDatabaseConnectionUnidac.Destroy;
-begin
-  FConnection.Free;
-
-  inherited;
-end;
-
-procedure TDatabaseConnectionUnidac.ExecuteDirect(const SQL: String);
+procedure TPersistoConnectionUnidac.ExecuteDirect(const SQL: String);
 begin
   FConnection.ExecSQL(SQL);
 end;
 
-function TDatabaseConnectionUnidac.OpenCursor(const SQL: String): IDatabaseCursor;
+function TPersistoConnectionUnidac.OpenCursor(const SQL: String): IDatabaseCursor;
 begin
   Result := TDatabaseCursorUnidac.Create(Connection, SQL);
 end;
 
-function TDatabaseConnectionUnidac.PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
+function TPersistoConnectionUnidac.PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
 begin
   Result := TDatabaseCursorUnidac.Create(Connection, SQL, Params);
 end;
 
-function TDatabaseConnectionUnidac.StartTransaction: TDatabaseTransaction;
+function TPersistoConnectionUnidac.StartTransaction: TDatabaseTransaction;
 begin
   Result := TDatabaseTransactionUnidac.Create(Self);
 end;
@@ -144,7 +121,7 @@ begin
   FConnection.FConnection.Commit;
 end;
 
-constructor TDatabaseTransactionUnidac.Create(const Connection: TDatabaseConnectionUnidac);
+constructor TDatabaseTransactionUnidac.Create(const Connection: TPersistoConnectionUnidac);
 begin
   inherited Create;
 

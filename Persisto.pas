@@ -22,7 +22,7 @@ type
   TField = class;
   TForeignKey = class;
   TIndex = class;
-  TManager = class;
+  TPersistoManager = class;
   TManyValueAssociation = class;
   TMapper = class;
   TQueryBuilder = class;
@@ -386,7 +386,7 @@ type
     FFilterField: TField;
     FKeyValue: TValue;
     FLazyValue: TValue;
-    FManager: TManager;
+    FManager: TPersistoManager;
     FResultType: PTypeInfo;
 
     function GetKey: TValue;
@@ -395,7 +395,7 @@ type
 
     procedure SetValue(const Value: TValue);
   public
-    constructor Create(const Manager: TManager; const FilterField: TField; const KeyValue: TValue; const ResultType: PTypeInfo);
+    constructor Create(const Manager: TPersistoManager; const FilterField: TField; const KeyValue: TValue; const ResultType: PTypeInfo);
 
     property FilterField: TField read FFilterField;
   end;
@@ -460,7 +460,7 @@ type
   TQueryBuilder = class
   private
     FLoader: TClassLoader;
-    FManager: TManager;
+    FManager: TPersistoManager;
     FOrderByFields: TList<TQueryBuilderOrderByField>;
     FParams: TParams;
     FQueryFrom: TQueryBuilderFrom;
@@ -475,7 +475,7 @@ type
 
     procedure AfterOpenDataSet(DataSet: TDataSet);
   public
-    constructor Create(const Manager: TManager);
+    constructor Create(const Manager: TPersistoManager);
 
     destructor Destroy; override;
 
@@ -733,7 +733,7 @@ type
     property Name: String read FName write FName;
   end;
 
-  TDatabaseManipulator = class(TInterfacedObject)
+  TDatabaseManipulator = class(TComponent)
   protected
     function CreateSequence(const Sequence: TSequence): String;
     function DropSequence(const Sequence: TDatabaseSequence): String;
@@ -744,7 +744,7 @@ type
 
   TDatabaseSchema = class
   private
-    FManager: TManager;
+    FManager: TPersistoManager;
 
     procedure ExecuteSchemaScripts;
   public
@@ -752,7 +752,7 @@ type
     Sequences: TArray<TDatabaseSequence>;
     Tables: TArray<TDatabaseTable>;
 
-    constructor Create(const Manager: TManager);
+    constructor Create(const Manager: TPersistoManager);
 
     procedure LoadForeignKeys;
     procedure LoadIndexes;
@@ -762,11 +762,11 @@ type
 
   TSchemaUpdater = class
   private
-    FDatabaseManipulator: IDatabaseManipulator;
     FDatabaseSchema: TDatabaseSchema;
-    FManager: TManager;
+    FManager: TPersistoManager;
+    FManipulator: IDatabaseManipulator;
   public
-    constructor Create(const Manager: TManager);
+    constructor Create(const Manager: TPersistoManager);
 
     destructor Destroy; override;
 
@@ -795,23 +795,23 @@ type
     FDatabaseIndexFieldComparer: TDelegatedComparer<TDatabaseIndexField>;
     FDatabaseSchema: TDatabaseSchema;
     FDatabaseTableComparer: TDelegatedComparer<TDatabaseTable>;
-    FManager: TManager;
+    FManager: TPersistoManager;
 
     function CompareDatabaseFieldName(const Left, Right: TDatabaseField): Integer;
   public
-    constructor Create(const Manager: TManager);
+    constructor Create(const Manager: TPersistoManager);
 
     destructor Destroy; override;
 
     procedure GenerateUnit(const FileName: String; FormatName: TFunc<String, String>);
   end;
 
-  TManager = class
+  TPersistoManager = class(TComponent)
   private
     FConnection: IDatabaseConnection;
-    FDatabaseManipulator: IDatabaseManipulator;
     FLoadedObjects: TDictionary<String, TObject>;
     FMapper: TMapper;
+    FManipulator: IDatabaseManipulator;
     FProcessedObjects: TDictionary<TObject, Boolean>;
     FQueryBuilder: TQueryBuilder;
 
@@ -824,7 +824,7 @@ type
     procedure SaveTable(const Table: TTable; const &Object: TObject);
     procedure UpdateTable(const Table: TTable; const &Object: TObject; const ObjectOldValue: IObjectOldValue);
   public
-    constructor Create(const Connection: IDatabaseConnection; const DatabaseManipulator: IDatabaseManipulator);
+    constructor Create(AOwner: TComponent); override;
 
     destructor Destroy; override;
 
@@ -844,6 +844,9 @@ type
     procedure UpdateDatabaseSchema;
 
     property Mapper: TMapper read FMapper;
+  published
+    property Connection: IDatabaseConnection read FConnection write FConnection;
+    property Manipulator: IDatabaseManipulator read FManipulator write FManipulator;
   end;
 
 function Field(const Name: String): TQueryBuilderComparisonHelper;
@@ -905,7 +908,7 @@ type
   TParamsHelper = class helper for TParams
   public
     procedure AddParam(const Field: TField; const Value: Variant); overload;
-    procedure AddParam(const ParamName: String; const Field: TField; const Value: Variant); overload;
+    procedure AddParam(const ParamName: String; Field: TField; const Value: Variant); overload;
   end;
 
 { EFieldNotInCurrentSelection }
@@ -1516,68 +1519,67 @@ begin
   if IsForeignKey then
     Exit(ftObject)
   else
-  case SpecialType of
-    stDate: Result := ftDate;
-    stDateTime: Result := ftDateTime;
-    stTime: Result := ftTime;
-    stText: Result := ftMemo;
-    stUniqueIdentifier: Result := ftGuid;
-    stBoolean: Result := ftBoolean;
-    else
-      case FieldType.TypeKind of
-        tkEnumeration: Result := ftInteger;
+    case SpecialType of
+      stDate: Result := ftDate;
+      stDateTime: Result := ftDateTime;
+      stTime: Result := ftTime;
+      stText: Result := ftMemo;
+      stUniqueIdentifier: Result := ftGuid;
+      stBoolean: Result := ftBoolean;
+      else
+        case FieldType.TypeKind of
+          tkEnumeration: Result := ftInteger;
 {$IFDEF PAS2JS}
-        tkBool,
+          tkBool,
 {$ENDIF}
-        tkFloat:
+          tkFloat:
 {$IFDEF DCC}
-          case FieldTypeHandle.TypeData.FloatType of
-            ftCurr:
-              Result := ftCurrency;
-            ftDouble:
-              Result := ftFloat;
-            System.TypInfo.ftExtended:
-              Result := ftExtended;
-            System.TypInfo.ftSingle:
-              Result := ftSingle;
-          end;
+            case FieldTypeHandle.TypeData.FloatType of
+              ftCurr:
+                Result := ftCurrency;
+              ftDouble:
+                Result := ftFloat;
+              System.TypInfo.ftExtended:
+                Result := ftExtended;
+              System.TypInfo.ftSingle:
+                Result := ftSingle;
+            end;
 {$ELSE}
-          Result := TFieldType.ftFloat;
+            Result := TFieldType.ftFloat;
 {$ENDIF}
-        tkInteger:
+          tkInteger:
 {$IFDEF DCC}
-          case FieldTypeHandle.TypeData.OrdType of
-            otSByte, otUByte:
-              Result := ftByte;
-            otSWord:
-              Result := ftInteger;
-            otUWord:
-              Result := ftWord;
-            otSLong:
-              Result := ftInteger;
-            otULong:
-              Result := ftLongWord;
-          end;
+            case FieldTypeHandle.TypeData.OrdType of
+              otSByte, otUByte:
+                Result := ftByte;
+              otSWord:
+                Result := ftInteger;
+              otUWord:
+                Result := ftWord;
+              otSLong:
+                Result := ftInteger;
+              otULong:
+                Result := ftLongWord;
+            end;
 {$ELSE}
-          Result := ftInteger;
+            Result := ftInteger;
 {$ENDIF}
 {$IFDEF DCC}
-        tkInt64:
-          Result := ftLargeint;
-        tkLString:
-          Result := ftString;
-        tkUString, tkWString, tkWChar, tkChar, tkString:
-          Result := ftWideString;
+          tkInt64:
+            Result := ftLargeint;
+          tkLString:
+            Result := ftString;
+          tkUString, tkWString, tkWChar, tkChar, tkString:
+            Result := ftWideString;
+{$ENDIF}
+{$IFDEF PAS2JS}
+          tkChar, tkString:
+            Result := ftString;
 {$ENDIF}
 
-{$IFDEF PAS2JS}
-        tkChar, tkString:
-          Result := ftString;
-{$ENDIF}
-
-        tkDynArray:
-          Result := ftDataSet;
-      end;
+          tkDynArray:
+            Result := ftDataSet;
+        end;
   end;
 end;
 
@@ -1668,7 +1670,7 @@ end;
 
 { TLazyLoader }
 
-constructor TLazyLoader.Create(const Manager: TManager; const FilterField: TField; const KeyValue: TValue; const ResultType: PTypeInfo);
+constructor TLazyLoader.Create(const Manager: TPersistoManager; const FilterField: TField; const KeyValue: TValue; const ResultType: PTypeInfo);
 begin
   inherited Create;
 
@@ -2345,7 +2347,7 @@ begin
   end;
 end;
 
-constructor TQueryBuilder.Create(const Manager: TManager);
+constructor TQueryBuilder.Create(const Manager: TPersistoManager);
 begin
   inherited Create;
 
@@ -2679,33 +2681,31 @@ begin
     Result := Format('%s where %1:s=:%1:s', [Result, Table.PrimaryKey.DatabaseName]);
 end;
 
-{ TManager }
+{ TPersistoManager }
 
-constructor TManager.Create(const Connection: IDatabaseConnection; const DatabaseManipulator: IDatabaseManipulator);
+constructor TPersistoManager.Create(AOwner: TComponent);
 begin
-  inherited Create;
+  inherited;
 
-  FConnection := Connection;
-  FDatabaseManipulator := DatabaseManipulator;
   FLoadedObjects := TObjectDictionary<String, TObject>.Create([doOwnsValues]);
   FMapper := TMapper.Create;
   FProcessedObjects := TDictionary<TObject, Boolean>.Create;
 end;
 
-procedure TManager.CreateDatabase;
+procedure TPersistoManager.CreateDatabase;
 begin
   var CurrentDatabaseName := FConnection.DatabaseName;
 
   try
-    FConnection.DatabaseName := FDatabaseManipulator.DefaultDatabaseName;
+    FConnection.DatabaseName := Manipulator.DefaultDatabaseName;
 
-    FConnection.ExecuteScript(FDatabaseManipulator.CreateDatabase(CurrentDatabaseName));
+    FConnection.ExecuteScript(Manipulator.CreateDatabase(CurrentDatabaseName));
   finally
     FConnection.DatabaseName := CurrentDatabaseName;
   end;
 end;
 
-procedure TManager.Delete(const Objects: TArray<TObject>);
+procedure TPersistoManager.Delete(const Objects: TArray<TObject>);
 begin
   var Params := TParams.Create;
   var SQL := TStringBuilder.Create(STRING_BUILDER_START_CAPACITY);
@@ -2746,7 +2746,7 @@ begin
   end;
 end;
 
-destructor TManager.Destroy;
+destructor TPersistoManager.Destroy;
 begin
   FProcessedObjects.Free;
 
@@ -2759,17 +2759,17 @@ begin
   inherited;
 end;
 
-procedure TManager.DropDatabase;
+procedure TPersistoManager.DropDatabase;
 begin
-  FConnection.ExecuteScript(FDatabaseManipulator.DropDatabase(FConnection.DatabaseName));
+  FConnection.ExecuteScript(Manipulator.DropDatabase(FConnection.DatabaseName));
 end;
 
-procedure TManager.ExectDirect(const SQL: String);
+procedure TPersistoManager.ExectDirect(const SQL: String);
 begin
   FConnection.ExecuteDirect(SQL);
 end;
 
-procedure TManager.GenerateUnit(const FileName: String; FormatName: TFunc<String, String>);
+procedure TPersistoManager.GenerateUnit(const FileName: String; FormatName: TFunc<String, String>);
 begin
   var EntityGenerator := TEntityGenerator.Create(Self);
 
@@ -2778,7 +2778,7 @@ begin
   EntityGenerator.Free;
 end;
 
-procedure TManager.Insert(const Objects: TArray<TObject>);
+procedure TPersistoManager.Insert(const Objects: TArray<TObject>);
 begin
   var Transaction := StartTransaction;
 
@@ -2790,7 +2790,7 @@ begin
   Transaction.Commit;
 end;
 
-procedure TManager.InsertTable(const Table: TTable; const &Object: TObject);
+procedure TPersistoManager.InsertTable(const Table: TTable; const &Object: TObject);
 var
   FieldValue: TValue;
   RecursionTableError: TTable;
@@ -2828,7 +2828,7 @@ var
           Params.AddParam(Field, FieldValue.AsVariant);
         end;
 
-      var Cursor := PrepareCursor(FDatabaseManipulator.MakeInsertStatement(Table, Params), Params);
+      var Cursor := PrepareCursor(Manipulator.MakeInsertStatement(Table, Params), Params);
 
       Cursor.Next;
 
@@ -2864,7 +2864,7 @@ begin
     raise ERecursionInsertionError.Create(Table);
 end;
 
-procedure TManager.InternalUpdateTable(const Table: TTable; const &Object: TObject; const OldValues: IObjectOldValue);
+procedure TPersistoManager.InternalUpdateTable(const Table: TTable; const &Object: TObject; const OldValues: IObjectOldValue);
 
   procedure DoUpdateTable(const Table: TTable; const &Object: TObject);
   var
@@ -2898,7 +2898,7 @@ procedure TManager.InternalUpdateTable(const Table: TTable; const &Object: TObje
       begin
         Params.AddParam(Table.PrimaryKey, Table.PrimaryKey.Value[&Object].AsVariant);
 
-        PrepareCursor(FDatabaseManipulator.MakeUpdateStatement(Table, Params), Params).Next;
+        PrepareCursor(Manipulator.MakeUpdateStatement(Table, Params), Params).Next;
       end;
 
       SaveManyValueAssociation(Table, &Object);
@@ -2911,23 +2911,23 @@ begin
   DoUpdateTable(Table, &Object);
 end;
 
-function TManager.LoadOldValueObject(const Table: TTable; const &Object: TObject): IObjectOldValue;
+function TPersistoManager.LoadOldValueObject(const Table: TTable; const &Object: TObject): IObjectOldValue;
 begin
   if not TryLoadOldValueObject(Table, &Object, Result) then
     raise EForeignObjectNotAllowed.Create;
 end;
 
-function TManager.OpenCursor(const SQL: String): IDatabaseCursor;
+function TPersistoManager.OpenCursor(const SQL: String): IDatabaseCursor;
 begin
   Result := FConnection.OpenCursor(SQL);
 end;
 
-function TManager.PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
+function TPersistoManager.PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
 begin
   Result := FConnection.PrepareCursor(SQL, Params);
 end;
 
-procedure TManager.Save(const Objects: TArray<TObject>);
+procedure TPersistoManager.Save(const Objects: TArray<TObject>);
 begin
   var Transaction := StartTransaction;
 
@@ -2939,7 +2939,7 @@ begin
   Transaction.Commit;
 end;
 
-procedure TManager.SaveManyValueAssociation(const Table: TTable; const &Object: TObject);
+procedure TPersistoManager.SaveManyValueAssociation(const Table: TTable; const &Object: TObject);
 begin
   var FieldValue: TValue;
 
@@ -2953,7 +2953,7 @@ begin
       end
 end;
 
-procedure TManager.SaveTable(const Table: TTable; const &Object: TObject);
+procedure TPersistoManager.SaveTable(const Table: TTable; const &Object: TObject);
 var
   ObjectOldValue: IObjectOldValue;
 
@@ -2964,7 +2964,7 @@ begin
     InsertTable(Table, &Object);
 end;
 
-function TManager.Select: TQueryBuilder;
+function TPersistoManager.Select: TQueryBuilder;
 begin
   FQueryBuilder.Free;
 
@@ -2972,12 +2972,12 @@ begin
   Result := FQueryBuilder;
 end;
 
-function TManager.StartTransaction: IDatabaseTransaction;
+function TPersistoManager.StartTransaction: IDatabaseTransaction;
 begin
   Result := FConnection.StartTransaction as IDatabaseTransaction;
 end;
 
-function TManager.TryLoadOldValueObject(const Table: TTable; const &Object: TObject; var ObjectOldValue: IObjectOldValue): Boolean;
+function TPersistoManager.TryLoadOldValueObject(const Table: TTable; const &Object: TObject; var ObjectOldValue: IObjectOldValue): Boolean;
 begin
   var Comma := EmptyStr;
   var Params := TParams.Create;
@@ -3022,7 +3022,7 @@ begin
   Params.Free;
 end;
 
-procedure TManager.Update(const Objects: TArray<TObject>);
+procedure TPersistoManager.Update(const Objects: TArray<TObject>);
 begin
   var Transaction := StartTransaction;
 
@@ -3038,7 +3038,7 @@ begin
   Transaction.Commit;
 end;
 
-procedure TManager.UpdateDatabaseSchema;
+procedure TPersistoManager.UpdateDatabaseSchema;
 begin
   var Updater := TSchemaUpdater.Create(Self);
 
@@ -3049,7 +3049,7 @@ begin
   end;
 end;
 
-procedure TManager.UpdateTable(const Table: TTable; const &Object: TObject; const ObjectOldValue: IObjectOldValue);
+procedure TPersistoManager.UpdateTable(const Table: TTable; const &Object: TObject; const ObjectOldValue: IObjectOldValue);
 begin
   if FProcessedObjects.TryAdd(&Object, False) then
     InternalUpdateTable(Table, &Object, ObjectOldValue);
@@ -3141,11 +3141,14 @@ begin
   AddParam(Field.DatabaseName, Field, Value);
 end;
 
-procedure TParamsHelper.AddParam(const ParamName: String; const Field: TField; const Value: Variant);
+procedure TParamsHelper.AddParam(const ParamName: String; Field: TField; const Value: Variant);
 var
   Param: TParam;
 
 begin
+  if Field.IsForeignKey then
+    Field := Field.ForeignKey.ParentTable.PrimaryKey;
+
   Param := CreateParam(Field.DatabaseType, ParamName, ptInput);
 
   if VarIsClear(Value) or VarIsStr(Value) and (Value = EmptyStr) then
@@ -3219,7 +3222,7 @@ begin
     Result := CompareText(Left.Name, Right.Name);
 end;
 
-constructor TEntityGenerator.Create(const Manager: TManager);
+constructor TEntityGenerator.Create(const Manager: TPersistoManager);
 begin
   inherited Create;
 
@@ -3425,7 +3428,7 @@ var
 
     function GetFixedValue: String;
     begin
-      Result := FManager.FDatabaseManipulator.ExtractFixedValue(ConstraintValue);
+      Result := FManager.Manipulator.ExtractFixedValue(ConstraintValue);
     end;
 
     function GetAutoGeneratedAttribute: String;
@@ -3436,7 +3439,7 @@ var
       for var A := Low(TAutoGeneratedType) to High(TAutoGeneratedType) do
       begin
         var AttributeDefinition := ATTRIBUTE_NAME[A];
-        AutoGeneratedDefinition := FManager.FDatabaseManipulator.GetAutoGeneratedDefinition(A);
+        AutoGeneratedDefinition := FManager.Manipulator.GetAutoGeneratedDefinition(A);
 
         case A of
           agtSequence:
@@ -3584,7 +3587,7 @@ end;
 
 { TDatabaseSchema }
 
-constructor TDatabaseSchema.Create(const Manager: TManager);
+constructor TDatabaseSchema.Create(const Manager: TPersistoManager);
 begin
   inherited Create;
 
@@ -3595,7 +3598,7 @@ end;
 
 procedure TDatabaseSchema.ExecuteSchemaScripts;
 begin
-  for var SQL in FManager.FDatabaseManipulator.GetSchemaTablesScripts do
+  for var SQL in FManager.Manipulator.GetSchemaTablesScripts do
     FManager.ExectDirect(SQL);
 end;
 
@@ -3670,14 +3673,14 @@ end;
 
 { TSchemaUpdater }
 
-constructor TSchemaUpdater.Create(const Manager: TManager);
+constructor TSchemaUpdater.Create(const Manager: TPersistoManager);
 begin
   inherited Create;
 
   FDatabaseSchema := TDatabaseSchema.Create(Manager);
   FManager := Manager;
 
-  FDatabaseManipulator := FManager.FDatabaseManipulator;
+  FManipulator := FManager.Manipulator;
 end;
 
 destructor TSchemaUpdater.Destroy;
@@ -3774,7 +3777,7 @@ var
   begin
     Result := Assigned(DatabaseField.DefaultConstraint) xor Assigned(Field.DefaultConstraint) or Assigned(DatabaseField.DefaultConstraint)
       {and ((DatabaseField.DefaultConstraint.Name <> Field.DefaultConstraint.DatabaseName)
-        or (FDatabaseManipulator.GetAutoGeneratedValue(Field.DefaultConstraint).ToLower <> DatabaseField.DefaultConstraint.Value.ToLower))};
+        or (Manipulator.GetAutoGeneratedValue(Field.DefaultConstraint).ToLower <> DatabaseField.DefaultConstraint.Value.ToLower))};
   end;
 
   function FieldChanged(const Field: TField): Boolean;
@@ -3788,7 +3791,7 @@ var
 //    if Assigned(DatabaseIndex) then
 //      DropIndex(DatabaseIndex);
 
-//    FDatabaseManipulator.CreateIndex(Index);
+//    Manipulator.CreateIndex(Index);
   end;
 
   procedure AppendDefaultConstraint(const Field: TField);
@@ -3803,7 +3806,7 @@ var
 
       SQL.Append('(');
 
-      SQL.Append(FDatabaseManipulator.GetDefaultValue(Field));
+      SQL.Append(FManipulator.GetDefaultValue(Field));
 
       SQL.Append(')');
     end;
@@ -3822,9 +3825,9 @@ var
     SQL.Append(' ');
 
     if IsSpecialType(Field) then
-      SQL.Append(FDatabaseManipulator.GetSpecialFieldType(Field.SpecialType))
+      SQL.Append(FManipulator.GetSpecialFieldType(Field.SpecialType))
     else
-      SQL.Append(FDatabaseManipulator.GetFieldType(Field.FieldType.TypeKind));
+      SQL.Append(FManipulator.GetFieldType(Field.FieldType.TypeKind));
 
     if FieldNeedSize(Field) then
     begin
@@ -3924,7 +3927,7 @@ var
       BuildPrimaryKeyConstraint;
     end;
 
-    if FDatabaseManipulator.IsSQLite then
+    if FManipulator.IsSQLite then
       for var FK in Table.ForeignKeys do
       begin
         ForeignKey := FK;
@@ -4059,7 +4062,7 @@ var
 
   procedure CreateForeignKey;
   begin
-    if FDatabaseManipulator.IsSQLite then
+    if FManipulator.IsSQLite then
       RecreateTable
     else
     begin
@@ -4085,7 +4088,7 @@ var
   procedure CreateTablePrimaryKey;
   begin
     if Assigned(Table.PrimaryKey) then
-      if FDatabaseManipulator.IsSQLite then
+      if FManipulator.IsSQLite then
         RecreateTable
       else
       begin
@@ -4099,12 +4102,12 @@ var
 
   procedure CreateSequence;
   begin
-    ExecuteDirect(FDatabaseManipulator.CreateSequence(Sequence));
+    ExecuteDirect(FManipulator.CreateSequence(Sequence));
   end;
 
   procedure DropSequence;
   begin
-    ExecuteDirect(FDatabaseManipulator.DropSequence(DatabaseSequence));
+    ExecuteDirect(FManipulator.DropSequence(DatabaseSequence));
   end;
 
   function CheckForeignKeyExists: Boolean;
@@ -4164,7 +4167,7 @@ var
   end;
 
 begin
-  Comparer := TNameComparer.Create(FDatabaseManipulator.MaxNameSize);
+  Comparer := TNameComparer.Create(FManipulator.MaxNameSize);
   RecreateTables := TDictionary<TTable, TDatabaseTable>.Create;
   SQL := TStringBuilder.Create(STRING_BUILDER_START_CAPACITY);
 
@@ -4198,10 +4201,10 @@ begin
 //            if FieldDefaultValueChanged then
 //            begin
 //              if Assigned(DatabaseField.DefaultConstraint) then
-//                FDatabaseManipulator.DropDefaultConstraint(DatabaseField);
+//                Manipulator.DropDefaultConstraint(DatabaseField);
 //
 //              if Assigned(Field.DefaultConstraint) then
-//                FDatabaseManipulator.CreateDefaultConstraint(Field);
+//                Manipulator.CreateDefaultConstraint(Field);
 //            end;
 //          end;
 //        end;
@@ -4230,7 +4233,7 @@ begin
 
   FDatabaseSchema.LoadForeignKeys;
 
-  if not FDatabaseManipulator.IsSQLite then
+  if not FManipulator.IsSQLite then
     for Table in Tables.Values do
       for ForeignKey in Table.ForeignKeys do
         if not DatabaseTables.TryGetValue(Table.DatabaseName, DatabaseTable) or not CheckForeignKeyExists then

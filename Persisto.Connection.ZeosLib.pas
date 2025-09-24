@@ -37,12 +37,8 @@ type
     function StartTransaction: TDatabaseTransaction;
 
     procedure ExecuteDirect(const SQL: String);
-  public
-    constructor Create;
-
-    destructor Destroy; override;
-
-    property Connection: TZConnection read FConnection;
+  published
+    property Connection: TZConnection read FConnection write FConnection;
   end;
 
 implementation
@@ -50,20 +46,6 @@ implementation
 uses System.SysUtils, System.Variants;
 
 { TDatabaseConnectionZeosLib }
-
-constructor TDatabaseConnectionZeosLib.Create;
-begin
-  inherited;
-
-  FConnection := TZConnection.Create(nil);
-end;
-
-destructor TDatabaseConnectionZeosLib.Destroy;
-begin
-  FConnection.Free;
-
-  inherited;
-end;
 
 procedure TDatabaseConnectionZeosLib.ExecuteDirect(const SQL: String);
 begin

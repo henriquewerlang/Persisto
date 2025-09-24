@@ -540,17 +540,17 @@ procedure TMapperTest.TheFieldDatabaseTypeMustBeEqualTheValueExpected;
 begin
   var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
 
-  Assert.AreEqual(ftString, Table.Field['AnsiChar'].DatabaseType);
+  Assert.AreEqual(ftWideString, Table.Field['AnsiChar'].DatabaseType);
   Assert.AreEqual(ftString, Table.Field['AnsiString'].DatabaseType);
   Assert.AreEqual(ftBoolean, Table.Field['Boolean'].DatabaseType);
-  Assert.AreEqual(ftString, Table.Field['Char'].DatabaseType);
+  Assert.AreEqual(ftWideString, Table.Field['Char'].DatabaseType);
   Assert.AreEqual(ftDate, Table.Field['Date'].DatabaseType);
   Assert.AreEqual(ftDateTime, Table.Field['DateTime'].DatabaseType);
   Assert.AreEqual(ftInteger, Table.Field['Enumerator'].DatabaseType);
   Assert.AreEqual(ftFloat, Table.Field['Float'].DatabaseType);
   Assert.AreEqual(ftLargeint, Table.Field['Int64'].DatabaseType);
   Assert.AreEqual(ftInteger, Table.Field['Integer'].DatabaseType);
-  Assert.AreEqual(ftString, Table.Field['String'].DatabaseType);
+  Assert.AreEqual(ftWideString, Table.Field['String'].DatabaseType);
   Assert.AreEqual(ftMemo, Table.Field['Text'].DatabaseType);
   Assert.AreEqual(ftTime, Table.Field['Time'].DatabaseType);
   Assert.AreEqual(ftGuid, Table.Field['UniqueIdentifier'].DatabaseType);

@@ -9,7 +9,7 @@ type
   TGenerateUnitTeste = class
   private
     FManipulator: IDatabaseManipulator;
-    FManager: TManager;
+    FManager: TPersistoManager;
 
     procedure CompareUnitInterface(const UnitInterface: String);
     procedure CompareUnitImplementation(const UnitInterface: String; UnitImplementation: String);
@@ -145,7 +145,9 @@ const
 procedure TGenerateUnitTeste.Setup;
 begin
   FManipulator := CreateDatabaseManipulator;
-  FManager := TManager.Create(CreateConnection, FManipulator);
+  FManager := TPersistoManager.Create(nil);
+  FManager.Connection := CreateConnection;
+  FManager.Manipulator := FManipulator;
 
   FManager.CreateDatabase;
 end;

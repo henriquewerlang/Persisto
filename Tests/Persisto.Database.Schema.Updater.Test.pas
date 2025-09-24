@@ -8,7 +8,7 @@ type
   [TestFixture]
   TDatabaseSchemaUpdaterTest = class
   private
-    FManager: TManager;
+    FManager: TPersistoManager;
 
     function LoadForeignKeys(const TableName: String): TArray<TDatabaseForeignKey>;
     function LoadIndexes(const TableName: String): TArray<TDatabaseIndex>;
@@ -247,7 +247,9 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.Setup;
 begin
-  FManager := TManager.Create(CreateConnection, CreateDatabaseManipulator);
+  FManager := TPersistoManager.Create(nil);
+  FManager.Connection := CreateConnection;
+  FManager.Manipulator := CreateDatabaseManipulator;
 
   FManager.Mapper.LoadAll;
 
@@ -363,7 +365,9 @@ end;
 procedure TDatabaseSchemaUpdaterTest.WhenCreateAFieldMustLoadTheFieldInfoTypeFromTheManipulador;
 begin
   var Manipulator := TDatabaseManiupulatorMock.Create;
-  var Manager := TManager.Create(CreateConnection, Manipulator);
+  var Manager := TPersistoManager.Create(nil);
+  Manager.Connection := CreateConnection;
+  Manager.Manipulator := CreateDatabaseManipulator;
 
   Manager.Mapper.GetTable(TMyClassWithAllFieldsType);
 
@@ -456,7 +460,9 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenCreateDatabaseTheDatabaseMustBeCreated;
 begin
-  var Manager := TManager.Create(CreateConnectionNamed('MyDatabase'), CreateDatabaseManipulator);
+  var Manager := TPersistoManager.Create(nil);
+  Manager.Connection := CreateConnectionNamed('MyDatabase');
+  Manager.Manipulator := CreateDatabaseManipulator;
 
   Manager.CreateDatabase;
 
@@ -492,7 +498,9 @@ end;
 procedure TDatabaseSchemaUpdaterTest.WhenDropDatabaseTheDatabaseMustBeDropped;
 begin
   var Connection := CreateConnectionNamed('MyDatabase');
-  var Manager := TManager.Create(Connection, CreateDatabaseManipulator);
+  var Manager := TPersistoManager.Create(nil);
+  Manager.Connection := CreateConnection;
+  Manager.Manipulator := CreateDatabaseManipulator;
 
   Manager.CreateDatabase;
 

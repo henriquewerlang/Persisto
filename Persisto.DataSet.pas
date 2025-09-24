@@ -80,7 +80,7 @@ type
     FIndexFieldNames: String;
     FInsertingObject: TObject;
     FIOBuffer: TValueBuffer;
-    FManager: TManager;
+    FManager: TPersistoManager;
     FObjectClass: TClass;
     FObjectClassName: String;
     FObjectList: TList<TObject>;
@@ -88,9 +88,9 @@ type
 
     function GetActivePersistoBuffer: TPersistoBuffer;
     function GetActiveObject: TObject;
-    function GetManager: TManager;
     function GetObjects: TArray<TObject>;
 
+    procedure CheckManagerLoaded;
     procedure CheckObjectTypeLoaded;
     procedure LoadCursor;
     procedure LoadObjectTable;
@@ -166,7 +166,7 @@ type
     property DataSetField;
     property FieldOptions;
     property IndexFieldNames: String read FIndexFieldNames write SetIndexFieldNames;
-    property Manager: TManager read GetManager write FManager;
+    property Manager: TPersistoManager read FManager write FManager;
     property ObjectClassName: String read FObjectClassName write FObjectClassName;
     property OnCalcFields;
     property OnDeleteError;
@@ -191,6 +191,12 @@ procedure TPersistoDataSet.CheckInactive;
 begin
   if not TPersistoFieldList(FieldList).Locked then
     inherited;
+end;
+
+procedure TPersistoDataSet.CheckManagerLoaded;
+begin
+  if not Assigned(FManager) then
+    raise EDataSetWithoutManager.Create;
 end;
 
 procedure TPersistoDataSet.CheckObjectTypeLoaded;
@@ -245,6 +251,8 @@ end;
 
 procedure TPersistoDataSet.LoadObjectTable;
 begin
+  CheckManagerLoaded;
+
   if not ObjectClassName.IsEmpty then
     FObjectTable := Manager.Mapper.GetTable(ObjectClassName)
   else if Assigned(ObjectClass) then
@@ -353,14 +361,6 @@ end;
 function TPersistoDataSet.GetFieldListClass: TFieldListClass;
 begin
   Result := TPersistoFieldList;
-end;
-
-function TPersistoDataSet.GetManager: TManager;
-begin
-  if not Assigned(FManager) then
-    raise EDataSetWithoutManager.Create;
-
-  Result := FManager;
 end;
 
 function TPersistoDataSet.GetObjects: TArray<TObject>;

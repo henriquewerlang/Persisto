@@ -10,7 +10,7 @@ type
   private
     FContext: TRttiContext;
     FDataSet: TPersistoDataSet;
-    FManager: TManager;
+    FManager: TPersistoManager;
 
     procedure DestroyObjects(DataSet: TPersistoDataSet);
   public
@@ -284,7 +284,7 @@ begin
 
   FContext := TRttiContext.Create;
   FDataSet := TPersistoDataSet.Create(nil);
-  FManager := TManager.Create(nil, nil);
+  FManager := TPersistoManager.Create(nil);
 
   FDataSet.Manager := FManager;
 end;

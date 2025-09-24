@@ -2,7 +2,7 @@
 
 interface
 
-uses Data.DB, FireDAC.Comp.Client, Persisto;
+uses System.Classes, Data.DB, FireDAC.Comp.Client, Persisto;
 
 type
   TDatabaseCursorFireDAC = class(TInterfacedObject, IDatabaseCursor)
@@ -28,7 +28,7 @@ type
     constructor Create(const Connection: TFDConnection);
   end;
 
-  TDatabaseConnectionFireDAC = class(TInterfacedObject, IDatabaseConnection)
+  TPersistoConnectionFireDAC = class(TComponent, IDatabaseConnection)
   private
     FConnection: TFDConnection;
 
@@ -40,12 +40,8 @@ type
     procedure ExecuteDirect(const SQL: String);
     procedure ExecuteScript(const Script: String);
     procedure SetDatabaseName(const Value: String);
-  public
-    constructor Create;
-
-    destructor Destroy; override;
-
-    property Connection: TFDConnection read FConnection;
+      published
+    property Connection: TFDConnection read FConnection write FConnection;
   end;
 
 implementation
@@ -103,33 +99,14 @@ begin
   Result := not FQuery.Eof;
 end;
 
-{ TDatabaseConnectionFireDAC }
+{ TPersistoConnectionFireDAC }
 
-constructor TDatabaseConnectionFireDAC.Create;
-begin
-  inherited;
-
-  FConnection := TFDConnection.Create(nil);
-  FConnection.FormatOptions.StrsEmpty2Null := True;
-  FConnection.FetchOptions.Items := [];
-  FConnection.FetchOptions.Unidirectional := True;
-  FConnection.ResourceOptions.SilentMode := True;
-  FFDGUIxSilentMode := True;
-end;
-
-destructor TDatabaseConnectionFireDAC.Destroy;
-begin
-  FConnection.Free;
-
-  inherited;
-end;
-
-procedure TDatabaseConnectionFireDAC.ExecuteDirect(const SQL: String);
+procedure TPersistoConnectionFireDAC.ExecuteDirect(const SQL: String);
 begin
   FConnection.ExecSQL(SQL);
 end;
 
-procedure TDatabaseConnectionFireDAC.ExecuteScript(const Script: String);
+procedure TPersistoConnectionFireDAC.ExecuteScript(const Script: String);
 begin
   var DatabaseName := GetDatabaseName;
   var Executor := TFDScript.Create(nil);
@@ -145,27 +122,27 @@ begin
   FConnection.Params.Database := DatabaseName;
 end;
 
-function TDatabaseConnectionFireDAC.GetDatabaseName: String;
+function TPersistoConnectionFireDAC.GetDatabaseName: String;
 begin
   Result := FConnection.Params.Database;
 end;
 
-function TDatabaseConnectionFireDAC.OpenCursor(const SQL: String): IDatabaseCursor;
+function TPersistoConnectionFireDAC.OpenCursor(const SQL: String): IDatabaseCursor;
 begin
   Result := TDatabaseCursorFireDAC.Create(Connection, SQL);
 end;
 
-function TDatabaseConnectionFireDAC.PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
+function TPersistoConnectionFireDAC.PrepareCursor(const SQL: String; const Params: TParams): IDatabaseCursor;
 begin
   Result := TDatabaseCursorFireDAC.Create(Connection, SQL, Params);
 end;
 
-procedure TDatabaseConnectionFireDAC.SetDatabaseName(const Value: String);
+procedure TPersistoConnectionFireDAC.SetDatabaseName(const Value: String);
 begin
   FConnection.Params.Database := Value;
 end;
 
-function TDatabaseConnectionFireDAC.StartTransaction: TDatabaseTransaction;
+function TPersistoConnectionFireDAC.StartTransaction: TDatabaseTransaction;
 begin
   Result := TDatabaseTransactionFireDAC.Create(Connection);
 end;

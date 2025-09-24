@@ -1,4 +1,4 @@
-﻿package Persisto.Design;
+﻿package Persisto.Design.Firedac;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -13,8 +13,8 @@
 {$LONGSTRINGS ON}
 {$OPENSTRINGS ON}
 {$OPTIMIZATION OFF}
-{$OVERFLOWCHECKS OFF}
-{$RANGECHECKS OFF}
+{$OVERFLOWCHECKS ON}
+{$RANGECHECKS ON}
 {$REFERENCEINFO ON}
 {$SAFEDIVIDE OFF}
 {$STACKFRAMES ON}
@@ -25,23 +25,14 @@
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Persisto'}
-{$LIBSUFFIX AUTO}
-{$DESIGNONLY}
 {$IMPLICITBUILD ON}
 
 requires
   rtl,
-  designide,
-  Persisto.Runtime;
+  Persisto.Runtime,
+  Persisto.Runtime.Firedac;
 
 contains
-  Persisto.Register in '..\Persisto.Register.pas',
-  Persisto.Editors in '..\Persisto.Editors.pas',
-  Persisto.PostgreSQL in '..\Persisto.PostgreSQL.pas',
-  Persisto.Interbase in '..\Persisto.Interbase.pas',
-  Persisto.SQLite in '..\Persisto.SQLite.pas',
-  Persisto.SQLServer in '..\Persisto.SQLServer.pas';
+  Persisto.Register.Firedac in '..\Persisto.Register.Firedac.pas';
 
 end.
-

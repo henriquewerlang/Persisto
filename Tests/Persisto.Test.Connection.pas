@@ -25,9 +25,11 @@ type
 implementation
 
 uses
-  System.IOUtils,
-{$IFDEF POSTGRESQL}
   System.Types,
+  System.IOUtils,
+  FireDAC.Comp.Client,
+  FireDAC.UI.Intf,
+{$IFDEF POSTGRESQL}
   FireDAC.Phys.PG,
   FireDAC.Phys.PGDef,
   Persisto.PostgreSQL,
@@ -98,26 +100,33 @@ begin
 {$ENDIF}
 end;
 
-procedure ConfigureConnection(const Connection: TDatabaseConnectionFireDAC; const DatabaseName: String);
+function CreateFiredacConnection(const DatabaseName: String): TFDConnection;
 begin
+  FFDGUIxSilentMode := True;
+  Result := TFDConnection.Create(nil);
+  Result.FetchOptions.Items := [];
+  Result.FetchOptions.Unidirectional := True;
+  Result.FormatOptions.StrsEmpty2Null := True;
+  Result.ResourceOptions.SilentMode := True;
+
 {$IFDEF POSTGRESQL}
-  var Driver := TFDPhysPgDriverLink.Create(Connection.Connection);
+  var Driver := TFDPhysPgDriverLink.Create(Result);
   Driver.VendorLib := GetEnvironmentVariable('POSTGRESQL_LIB_PATH');
 
-  Connection.Connection.DriverName := 'PG';
+  Result.DriverName := 'PG';
 
-  var Configuration := Connection.Connection.Params as TFDPhysPGConnectionDefParams;
+  var Configuration := Result.Params as TFDPhysPGConnectionDefParams;
   Configuration.Database := DatabaseName;
   Configuration.Password := GetEnvironmentVariable('POSTGRESQL_PASSWORD');
   Configuration.UserName := GetEnvironmentVariable('POSTGRESQL_USERNAME');
   Configuration.GUIDEndian := TEndian.Big;
 
-  if Driver.VendorLib.IsEmpty or Connection.Connection.Params.UserName.IsEmpty and Connection.Connection.Params.Password.IsEmpty then
+  if Driver.VendorLib.IsEmpty or Result.Params.UserName.IsEmpty and Result.Params.Password.IsEmpty then
     raise EPostgreSQLConfigurationError.Create;
 {$ELSEIF DEFINED(SQLSERVER)}
-  Connection.Connection.DriverName := 'MSSQL';
+  Result.DriverName := 'MSSQL';
 
-  var Configuration := Connection.Connection.Params as TFDPhysMSSQLConnectionDefParams;
+  var Configuration := Result.Params as TFDPhysMSSQLConnectionDefParams;
   Configuration.Database := DatabaseName;
   Configuration.Encrypt := False;
   Configuration.OSAuthent := GetEnvironmentVariable('SQLSERVER_OSAUTHENTICATION').ToUpper = 'YES';
@@ -128,9 +137,9 @@ begin
   if Configuration.Server.IsEmpty or Configuration.UserName.IsEmpty and Configuration.Password.IsEmpty and not Configuration.OSAuthent then
     raise ESQLServerConfigurationError.Create;
 {$ELSEIF DEFINED(INTERBASE)}
-  Connection.Connection.DriverName := 'IBLite';
+  Result.DriverName := 'IBLite';
 
-  var Configuration := Connection.Connection.Params as TFDPhysIBLiteConnectionDefParams;
+  var Configuration := Result.Params as TFDPhysIBLiteConnectionDefParams;
   Configuration.Database := DatabaseName;
   Configuration.DropDatabase := True;
   Configuration.OpenMode := omOpenOrCreate;
@@ -140,10 +149,10 @@ begin
   if not TFile.Exists('.\ibtogo.dll') then
     TDirectory.Copy(Format('%s\%s_togo', [GetEnvironmentVariable('IBREDISTDIR'), GetDeployName]), '.\');
 {$ELSEIF DEFINED(SQLITE)}
-  Connection.Connection.DriverName := 'SQLite';
-  Connection.Connection.UpdateOptions.CountUpdatedRecords := False;
+  Result.DriverName := 'SQLite';
+  Result.UpdateOptions.CountUpdatedRecords := False;
 
-  var Configuration := Connection.Connection.Params as TFDPhysSQLiteConnectionDefParams;
+  var Configuration := Result.Params as TFDPhysSQLiteConnectionDefParams;
   Configuration.Database := DatabaseName;
   Configuration.ForeignKeys := fkOn;
 
@@ -156,9 +165,8 @@ end;
 
 function CreateConnectionNamed(const DatabaseName: String): IDatabaseConnection;
 begin
-  var Connection := TDatabaseConnectionFireDAC.Create;
-
-  ConfigureConnection(Connection, FormatDatabaseName(DatabaseName));
+  var Connection := TPersistoConnectionFireDAC.Create(nil);
+  Connection.Connection := CreateFiredacConnection(FormatDatabaseName(DatabaseName));
 
   Result := Connection;
 end;
@@ -171,13 +179,13 @@ end;
 function CreateDatabaseManipulator: IDatabaseManipulator;
 begin
 {$IFDEF POSTGRESQL}
-  Result := TDatabaseManipulatorPostgreSQL.Create;
+  Result := TDatabaseManipulatorPostgreSQL.Create(nil);
 {$ELSEIF DEFINED(SQLSERVER)}
-  Result := TDatabaseManipulatorSQLServer.Create;
+  Result := TDatabaseManipulatorSQLServer.Create(nil);
 {$ELSEIF DEFINED(INTERBASE)}
-  Result := TDatabaseManipulatorInterbase.Create;
+  Result := TDatabaseManipulatorInterbase.Create(nil);
 {$ELSEIF DEFINED(SQLITE)}
-  Result := TDatabaseManipulatorSQLite.Create;
+  Result := TDatabaseManipulatorSQLite.Create(nil);
 {$ELSE}
   RaiseConfigurationSelectionError;
 {$ENDIF}

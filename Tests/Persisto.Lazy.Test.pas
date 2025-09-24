@@ -54,7 +54,7 @@ type
   [TestFixture]
   TLazyLoaderObjectTest = class
   private
-    FManager: TManager;
+    FManager: TPersistoManager;
 
     procedure LoadDatabaseData;
   public
@@ -81,7 +81,7 @@ type
   [TestFixture]
   TLazyLoaderManyValueTest = class
   private
-    FManager: TManager;
+    FManager: TPersistoManager;
 
     procedure LoadDatabaseData;
   public
@@ -240,7 +240,9 @@ end;
 
 procedure TLazyLoaderObjectTest.Setup;
 begin
-  FManager := TManager.Create(CreateConnection, CreateDatabaseManipulator);
+  FManager := TPersistoManager.Create(nil);
+  FManager.Connection := CreateConnection;
+  FManager.Manipulator := CreateDatabaseManipulator;
 
   FManager.CreateDatabase;
 
@@ -332,7 +334,9 @@ end;
 
 procedure TLazyLoaderManyValueTest.Setup;
 begin
-  FManager := TManager.Create(CreateConnection, CreateDatabaseManipulator);
+  FManager := TPersistoManager.Create(nil);
+  FManager.Connection := CreateConnection;
+  FManager.Manipulator := CreateDatabaseManipulator;
 
   FManager.CreateDatabase;
 
