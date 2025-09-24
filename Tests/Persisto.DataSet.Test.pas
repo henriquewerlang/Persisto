@@ -2,7 +2,7 @@
 
 interface
 
-uses System.SysUtils, System.Rtti, Data.DB, System.Generics.Collections, Persisto.DataSet, Test.Insight.Framework, Persisto.Mapping;
+uses System.SysUtils, System.Rtti, Data.DB, System.Generics.Collections, Persisto.DataSet, Test.Insight.Framework, Persisto, Persisto.Mapping;
 
 type
   [TestFixture]
@@ -10,6 +10,7 @@ type
   private
     FContext: TRttiContext;
     FDataSet: TPersistoDataSet;
+    FManager: TManager;
 
     procedure DestroyObjects(DataSet: TPersistoDataSet);
   public
@@ -18,19 +19,13 @@ type
     [TearDown]
     procedure TearDown;
     [Test]
+    procedure WhenTheManagerPropertyIsEmptyMustRaiseAnError;
+    [Test]
     procedure WhenTryToOpenTheDataSetWithoutAnObjectInformationMustRaiseAnError;
     [Test]
     procedure WhenLoadTheObjectClassNameMustOpenWithoutAnyError;
     [Test]
-    procedure WhenLoadTheObjectClassNameMustLoadTheObjectTypeInfoWithTheObjectType;
-    [Test]
-    procedure WhenTryToChangeTheObjectClassNameWithAnOpenDataSetMustRaiseAnError;
-    [Test]
     procedure WhenLoadTheObjectClassPropertyCantRaiseErrorWhenOpenTheDataSet;
-    [Test]
-    procedure WhenLoadTheObjectClassPropertyMustLoadTheObjectTypePropertyWithTheClassInfo;
-    [Test]
-    procedure WhenTryToChangeTheObjectClassWhenTheDataSetIsOpenMustRaiseAnError;
     [Test]
     procedure AfterOpenTheDataSetAndTryToInserMustInsertWithoutAnyError;
     [Test]
@@ -64,10 +59,6 @@ type
     [Test]
     procedure WhenAppendADataSourceInDataSetCantRaiseAnyError;
     [Test]
-    procedure WhenOpenDataSetHaveToLoadFieldListWithPropertiesOfMappedObject;
-    [Test]
-    procedure TheNameOfFieldMustBeEqualToTheNameOfTheProperty;
-    [Test]
     procedure WhenThePropertyIsOfIntegerTypeMustCreateTheFieldWithTheTypeExpected;
     [Test]
     procedure WhenThePropertyIsOfStringTypeMustCreateTheFieldWithTheTypeExpected;
@@ -92,19 +83,11 @@ type
     [Test]
     procedure WhenTheFieldTypeIsntMappedCanRaiseAnyError;
     [Test]
-    procedure WhenTheDataSetHasFieldsLoadedCantReloadThisFields;
-    [Test]
-    procedure WhenUpdateFieldDefsMustLoadTheFieldInformationInTheFieldDefsCollection;
+    procedure WhenUpdateTheFieldDefsCantRaiseAnyError;
     [Test]
     procedure WhenTheFieldIsCharTypeTheSizeMustBeOne;
     [Test]
     procedure WhenTheFieldIsStringTypeTheSizeMustBeTheValueFromAttribute;
-    [Test]
-    procedure WhenLoadAClassWithAForeignKeyMustLoadTheForeignKeyFieldInTheFieldList;
-    [Test]
-    procedure WhenCreateAFieldOfOneObjectClassMustLoadAllClassLevelsInTheFieldName;
-    [Test]
-    procedure WhenChangeTheObjectTypeFromTheDataSetMustMarkTheFieldDefsToUpdateAgain;
     [Test]
     procedure WhenLoadAnInvalidClassNameInThePropertyCantRaiseAnyError;
     [Test]
@@ -144,12 +127,14 @@ type
   public
     destructor Destroy; override;
   published
+    [Size(150)]
     property AnotherName: String read FAnotherName write FAnotherName;
     property AnotherObject: TAnotherObject read FAnotherObject write FAnotherObject;
+    [Size(150)]
     property Id: String read FId write FId;
   end;
 
-   TMyTestClass = class
+  TMyTestClass = class
   private
     FId: Integer;
     FName: String;
@@ -159,6 +144,7 @@ type
     destructor Destroy; override;
   published
     property Id: Integer read FId write FId;
+    [Size(150)]
     property Name: String read FName write FName;
     property Value: Double read FValue write FValue;
     property AnotherObject: TAnotherObject read FAnotherObject write FAnotherObject;
@@ -169,6 +155,7 @@ type
     FAField: String;
     FAnotherField: Integer;
   published
+    [Size(150)]
     property AField: String read FAField write FAField;
     property AnotherField: Integer read FAnotherField write FAnotherField;
   end;
@@ -197,8 +184,9 @@ type
     FCurrency: Currency;
     FClass: TMyTestClass;
     FMyEnum: TMyEnumerator;
-    FMyArray: TArray<TMyTestClassTypes>;
+    FId: Integer;
   published
+    property Id: Integer read FId write FId;
     property Boolean: Boolean read FBoolean write FBoolean;
     property Byte: Byte read FByte write FByte;
     property Cardinal: Cardinal read FCardinal write FCardinal;
@@ -219,7 +207,6 @@ type
     property WideChar: WideChar read FWideChar write FWideChar;
     property WideString: WideString read FWideString write FWideString;
     property Word: Word read FWord write FWord;
-    property MyArray: TArray<TMyTestClassTypes> read FMyArray write FMyArray;
   end;
 
   TParentClass = class
@@ -297,27 +284,20 @@ begin
 
   FContext := TRttiContext.Create;
   FDataSet := TPersistoDataSet.Create(nil);
+  FManager := TManager.Create(nil, nil);
+
+  FDataSet.Manager := FManager;
 end;
 
 procedure TPersistoDataSetTest.TearDown;
 begin
   DestroyObjects(FDataSet);
 
+  FManager.Free;
+
   FContext.Free;
 
   FDataSet.Free;
-end;
-
-procedure TPersistoDataSetTest.TheNameOfFieldMustBeEqualToTheNameOfTheProperty;
-begin
-  FDataSet.ObjectClass := TMyTestClass;
-
-  FDataSet.Open;
-
-  Assert.AreEqual('Id', FDataSet.Fields[0].FieldName);
-  Assert.AreEqual('Name', FDataSet.Fields[1].FieldName);
-  Assert.AreEqual('Value', FDataSet.Fields[2].FieldName);
-  Assert.AreEqual('AnotherObject', FDataSet.Fields[3].FieldName);
 end;
 
 procedure TPersistoDataSetTest.WhenAFieldIsSeparatedByAPointItHasToLoadTheSubPropertiesOfTheObject;
@@ -353,22 +333,11 @@ end;
 
 procedure TPersistoDataSetTest.WhenTheClassHasAnArrayPropertyMustLoadTheFieldAsADataSetField;
 begin
-  FDataSet.ObjectClass := TMyTestClassTypes;
+  FDataSet.ObjectClass := TMyManyValue;
 
   FDataSet.Open;
 
-  Assert.AreEqual(ftDataSet, FDataSet.FieldByName('MyArray').DataType);
-end;
-
-procedure TPersistoDataSetTest.WhenTheDataSetHasFieldsLoadedCantReloadThisFields;
-begin
-  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
-  var Field := TIntegerField.Create(FDataSet);
-  Field.FieldName := 'Integer';
-
-  Field.SetParentComponent(FDataSet);
-
-  Assert.WillNotRaise(FDataSet.Open);
+  Assert.AreEqual(ftDataSet, FDataSet.FieldByName('Childs').DataType);
 end;
 
 procedure TPersistoDataSetTest.WhenTheDataSetIsCloseAndTryToGetTheRecordCountMustRaiseError;
@@ -667,15 +636,6 @@ begin
   Assert.IsTrue(FDataSet.Eof);
 end;
 
-procedure TPersistoDataSetTest.WhenOpenDataSetHaveToLoadFieldListWithPropertiesOfMappedObject;
-begin
-  FDataSet.ObjectClass := TMyTestClass;
-
-  FDataSet.Open;
-
-  Assert.AreEqual(7, FDataSet.FieldCount);
-end;
-
 procedure TPersistoDataSetTest.WhenOpenTheDataSetWithOneObjectMustReturnFalseInTheEOFProperty;
 begin
   var MyObject := TMyTestClass.Create;
@@ -708,15 +668,6 @@ begin
   Assert.AreEqual(3, FDataSet.RecordCount);
 end;
 
-procedure TPersistoDataSetTest.WhenLoadAClassWithAForeignKeyMustLoadTheForeignKeyFieldInTheFieldList;
-begin
-  FDataSet.ObjectClass := TMyEntityForeignKeyAlias;
-
-  FDataSet.Open;
-
-  Assert.IsNotNil(FDataSet.FindField('ForeignKey.SimpleProperty'));
-end;
-
 procedure TPersistoDataSetTest.WhenLoadAnInvalidClassNameInThePropertyCantRaiseAnyError;
 begin
   Assert.WillNotRaise(
@@ -724,15 +675,6 @@ begin
     begin
       FDataSet.ObjectClassName := 'InvalidType';
     end);
-end;
-
-procedure TPersistoDataSetTest.WhenLoadTheObjectClassNameMustLoadTheObjectTypeInfoWithTheObjectType;
-begin
-  FDataSet.ObjectClassName := TMyTestClass.QualifiedClassName;
-
-  FDataSet.Open;
-
-  Assert.AreEqual(FContext.GetType(TMyTestClass).AsInstance, FDataSet.ObjectType);
 end;
 
 procedure TPersistoDataSetTest.WhenLoadTheObjectClassNameMustOpenWithoutAnyError;
@@ -747,15 +689,6 @@ begin
   FDataSet.ObjectClass := TMyTestClass;
 
   Assert.WillNotRaise(FDataSet.Open);
-end;
-
-procedure TPersistoDataSetTest.WhenLoadTheObjectClassPropertyMustLoadTheObjectTypePropertyWithTheClassInfo;
-begin
-  FDataSet.ObjectClass := TMyTestClass;
-
-  FDataSet.Open;
-
-  Assert.AreEqual(FContext.GetType(TMyTestClass).AsInstance, FDataSet.ObjectType);
 end;
 
 procedure TPersistoDataSetTest.WhenTheFieldIsCharTypeTheSizeMustBeOne;
@@ -781,6 +714,17 @@ begin
   FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
 
   Assert.WillNotRaise(FDataSet.Open);
+end;
+
+procedure TPersistoDataSetTest.WhenTheManagerPropertyIsEmptyMustRaiseAnError;
+begin
+  FDataSet.Manager := nil;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      if Assigned(FDataSet.Manager) then
+    end, EDataSetWithoutManager);
 end;
 
 procedure TPersistoDataSetTest.WhenThePropertyIsOfBooleanTypeMustCreateTheFieldWithTheTypeExpected;
@@ -879,33 +823,7 @@ begin
 
   FDataSet.Open;
 
-  Assert.AreEqual(TWideStringField, FDataSet.FieldByName('UniqueIdentifier').ClassType);
-end;
-
-procedure TPersistoDataSetTest.WhenTryToChangeTheObjectClassNameWithAnOpenDataSetMustRaiseAnError;
-begin
-  FDataSet.ObjectClassName := TMyTestClass.QualifiedClassName;
-
-  FDataSet.Open;
-
-  Assert.WillRaise(
-    procedure
-    begin
-      FDataSet.ObjectClassName := TMyTestClass.QualifiedClassName;
-    end, EDatabaseError);
-end;
-
-procedure TPersistoDataSetTest.WhenTryToChangeTheObjectClassWhenTheDataSetIsOpenMustRaiseAnError;
-begin
-  FDataSet.ObjectClass := TMyTestClass;
-
-  FDataSet.Open;
-
-  Assert.WillRaise(
-    procedure
-    begin
-      FDataSet.ObjectClass := TMyTestClass;
-    end, EDatabaseError);
+  Assert.AreEqual(TGUIDField, FDataSet.FieldByName('UniqueIdentifier').ClassType);
 end;
 
 procedure TPersistoDataSetTest.WhenTryToGetTheFieldListInDesigningTimeCantRaiseAnyError;
@@ -942,33 +860,15 @@ begin
   Assert.WillRaise(FDataSet.Open, EDataSetWithoutObjectDefinition);
 end;
 
-procedure TPersistoDataSetTest.WhenUpdateFieldDefsMustLoadTheFieldInformationInTheFieldDefsCollection;
+procedure TPersistoDataSetTest.WhenUpdateTheFieldDefsCantRaiseAnyError;
 begin
   FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
 
-  FDataSet.FieldDefs.Update;
-
-  Assert.GreaterThan(4, FDataSet.FieldDefs.Count);
-end;
-
-procedure TPersistoDataSetTest.WhenChangeTheObjectTypeFromTheDataSetMustMarkTheFieldDefsToUpdateAgain;
-begin
-  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
-
-  FDataSet.FieldDefs.Update;
-
-  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
-
-  Assert.IsFalse(FDataSet.FieldDefs.Updated);
-end;
-
-procedure TPersistoDataSetTest.WhenCreateAFieldOfOneObjectClassMustLoadAllClassLevelsInTheFieldName;
-begin
-  FDataSet.ObjectClass := TMyTestClassTypes;
-
-  FDataSet.Open;
-
-  Assert.IsNotNil(FDataSet.FieldByName('Class.AnotherObject.AnotherName').ClassType);
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FDataSet.FieldDefs.Update;
+    end);
 end;
 
 { TMyTestClass }

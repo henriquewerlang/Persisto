@@ -1513,6 +1513,9 @@ begin
   FieldTypeHandle := FieldType.Handle;
   Result := ftUnknown;
 
+  if IsForeignKey then
+    Exit(ftObject)
+  else
   case SpecialType of
     stDate: Result := ftDate;
     stDateTime: Result := ftDateTime;
@@ -1522,11 +1525,6 @@ begin
     stBoolean: Result := ftBoolean;
     else
       case FieldType.TypeKind of
-{$IFDEF DCC}
-        tkLString, tkUString, tkWChar,
-{$ENDIF}
-        tkChar, tkString:
-          Result := ftString;
         tkEnumeration: Result := ftInteger;
 {$IFDEF PAS2JS}
         tkBool,
@@ -1563,14 +1561,20 @@ begin
 {$ELSE}
           Result := ftInteger;
 {$ENDIF}
-        tkClass:
-          Result := ftVariant;
 {$IFDEF DCC}
         tkInt64:
           Result := ftLargeint;
-        tkWString:
+        tkLString:
+          Result := ftString;
+        tkUString, tkWString, tkWChar, tkChar, tkString:
           Result := ftWideString;
 {$ENDIF}
+
+{$IFDEF PAS2JS}
+        tkChar, tkString:
+          Result := ftString;
+{$ENDIF}
+
         tkDynArray:
           Result := ftDataSet;
       end;

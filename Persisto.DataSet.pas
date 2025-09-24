@@ -2,10 +2,15 @@
 
 interface
 
-uses System.Classes, System.Rtti, System.Generics.Collections, System.SysUtils, System.TypInfo, Data.DB;
+uses System.Classes, System.Rtti, System.Generics.Collections, System.SysUtils, System.TypInfo, Persisto, Data.DB;
 
 type
   TPersistoDataSet = class;
+
+  EDataSetWithoutManager = class(Exception)
+  public
+    constructor Create;
+  end;
 
   EDataSetWithoutObjectDefinition = class(Exception)
   public
@@ -61,39 +66,46 @@ type
     constructor Create(const DataSet: TPersistoDataSet);
   end;
 
+  TPersistoFieldList = class(TFieldList)
+  protected
+    function FindItem(const Name: string; MustExist: Boolean): TObject; override;
+  end;
+
 {$IFDEF DCC}
   [ComponentPlatformsAttribute(pidAllPlatforms)]
 {$ENDIF}
   TPersistoDataSet = class(TDataSet)
   private
-    FContext: TRttiContext;
     FCursor: IPersistoCursor;
     FIndexFieldNames: String;
+    FInsertingObject: TObject;
+    FIOBuffer: TValueBuffer;
+    FManager: TManager;
     FObjectClass: TClass;
     FObjectClassName: String;
     FObjectList: TList<TObject>;
-    FObjectType: TRttiInstanceType;
-    FInsertingObject: TObject;
+    FObjectTable: TTable;
 
     function GetActivePersistoBuffer: TPersistoBuffer;
     function GetActiveObject: TObject;
+    function GetManager: TManager;
     function GetObjects: TArray<TObject>;
 
     procedure CheckObjectTypeLoaded;
-    procedure SetIndexFieldNames(const Value: String);
-    procedure SetObjectClassName(const Value: String);
-    procedure SetObjectClass(const Value: TClass);
-    procedure SetObjects(const Value: TArray<TObject>);
-    procedure SetObjectType(const Value: TRttiInstanceType);
     procedure LoadCursor;
+    procedure LoadObjectTable;
+    procedure SetIndexFieldNames(const Value: String);
+    procedure SetObjects(const Value: TArray<TObject>);
   protected
     function AllocRecordBuffer: TRecordBuffer; override;
     function GetFieldClass(FieldDef: TFieldDef): TFieldClass; overload; override;
+    function GetFieldListClass: TFieldListClass; override;
     function GetRecNo: Integer; override;
     function GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function GetRecordCount: Integer; override;
     function IsCursorOpen: Boolean; override;
 
+    procedure CheckInactive; override;
     procedure ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf); override;
     procedure DataEvent(Event: TDataEvent; Info: {$IFDEF PAS2JS}JSValue{$ELSE}NativeInt{$ENDIF}); override;
     procedure DoAfterOpen; override;
@@ -129,9 +141,8 @@ type
     procedure Resync(Mode: TResyncMode); override;
 
     property CurrentObject: TObject read GetActiveObject;
-    property ObjectClass: TClass read FObjectClass write SetObjectClass;
+    property ObjectClass: TClass read FObjectClass write FObjectClass;
     property Objects: TArray<TObject> read GetObjects write SetObjects;
-    property ObjectType: TRttiInstanceType read FObjectType write SetObjectType;
   published
     property Active;
     property AfterCancel;
@@ -155,19 +166,14 @@ type
     property DataSetField;
     property FieldOptions;
     property IndexFieldNames: String read FIndexFieldNames write SetIndexFieldNames;
-    property ObjectClassName: String read FObjectClassName write SetObjectClassName;
+    property Manager: TManager read GetManager write FManager;
+    property ObjectClassName: String read FObjectClassName write FObjectClassName;
     property OnCalcFields;
     property OnDeleteError;
     property OnEditError;
     property OnFilterRecord;
     property OnNewRecord;
     property OnPostError;
-  end;
-
-  TPersistoIndexField = record
-  public
-    Ascending: Boolean;
-    Field: TField;
   end;
 
 implementation
@@ -177,111 +183,74 @@ uses System.Math, Persisto.Mapping, {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$END
 { TPersistoDataSet }
 
 function TPersistoDataSet.AllocRecordBuffer: TRecordBuffer;
-//var
-//  NewRecordInfo: TPersistoRecordInfo;
-
 begin
   Result := TRecordBuffer(TPersistoBuffer.Create);
-//  NewRecordInfo := TPersistoRecordInfo.Create;
-//{$IFDEF PAS2JS}
-//  Result := inherited;
-//  Result.Data := NewRecordInfo;
-//{$ELSE}
-//  Result := TRecBuf(NewRecordInfo);
-//{$ENDIF}
-//
-//  InternalInitRecord(Result);
+end;
+
+procedure TPersistoDataSet.CheckInactive;
+begin
+  if not TPersistoFieldList(FieldList).Locked then
+    inherited;
 end;
 
 procedure TPersistoDataSet.CheckObjectTypeLoaded;
 begin
-  if not Assigned(FObjectType) then
+  if not Assigned(FObjectTable) then
     raise EDataSetWithoutObjectDefinition.Create;
 end;
 
 procedure TPersistoDataSet.ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf);
-//var
-//  A: Integer;
-//
-//  CalcBuffer: TArray<TValue>;
-
 begin
-//  CalcBuffer := GetRecordInfoFromActiveBuffer.CalculedFieldBuffer;
-//
-//  for A := Low(CalcBuffer) to High(CalcBuffer) do
-//    CalcBuffer[A] := TValue.Empty;
+
 end;
 
 constructor TPersistoDataSet.Create(AOwner: TComponent);
 begin
   inherited;
 
+  FObjectList := TList<TObject>.Create;
 {$IFDEF DCC}
-//  BookmarkSize := SizeOf(TPersistoRecordInfo);
   ObjectView := True;
 {$ENDIF}
-
-//  FCalculatedFields := TDictionary<TField, Integer>.Create;
-  FContext := TRttiContext.Create;
-  FObjectList := TList<TObject>.Create;
 end;
 
 procedure TPersistoDataSet.DataEvent(Event: TDataEvent; Info: {$IFDEF PAS2JS}JSValue{$ELSE}NativeInt{$ENDIF});
 begin
   inherited;
 
-//  if Event = deParentScroll then
-//  begin
-//    LoadObjectListFromParentDataSet;
-//
-//    Resync([]);
-//  end;
 end;
 
 destructor TPersistoDataSet.Destroy;
 begin
-  FContext.Free;
-
   FObjectList.Free;
-//  FCalculatedFields.Free;
-//
-//  ReleaseTheInsertingObject;
 
   inherited;
 end;
 
 procedure TPersistoDataSet.DoAfterOpen;
-//var
-//  A: Integer;
-//
-//  NestedDataSet: TPersistoDataSet;
-
 begin
-//  CheckIteratorData(True, True);
-//
-//  for A := 0 to Pred(NestedDataSets.Count) do
-//  begin
-//    NestedDataSet := TPersistoDataSet(NestedDataSets[A]);
-//
-//    NestedDataSet.DataEvent(deParentScroll, 0);
-//  end;
 
   inherited;
 end;
 
 procedure TPersistoDataSet.Filter(Func: TFunc<TPersistoDataSet, Boolean>);
 begin
-//  FFilterFunction := Func;
-//
-//  ResetFilter;
-//
-//  if Active then
-//    Resync([]);
+
 end;
 
 procedure TPersistoDataSet.LoadCursor;
 begin
   FCursor := TPersistoCursor.Create(Self);
+end;
+
+procedure TPersistoDataSet.LoadObjectTable;
+begin
+  if not ObjectClassName.IsEmpty then
+    FObjectTable := Manager.Mapper.GetTable(ObjectClassName)
+  else if Assigned(ObjectClass) then
+    FObjectTable := Manager.Mapper.GetTable(ObjectClass);
+
+  CheckObjectTypeLoaded;
 end;
 
 procedure TPersistoDataSet.FreeRecordBuffer(var Buffer: TRecordBuffer);
@@ -303,13 +272,8 @@ begin
 end;
 
 procedure TPersistoDataSet.GetBookmarkData(Buffer: TRecBuf; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark);
-//var
-//  RecordInfo: TPersistoRecordInfo;
-
 begin
-//  RecordInfo := GetRecordInfoFromBuffer(Buffer);
-//
-//{$IFDEF PAS2JS}Data.Data{$ELSE}PInteger(Data)^{$ENDIF} := RecordInfo.ArrayPosition;
+
 end;
 
 function TPersistoDataSet.GetCurrentObject<T>: T;
@@ -327,62 +291,76 @@ end;
 
 function TPersistoDataSet.GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TValueBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF};
 var
-  FieldName: String;
-  &Property: TRttiProperty;
   Value: TValue;
 
-begin
-  Result := {$IFDEF PAS2JS}NULL{$ELSE}False{$ENDIF};
-
-  if Field.FieldKind = fkData then
+  procedure CheckBufferSize;
   begin
-    &Property := nil;
-    Value := CurrentObject;
+    var BufferSize := Length(FIOBuffer);
 
-    for FieldName in Field.FieldName.Split(['.']) do
-    begin
-      if Assigned(&Property) then
-        &Property := &Property.PropertyType.AsInstance.GetProperty(FieldName)
-      else
-        &Property := ObjectType.GetProperty(FieldName);
+    if BufferSize < Field.DataSize then
+      SetLength(FIOBuffer, Field.DataSize);
 
-      Value := &Property.GetValue(Value.AsObject);
-    end;
+    Buffer := FIOBuffer;
   end;
-//  else if Field.FieldKind = fkCalculated then
-//    Value := GetRecordInfoFromActiveBuffer.CalculedFieldBuffer[FCalculatedFields[Field]];
 
-  if not Value.IsEmpty then
+begin
+  var CurrentField: Persisto.TField;
+  var CurrentInstance := CurrentObject;
+  var CurrentTable := FObjectTable;
+  var ObjectFieldNames := Field.FieldName.Split(['.']);
+  Result := False;
+
+  var FieldValueName := ObjectFieldNames[High(ObjectFieldNames)];
+
+  SetLength(ObjectFieldNames, High(ObjectFieldNames));
+
+  for var FieldName in ObjectFieldNames do
   begin
-{$IFDEF PAS2JS}
-    Result := Value.AsJSValue;
+    CurrentField := CurrentTable.Field[FieldName];
+    CurrentTable := CurrentField.ForeignKey.ParentTable;
 
-    if Field is TDateTimeField then
-      Result := TJSDate.New(FormatDateTime('yyyy-mm-dd"T"hh":"nn":"ss"', Double(Result)));
-{$ELSE}
-    Result := True;
+    if Assigned(CurrentInstance) then
+      if CurrentField.HasValue(CurrentInstance, Value) then
+        CurrentInstance := Value.AsObject
+      else
+      begin
+        CurrentInstance := nil;
 
-    if Assigned(Buffer) then
+        Break;
+      end;
+  end;
+
+  if Assigned(CurrentInstance) then
+  begin
+    Result := CurrentTable.Field[FieldValueName].HasValue(CurrentInstance, Value);
+
+    if Result then
+    begin
+      CheckBufferSize;
+
       if Field is TWideStringField then
       begin
         var StringValue := Value.AsString;
 
-        StrLCopy(PChar(@Buffer[0]), @StringValue[1], StringValue.Length)
+        StrLCopy(PWideChar(@Buffer[0]), @StringValue[1], StringValue.Length)
       end
-//      else if Field is TDateTimeField then
-//      begin
-//        var DataTimeValue: TValueBuffer;
-//
-//        SetLength(DataTimeValue, SizeOf(Double));
-//
-//        Value.ExtractRawData(@DataTimeValue[0]);
-//
-//        DataConvert(Field, DataTimeValue, Buffer, True);
-//      end
       else
         Value.ExtractRawData(@Buffer[0]);
-{$ENDIF}
+    end;
   end;
+end;
+
+function TPersistoDataSet.GetFieldListClass: TFieldListClass;
+begin
+  Result := TPersistoFieldList;
+end;
+
+function TPersistoDataSet.GetManager: TManager;
+begin
+  if not Assigned(FManager) then
+    raise EDataSetWithoutManager.Create;
+
+  Result := FManager;
 end;
 
 function TPersistoDataSet.GetObjects: TArray<TObject>;
@@ -446,65 +424,31 @@ procedure TPersistoDataSet.InternalInsert;
 begin
   inherited;
 
-  FInsertingObject := ObjectType.MetaclassType.Create;
+  FInsertingObject := FObjectTable.ClassTypeInfo.MetaclassType.Create;
 
   ActivePersistoBuffer.CurrentObject := FInsertingObject;
 end;
 
 procedure TPersistoDataSet.InternalCancel;
-//var
-//  &Property: TRttiProperty;
-//
-//  CurrentObject: TObject;
-
 begin
   inherited;
-//  if Assigned(FOldValueObject) then
-//  begin
-//    CurrentObject := GetInternalCurrentObject;
-//
-//    for &Property in ObjectType.GetProperties do
-//      &Property.SetValue(CurrentObject, &Property.GetValue(FOldValueObject));
-//
-//    ReleaseOldValueObject;
-//  end;
-//
-//  ReleaseTheInsertingObject;
+
 end;
 
 procedure TPersistoDataSet.InternalClose;
 begin
   FCursor := nil;
-//  FIterator := nil;
-//  FIteratorData := nil;
-//  FIteratorFilter := nil;
-//
-//  BindFields(False);
 end;
 
 procedure TPersistoDataSet.InternalDelete;
 begin
-//  FIterator.Remove;
-//
-//  UpdateParentObject;
+
 end;
 
 procedure TPersistoDataSet.InternalEdit;
-//var
-//  &Property: TRttiProperty;
-//
-//  CurrentObject: TObject;
-
 begin
   inherited;
 
-//  CurrentObject := GetInternalCurrentObject;
-//
-//  if not Assigned(FOldValueObject) then
-//    FOldValueObject := ObjectType.MetaclassType.Create;
-//
-//  for &Property in ObjectType.GetProperties do
-//    &Property.SetValue(FOldValueObject, &Property.GetValue(CurrentObject));
 end;
 
 procedure TPersistoDataSet.InternalFirst;
@@ -513,145 +457,19 @@ begin
 end;
 
 procedure TPersistoDataSet.InternalGotoBookmark(Bookmark: TBookmark);
-//{$IFDEF DCC}
-//var
-//  RecordIndex: PInteger absolute Bookmark;
-//
-//{$ENDIF}
 begin
-//{$IFDEF PAS2JS}
-//  raise Exception.Create('Not implemented the bookmark control!');
-//{$ELSE}
-//  FIterator.CurrentPosition := RecordIndex^;
-//{$ENDIF}
+
 end;
 
 procedure TPersistoDataSet.InternalHandleException{$IFDEF PAS2JS}(E: Exception){$ENDIF};
 begin
+
 end;
 
 procedure TPersistoDataSet.InternalInitFieldDefs;
-var
-  LoadedClasses: TList<TRttiInstanceType>;
-
-  procedure LoadFieldDefs(const InstanceType: TRttiInstanceType; const ParentFieldName: String);
-  var
-    FieldType: TFieldType;
-    Property_: TRttiProperty;
-    PropertyType: TRttiType;
-
-    function GetFieldSize: Integer;
-    var
-      Size: SizeAttribute;
-
-    begin
-      Result := 0;
-      if PropertyType.TypeKind in [{$IFDEF DCC}tkWChar, {$ENDIF}tkChar] then
-        Result := 1
-      else
-      begin
-        Size := Property_.GetAttribute<SizeAttribute>;
-
-        if Assigned(Size) then
-          Result := Size.Size
-        else if FieldType in [ftString, ftWideString] then
-          Result := Succ(dsMaxStringSize) * SizeOf(Char);
-      end;
-    end;
-
-    function GetFieldName: String;
-    begin
-      Result := ParentFieldName + Property_.Name;
-    end;
-
-  begin
-    if LoadedClasses.IndexOf(InstanceType) = -1 then
-    begin
-      LoadedClasses.Add(InstanceType);
-
-      for Property_ in InstanceType.GetProperties do
-        if FieldDefs.IndexOf(GetFieldName) < 0 then
-        begin
-          PropertyType := Property_.PropertyType;
-
-          case PropertyType.TypeKind of
-{$IFDEF DCC}
-            tkLString,
-            tkUString,
-            tkWChar,
-            tkWString,
-{$ENDIF}
-            tkChar,
-            tkString: FieldType := ftWideString;
-
-{$IFDEF PAS2JS}
-            tkBool,
-{$ENDIF}
-            tkEnumeration:
-              if PropertyType.Handle = TypeInfo(Boolean) then
-                FieldType := ftBoolean
-              else
-                FieldType := ftInteger;
-
-            tkFloat:
-              if PropertyType.Handle = TypeInfo(TDate) then
-                FieldType := ftDate
-              else if PropertyType.Handle = TypeInfo(TDateTime) then
-                FieldType := ftDateTime
-              else if PropertyType.Handle = TypeInfo(TTime) then
-                FieldType := ftTime
-              else
-                case PropertyType.Handle.TypeData.FloatType of
-{$IFDEF DCC}
-                  TFloatType.ftCurr: FieldType := TFieldType.ftCurrency;
-                  TFloatType.ftExtended: FieldType := TFieldType.ftExtended;
-                  TFloatType.ftSingle: FieldType := TFieldType.ftSingle;
-{$ENDIF}
-                  else FieldType := TFieldType.ftFloat;
-                end;
-
-            tkInteger:
-              case PropertyType.Handle.TypeData.OrdType of
-{$IFDEF DCC}
-                otSByte,
-                otUByte: FieldType := ftByte;
-                otUWord: FieldType := ftWord;
-                otULong: FieldType := ftLongWord;
-{$ENDIF}
-                else FieldType := ftInteger;
-              end;
-
-            tkClass: FieldType := ftObject;
-
-{$IFDEF DCC}
-            tkInt64: FieldType := ftLargeint;
-{$ENDIF}
-
-            tkDynArray: FieldType := ftDataSet;
-          end;
-
-          TFieldDef.Create(FieldDefs, GetFieldName, FieldType, GetFieldSize, False, FieldDefs.Count);
-
-          if PropertyType.TypeKind = tkClass then
-            LoadFieldDefs(Property_.PropertyType.AsInstance, GetFieldName + '.');
-        end;
-    end;
-  end;
-
 begin
   if not (csDesigning in ComponentState) then
-    if FieldCount = 0 then
-    begin
-      LoadedClasses := TList<TRttiInstanceType>.Create;
-
-      FieldDefs.Clear;
-
-      LoadFieldDefs(ObjectType, EmptyStr);
-
-      LoadedClasses.Free;
-    end
-    else
-      InitFieldDefsFromFields;
+    LoadObjectTable;
 end;
 
 procedure TPersistoDataSet.InternalLast;
@@ -664,35 +482,14 @@ begin
   if csDesigning in ComponentState then
     Exit;
 
-  CheckObjectTypeLoaded;
-
   if not FieldDefs.Updated then
     FieldDefs.Update;
 
-  CreateFields;
-
   LoadCursor;
 
-//  LoadDetailInfo;
-//
-//  if FieldDefs.Count = 0 then
-//    if FieldCount = 0 then
-//      LoadFieldDefsFromClass
-//    else
-//
-//
-//  if FieldCount = 0 then
-//    CreateFields;
-//
-//  CheckSelfFieldType;
-//
-//  LoadPropertiesFromFields;
-//
-  BindFields(True);
+  InitFieldDefsFromFields;
 
-//  CheckCalculatedFields;
-//
-//  LoadObjectListFromParentDataSet;
+  BindFields(True);
 end;
 
 procedure TPersistoDataSet.InternalPost;
@@ -700,21 +497,11 @@ begin
   inherited;
 
   FObjectList.Add(nil);
-//  if State = dsInsert then
-//  begin
-//    FIteratorData.Add(FInsertingObject);
-//
-//    UpdateParentObject;
-//  end;
-//
-//  FInsertingObject := nil;
-//
-//  ReleaseOldValueObject;
 end;
 
 procedure TPersistoDataSet.InternalSetToRecord(Buffer: TRecBuf);
 begin
-//  FIterator.CurrentPosition := GetRecordInfoFromBuffer(Buffer).ArrayPosition;
+
 end;
 
 function TPersistoDataSet.IsCursorOpen: Boolean;
@@ -724,104 +511,19 @@ end;
 
 procedure TPersistoDataSet.Resync(Mode: TResyncMode);
 begin
-//  FIteratorData.Resync;
-//
-//  CheckIteratorData(False, False);
 
   inherited;
 end;
 
 procedure TPersistoDataSet.SetDataSetField(const DataSetField: TDataSetField);
 begin
-//  if Assigned(DataSetField) then
-//    FParentDataSet := DataSetField.DataSet as TPersistoDataSet
-//  else
-//    FParentDataSet := nil;
 
   inherited;
 end;
 
 procedure TPersistoDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer);
-//var
-//  Instance: TValue;
-//
-//  &Property: TRttiProperty;
-//
-//  Value: TValue;
-
 begin
-//  if not (State in dsWriteModes) then
-//    raise EDataSetNotInEditingState.Create;
-//
-//  Value := TValue.Empty;
-//
-//  if Assigned(Buffer) then
-//    case Field.DataType of
-//{$IFDEF DCC}
-//      ftByte,
-//      ftWord,
-//{$ENDIF}
-//      ftInteger: Value := TValue.From({$IFDEF PAS2JS}Integer(Buffer){$ELSE}PInteger(Buffer)^{$ENDIF});
-//
-//      ftString: Value := TValue.From({$IFDEF PAS2JS}String(Buffer){$ELSE}String(AnsiString(PAnsiChar(Buffer))){$ENDIF});
-//
-//      ftBoolean: Value := TValue.From({$IFDEF PAS2JS}Boolean(Buffer){$ELSE}PWordBool(Buffer)^{$ENDIF});
-//
-//      ftDate,
-//      ftDateTime,
-//      ftTime:
-//{$IFDEF PAS2JS}
-//        Value := TValue.From(ConvertToDateTime(Field, Buffer, True));
-//{$ELSE}
-//      begin
-//        var DataTimeValue: TValueBuffer;
-//
-//        SetLength(DataTimeValue, SizeOf(Double));
-//
-//        DataConvert(Field, Buffer, DataTimeValue, False);
-//
-//        Value := TValue.From(PDouble(DataTimeValue)^);
-//      end;
-//{$ENDIF}
-//{$IFDEF DCC}
-//      TFieldType.ftSingle: Value := TValue.From(PSingle(Buffer)^);
-//
-//      TFieldType.ftExtended: Value := TValue.From(PExtended(Buffer)^);
-//
-//      ftLongWord: Value := TValue.From(PCardinal(Buffer)^);
-//
-//      ftWideString: Value := TValue.From(String(PWideChar(Buffer)));
-//
-//      ftCurrency,
-//{$ENDIF}
-//      ftFloat: Value := TValue.From({$IFDEF PAS2JS}Double(Buffer){$ELSE}PDouble(Buffer)^{$ENDIF});
-//
-//      ftLargeint: Value := TValue.From({$IFDEF PAS2JS}Int64(Buffer){$ELSE}PInt64(Buffer)^{$ENDIF});
-//
-//      ftVariant: Value := TValue.From({$IFDEF PAS2JS}TObject(Buffer){$ELSE}TObject(PNativeInt(Buffer)^){$ENDIF});
-//    end;
-//
-//  if IsSelfField(Field) then
-//    SetCurrentObject(Value.AsObject)
-//  else if Field.FieldKind = fkData then
-//  begin
-//    GetPropertyAndObjectFromField(Field, Instance, &Property);
-//
-//    if &Property.PropertyType is TRttiEnumerationType then
-//      Value := TValue.FromOrdinal(&Property.PropertyType.Handle, Value.AsOrdinal);
-//
-//    if TNullableManipulator.IsNullable(&Property) then
-//      TNullableManipulator.GetManipulator(Instance.AsObject, &Property).Value := Value
-//    else if TLazyManipulator.IsLazyLoading(&Property) then
-//      TLazyManipulator.GetManipulator(Instance.AsObject, &Property).Value := Value
-//    else
-//      &Property.SetValue(Instance.AsObject, Value);
-//  end
-//  else if Field.FieldKind = fkCalculated then
-//    GetRecordInfoFromActiveBuffer.CalculedFieldBuffer[FCalculatedFields[Field]] := Value;
-//
-//  if not (State in [dsCalcFields, dsInternalCalc, dsFilter, dsNewValue]) then
-//    DataEvent(deFieldChange, {$IFDEF DCC}IntPtr{$ENDIF}(Field));
+
 end;
 
 procedure TPersistoDataSet.SetIndexFieldNames(const Value: String);
@@ -835,24 +537,6 @@ begin
   end;
 end;
 
-procedure TPersistoDataSet.SetObjectClass(const Value: TClass);
-begin
-  FObjectClass := Value;
-  ObjectType := FContext.GetType(FObjectClass).AsInstance;
-end;
-
-procedure TPersistoDataSet.SetObjectClassName(const Value: String);
-var
-  RTTIType: TRttiType;
-
-begin
-  FObjectClassName := Value;
-  RTTIType := FContext.FindType(ObjectClassName);
-
-  if Assigned(RTTIType) then
-    ObjectType := RttiType.AsInstance;
-end;
-
 procedure TPersistoDataSet.SetObjects(const Value: TArray<TObject>);
 begin
   FObjectList.Clear;
@@ -863,16 +547,6 @@ begin
 
     ObjectClass := FObjectList.First.ClassType
   end;
-end;
-
-procedure TPersistoDataSet.SetObjectType(const Value: TRttiInstanceType);
-begin
-  CheckInactive;
-
-  FieldDefs.Updated := False;
-  FObjectType := Value;
-
-  CheckObjectTypeLoaded;
 end;
 
 { TPersistoObjectField }
@@ -961,6 +635,44 @@ begin
   Dec(FCurrentPosition);
 
   Result := FCurrentPosition > -1;
+end;
+
+{ TPersistoFieldList }
+
+function TPersistoFieldList.FindItem(const Name: string; MustExist: Boolean): TObject;
+
+  function GetFieldSize(const Field: Persisto.TField): Integer;
+  begin
+    case Field.DatabaseType of
+      ftGUID: Result := dsGuidStringLength;
+      ftString, ftWideString: Result := Max(Field.Size, 1);
+      else Result := 0;
+    end;
+  end;
+
+begin
+  Result := inherited FindItem(Name, False);
+
+  if not Assigned(Result) then
+  begin
+    var Field := TPersistoDataSet(DataSet).FObjectTable.Field[Name];
+    var FieldDef := TFieldDef.Create(DataSet.FieldDefs, Name, Field.DatabaseType, GetFieldSize(Field), False, DataSet.FieldDefs.Count);
+
+    Locked := True;
+
+    var DataSetField := FieldDef.CreateField(DataSet);
+    DataSetField.DataSet := DataSet;
+
+    Locked := False;
+    Result := DataSetField;
+  end;
+end;
+
+{ EDataSetWithoutManager }
+
+constructor EDataSetWithoutManager.Create;
+begin
+  inherited Create('Must load the Manager property with a valid value!');
 end;
 
 end.
