@@ -179,13 +179,13 @@ end;
 function CreateDatabaseManipulator: IDatabaseManipulator;
 begin
 {$IFDEF POSTGRESQL}
-  Result := TDatabaseManipulatorPostgreSQL.Create(nil);
+  Result := TPersistoManipulatorPostgreSQL.Create(nil);
 {$ELSEIF DEFINED(SQLSERVER)}
-  Result := TDatabaseManipulatorSQLServer.Create(nil);
+  Result := TPersistoManipulatorSQLServer.Create(nil);
 {$ELSEIF DEFINED(INTERBASE)}
-  Result := TDatabaseManipulatorInterbase.Create(nil);
+  Result := TPersistoManipulatorInterbase.Create(nil);
 {$ELSEIF DEFINED(SQLITE)}
-  Result := TDatabaseManipulatorSQLite.Create(nil);
+  Result := TPersistoManipulatorSQLite.Create(nil);
 {$ELSE}
   RaiseConfigurationSelectionError;
 {$ENDIF}
