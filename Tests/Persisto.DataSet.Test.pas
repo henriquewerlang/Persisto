@@ -723,7 +723,7 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      if Assigned(FDataSet.Manager) then
+      FDataSet.Open;
     end, EDataSetWithoutManager);
 end;
 
