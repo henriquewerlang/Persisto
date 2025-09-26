@@ -92,6 +92,11 @@ type
     property RecursionTree: String read FRecursionTree write FRecursionTree;
   end;
 
+  EFieldNotFound = class(Exception)
+  public
+    constructor Create(const Table: TTable; const FieldName: String);
+  end;
+
   TDatabaseTransaction = class(TInterfacedObject)
   public
     destructor Destroy; override;
@@ -915,14 +920,14 @@ type
 
 constructor EFieldNotInCurrentSelection.Create(const Field: TQueryBuilderFieldSearch);
 begin
-  inherited CreateFmt('Field "%s" not found in current selection!', [Field.FieldName]);
+  inherited CreateFmt('Field [%s] not found in current selection!', [Field.FieldName]);
 end;
 
 { EManyValueAssociationLinkError }
 
 constructor EManyValueAssociationLinkError.Create(ParentTable, ChildTable: TTable);
 begin
-  inherited CreateFmt('The link between %s and %s can''t be maded. Check if it exists, as the same name of the parent table or has the attribute defining the name of the link!',
+  inherited CreateFmt('The link between [%s] and [%s] can''t be maded. Check if it exists, as the same name of the parent table or has the attribute defining the name of the link!',
     [ParentTable.ClassTypeInfo.Name, ChildTable.ClassTypeInfo.Name]);
 end;
 
@@ -930,21 +935,21 @@ end;
 
 constructor EClassWithoutPrimaryKeyDefined.Create(Table: TTable);
 begin
-  inherited CreateFmt('You must define a primary key for class %s!', [Table.ClassTypeInfo.Name])
+  inherited CreateFmt('You must define a primary key for class [%s]!', [Table.ClassTypeInfo.Name])
 end;
 
 { EForeignKeyToSingleTableInheritanceTable }
 
 constructor EForeignKeyToSingleTableInheritanceTable.Create(ParentTable: TRttiInstanceType);
 begin
-  inherited CreateFmt('The parent table %s can''t be single inheritence table, check the implementation!', [ParentTable.Name]);
+  inherited CreateFmt('The parent table [%s] can''t be single inheritence table, check the implementation!', [ParentTable.Name]);
 end;
 
 { EFieldIndexNotFound }
 
 constructor EFieldIndexNotFound.Create(const Table: TTable; const FieldName: String);
 begin
-  inherited CreateFmt('Field "%s" not found in the table "%s"!', [FieldName, Table.Name]);
+  inherited CreateFmt('Field [%s] not found in the table [%s]!', [FieldName, Table.Name]);
 end;
 
 { ESequenceAlreadyExists }
@@ -958,7 +963,7 @@ end;
 
 constructor ETableWithoutPublishedFields.Create(const Table: TTable);
 begin
-  inherited CreateFmt('The class %s hasn''t published field, check yout implementation!', [Table.Name]);
+  inherited CreateFmt('The class [%s] hasn''t published field, check yout implementation!', [Table.Name]);
 end;
 
 { EForeignObjectNotAllowed }
@@ -966,6 +971,31 @@ end;
 constructor EForeignObjectNotAllowed.Create;
 begin
   inherited Create('Update foreign object isn''t allowed, the object must be inserted ou select from this manager!');
+end;
+
+{ ERecursionInsertionError }
+
+constructor ERecursionInsertionError.Create(const Table: TTable);
+begin
+  inherited Create('Error of recursion inserting object');
+
+  FTable := Table;
+end;
+
+{ ERecursionSelectionError }
+
+constructor ERecursionSelectionError.Create(const RecursionTree: String);
+begin
+  inherited Create('Error of recursion selecting object, the sequence of error was ' + RecursionTree + ' please change any field in the list to lazy!');
+
+  FRecursionTree := RecursionTree;
+end;
+
+{ EFieldNotFound }
+
+constructor EFieldNotFound.Create(const Table: TTable; const FieldName: String);
+begin
+  inherited CreateFmt('Field [%s] not found in the table [%s]!', [FieldName, Table.Name]);
 end;
 
 { TMapper }
@@ -1331,9 +1361,9 @@ procedure TMapper.LoadTableInfo(const TypeInfo: TRttiInstanceType; const Table: 
 
   procedure LoadPrimaryKeyInfo;
   begin
-    var Field := Table.Field[GetPrimaryKeyPropertyName];
+    var Field: TField;
 
-    if Assigned(Field) then
+    if Table.FindField(GetPrimaryKeyPropertyName, Field) then
     begin
       Field.FInPrimaryKey := True;
       Field.FRequired := True;
@@ -1472,7 +1502,8 @@ end;
 
 function TTable.GetField(const FieldName: String): TField;
 begin
-  FindField(FieldName, Result);
+  if not FindField(FieldName, Result) then
+    raise EFieldNotFound.Create(Self, FieldName);
 end;
 
 function TTable.GetHasPrimaryKey: Boolean;
@@ -3055,15 +3086,6 @@ begin
     InternalUpdateTable(Table, &Object, ObjectOldValue);
 end;
 
-{ ERecursionInsertionError }
-
-constructor ERecursionInsertionError.Create(const Table: TTable);
-begin
-  inherited Create('Error of recursion inserting object');
-
-  FTable := Table;
-end;
-
 { TQueryBuilderTable }
 
 constructor TQueryBuilderTable.Create(const Table: TTable);
@@ -3114,15 +3136,6 @@ begin
 
   FField := Field;
   FFieldAlias := 'F' + FieldIndex.ToString;
-end;
-
-{ ERecursionSelectionError }
-
-constructor ERecursionSelectionError.Create(const RecursionTree: String);
-begin
-  inherited Create('Error of recursion selecting object, the sequence of error was ' + RecursionTree + ' please change any field in the list to lazy!');
-
-  FRecursionTree := RecursionTree;
 end;
 
 { TQueryBuilderFieldSearch }
