@@ -310,48 +310,53 @@ var
   end;
 
 begin
-  var CurrentField: Persisto.TField;
-  var CurrentInstance := CurrentObject;
-  var CurrentTable := FObjectTable;
-  var ObjectFieldNames := Field.FieldName.Split(['.']);
-  Result := False;
+  Result := Field.FieldKind <> fkCalculated;
 
-  var FieldValueName := ObjectFieldNames[High(ObjectFieldNames)];
-
-  SetLength(ObjectFieldNames, High(ObjectFieldNames));
-
-  for var FieldName in ObjectFieldNames do
+  if Result then
   begin
-    CurrentField := CurrentTable.Field[FieldName];
-    CurrentTable := CurrentField.ForeignKey.ParentTable;
+    var CurrentField: Persisto.TField;
+    var CurrentInstance := CurrentObject;
+    var CurrentTable := FObjectTable;
+    var ObjectFieldNames := Field.FieldName.Split(['.']);
+    Result := False;
+
+    var FieldValueName := ObjectFieldNames[High(ObjectFieldNames)];
+
+    SetLength(ObjectFieldNames, High(ObjectFieldNames));
+
+    for var FieldName in ObjectFieldNames do
+    begin
+      CurrentField := CurrentTable.Field[FieldName];
+      CurrentTable := CurrentField.ForeignKey.ParentTable;
+
+      if Assigned(CurrentInstance) then
+        if CurrentField.HasValue(CurrentInstance, Value) then
+          CurrentInstance := Value.AsObject
+        else
+        begin
+          CurrentInstance := nil;
+
+          Break;
+        end;
+    end;
 
     if Assigned(CurrentInstance) then
-      if CurrentField.HasValue(CurrentInstance, Value) then
-        CurrentInstance := Value.AsObject
-      else
-      begin
-        CurrentInstance := nil;
-
-        Break;
-      end;
-  end;
-
-  if Assigned(CurrentInstance) then
-  begin
-    Result := CurrentTable.Field[FieldValueName].HasValue(CurrentInstance, Value);
-
-    if Result then
     begin
-      CheckBufferSize;
+      Result := CurrentTable.Field[FieldValueName].HasValue(CurrentInstance, Value);
 
-      if Field is TWideStringField then
+      if Result then
       begin
-        var StringValue := Value.AsString;
+        CheckBufferSize;
 
-        StrLCopy(PWideChar(@Buffer[0]), @StringValue[1], StringValue.Length)
-      end
-      else
-        Value.ExtractRawData(@Buffer[0]);
+        if Field is TWideStringField then
+        begin
+          var StringValue := Value.AsString;
+
+          StrLCopy(PWideChar(@Buffer[0]), @StringValue[1], StringValue.Length)
+        end
+        else
+          Value.ExtractRawData(@Buffer[0]);
+      end;
     end;
   end;
 end;

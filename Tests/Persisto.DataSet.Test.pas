@@ -116,6 +116,8 @@ type
     procedure WhenTryToOpenTheDataSetInDesigningTimeCantRaiseAnyError;
     [Test]
     procedure WhenTryToGetTheFieldListInDesigningTimeCantRaiseAnyError;
+    [Test]
+    procedure WhenLoadACalculatedFieldCantRaiseAnyError;
   end;
 
 {$M+}
@@ -666,6 +668,28 @@ begin
   FDataSet.Post;
 
   Assert.AreEqual(3, FDataSet.RecordCount);
+end;
+
+procedure TPersistoDataSetTest.WhenLoadACalculatedFieldCantRaiseAnyError;
+begin
+  var Field := TWideStringField.Create(FDataSet);
+  Field.FieldName := 'CalculatedField';
+  Field.FieldKind := fkCalculated;
+  var MyObject := TMyTestClass.Create;
+
+  Field.SetParentComponent(FDataSet);
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      if Field.AsString = EmptyStr then
+    end);
+
+  MyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenLoadAnInvalidClassNameInThePropertyCantRaiseAnyError;
