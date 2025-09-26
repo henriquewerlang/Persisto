@@ -139,6 +139,7 @@ type
 
     destructor Destroy; override;
 
+    function BookmarkValid(Bookmark: TBookmark): Boolean; override;
     function GetCurrentObject<T: class>: T;
     function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean; override;
 
@@ -196,6 +197,11 @@ type
 function TPersistoDataSet.AllocRecordBuffer: TRecordBuffer;
 begin
   Result := TRecordBuffer(TPersistoBuffer.Create);
+end;
+
+function TPersistoDataSet.BookmarkValid(Bookmark: TBookmark): Boolean;
+begin
+  Result := True;
 end;
 
 procedure TPersistoDataSet.CheckInactive;

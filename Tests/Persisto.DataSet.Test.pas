@@ -126,6 +126,8 @@ type
     procedure WhenCreateATimeFieldMustReturnTheValueFromTimeHasExpected;
     [Test]
     procedure WhenGetABookmarkAndCallTheGoToBookmarkMustGoToThePositionHasExpected;
+    [Test]
+    procedure TheBookmarkValidMustReturnTrue;
   end;
 
 {$M+}
@@ -292,6 +294,11 @@ begin
 
   for var &Object in Objects do
     &Object.Free;
+end;
+
+procedure TPersistoDataSetTest.TheBookmarkValidMustReturnTrue;
+begin
+  Assert.IsTrue(FDataSet.BookmarkValid(nil));
 end;
 
 procedure TPersistoDataSetTest.WhenAFieldIsSeparatedByAPointItHasToLoadTheSubPropertiesOfTheObject;
