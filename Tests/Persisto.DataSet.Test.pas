@@ -118,6 +118,10 @@ type
     procedure WhenTryToGetTheFieldListInDesigningTimeCantRaiseAnyError;
     [Test]
     procedure WhenLoadACalculatedFieldCantRaiseAnyError;
+    [Test]
+    procedure WhenLoadADateTimeFieldCantRaiseAnyError;
+    [Test]
+    procedure WhenCreateADateTimeFieldMustReturnTheDateTimeInThePropertyHasExpected;
   end;
 
 {$M+}
@@ -377,6 +381,27 @@ begin
   Assert.AreEqual('Name1', FDataSet.FieldByName('Name').AsString);
 
   MyList.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenCreateADateTimeFieldMustReturnTheDateTimeInThePropertyHasExpected;
+begin
+  var Field := TDateTimeField.Create(FDataSet);
+  Field.FieldName := 'DateTime';
+  Field.FieldKind := fkData;
+  var MyObject := TMyTestClassTypes.Create;
+  var TheTime := EncodeDate(2025, 09, 26) + EncodeTime(10, 10, 10, 0);
+
+  MyObject.DateTime := TheTime;
+
+  Field.SetParentComponent(FDataSet);
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  Assert.AreEqual(DateTimeToStr(TheTime), DateTimeToStr(Field.AsDateTime));
+
+  MyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenFillAnEmptyClassNameCantRaiseAnyError;
@@ -676,6 +701,29 @@ begin
   Field.FieldName := 'CalculatedField';
   Field.FieldKind := fkCalculated;
   var MyObject := TMyTestClass.Create;
+
+  Field.SetParentComponent(FDataSet);
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      if Field.AsString = EmptyStr then
+    end);
+
+  MyObject.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenLoadADateTimeFieldCantRaiseAnyError;
+begin
+  var Field := TDateTimeField.Create(FDataSet);
+  Field.FieldName := 'DateTime';
+  Field.FieldKind := fkData;
+  var MyObject := TMyTestClassTypes.Create;
+  MyObject.DateTime := Now;
 
   Field.SetParentComponent(FDataSet);
 

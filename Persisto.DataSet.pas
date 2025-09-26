@@ -105,6 +105,7 @@ type
 
     procedure CheckInactive; override;
     procedure ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf); override;
+    procedure DataConvert(Field: TField; Source: TValueBuffer; var Dest: TValueBuffer; ToNative: Boolean); override;
     procedure DataEvent(Event: TDataEvent; Info: {$IFDEF PAS2JS}JSValue{$ELSE}NativeInt{$ENDIF}); override;
     procedure DoAfterOpen; override;
     procedure FreeRecordBuffer(var Buffer: TRecordBuffer); override;
@@ -216,6 +217,11 @@ begin
 {$IFDEF DCC}
   ObjectView := True;
 {$ENDIF}
+end;
+
+procedure TPersistoDataSet.DataConvert(Field: TField; Source: TValueBuffer; var Dest: TValueBuffer; ToNative: Boolean);
+begin
+  Move(Source[0], Dest[0], Field.DataSize);
 end;
 
 procedure TPersistoDataSet.DataEvent(Event: TDataEvent; Info: {$IFDEF PAS2JS}JSValue{$ELSE}NativeInt{$ENDIF});
