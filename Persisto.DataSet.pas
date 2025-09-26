@@ -35,14 +35,17 @@ type
 
   IPersistoCursor = interface
     function GetCurrentObject: TObject;
+    function GetCurrentPosition: Integer;
     function GetObjectCount: Integer;
     function Next: Boolean;
     function Prior: Boolean;
 
     procedure First;
     procedure Last;
+    procedure SetCurrentPosition(const Value: Integer);
 
     property CurrentObject: TObject read GetCurrentObject;
+    property CurrentPosition: Integer read GetCurrentPosition write SetCurrentPosition;
     property ObjectCount: Integer read GetObjectCount;
   end;
 
@@ -52,13 +55,16 @@ type
     FDataSet: TPersistoDataSet;
 
     function GetCurrentObject: TObject;
+    function GetCurrentPosition: Integer;
     function GetObjectCount: Integer;
     function Next: Boolean;
     function Prior: Boolean;
 
     procedure First;
     procedure Last;
+    procedure SetCurrentPosition(const Value: Integer);
 
+    property CurrentPosition: Integer read GetCurrentPosition write SetCurrentPosition;
     property ObjectCount: Integer read GetObjectCount;
   public
     constructor Create(const DataSet: TPersistoDataSet);
@@ -109,7 +115,7 @@ type
     procedure DataEvent(Event: TDataEvent; Info: {$IFDEF PAS2JS}JSValue{$ELSE}NativeInt{$ENDIF}); override;
     procedure DoAfterOpen; override;
     procedure FreeRecordBuffer(var Buffer: TRecordBuffer); override;
-    procedure GetBookmarkData(Buffer: TRecBuf; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark); override;
+    procedure GetBookmarkData(Buffer: TRecBuf; Data: TBookmark); override;
     procedure InternalCancel; override;
     procedure InternalClose; override;
     procedure InternalDelete; override;
@@ -219,6 +225,7 @@ constructor TPersistoDataSet.Create(AOwner: TComponent);
 begin
   inherited;
 
+  BookmarkSize := SizeOf(Integer);
   FObjectList := TList<TObject>.Create;
 {$IFDEF DCC}
   ObjectView := True;
@@ -289,9 +296,9 @@ begin
   Result := TPersistoBuffer(ActiveBuffer);
 end;
 
-procedure TPersistoDataSet.GetBookmarkData(Buffer: TRecBuf; {$IFDEF PAS2JS}var {$ENDIF}Data: TBookmark);
+procedure TPersistoDataSet.GetBookmarkData(Buffer: TRecBuf; Data: TBookmark);
 begin
-
+  PInteger(@Data[0])^ := FCursor.CurrentPosition;
 end;
 
 function TPersistoDataSet.GetCurrentObject<T>: T;
@@ -475,7 +482,7 @@ end;
 
 procedure TPersistoDataSet.InternalGotoBookmark(Bookmark: TBookmark);
 begin
-
+  FCursor.CurrentPosition := 5;
 end;
 
 procedure TPersistoDataSet.InternalHandleException{$IFDEF PAS2JS}(E: Exception){$ENDIF};
@@ -604,12 +611,17 @@ end;
 
 procedure TPersistoCursor.First;
 begin
-  FCurrentPosition := -1;
+  CurrentPosition := -1;
 end;
 
 function TPersistoCursor.GetCurrentObject: TObject;
 begin
   Result := FDataSet.FObjectList[FCurrentPosition];
+end;
+
+function TPersistoCursor.GetCurrentPosition: Integer;
+begin
+  Result := FCurrentPosition;
 end;
 
 function TPersistoCursor.GetObjectCount: Integer;
@@ -619,7 +631,7 @@ end;
 
 procedure TPersistoCursor.Last;
 begin
-  FCurrentPosition := ObjectCount;
+  CurrentPosition := ObjectCount;
 end;
 
 function TPersistoCursor.Next: Boolean;
@@ -634,6 +646,11 @@ begin
   Dec(FCurrentPosition);
 
   Result := FCurrentPosition > -1;
+end;
+
+procedure TPersistoCursor.SetCurrentPosition(const Value: Integer);
+begin
+  FCurrentPosition := Value;
 end;
 
 { TPersistoFieldList }

@@ -124,6 +124,8 @@ type
     procedure WhenCreateADateFieldMustReturnTheValueFromDateFieldHasExpected;
     [Test]
     procedure WhenCreateATimeFieldMustReturnTheValueFromTimeHasExpected;
+    [Test]
+    procedure WhenGetABookmarkAndCallTheGoToBookmarkMustGoToThePositionHasExpected;
   end;
 
 {$M+}
@@ -507,6 +509,38 @@ begin
   Assert.AreEqual(0, FDataSet.RecordCount);
 
   MyObject.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenGetABookmarkAndCallTheGoToBookmarkMustGoToThePositionHasExpected;
+begin
+  var MyList := TList<TObject>.Create;
+
+  for var A := 1 to 10 do
+  begin
+    var MyObject := TMyTestClass.Create;
+    MyObject.Id := A;
+    MyObject.Name := Format('Name%d', [A]);
+    MyObject.Value := A + A;
+
+    MyList.Add(MyObject);
+  end;
+
+  FDataSet.Objects := MyList.ToArray;
+
+  FDataSet.Open;
+
+  for var A := 1 to 5 do
+    FDataSet.Next;
+
+  var Bookmark := FDataSet.GetBookmark;
+
+  FDataSet.First;
+
+  FDataSet.GotoBookmark(Bookmark);
+
+  Assert.AreEqual('Name5', FDataSet.FieldByName('Name').AsString);
+
+  MyList.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenGetTheObjectListMustReturnTheObjectsFilledInTheList;
