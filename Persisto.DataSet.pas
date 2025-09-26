@@ -24,8 +24,6 @@ type
 
   TPersistoObjectField = class(TField)
   private
-    FBuffer: TValueBuffer;
-
     function GetAsObject: TObject;
 
     procedure SetAsObject(const Value: TObject);
@@ -556,33 +554,15 @@ begin
   inherited;
 
   SetDataType(ftObject);
-
-{$IFDEF DCC}
-  SetLength(FBuffer, SizeOf(TObject));
-{$ENDIF}
 end;
 
 function TPersistoObjectField.GetAsObject: TObject;
 begin
-{$IFDEF DCC}
-  if GetData(FBuffer, True) then
-    Result := TObject(PNativeInt(FBuffer)^)
-  else
-    Result := nil;
-{$ELSE}
-  Result := TObject(GetData);
-{$ENDIF}
+  Result := nil;
 end;
 
 procedure TPersistoObjectField.SetAsObject(const Value: TObject);
 begin
-{$IFDEF DCC}
-  Move(NativeInt(Value), FBuffer[0], SizeOf(Value));
-
-  SetData(FBuffer);
-{$ELSE}
-  SetData(Value);
-{$ENDIF}
 end;
 
 { EDataSetWithoutObjectDefinition }
