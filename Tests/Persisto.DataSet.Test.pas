@@ -11,8 +11,6 @@ type
     FContext: TRttiContext;
     FDataSet: TPersistoDataSet;
     FManager: TPersistoManager;
-
-    procedure DestroyObjects(DataSet: TPersistoDataSet);
   public
     [Setup]
     procedure Setup;
@@ -122,6 +120,10 @@ type
     procedure WhenLoadADateTimeFieldCantRaiseAnyError;
     [Test]
     procedure WhenCreateADateTimeFieldMustReturnTheDateTimeInThePropertyHasExpected;
+    [Test]
+    procedure WhenCreateADateFieldMustReturnTheValueFromDateFieldHasExpected;
+    [Test]
+    procedure WhenCreateATimeFieldMustReturnTheValueFromTimeHasExpected;
   end;
 
 {$M+}
@@ -265,25 +267,6 @@ begin
   Assert.AreEqual(FloatToStr(5477.555), FDataSet.FieldByName('Value').AsString);
 end;
 
-procedure TPersistoDataSetTest.DestroyObjects(DataSet: TPersistoDataSet);
-begin
-  try
-    if DataSet.Active then
-    begin
-      DataSet.First;
-
-      while not DataSet.Eof do
-      begin
-        DataSet.GetCurrentObject<TObject>.Free;
-
-        DataSet.Next;
-      end;
-    end;
-  except
-    // Não mostrar erros por que não mostra o resultado da execução do teste
-  end;
-end;
-
 procedure TPersistoDataSetTest.Setup;
 begin
   inherited;
@@ -297,13 +280,16 @@ end;
 
 procedure TPersistoDataSetTest.TearDown;
 begin
-  DestroyObjects(FDataSet);
+  var Objects := FDataSet.Objects;
 
   FManager.Free;
 
   FContext.Free;
 
   FDataSet.Free;
+
+  for var &Object in Objects do
+    &Object.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenAFieldIsSeparatedByAPointItHasToLoadTheSubPropertiesOfTheObject;
@@ -383,6 +369,25 @@ begin
   MyList.Free;
 end;
 
+procedure TPersistoDataSetTest.WhenCreateADateFieldMustReturnTheValueFromDateFieldHasExpected;
+begin
+  var Field := TDateField.Create(FDataSet);
+  Field.FieldName := 'DateTime';
+  Field.FieldKind := fkData;
+  var MyObject := TMyTestClassTypes.Create;
+  var TheTime := EncodeDate(2025, 09, 26);
+
+  MyObject.DateTime := TheTime;
+
+  Field.SetParentComponent(FDataSet);
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  Assert.AreEqual(DateToStr(TheTime), DateTimeToStr(Field.AsDateTime));
+end;
+
 procedure TPersistoDataSetTest.WhenCreateADateTimeFieldMustReturnTheDateTimeInThePropertyHasExpected;
 begin
   var Field := TDateTimeField.Create(FDataSet);
@@ -400,8 +405,25 @@ begin
   FDataSet.Open;
 
   Assert.AreEqual(DateTimeToStr(TheTime), DateTimeToStr(Field.AsDateTime));
+end;
 
-  MyObject.Free;
+procedure TPersistoDataSetTest.WhenCreateATimeFieldMustReturnTheValueFromTimeHasExpected;
+begin
+  var Field := TTimeField.Create(FDataSet);
+  Field.FieldName := 'DateTime';
+  Field.FieldKind := fkData;
+  var MyObject := TMyTestClassTypes.Create;
+  var TheTime := EncodeTime(10, 10, 10, 0);
+
+  MyObject.DateTime := TheTime;
+
+  Field.SetParentComponent(FDataSet);
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  Assert.AreEqual(TimeToStr(TheTime), TimeToStr(Field.AsDateTime));
 end;
 
 procedure TPersistoDataSetTest.WhenFillAnEmptyClassNameCantRaiseAnyError;
@@ -455,8 +477,6 @@ begin
   FDataSet.Objects := [MyObject];
 
   Assert.AreEqual(FDataSet.ObjectClass, MyObject.ClassType);
-
-  MyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenFillTheObjectListWithAnEmptyListCantRaiseAnyError;
@@ -485,18 +505,18 @@ begin
   FDataSet.Open;
 
   Assert.AreEqual(0, FDataSet.RecordCount);
+
+  MyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenGetTheObjectListMustReturnTheObjectsFilledInTheList;
 begin
   var MyObject := TMyTestClass.Create;
 
-  FDataSet.Objects := [MyObject, MyObject, MyObject];
+  FDataSet.Objects := [MyObject, TMyTestClass.Create, TMyTestClass.Create];
 
   Assert.AreEqual(3, Length(FDataSet.Objects));
   Assert.AreEqual(MyObject, FDataSet.Objects[0]);
-
-  MyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenGoBackInAllRecordMustMarkTheBOFPropertyHasTrue;
@@ -713,8 +733,6 @@ begin
     begin
       if Field.AsString = EmptyStr then
     end);
-
-  MyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenLoadADateTimeFieldCantRaiseAnyError;
@@ -736,8 +754,6 @@ begin
     begin
       if Field.AsString = EmptyStr then
     end);
-
-  MyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenLoadAnInvalidClassNameInThePropertyCantRaiseAnyError;

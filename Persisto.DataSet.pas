@@ -134,7 +134,7 @@ type
     destructor Destroy; override;
 
     function GetCurrentObject<T: class>: T;
-    function GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TValueBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF}; override;
+    function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean; override;
 
     procedure Filter(Func: TFunc<TPersistoDataSet, Boolean>);
     procedure Resync(Mode: TResyncMode); override;
@@ -179,6 +179,12 @@ implementation
 
 uses System.Math, Persisto.Mapping, {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF};
 
+type
+  TFieldHelper = class helper for TField
+  public
+    function GetBufferSize: Integer;
+  end;
+
 { TPersistoDataSet }
 
 function TPersistoDataSet.AllocRecordBuffer: TRecordBuffer;
@@ -221,7 +227,7 @@ end;
 
 procedure TPersistoDataSet.DataConvert(Field: TField; Source: TValueBuffer; var Dest: TValueBuffer; ToNative: Boolean);
 begin
-  Move(Source[0], Dest[0], Field.DataSize);
+  Move(Source[0], Dest[0], Field.GetBufferSize);
 end;
 
 procedure TPersistoDataSet.DataEvent(Event: TDataEvent; Info: {$IFDEF PAS2JS}JSValue{$ELSE}NativeInt{$ENDIF});
@@ -301,18 +307,20 @@ begin
     Result := inherited GetFieldClass(FieldDef);
 end;
 
-function TPersistoDataSet.GetFieldData(Field: TField; {$IFDEF DCC}var {$ENDIF}Buffer: TValueBuffer): {$IFDEF PAS2JS}JSValue{$ELSE}Boolean{$ENDIF};
+function TPersistoDataSet.GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean;
 var
   Value: TValue;
 
   procedure CheckBufferSize;
   begin
-    var BufferSize := Length(FIOBuffer);
-
-    if BufferSize < Field.DataSize then
-      SetLength(FIOBuffer, Field.DataSize);
+    if Length(FIOBuffer) < Field.GetBufferSize then
+      SetLength(FIOBuffer, Field.GetBufferSize);
 
     Buffer := FIOBuffer;
+{$IFDEF DEBUG}
+
+    FillChar(Buffer[0], Length(Buffer), 0);
+{$ENDIF}
   end;
 
 begin
@@ -664,6 +672,13 @@ end;
 constructor EDataSetWithoutManager.Create;
 begin
   inherited Create('Must load the Manager property with a valid value!');
+end;
+
+{ TFieldHelper }
+
+function TFieldHelper.GetBufferSize: Integer;
+begin
+  Result := GetIOSize;
 end;
 
 end.
