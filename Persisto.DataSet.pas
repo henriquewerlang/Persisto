@@ -488,7 +488,7 @@ end;
 
 procedure TPersistoDataSet.InternalGotoBookmark(Bookmark: TBookmark);
 begin
-  FCursor.CurrentPosition := 5;
+  FCursor.CurrentPosition := PInteger(@Bookmark[0])^;
 end;
 
 procedure TPersistoDataSet.InternalHandleException{$IFDEF PAS2JS}(E: Exception){$ENDIF};
