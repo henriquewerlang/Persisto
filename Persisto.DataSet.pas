@@ -377,7 +377,7 @@ begin
 
         if Field is TWideStringField then
         begin
-          var StringValue := Value.AsString;
+          var StringValue := Value.AsString + #0;
 
           StrLCopy(PWideChar(@Buffer[0]), @StringValue[1], StringValue.Length)
         end

@@ -128,6 +128,8 @@ type
     procedure WhenGetABookmarkAndCallTheGoToBookmarkMustGoToThePositionHasExpected;
     [Test]
     procedure TheBookmarkValidMustReturnTrue;
+    [Test]
+    procedure WhenTheStringFieldIsEmptyCantRaiseAnyErrorWhenTryToGetTheValue;
   end;
 
 {$M+}
@@ -953,6 +955,21 @@ begin
   FDataSet.Open;
 
   Assert.AreEqual(TGUIDField, FDataSet.FieldByName('UniqueIdentifier').ClassType);
+end;
+
+procedure TPersistoDataSetTest.WhenTheStringFieldIsEmptyCantRaiseAnyErrorWhenTryToGetTheValue;
+begin
+  var MyObject := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FDataSet.FieldByName('Name').AsString;
+    end);
 end;
 
 procedure TPersistoDataSetTest.WhenTryToGetTheFieldListInDesigningTimeCantRaiseAnyError;
