@@ -25,7 +25,7 @@ package Persisto.Runtime.ZeosLib;
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Persisto ZeosLib Package'}
+{$DESCRIPTION 'Persisto ZeosLib Runtime Package'}
 {$LIBSUFFIX AUTO}
 {$RUNONLY}
 {$IMPLICITBUILD ON}

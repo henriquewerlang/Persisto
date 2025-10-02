@@ -25,7 +25,7 @@ package Persisto.Runtime.Unidac;
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Persisto Unidac Package'}
+{$DESCRIPTION 'Persisto Unidac Runtime Package'}
 {$LIBSUFFIX AUTO}
 {$RUNONLY}
 {$IMPLICITBUILD ON}
