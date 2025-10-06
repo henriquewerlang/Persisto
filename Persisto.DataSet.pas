@@ -105,7 +105,7 @@ type
     function GetFieldClass(FieldDef: TFieldDef): TFieldClass; overload; override;
     function GetFieldListClass: TFieldListClass; override;
     function GetRecNo: Integer; override;
-    function GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
+    function GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function GetRecordCount: Integer; override;
     function IsCursorOpen: Boolean; override;
 
@@ -144,7 +144,6 @@ type
     function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean; override;
 
     procedure Filter(Func: TFunc<TPersistoDataSet, Boolean>);
-    procedure Resync(Mode: TResyncMode); override;
 
     property CurrentObject: TObject read GetActiveObject;
     property ObjectClass: TClass read FObjectClass write FObjectClass;
@@ -403,15 +402,13 @@ begin
   Result := 0;
 end;
 
-function TPersistoDataSet.GetRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
+function TPersistoDataSet.GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
 var
   PersistoBuffer: TPersistoBuffer absolute Buffer;
 
 begin
   case GetMode of
     gmCurrent: Result := grOk;
-//      if FIterator.CurrentPosition = 0 then
-//        Result := grError;
     gmNext:
       if FCursor.Next then
       begin
@@ -537,12 +534,6 @@ end;
 function TPersistoDataSet.IsCursorOpen: Boolean;
 begin
   Result := Assigned(FCursor);
-end;
-
-procedure TPersistoDataSet.Resync(Mode: TResyncMode);
-begin
-
-  inherited;
 end;
 
 procedure TPersistoDataSet.SetDataSetField(const DataSetField: TDataSetField);
