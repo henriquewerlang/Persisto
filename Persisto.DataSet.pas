@@ -104,7 +104,6 @@ type
     function AllocRecordBuffer: TRecordBuffer; override;
     function GetFieldClass(FieldDef: TFieldDef): TFieldClass; overload; override;
     function GetFieldListClass: TFieldListClass; override;
-    function GetRecNo: Integer; override;
     function GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function GetRecordCount: Integer; override;
     function IsCursorOpen: Boolean; override;
@@ -112,8 +111,6 @@ type
     procedure CheckInactive; override;
     procedure ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf); override;
     procedure DataConvert(Field: TField; Source: TValueBuffer; var Dest: TValueBuffer; ToNative: Boolean); override;
-    procedure DataEvent(Event: TDataEvent; Info: {$IFDEF PAS2JS}JSValue{$ELSE}NativeInt{$ENDIF}); override;
-    procedure DoAfterOpen; override;
     procedure FreeRecordBuffer(var Buffer: TRecordBuffer); override;
     procedure GetBookmarkData(Buffer: TRecBuf; Data: TBookmark); override;
     procedure InternalCancel; override;
@@ -140,6 +137,7 @@ type
     destructor Destroy; override;
 
     function BookmarkValid(Bookmark: TBookmark): Boolean; override;
+    function CompareBookmarks(Bookmark1, Bookmark2: TBookmark): Integer; override;
     function GetCurrentObject<T: class>: T;
     function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean; override;
 
@@ -226,6 +224,11 @@ begin
 
 end;
 
+function TPersistoDataSet.CompareBookmarks(Bookmark1, Bookmark2: TBookmark): Integer;
+begin
+  Result := PInteger(@Bookmark1[0])^ - PInteger(@Bookmark2[0])^;
+end;
+
 constructor TPersistoDataSet.Create(AOwner: TComponent);
 begin
   inherited;
@@ -242,21 +245,9 @@ begin
   Move(Source[0], Dest[0], Field.GetBufferSize);
 end;
 
-procedure TPersistoDataSet.DataEvent(Event: TDataEvent; Info: {$IFDEF PAS2JS}JSValue{$ELSE}NativeInt{$ENDIF});
-begin
-  inherited;
-
-end;
-
 destructor TPersistoDataSet.Destroy;
 begin
   FObjectList.Free;
-
-  inherited;
-end;
-
-procedure TPersistoDataSet.DoAfterOpen;
-begin
 
   inherited;
 end;
@@ -395,11 +386,6 @@ end;
 function TPersistoDataSet.GetObjects: TArray<TObject>;
 begin
   Result := FObjectList.ToArray;
-end;
-
-function TPersistoDataSet.GetRecNo: Integer;
-begin
-  Result := 0;
 end;
 
 function TPersistoDataSet.GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult;

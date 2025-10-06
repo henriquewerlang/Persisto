@@ -130,6 +130,12 @@ type
     procedure TheBookmarkValidMustReturnTrue;
     [Test]
     procedure WhenTheStringFieldIsEmptyCantRaiseAnyErrorWhenTryToGetTheValue;
+    [Test]
+    procedure WhenCompareTwoBookmarksAndTheyAreEqualMustReturnZeroInTheComparingFunction;
+    [Test]
+    procedure WhenCompareTwoBookmarksAndTheFirstIsBeforeTheSecondMustReturnANegativeValueInTheComparingFunction;
+    [Test]
+    procedure WhenCompareTwoBookmarksAndTheFirstIsAfterTheSecondMustReturnAPositiveValueInTheComparingFunction;
   end;
 
 {$M+}
@@ -378,6 +384,50 @@ begin
   Assert.AreEqual('Name1', FDataSet.FieldByName('Name').AsString);
 
   MyList.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenCompareTwoBookmarksAndTheFirstIsAfterTheSecondMustReturnAPositiveValueInTheComparingFunction;
+begin
+  FDataSet.Objects := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  FDataSet.Open;
+
+  FDataSet.Last;
+
+  var Bookmark1 := FDataSet.Bookmark;
+
+  FDataSet.First;
+
+  var Bookmark2 := FDataSet.Bookmark;
+
+  Assert.IsTrue(FDataSet.CompareBookmarks(Bookmark1, Bookmark2) > 0);
+end;
+
+procedure TPersistoDataSetTest.WhenCompareTwoBookmarksAndTheFirstIsBeforeTheSecondMustReturnANegativeValueInTheComparingFunction;
+begin
+  FDataSet.Objects := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  FDataSet.Open;
+
+  var Bookmark1 := FDataSet.Bookmark;
+
+  FDataSet.Last;
+
+  var Bookmark2 := FDataSet.Bookmark;
+
+  Assert.IsTrue(FDataSet.CompareBookmarks(Bookmark1, Bookmark2) < 0);
+end;
+
+procedure TPersistoDataSetTest.WhenCompareTwoBookmarksAndTheyAreEqualMustReturnZeroInTheComparingFunction;
+begin
+  FDataSet.Objects := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  FDataSet.Open;
+
+  var Bookmark1 := FDataSet.Bookmark;
+  var Bookmark2 := FDataSet.Bookmark;
+
+  Assert.AreEqual(0, FDataSet.CompareBookmarks(Bookmark1, Bookmark2));
 end;
 
 procedure TPersistoDataSetTest.WhenCreateADateFieldMustReturnTheValueFromDateFieldHasExpected;
