@@ -333,6 +333,8 @@ type
     procedure WhenGetTableByNameAndTheClassNameNotExistsCantRaiseAnyError;
     [Test]
     procedure WhenTheFieldIsntFoundMustRaiseAnError;
+    [Test]
+    procedure WhenTryToFindAFieldMustIgnoreTheFieldNameCase;
   end;
 
 implementation
@@ -1677,6 +1679,22 @@ end;
 procedure TMapperTest.WhenTheTableIsInheritedMustLoadAllManyValueAssociationOfTheClass;
 begin
   Assert.AreEqual(1, Length(FMapper.GetTable(TManyValueClassInherited).ManyValueAssociations));
+end;
+
+procedure TMapperTest.WhenTryToFindAFieldMustIgnoreTheFieldNameCase;
+begin
+  var Field: TField := nil;
+  var Table := FMapper.GetTable(TMyEntityWithAllTypeOfFields);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Field := Table.Field['uniqueidentifier'];
+    end);
+
+  Assert.IsNotNil(Field);
+
+  Assert.AreEqual('UniqueIdentifier', Field.Name);
 end;
 
 procedure TMapperTest.WhenTryToFindATableMustReturnTheTableOfTheClass;

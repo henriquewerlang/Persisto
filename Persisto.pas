@@ -1484,7 +1484,7 @@ begin
   Result := False;
 
   for var TableField in Fields do
-    if TableField.Name = FieldName then
+    if SameText(TableField.Name, FieldName) then
     begin
       Field := TableField;
 
