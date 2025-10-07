@@ -588,7 +588,7 @@ begin
 
   FDataSet.Open;
 
-  for var A := 1 to 5 do
+  for var A := 1 to 7 do
     FDataSet.Next;
 
   var Bookmark := FDataSet.GetBookmark;
@@ -597,7 +597,7 @@ begin
 
   FDataSet.GotoBookmark(Bookmark);
 
-  Assert.AreEqual('Name5', FDataSet.FieldByName('Name').AsString);
+  Assert.AreEqual('Name8', FDataSet.FieldByName('Name').AsString);
 
   MyList.Free;
 end;
