@@ -45,8 +45,9 @@ type
 
     procedure First;
     procedure Last;
+    procedure SetCurrentObject(const Value: TObject);
 
-    property CurrentObject: TObject read GetCurrentObject;
+    property CurrentObject: TObject read GetCurrentObject write SetCurrentObject;
     property CurrentPosition: NativeInt read FCurrentPosition write FCurrentPosition;
     property ObjectCount: NativeInt read GetObjectCount;
   public
@@ -81,6 +82,7 @@ type
     procedure CheckObjectTypeLoaded;
     procedure LoadCursor;
     procedure LoadObjectTable;
+    procedure SetActiveObject(const Value: TObject);
     procedure SetIndexFieldNames(const Value: String);
     procedure SetObjects(const Value: TArray<TObject>);
   protected
@@ -126,7 +128,7 @@ type
 
     procedure Filter(Func: TFunc<TPersistoDataSet, Boolean>);
 
-    property CurrentObject: TObject read GetActiveObject;
+    property CurrentObject: TObject read GetActiveObject write SetActiveObject;
     property ObjectClass: TClass read FObjectClass write FObjectClass;
     property Objects: TArray<TObject> read GetObjects write SetObjects;
   published
@@ -498,6 +500,12 @@ begin
   Result := Assigned(FCursor);
 end;
 
+procedure TPersistoDataSet.SetActiveObject(const Value: TObject);
+begin
+  ActivePersistoBuffer.CurrentObject := Value;
+  FCursor.CurrentObject := Value;
+end;
+
 procedure TPersistoDataSet.SetDataSetField(const DataSetField: TDataSetField);
 begin
 
@@ -606,6 +614,11 @@ begin
 
   if not Result then
     FCurrentPosition := 0;
+end;
+
+procedure TPersistoCursor.SetCurrentObject(const Value: TObject);
+begin
+  FDataSet.FObjectList[FCurrentPosition] := Value;
 end;
 
 { TPersistoFieldList }

@@ -138,6 +138,10 @@ type
     procedure WhenCompareTwoBookmarksAndTheFirstIsAfterTheSecondMustReturnAPositiveValueInTheComparingFunction;
     [Test]
     procedure WhenRestoreABookmarkAndNavigateInTheDataSetMustLoadTheCorrectRecord;
+    [Test]
+    procedure WhenFillTheActiveObjectMustReturnTheFilledObject;
+    [Test]
+    procedure WhenFillTheActiveObjectAndNavigateBetweenRecordsMustKeepTheObjectFilledLoaded;
   end;
 
 {$M+}
@@ -496,6 +500,42 @@ begin
     begin
       FDataSet.ObjectClassName := EmptyStr;
     end);
+end;
+
+procedure TPersistoDataSetTest.WhenFillTheActiveObjectAndNavigateBetweenRecordsMustKeepTheObjectFilledLoaded;
+begin
+  var MyObject1 := TMyTestClass.Create;
+  var MyObject2 := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject1, TMyTestClass.Create];
+
+  FDataSet.Open;
+
+  FDataSet.CurrentObject := MyObject2;
+
+  FDataSet.Next;
+
+  FDataSet.Prior;
+
+  Assert.AreEqual(MyObject2, FDataSet.CurrentObject);
+
+  MyObject1.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenFillTheActiveObjectMustReturnTheFilledObject;
+begin
+  var MyObject1 := TMyTestClass.Create;
+  var MyObject2 := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject1];
+
+  FDataSet.Open;
+
+  FDataSet.CurrentObject := MyObject2;
+
+  Assert.AreEqual(MyObject2, FDataSet.CurrentObject);
+
+  MyObject1.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenFillTheObjectListAndOpenTheDataSetTheRecordCountMustBeEqualTheLengthOfTheObjectList;
