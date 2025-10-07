@@ -33,38 +33,21 @@ type
     property AsObject: TObject read GetAsObject write SetAsObject;
   end;
 
-  IPersistoCursor = interface
-    function GetCurrentObject: TObject;
-    function GetCurrentPosition: Integer;
-    function GetObjectCount: Integer;
-    function Next: Boolean;
-    function Prior: Boolean;
-
-    procedure First;
-    procedure Last;
-    procedure SetCurrentPosition(const Value: Integer);
-
-    property CurrentObject: TObject read GetCurrentObject;
-    property CurrentPosition: Integer read GetCurrentPosition write SetCurrentPosition;
-    property ObjectCount: Integer read GetObjectCount;
-  end;
-
-  TPersistoCursor = class(TInterfacedObject, IPersistoCursor)
+  TPersistoCursor = class
   private
     FCurrentPosition: Integer;
     FDataSet: TPersistoDataSet;
 
     function GetCurrentObject: TObject;
-    function GetCurrentPosition: Integer;
     function GetObjectCount: Integer;
     function Next: Boolean;
     function Prior: Boolean;
 
     procedure First;
     procedure Last;
-    procedure SetCurrentPosition(const Value: Integer);
 
-    property CurrentPosition: Integer read GetCurrentPosition write SetCurrentPosition;
+    property CurrentObject: TObject read GetCurrentObject;
+    property CurrentPosition: Integer read FCurrentPosition write FCurrentPosition;
     property ObjectCount: Integer read GetObjectCount;
   public
     constructor Create(const DataSet: TPersistoDataSet);
@@ -80,7 +63,7 @@ type
 {$ENDIF}
   TPersistoDataSet = class(TDataSet)
   private
-    FCursor: IPersistoCursor;
+    FCursor: TPersistoCursor;
     FIndexFieldNames: String;
     FInsertingObject: TObject;
     FIOBuffer: TValueBuffer;
@@ -450,7 +433,7 @@ end;
 
 procedure TPersistoDataSet.InternalClose;
 begin
-  FCursor := nil;
+  FreeAndNil(FCursor);
 end;
 
 procedure TPersistoDataSet.InternalDelete;
@@ -602,11 +585,6 @@ begin
   Result := FDataSet.FObjectList[FCurrentPosition];
 end;
 
-function TPersistoCursor.GetCurrentPosition: Integer;
-begin
-  Result := FCurrentPosition;
-end;
-
 function TPersistoCursor.GetObjectCount: Integer;
 begin
   Result := FDataSet.FObjectList.Count;
@@ -629,11 +607,6 @@ begin
   Dec(FCurrentPosition);
 
   Result := FCurrentPosition > -1;
-end;
-
-procedure TPersistoCursor.SetCurrentPosition(const Value: Integer);
-begin
-  FCurrentPosition := Value;
 end;
 
 { TPersistoFieldList }
