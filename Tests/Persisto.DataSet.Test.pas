@@ -136,6 +136,8 @@ type
     procedure WhenCompareTwoBookmarksAndTheFirstIsBeforeTheSecondMustReturnANegativeValueInTheComparingFunction;
     [Test]
     procedure WhenCompareTwoBookmarksAndTheFirstIsAfterTheSecondMustReturnAPositiveValueInTheComparingFunction;
+    [Test]
+    procedure WhenRestoreABookmarkAndNavigateInTheDataSetMustLoadTheCorrectRecord;
   end;
 
 {$M+}
@@ -591,11 +593,11 @@ begin
   for var A := 1 to 7 do
     FDataSet.Next;
 
-  var Bookmark := FDataSet.GetBookmark;
+  var Bookmark := FDataSet.Bookmark;
 
   FDataSet.First;
 
-  FDataSet.GotoBookmark(Bookmark);
+  FDataSet.Bookmark := Bookmark;
 
   Assert.AreEqual('Name8', FDataSet.FieldByName('Name').AsString);
 
@@ -806,6 +808,47 @@ begin
   FDataSet.Post;
 
   Assert.AreEqual(3, FDataSet.RecordCount);
+end;
+
+procedure TPersistoDataSetTest.WhenRestoreABookmarkAndNavigateInTheDataSetMustLoadTheCorrectRecord;
+begin
+  var MyList := TList<TObject>.Create;
+
+  for var A := 1 to 10 do
+  begin
+    var MyObject := TMyTestClass.Create;
+    MyObject.Id := A;
+    MyObject.Name := Format('Name%d', [A]);
+    MyObject.Value := A + A;
+
+    MyList.Add(MyObject);
+  end;
+
+  FDataSet.Objects := MyList.ToArray;
+
+  FDataSet.Open;
+
+  var Bookmark := FDataSet.Bookmark;
+
+  FDataSet.Bookmark := Bookmark;
+
+  FDataSet.Prior;
+
+  FDataSet.Next;
+
+  FDataSet.Next;
+
+  FDataSet.Prior;
+
+  FDataSet.Prior;
+
+  FDataSet.Next;
+
+  FDataSet.Next;
+
+  Assert.AreEqual('Name3', FDataSet.FieldByName('Name').AsString);
+
+  MyList.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenLoadACalculatedFieldCantRaiseAnyError;

@@ -35,11 +35,11 @@ type
 
   TPersistoCursor = class
   private
-    FCurrentPosition: Integer;
+    FCurrentPosition: NativeInt;
     FDataSet: TPersistoDataSet;
 
     function GetCurrentObject: TObject;
-    function GetObjectCount: Integer;
+    function GetObjectCount: NativeInt;
     function Next: Boolean;
     function Prior: Boolean;
 
@@ -47,8 +47,8 @@ type
     procedure Last;
 
     property CurrentObject: TObject read GetCurrentObject;
-    property CurrentPosition: Integer read FCurrentPosition write FCurrentPosition;
-    property ObjectCount: Integer read GetObjectCount;
+    property CurrentPosition: NativeInt read FCurrentPosition write FCurrentPosition;
+    property ObjectCount: NativeInt read GetObjectCount;
   public
     constructor Create(const DataSet: TPersistoDataSet);
   end;
@@ -375,29 +375,22 @@ function TPersistoDataSet.GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck:
 var
   PersistoBuffer: TPersistoBuffer absolute Buffer;
 
+  procedure UpdateBuffer(const Update: Boolean; const ResultValue: TGetResult);
+  begin
+    if Update then
+    begin
+      PersistoBuffer.CurrentObject := FCursor.CurrentObject;
+      Result := grOk;
+    end
+    else
+      Result := ResultValue;
+  end;
+
 begin
   case GetMode of
-    gmCurrent: Result := grOk;
-    gmNext:
-      if FCursor.Next then
-      begin
-        Result := grOK;
-
-        PersistoBuffer.CurrentObject := FCursor.CurrentObject;
-      end
-      else
-        Result := grEOF;
-    gmPrior:
-      if FCursor.Prior then
-      begin
-        Result := grOK;
-
-        PersistoBuffer.CurrentObject := FCursor.CurrentObject;
-      end
-      else
-        Result := grBOF;
-    else
-      Result := grError;
+    gmNext: UpdateBuffer(FCursor.Next, grEOF);
+    gmPrior: UpdateBuffer(FCursor.Prior, grBOF);
+    else UpdateBuffer(GetMode = gmCurrent, grError);
   end;
 end;
 
@@ -585,7 +578,7 @@ begin
   Result := FDataSet.FObjectList[FCurrentPosition];
 end;
 
-function TPersistoCursor.GetObjectCount: Integer;
+function TPersistoCursor.GetObjectCount: NativeInt;
 begin
   Result := FDataSet.FObjectList.Count;
 end;
@@ -600,6 +593,9 @@ begin
   Inc(FCurrentPosition);
 
   Result := FCurrentPosition < ObjectCount;
+
+  if not Result then
+    FCurrentPosition := Pred(ObjectCount);
 end;
 
 function TPersistoCursor.Prior: Boolean;
@@ -607,6 +603,9 @@ begin
   Dec(FCurrentPosition);
 
   Result := FCurrentPosition > -1;
+
+  if not Result then
+    FCurrentPosition := 0;
 end;
 
 { TPersistoFieldList }
