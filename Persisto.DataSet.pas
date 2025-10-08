@@ -504,6 +504,8 @@ procedure TPersistoDataSet.SetActiveObject(const Value: TObject);
 begin
   ActivePersistoBuffer.CurrentObject := Value;
   FCursor.CurrentObject := Value;
+
+  DataEvent(deRecordChange, 0);
 end;
 
 procedure TPersistoDataSet.SetDataSetField(const DataSetField: TDataSetField);

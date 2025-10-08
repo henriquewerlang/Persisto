@@ -5,11 +5,15 @@ interface
 uses System.SysUtils, System.Rtti, Data.DB, System.Generics.Collections, Persisto.DataSet, Test.Insight.Framework, Persisto, Persisto.Mapping;
 
 type
+  TDataLinkMock = class;
+
   [TestFixture]
   TPersistoDataSetTest = class
   private
     FContext: TRttiContext;
     FDataSet: TPersistoDataSet;
+    FDataSetLink: TDataLinkMock;
+    FDataSource: TDataSource;
     FManager: TPersistoManager;
   public
     [Setup]
@@ -142,6 +146,23 @@ type
     procedure WhenFillTheActiveObjectMustReturnTheFilledObject;
     [Test]
     procedure WhenFillTheActiveObjectAndNavigateBetweenRecordsMustKeepTheObjectFilledLoaded;
+    [Test]
+    procedure WhenFillTheActiveObjectMustTriggerTheRecordChangedEvent;
+  end;
+
+  TDataLinkMock = class(TDataLink)
+  private
+    FEvents: TList<TDataEvent>;
+  protected
+    procedure DataEvent(Event: TDataEvent; Info: NativeInt); override;
+  public
+    constructor Create;
+
+    destructor Destroy; override;
+
+    procedure ClearEvents;
+
+    property Events: TList<TDataEvent> read FEvents;
   end;
 
 {$M+}
@@ -291,9 +312,13 @@ begin
 
   FContext := TRttiContext.Create;
   FDataSet := TPersistoDataSet.Create(nil);
+  FDataSetLink := TDataLinkMock.Create;
+  FDataSource := TDataSource.Create(FDataSet);
+  FDataSource.DataSet := FDataSet;
   FManager := TPersistoManager.Create(nil);
 
   FDataSet.Manager := FManager;
+  FDataSetLink.DataSource := FDataSource;
 end;
 
 procedure TPersistoDataSetTest.TearDown;
@@ -305,6 +330,8 @@ begin
   FContext.Free;
 
   FDataSet.Free;
+
+  FDataSetLink.Free;
 
   for var &Object in Objects do
     &Object.Free;
@@ -536,6 +563,23 @@ begin
   Assert.AreEqual(MyObject2, FDataSet.CurrentObject);
 
   MyObject1.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenFillTheActiveObjectMustTriggerTheRecordChangedEvent;
+begin
+  var MyObject1 := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject1];
+
+  FDataSet.Open;
+
+  FDataSetLink.ClearEvents;
+
+  FDataSet.CurrentObject := MyObject1;
+
+  Assert.IsFalse(FDataSetLink.Events.IsEmpty);
+
+  Assert.AreEqual(deRecordChange, FDataSetLink.Events.First);
 end;
 
 procedure TPersistoDataSetTest.WhenFillTheObjectListAndOpenTheDataSetTheRecordCountMustBeEqualTheLengthOfTheObjectList;
@@ -1181,6 +1225,32 @@ var
 
 begin
   FCallbackProc(ORMDataSet);
+end;
+
+{ TDataLinkMock }
+
+procedure TDataLinkMock.ClearEvents;
+begin
+  Events.Clear;
+end;
+
+constructor TDataLinkMock.Create;
+begin
+  inherited;
+
+  FEvents := TList<TDataEvent>.Create;
+end;
+
+procedure TDataLinkMock.DataEvent(Event: TDataEvent; Info: NativeInt);
+begin
+  FEvents.Add(Event);
+end;
+
+destructor TDataLinkMock.Destroy;
+begin
+  FEvents.Free;
+
+  inherited;
 end;
 
 end.
