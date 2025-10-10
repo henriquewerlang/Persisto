@@ -148,6 +148,8 @@ type
     procedure WhenFillTheActiveObjectAndNavigateBetweenRecordsMustKeepTheObjectFilledLoaded;
     [Test]
     procedure WhenFillTheActiveObjectMustTriggerTheRecordChangedEvent;
+    [Test]
+    procedure WhenPostTheDataSetMustLoadTheInsertingObjectInTheObjectList;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -871,6 +873,19 @@ begin
   FDataSet.Open;
 
   Assert.IsFalse(FDataSet.Eof);
+end;
+
+procedure TPersistoDataSetTest.WhenPostTheDataSetMustLoadTheInsertingObjectInTheObjectList;
+begin
+  FDataSet.ObjectClass := TMyTestClass;
+
+  FDataSet.Open;
+
+  FDataSet.Insert;
+
+  FDataSet.Post;
+
+  Assert.IsNotNil(FDataSet.Objects[0]);
 end;
 
 procedure TPersistoDataSetTest.WhenPostTheRecordInTheDataSetMustKeepTheObjectInsideTheDataSet;

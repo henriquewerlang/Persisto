@@ -65,7 +65,6 @@ type
   TPersistoDataSet = class(TDataSet)
   private
     FCursor: TPersistoCursor;
-    FIndexFieldNames: String;
     FInsertingObject: TObject;
     FIOBuffer: TValueBuffer;
     FManager: TPersistoManager;
@@ -83,7 +82,6 @@ type
     procedure LoadCursor;
     procedure LoadObjectTable;
     procedure SetActiveObject(const Value: TObject);
-    procedure SetIndexFieldNames(const Value: String);
     procedure SetObjects(const Value: TArray<TObject>);
   protected
     function AllocRecordBuffer: TRecordBuffer; override;
@@ -153,7 +151,6 @@ type
     property BeforeScroll;
     property DataSetField;
     property FieldOptions;
-    property IndexFieldNames: String read FIndexFieldNames write SetIndexFieldNames;
     property Manager: TPersistoManager read FManager write FManager;
     property ObjectClassName: String read FObjectClassName write FObjectClassName;
     property OnCalcFields;
@@ -487,7 +484,7 @@ procedure TPersistoDataSet.InternalPost;
 begin
   inherited;
 
-  FObjectList.Add(nil);
+  FObjectList.Add(FInsertingObject);
 end;
 
 procedure TPersistoDataSet.InternalSetToRecord(Buffer: TRecBuf);
@@ -517,17 +514,6 @@ end;
 procedure TPersistoDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer);
 begin
 
-end;
-
-procedure TPersistoDataSet.SetIndexFieldNames(const Value: String);
-begin
-  if FIndexFieldNames <> Value then
-  begin
-    FIndexFieldNames := Value;
-
-    if Active then
-      Resync([]);
-  end;
 end;
 
 procedure TPersistoDataSet.SetObjects(const Value: TArray<TObject>);
