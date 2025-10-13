@@ -241,8 +241,8 @@ end;
 procedure TLazyLoaderObjectTest.Setup;
 begin
   FManager := TPersistoManager.Create(nil);
-  FManager.Connection := CreateConnection;
-  FManager.Manipulator := CreateDatabaseManipulator;
+  FManager.Connection := CreateConnection(FManager);
+  FManager.Manipulator := CreateDatabaseManipulator(FManager);
 
   FManager.CreateDatabase;
 
@@ -335,8 +335,8 @@ end;
 procedure TLazyLoaderManyValueTest.Setup;
 begin
   FManager := TPersistoManager.Create(nil);
-  FManager.Connection := CreateConnection;
-  FManager.Manipulator := CreateDatabaseManipulator;
+  FManager.Connection := CreateConnection(FManager);
+  FManager.Manipulator := CreateDatabaseManipulator(FManager);
 
   FManager.CreateDatabase;
 

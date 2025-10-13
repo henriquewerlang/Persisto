@@ -2,11 +2,11 @@
 
 interface
 
-uses System.SysUtils, Persisto;
+uses System.SysUtils, System.Classes, Persisto;
 
-function CreateConnection: IDatabaseConnection;
-function CreateConnectionNamed(const DatabaseName: String): IDatabaseConnection;
-function CreateDatabaseManipulator: IDatabaseManipulator;
+function CreateConnection(const Owner: TComponent): IDatabaseConnection;
+function CreateConnectionNamed(const Owner: TComponent; const DatabaseName: String): IDatabaseConnection;
+function CreateDatabaseManipulator(const Owner: TComponent): IDatabaseManipulator;
 
 {$IFDEF POSTGRESQL}
 type
@@ -100,10 +100,10 @@ begin
 {$ENDIF}
 end;
 
-function CreateFiredacConnection(const DatabaseName: String): TFDConnection;
+function CreateFiredacConnection(const Owner: TComponent; const DatabaseName: String): TFDConnection;
 begin
   FFDGUIxSilentMode := True;
-  Result := TFDConnection.Create(nil);
+  Result := TFDConnection.Create(Owner);
   Result.FetchOptions.Items := [];
   Result.FetchOptions.Unidirectional := True;
   Result.FormatOptions.StrsEmpty2Null := True;
@@ -163,29 +163,29 @@ begin
 {$ENDIF}
 end;
 
-function CreateConnectionNamed(const DatabaseName: String): IDatabaseConnection;
+function CreateConnectionNamed(const Owner: TComponent; const DatabaseName: String): IDatabaseConnection;
 begin
-  var Connection := TPersistoConnectionFireDAC.Create(nil);
-  Connection.Connection := CreateFiredacConnection(FormatDatabaseName(DatabaseName));
+  var Connection := TPersistoConnectionFireDAC.Create(Owner);
+  Connection.Connection := CreateFiredacConnection(Owner, FormatDatabaseName(DatabaseName));
 
   Result := Connection;
 end;
 
-function CreateConnection: IDatabaseConnection;
+function CreateConnection(const Owner: TComponent): IDatabaseConnection;
 begin
-  Result := CreateConnectionNamed(DATABASE_NAME);
+  Result := CreateConnectionNamed(Owner, DATABASE_NAME);
 end;
 
-function CreateDatabaseManipulator: IDatabaseManipulator;
+function CreateDatabaseManipulator(const Owner: TComponent): IDatabaseManipulator;
 begin
 {$IFDEF POSTGRESQL}
-  Result := TPersistoManipulatorPostgreSQL.Create(nil);
+  Result := TPersistoManipulatorPostgreSQL.Create(Owner);
 {$ELSEIF DEFINED(SQLSERVER)}
-  Result := TPersistoManipulatorSQLServer.Create(nil);
+  Result := TPersistoManipulatorSQLServer.Create(Owner);
 {$ELSEIF DEFINED(INTERBASE)}
-  Result := TPersistoManipulatorInterbase.Create(nil);
+  Result := TPersistoManipulatorInterbase.Create(Owner);
 {$ELSEIF DEFINED(SQLITE)}
-  Result := TPersistoManipulatorSQLite.Create(nil);
+  Result := TPersistoManipulatorSQLite.Create(Owner);
 {$ELSE}
   RaiseConfigurationSelectionError;
 {$ENDIF}

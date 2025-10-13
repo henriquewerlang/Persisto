@@ -40,7 +40,7 @@ type
     procedure ExecuteDirect(const SQL: String);
     procedure ExecuteScript(const Script: String);
     procedure SetDatabaseName(const Value: String);
-      published
+  published
     property Connection: TFDConnection read FConnection write FConnection;
   end;
 

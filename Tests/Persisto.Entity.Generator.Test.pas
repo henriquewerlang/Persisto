@@ -144,9 +144,10 @@ const
 
 procedure TGenerateUnitTeste.Setup;
 begin
-  FManipulator := CreateDatabaseManipulator;
   FManager := TPersistoManager.Create(nil);
-  FManager.Connection := CreateConnection;
+
+  FManipulator := CreateDatabaseManipulator(FManager);
+  FManager.Connection := CreateConnection(FManager);
   FManager.Manipulator := FManipulator;
 
   FManager.CreateDatabase;

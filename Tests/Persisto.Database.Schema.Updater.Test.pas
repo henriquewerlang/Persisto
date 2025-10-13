@@ -122,6 +122,8 @@ type
     function MakeUpdateStatement(const Table: TTable; const Params: TParams): String;
   public
     constructor Create;
+
+    destructor Destroy; override;
   end;
 
 implementation
@@ -223,7 +225,7 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.LoadSchemaTables;
 begin
-  var Manipulator := CreateDatabaseManipulator;
+  var Manipulator := CreateDatabaseManipulator(FManager);
 
   for var SQL in Manipulator.GetSchemaTablesScripts do
     FManager.ExectDirect(SQL);
@@ -248,8 +250,8 @@ end;
 procedure TDatabaseSchemaUpdaterTest.Setup;
 begin
   FManager := TPersistoManager.Create(nil);
-  FManager.Connection := CreateConnection;
-  FManager.Manipulator := CreateDatabaseManipulator;
+  FManager.Connection := CreateConnection(FManager);
+  FManager.Manipulator := CreateDatabaseManipulator(FManager);
 
   FManager.Mapper.LoadAll;
 
@@ -366,8 +368,8 @@ procedure TDatabaseSchemaUpdaterTest.WhenCreateAFieldMustLoadTheFieldInfoTypeFro
 begin
   var Manipulator := TDatabaseManiupulatorMock.Create;
   var Manager := TPersistoManager.Create(nil);
-  Manager.Connection := CreateConnection;
-  Manager.Manipulator := CreateDatabaseManipulator;
+  Manager.Connection := CreateConnection(Manager);
+  Manager.Manipulator := CreateDatabaseManipulator(Manager);
 
   Manager.Mapper.GetTable(TMyClassWithAllFieldsType);
 
@@ -461,15 +463,15 @@ end;
 procedure TDatabaseSchemaUpdaterTest.WhenCreateDatabaseTheDatabaseMustBeCreated;
 begin
   var Manager := TPersistoManager.Create(nil);
-  Manager.Connection := CreateConnectionNamed('MyDatabase');
-  Manager.Manipulator := CreateDatabaseManipulator;
+  Manager.Connection := CreateConnectionNamed(Manager, 'MyDatabase');
+  Manager.Manipulator := CreateDatabaseManipulator(Manager);
 
   Manager.CreateDatabase;
 
   Assert.WillNotRaise(
     procedure
     begin
-      CreateConnectionNamed('MyDatabase').OpenCursor('select 1').Next;
+      CreateConnectionNamed(Manager, 'MyDatabase').OpenCursor('select 1').Next;
     end);
 
   Manager.DropDatabase;
@@ -497,10 +499,10 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenDropDatabaseTheDatabaseMustBeDropped;
 begin
-  var Connection := CreateConnectionNamed('MyDatabase');
   var Manager := TPersistoManager.Create(nil);
-  Manager.Connection := CreateConnection;
-  Manager.Manipulator := CreateDatabaseManipulator;
+  var Connection := CreateConnectionNamed(Manager, 'MyDatabase');
+  Manager.Connection := CreateConnection(Manager);
+  Manager.Manipulator := CreateDatabaseManipulator(Manager);
 
   Manager.CreateDatabase;
 
@@ -605,7 +607,7 @@ begin
 
   var Sequence := TSequence.Create('AnySequence');
 
-  FManager.ExectDirect(CreateDatabaseManipulator.CreateSequence(Sequence));
+  FManager.ExectDirect(CreateDatabaseManipulator(FManager).CreateSequence(Sequence));
 
   Sequence.Free;
 
@@ -653,7 +655,7 @@ constructor TDatabaseManiupulatorMock.Create;
 begin
   inherited;
 
-  FManipulador := CreateDatabaseManipulator;
+  FManipulador := CreateDatabaseManipulator(nil);
 end;
 
 function TDatabaseManiupulatorMock.CreateDatabase(const DatabaseName: String): String;
@@ -664,6 +666,13 @@ end;
 function TDatabaseManiupulatorMock.CreateSequence(const Sequence: TSequence): String;
 begin
   Result := FManipulador.CreateSequence(Sequence);
+end;
+
+destructor TDatabaseManiupulatorMock.Destroy;
+begin
+  TObject(FManipulador).Free;
+
+  inherited;
 end;
 
 function TDatabaseManiupulatorMock.DropDatabase(const DatabaseName: String): String;

@@ -203,13 +203,14 @@ procedure TClassLoaderTest.Setup;
 begin
   FObjects := TObjectList<TObject>.Create;
 
-  var Connection := CreateConnection;
   FManager := TPersistoManager.Create(nil);
+
+  var Connection := CreateConnection(FManager);
   FManager.Connection := Connection;
-  FManager.Manipulator := CreateDatabaseManipulator;
-  FManagerInsert := TPersistoManager.Create(nil);
+  FManager.Manipulator := CreateDatabaseManipulator(FManager);
+  FManagerInsert := TPersistoManager.Create(FManager);
   FManagerInsert.Connection := Connection;
-  FManagerInsert.Manipulator := CreateDatabaseManipulator;
+  FManagerInsert.Manipulator := CreateDatabaseManipulator(FManagerInsert);
 
   FManager.CreateDatabase;
 
