@@ -369,7 +369,7 @@ begin
   var Manipulator := TDatabaseManiupulatorMock.Create;
   var Manager := TPersistoManager.Create(nil);
   Manager.Connection := CreateConnection(Manager);
-  Manager.Manipulator := CreateDatabaseManipulator(Manager);
+  Manager.Manipulator := Manipulator;
 
   Manager.Mapper.GetTable(TMyClassWithAllFieldsType);
 
@@ -475,6 +475,8 @@ begin
     end);
 
   Manager.DropDatabase;
+
+  Manager.Free;
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenDropATableMustDropTheForeignKeyFirst;
@@ -501,7 +503,7 @@ procedure TDatabaseSchemaUpdaterTest.WhenDropDatabaseTheDatabaseMustBeDropped;
 begin
   var Manager := TPersistoManager.Create(nil);
   var Connection := CreateConnectionNamed(Manager, 'MyDatabase');
-  Manager.Connection := CreateConnection(Manager);
+  Manager.Connection := Connection;
   Manager.Manipulator := CreateDatabaseManipulator(Manager);
 
   Manager.CreateDatabase;
@@ -515,6 +517,8 @@ begin
     begin
       Connection.OpenCursor('select 1').Next;
     end, Exception);
+
+  Manager.Free;
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheDefaultRecordsArentInTheTableMustBeAllInserted;

@@ -208,7 +208,7 @@ begin
   var Connection := CreateConnection(FManager);
   FManager.Connection := Connection;
   FManager.Manipulator := CreateDatabaseManipulator(FManager);
-  FManagerInsert := TPersistoManager.Create(FManager);
+  FManagerInsert := TPersistoManager.Create(nil);
   FManagerInsert.Connection := Connection;
   FManagerInsert.Manipulator := CreateDatabaseManipulator(FManagerInsert);
 
