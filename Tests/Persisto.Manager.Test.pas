@@ -414,6 +414,11 @@ procedure TManagerTest.PrepareDatabase;
     LazyFilter.LazyField := LazyFieldChild;
 
     FManager.Insert([LazyFilter]);
+
+    var NameLazyField := CreateObject<TNameLazyField>.Create;
+    NameLazyField.Lazy := CreateObject<TNameLazyFieldAnother>.Create;
+    NameLazyField.Lazy.Value.Field := 'Value';
+    FManager.Insert([NameLazyField]);
   end;
 
 begin
@@ -1583,7 +1588,7 @@ end;
 
 procedure TManagerTest.WhenUseALazyFieldInTheFieldMustLoadTheJoinForTheFilterWorks;
 begin
-  var Value := FManager.Select.All.From<TLazyFilter>.Where(Field('LazyField.Field') = 'Value').Open.One;
+  var Value := FManager.Select.All.From<TNameLazyField>.Where(Field('Lazy.Field') = 'Value').Open.One;
 
   Assert.IsNotNil(Value);
 end;

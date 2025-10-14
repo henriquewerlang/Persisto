@@ -1230,6 +1230,33 @@ type
     property Id: String read FId write FId;
   end;
 
+  [Entity]
+  TNameLazyFieldAnother = class
+  private
+    FId: String;
+    FField: String;
+  published
+    [NewUniqueIdentifier, UniqueIdentifier]
+    [FieldName('AnotherName')]
+    property Id: String read FId write FId;
+    [FieldName('MyField')]
+    [Size(150)]
+    property Field: String read FField write FField;
+  end;
+
+  [Entity]
+  TNameLazyField = class
+  private
+    FId: String;
+    FLazy: Lazy<TNameLazyFieldAnother>;
+  published
+    [NewUniqueIdentifier, UniqueIdentifier]
+    [FieldName('MyPrimaryKey')]
+    property Id: String read FId write FId;
+    [FieldName('MyLazyField')]
+    property Lazy: Lazy<TNameLazyFieldAnother> read FLazy write FLazy;
+  end;
+
 implementation
 
 uses System.Internal.ExcUtils;

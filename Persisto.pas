@@ -2087,21 +2087,21 @@ var
 
     SQL.Append(' on ');
 
-    AppendFieldName(ForeignQueryTable, QueryTableField);
+    AppendFieldName(ForeignQueryTable, ForeignField);
 
     SQL.Append('=');
 
-    AppendFieldName(QueryTable, ForeignField);
+    AppendFieldName(QueryTable, QueryTableField);
   end;
 
   procedure MakeForeignKeyJoin(const QueryTable, ForeignQueryTable: TQueryBuilderTable; const LinkField: TField);
   begin
-    MakeJoin(QueryTable, ForeignQueryTable.PrimaryKeyField.Field, ForeignQueryTable, LinkField);
+    MakeJoin(QueryTable, LinkField, ForeignQueryTable, ForeignQueryTable.PrimaryKeyField.Field);
   end;
 
   procedure MakeManyValueAssociationJoin(const QueryTable, ManyValueAssociationTable: TQueryBuilderTable);
   begin
-    MakeJoin(QueryTable, ManyValueAssociationTable.ManyValueAssociationField.ChildField, ManyValueAssociationTable, QueryTable.PrimaryKeyField.Field);
+    MakeJoin(QueryTable, QueryTable.PrimaryKeyField.Field, ManyValueAssociationTable, ManyValueAssociationTable.ManyValueAssociationField.ChildField);
   end;
 
   procedure BuildJoin(const QueryTable: TQueryBuilderTable);
@@ -2158,7 +2158,7 @@ var
 
             QueryTable.LazyTables.Add(LazyTable);
 
-            MakeJoin(CurrentTable, CurrentTable.Table.PrimaryKey, LazyTable, Field);
+            MakeJoin(QueryTable, Field, LazyTable, Field.ForeignKey.ParentTable.PrimaryKey);
 
             Exit(LazyTable);
           end;
@@ -2779,6 +2779,9 @@ end;
 
 destructor TPersistoManager.Destroy;
 begin
+  FConnection := nil;
+  FManipulator := nil;
+
   FProcessedObjects.Free;
 
   FMapper.Free;
