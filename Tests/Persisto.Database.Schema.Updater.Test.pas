@@ -343,9 +343,9 @@ begin
 
   LoadSchemaTables;
 
-  var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyClassWithAllFieldsType') and (Field('Name') = 'DefaultField')).Open.One;
+  var Field := FManager.Select.All.From<TDatabaseField>.Where((Field('Table.Name') = 'MyClassWithAllFieldsType') and (Field('Name') = 'VarChar')).Open.One;
 
-  Assert.AreEqual(30, Field.Size);
+  Assert.AreEqual(250, Field.Size);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenCheckTheSchemaCantRaiseAnyError;
