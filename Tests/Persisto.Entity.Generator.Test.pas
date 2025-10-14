@@ -155,6 +155,8 @@ end;
 
 procedure TGenerateUnitTeste.TearDown;
 begin
+  FManipulator := nil;
+
   if TFile.Exists(FILE_ENTITY) then
     TFile.Delete(FILE_ENTITY);
 

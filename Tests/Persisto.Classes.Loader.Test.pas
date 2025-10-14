@@ -201,16 +201,15 @@ end;
 
 procedure TClassLoaderTest.Setup;
 begin
-  FObjects := TObjectList<TObject>.Create;
-
   FManager := TPersistoManager.Create(nil);
+  FManager.Manipulator := CreateDatabaseManipulator(FManager);
+  FManagerInsert := TPersistoManager.Create(nil);
+  FManagerInsert.Manipulator := CreateDatabaseManipulator(FManagerInsert);
+  FObjects := TObjectList<TObject>.Create;
 
   var Connection := CreateConnection(FManager);
   FManager.Connection := Connection;
-  FManager.Manipulator := CreateDatabaseManipulator(FManager);
-  FManagerInsert := TPersistoManager.Create(nil);
   FManagerInsert.Connection := Connection;
-  FManagerInsert.Manipulator := CreateDatabaseManipulator(FManagerInsert);
 
   FManager.CreateDatabase;
 
@@ -223,9 +222,9 @@ begin
 
   FObjects.Free;
 
-  FManager.Free;
-
   FManagerInsert.Free;
+
+  FManager.Free;
 end;
 
 procedure TClassLoaderTest.TheChildOfAChildObjectMustBeLoadedAsExpected;
