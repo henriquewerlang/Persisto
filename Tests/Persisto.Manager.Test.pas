@@ -174,6 +174,8 @@ type
     procedure WhenRemoveAnObjectMustStartATransaction;
     [Test]
     procedure WhenDeleteAnObjectMustRemoveOnlyThisObject;
+    [Test]
+    procedure WhenSelectingANamedLazyFieldMustLoadTheJoinsAsExpectedAndLoadTheValueHasExpected;
   end;
 
   TDatabaseConnectionMock = class(TComponent, IDatabaseConnection)
@@ -1156,6 +1158,13 @@ begin
   Assert.AreEqual(1, Length(Result));
 end;
 
+procedure TManagerTest.WhenSelectingANamedLazyFieldMustLoadTheJoinsAsExpectedAndLoadTheValueHasExpected;
+begin
+  var Value := FManager.Select.All.From<TNameLazyField>.Where(Field('Lazy.Field') = 'Value').Open.One;
+
+  Assert.IsNotNil(Value);
+end;
+
 procedure TManagerTest.WhenTheOrderByClauseAsAnForeignKeyObjectTheOrderByMustBeOrderAsExpected;
 begin
   var Open := FManager.Select.All.From<TInsertTestWithForeignKey>.Where(Field('Value') = 100).OrderBy.Field('FK1').Open;
@@ -1588,7 +1597,7 @@ end;
 
 procedure TManagerTest.WhenUseALazyFieldInTheFieldMustLoadTheJoinForTheFilterWorks;
 begin
-  var Value := FManager.Select.All.From<TNameLazyField>.Where(Field('Lazy.Field') = 'Value').Open.One;
+  var Value := FManager.Select.All.From<TLazyFilter>.Where(Field('LazyField.Field') = 'Value').Open.One;
 
   Assert.IsNotNil(Value);
 end;
