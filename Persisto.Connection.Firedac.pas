@@ -2,7 +2,7 @@
 
 interface
 
-uses System.Classes, Data.DB, FireDAC.Comp.Client, Persisto;
+uses System.Classes, System.SysUtils, Data.DB, FireDAC.Comp.Client, Persisto;
 
 type
   TDatabaseCursorFireDAC = class(TInterfacedObject, IDatabaseCursor)
@@ -20,8 +20,9 @@ type
 
   TDatabaseTransactionFireDAC = class(TDatabaseTransaction, IDatabaseTransaction)
   private
-    FConnection: TFDConnection;
+    FTransaction: TFDTransaction;
 
+    procedure FinishTransaction(const Proc: TProc);
     procedure Commit;
     procedure Rollback;
   public
@@ -46,7 +47,7 @@ type
 
 implementation
 
-uses System.SysUtils, FireDAC.Stan.Option, FireDAC.Stan.Def, FireDAC.Stan.Async, FireDAC.DApt, FireDAC.Phys.Intf, FireDAC.Stan.Intf, FireDAC.Comp.Script, FireDAC.Comp.ScriptCommands, FireDAC.UI.Intf;
+uses FireDAC.Stan.Option, FireDAC.Stan.Def, FireDAC.Stan.Async, FireDAC.DApt, FireDAC.Phys.Intf, FireDAC.Stan.Intf, FireDAC.Comp.Script, FireDAC.Comp.ScriptCommands, FireDAC.UI.Intf;
 
 { TDatabaseCursorFireDAC }
 
@@ -151,21 +152,32 @@ end;
 
 procedure TDatabaseTransactionFireDAC.Commit;
 begin
-  FConnection.Commit;
+  FinishTransaction(FTransaction.Commit);
 end;
 
 constructor TDatabaseTransactionFireDAC.Create(const Connection: TFDConnection);
 begin
   inherited Create;
 
-  FConnection := Connection;
+  FTransaction := TFDTransaction.Create(Connection);
+  FTransaction.Connection := Connection;
 
-  FConnection.StartTransaction;
+  FTransaction.StartTransaction;
+end;
+
+procedure TDatabaseTransactionFireDAC.FinishTransaction(const Proc: TProc);
+begin
+  if Assigned(FTransaction) then
+    try
+      Proc();
+    finally
+      FreeAndNil(FTransaction);
+    end;
 end;
 
 procedure TDatabaseTransactionFireDAC.Rollback;
 begin
-  FConnection.Rollback;
+  FinishTransaction(FTransaction.Rollback);
 end;
 
 end.
