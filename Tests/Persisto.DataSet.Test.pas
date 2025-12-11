@@ -160,6 +160,8 @@ type
     procedure WhenFillTheValueOfAnComplexFieldMustLoadTheValueOfTheLastFieldAsExpected;
     [Test]
     procedure WhenCancelTheDataSetCantRaiseAnyError;
+    [Test]
+    procedure WhenPostTheDataSetMustTheCurrentRecordBeInTheCorrectPosition;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -994,6 +996,33 @@ begin
   FDataSet.Post;
 
   Assert.IsNotNil(FDataSet.Objects[0]);
+end;
+
+procedure TPersistoDataSetTest.WhenPostTheDataSetMustTheCurrentRecordBeInTheCorrectPosition;
+begin
+  FDataSet.ObjectClass := TMyTestClass;
+
+  FDataSet.Open;
+
+  FDataSet.Insert;
+
+  FDataSet.FieldByName('Name').AsString := 'a';
+
+  FDataSet.Post;
+
+  FDataSet.Insert;
+
+  FDataSet.FieldByName('Name').AsString := 'b';
+
+  FDataSet.Post;
+
+  FDataSet.Insert;
+
+  FDataSet.FieldByName('Name').AsString := 'c';
+
+  FDataSet.Post;
+
+  Assert.AreEqual('c', FDataSet.FieldByName('Name').AsString);
 end;
 
 procedure TPersistoDataSetTest.WhenPostTheRecordInTheDataSetMustKeepTheObjectInsideTheDataSet;
