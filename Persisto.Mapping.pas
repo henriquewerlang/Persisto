@@ -213,6 +213,10 @@ type
     procedure SetArrayElementInternal(Index: Integer; const Value: TValue); inline;
     procedure SetArrayLengthInternal(const Size: Integer); inline;
   public
+{$IF CompilerVersion < 37.0}
+    class function From(ATypeInfo: PTypeInfo; const Value): TValue; overload; inline; static;
+{$IFEND}
+
     property ArrayElement[Index: Integer]: TValue read GetArrayElementInternal write SetArrayElementInternal;
     property ArrayLength: Integer read GetArrayLengthInternal write SetArrayLengthInternal;
   end;
@@ -446,6 +450,13 @@ begin
 end;
 
 { TValueHelper }
+
+{$IF CompilerVersion < 37.0}
+class function TValueHelper.From(ATypeInfo: PTypeInfo; const Value): TValue;
+begin
+  Make(@Value, ATypeInfo, Result);
+end;
+{$ENDIF}
 
 function TValueHelper.GetArrayElementInternal(Index: Integer): TValue;
 begin
