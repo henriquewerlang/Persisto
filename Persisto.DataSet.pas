@@ -17,6 +17,11 @@ type
     constructor Create;
   end;
 
+  EDataSetWithoutClassDefinitionLoaded = class(Exception)
+  public
+    constructor Create;
+  end;
+
   TPersistoBuffer = class
   public
     CurrentObject: TObject;
@@ -54,11 +59,6 @@ type
     constructor Create(const DataSet: TPersistoDataSet);
   end;
 
-  TPersistoFieldList = class(TFieldList)
-  protected
-    function FindItem(const Name: string; MustExist: Boolean): TObject; override;
-  end;
-
 {$IFDEF DCC}
   [ComponentPlatformsAttribute(pidAllPlatforms)]
 {$ENDIF}
@@ -86,12 +86,10 @@ type
   protected
     function AllocRecordBuffer: TRecordBuffer; override;
     function GetFieldClass(FieldDef: TFieldDef): TFieldClass; overload; override;
-    function GetFieldListClass: TFieldListClass; override;
     function GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function GetRecordCount: Integer; override;
     function IsCursorOpen: Boolean; override;
 
-    procedure CheckInactive; override;
     procedure ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf); override;
     procedure DataConvert(Field: TField; Source: TValueBuffer; var Dest: TValueBuffer; ToNative: Boolean); override;
     procedure FreeRecordBuffer(var Buffer: TRecordBuffer); override;
@@ -163,7 +161,7 @@ type
 
 implementation
 
-uses System.Math, Persisto.Mapping, {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF};
+uses System.Math, Persisto.Mapping, Data.DBConsts, {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF};
 
 type
   TFieldHelper = class helper for TField
@@ -181,12 +179,6 @@ end;
 function TPersistoDataSet.BookmarkValid(Bookmark: TBookmark): Boolean;
 begin
   Result := True;
-end;
-
-procedure TPersistoDataSet.CheckInactive;
-begin
-  if not TPersistoFieldList(FieldList).Locked then
-    inherited;
 end;
 
 procedure TPersistoDataSet.CheckManagerLoaded;
@@ -251,7 +243,9 @@ begin
   if not ObjectClassName.IsEmpty then
     FObjectTable := Manager.Mapper.GetTable(ObjectClassName)
   else if Assigned(ObjectClass) then
-    FObjectTable := Manager.Mapper.GetTable(ObjectClass);
+    FObjectTable := Manager.Mapper.GetTable(ObjectClass)
+  else
+    raise EDataSetWithoutClassDefinitionLoaded.Create;
 
   CheckObjectTypeLoaded;
 end;
@@ -296,18 +290,6 @@ function TPersistoDataSet.GetFieldData(Field: TField; var Buffer: TValueBuffer):
 var
   Value: TValue;
 
-  procedure CheckBufferSize;
-  begin
-    if Length(FIOBuffer) < Field.GetBufferSize then
-      SetLength(FIOBuffer, Field.GetBufferSize);
-
-    Buffer := FIOBuffer;
-{$IFDEF DEBUG}
-
-    FillChar(Buffer[0], Length(Buffer), 0);
-{$ENDIF}
-  end;
-
 begin
   Result := Field.FieldKind <> fkCalculated;
 
@@ -344,9 +326,6 @@ begin
       Result := CurrentTable.Field[FieldValueName].HasValue(CurrentInstance, Value);
 
       if Result then
-      begin
-        CheckBufferSize;
-
         if Field is TWideStringField then
         begin
           var StringValue := Value.AsString + #0;
@@ -355,14 +334,8 @@ begin
         end
         else
           Value.ExtractRawData(@Buffer[0]);
-      end;
     end;
   end;
-end;
-
-function TPersistoDataSet.GetFieldListClass: TFieldListClass;
-begin
-  Result := TPersistoFieldList;
 end;
 
 function TPersistoDataSet.GetObjects: TArray<TObject>;
@@ -455,9 +428,21 @@ begin
 end;
 
 procedure TPersistoDataSet.InternalInitFieldDefs;
+
+  function GetFieldSize(const Field: Persisto.TField): Integer;
+  begin
+    case Field.DatabaseType of
+      ftGUID: Result := dsGuidStringLength;
+      ftString, ftWideString: Result := Max(Field.Size, 1);
+      else Result := 0;
+    end;
+  end;
+
 begin
-  if not (csDesigning in ComponentState) then
-    LoadObjectTable;
+  LoadObjectTable;
+
+  for var Field in FObjectTable.Fields do
+    TFieldDef.Create(FieldDefs, Field.Name, Field.DatabaseType, GetFieldSize(Field), False, FieldDefs.Count);
 end;
 
 procedure TPersistoDataSet.InternalLast;
@@ -467,17 +452,17 @@ end;
 
 procedure TPersistoDataSet.InternalOpen;
 begin
-  if csDesigning in ComponentState then
-    Exit;
-
-  if not FieldDefs.Updated then
-    FieldDefs.Update;
-
-  LoadCursor;
+  FieldDefs.Updated := False;
 
   InitFieldDefsFromFields;
 
+  FieldDefs.Update;
+
+  CreateFields;
+
   BindFields(True);
+
+  LoadCursor;
 end;
 
 procedure TPersistoDataSet.InternalPost;
@@ -550,7 +535,7 @@ end;
 
 constructor EDataSetWithoutObjectDefinition.Create;
 begin
-  inherited Create('Must load a object information property like ObjectClass or ObjectClassName!');
+  inherited Create('The class definition wasn''t found!');
 end;
 
 { TPersistoCursor }
@@ -609,37 +594,6 @@ begin
   FDataSet.FObjectList[FCurrentPosition] := Value;
 end;
 
-{ TPersistoFieldList }
-
-function TPersistoFieldList.FindItem(const Name: string; MustExist: Boolean): TObject;
-
-  function GetFieldSize(const Field: Persisto.TField): Integer;
-  begin
-    case Field.DatabaseType of
-      ftGUID: Result := dsGuidStringLength;
-      ftString, ftWideString: Result := Max(Field.Size, 1);
-      else Result := 0;
-    end;
-  end;
-
-begin
-  Result := inherited FindItem(Name, False);
-
-  if not Assigned(Result) then
-  begin
-    var Field := TPersistoDataSet(DataSet).FObjectTable.Field[Name];
-    var FieldDef := TFieldDef.Create(DataSet.FieldDefs, Name, Field.DatabaseType, GetFieldSize(Field), False, DataSet.FieldDefs.Count);
-
-    Locked := True;
-
-    var DataSetField := FieldDef.CreateField(DataSet);
-    DataSetField.DataSet := DataSet;
-
-    Locked := False;
-    Result := DataSetField;
-  end;
-end;
-
 { EDataSetWithoutManager }
 
 constructor EDataSetWithoutManager.Create;
@@ -652,6 +606,13 @@ end;
 function TFieldHelper.GetBufferSize: Integer;
 begin
   Result := GetIOSize;
+end;
+
+{ EDataSetWithoutClassDefinitionLoaded }
+
+constructor EDataSetWithoutClassDefinitionLoaded.Create;
+begin
+  inherited Create('Must load a object information property like ObjectClass or ObjectClassName!');
 end;
 
 end.

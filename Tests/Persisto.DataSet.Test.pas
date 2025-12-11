@@ -91,7 +91,7 @@ type
     [Test]
     procedure WhenTheFieldIsStringTypeTheSizeMustBeTheValueFromAttribute;
     [Test]
-    procedure WhenLoadAnInvalidClassNameInThePropertyCantRaiseAnyError;
+    procedure WhenLoadTheClassNameWithAnInvalidClassNameMustRaiseAnError;
     [Test]
     procedure WhenTryToLoadTheClassNameAndTheTypeDontExistsMustRaiseAnError;
     [Test]
@@ -115,9 +115,7 @@ type
     [Test]
     procedure WhenFillTheObjectListWithAnEmptyValueMustEmptyTheDataSet;
     [Test]
-    procedure WhenTryToOpenTheDataSetInDesigningTimeCantRaiseAnyError;
-    [Test]
-    procedure WhenTryToGetTheFieldListInDesigningTimeCantRaiseAnyError;
+    procedure WhenTryToOpenTheDataSetWithoutClassInformationMustRaiseError;
     [Test]
     procedure WhenLoadACalculatedFieldCantRaiseAnyError;
     [Test]
@@ -991,13 +989,15 @@ begin
     end);
 end;
 
-procedure TPersistoDataSetTest.WhenLoadAnInvalidClassNameInThePropertyCantRaiseAnyError;
+procedure TPersistoDataSetTest.WhenLoadTheClassNameWithAnInvalidClassNameMustRaiseAnError;
 begin
-  Assert.WillNotRaise(
+  FDataSet.ObjectClassName := 'InvalidType';
+
+  Assert.WillRaise(
     procedure
     begin
-      FDataSet.ObjectClassName := 'InvalidType';
-    end);
+      FDataSet.Open;
+    end, EDataSetWithoutObjectDefinition);
 end;
 
 procedure TPersistoDataSetTest.WhenLoadTheObjectClassNameMustOpenWithoutAnyError;
@@ -1164,17 +1164,6 @@ begin
     end);
 end;
 
-procedure TPersistoDataSetTest.WhenTryToGetTheFieldListInDesigningTimeCantRaiseAnyError;
-begin
-  TPersistoDataSetHack(FDataSet).SetDesigning(True);
-
-  Assert.WillNotRaise(
-    procedure
-    begin
-      FDataSet.FieldDefs.Update;
-    end);
-end;
-
 procedure TPersistoDataSetTest.WhenTryToLoadTheClassNameAndTheTypeDontExistsMustRaiseAnError;
 begin
   FDataSet.ObjectClassName := 'InvalidType';
@@ -1186,16 +1175,21 @@ begin
     end, EDataSetWithoutObjectDefinition);
 end;
 
-procedure TPersistoDataSetTest.WhenTryToOpenTheDataSetInDesigningTimeCantRaiseAnyError;
-begin
-  TPersistoDataSetHack(FDataSet).SetDesigning(True);
-
-  Assert.WillNotRaise(FDataSet.Open);
-end;
-
 procedure TPersistoDataSetTest.WhenTryToOpenTheDataSetWithoutAnObjectInformationMustRaiseAnError;
 begin
-  Assert.WillRaise(FDataSet.Open, EDataSetWithoutObjectDefinition);
+  Assert.WillRaise(FDataSet.Open, EDataSetWithoutClassDefinitionLoaded);
+end;
+
+procedure TPersistoDataSetTest.WhenTryToOpenTheDataSetWithoutClassInformationMustRaiseError;
+begin
+  FDataSet.ObjectClass := nil;
+  FDataSet.ObjectClassName := EmptyStr;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      FDataSet.Open;
+    end, EDataSetWithoutClassDefinitionLoaded);
 end;
 
 procedure TPersistoDataSetTest.WhenUpdateTheFieldDefsCantRaiseAnyError;
