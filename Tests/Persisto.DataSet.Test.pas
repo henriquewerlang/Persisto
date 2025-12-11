@@ -158,6 +158,8 @@ type
     procedure WhenCheckIfTheFieldIsNullCantRaiseAnyError;
     [Test]
     procedure WhenFillTheValueOfAnComplexFieldMustLoadTheValueOfTheLastFieldAsExpected;
+    [Test]
+    procedure WhenCancelTheDataSetCantRaiseAnyError;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -427,6 +429,21 @@ begin
   Assert.AreEqual('Name1', FDataSet.FieldByName('Name').AsString);
 
   MyList.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenCancelTheDataSetCantRaiseAnyError;
+begin
+  FDataSet.ObjectClass := TMyTestClass;
+
+  FDataSet.Open;
+
+  FDataSet.Insert;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FDataSet.Cancel;
+    end);
 end;
 
 procedure TPersistoDataSetTest.WhenCheckIfTheFieldIsNullCantRaiseAnyError;

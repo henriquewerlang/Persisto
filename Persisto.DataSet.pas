@@ -354,7 +354,7 @@ var
 
   procedure UpdateBuffer(const Update: Boolean; const ResultValue: TGetResult);
   begin
-    if Update then
+    if Update and not FObjectList.IsEmpty then
     begin
       PersistoBuffer.CurrentObject := FCursor.CurrentObject;
       Result := grOk;
