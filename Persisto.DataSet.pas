@@ -303,10 +303,12 @@ begin
         if PersistoField.HasValue(Instance, Value) then
           Instance := Value.AsObject
         else
-          Exit(False);
+          Instance := nil;
     end;
 
-    if Assigned(Instance) then
+    Result := Assigned(Instance);
+
+    if Result then
       PersistoField := CurrentTable.Field[FieldValueName];
   end;
 end;

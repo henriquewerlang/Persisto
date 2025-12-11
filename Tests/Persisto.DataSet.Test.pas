@@ -162,6 +162,8 @@ type
     procedure WhenCancelTheDataSetCantRaiseAnyError;
     [Test]
     procedure WhenPostTheDataSetMustTheCurrentRecordBeInTheCorrectPosition;
+    [Test]
+    procedure WhenTryToGetTheValueOfAFieldAndTheDataSetIsEmptyCantRaiseAnyError;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -1300,6 +1302,19 @@ begin
     procedure
     begin
       FDataSet.FieldByName('Name').AsString;
+    end);
+end;
+
+procedure TPersistoDataSetTest.WhenTryToGetTheValueOfAFieldAndTheDataSetIsEmptyCantRaiseAnyError;
+begin
+  FDataSet.ObjectClass := TMyEntityWithAllTypeOfFields;
+
+  FDataSet.Open;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FDataSet.Fields[0].AsString;
     end);
 end;
 
