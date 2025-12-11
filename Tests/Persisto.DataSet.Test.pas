@@ -148,6 +148,14 @@ type
     procedure WhenFillTheActiveObjectMustTriggerTheRecordChangedEvent;
     [Test]
     procedure WhenPostTheDataSetMustLoadTheInsertingObjectInTheObjectList;
+    [Test]
+    procedure WhenFillAFieldValueAndTheDataSetNotEditingModeMustRaiseAnError;
+    [Test]
+    procedure WhenFillTheValueOfOneFieldMustLoadTheValueInTheObjectProperty;
+    [Test]
+    procedure WhenFillTheValueOfAnIntegerFieldMustLoadTheValueInTheObjectProperty;
+    [Test]
+    procedure WhenCheckIfTheFieldIsNullCantRaiseAnyError;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -419,6 +427,23 @@ begin
   MyList.Free;
 end;
 
+procedure TPersistoDataSetTest.WhenCheckIfTheFieldIsNullCantRaiseAnyError;
+begin
+  var MyObject := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  FDataSet.Edit;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FDataSet.FieldByName('Id').IsNull;
+    end);
+end;
+
 procedure TPersistoDataSetTest.WhenCompareTwoBookmarksAndTheFirstIsAfterTheSecondMustReturnAPositiveValueInTheComparingFunction;
 begin
   FDataSet.Objects := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
@@ -518,6 +543,21 @@ begin
   FDataSet.Open;
 
   Assert.AreEqual(TimeToStr(TheTime), TimeToStr(Field.AsDateTime));
+end;
+
+procedure TPersistoDataSetTest.WhenFillAFieldValueAndTheDataSetNotEditingModeMustRaiseAnError;
+begin
+  var MyObject := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      FDataSet.FieldByName('Name').AsString := 'Value';
+    end, EDatabaseError);
 end;
 
 procedure TPersistoDataSetTest.WhenFillAnEmptyClassNameCantRaiseAnyError;
@@ -654,6 +694,36 @@ begin
   Assert.AreEqual(0, FDataSet.RecordCount);
 
   MyObject.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenFillTheValueOfAnIntegerFieldMustLoadTheValueInTheObjectProperty;
+begin
+  var MyObject := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  FDataSet.Edit;
+
+  FDataSet.FieldByName('Id').AsInteger := 123;
+
+  Assert.AreEqual(123, MyObject.Id);
+end;
+
+procedure TPersistoDataSetTest.WhenFillTheValueOfOneFieldMustLoadTheValueInTheObjectProperty;
+begin
+  var MyObject := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  FDataSet.Edit;
+
+  FDataSet.FieldByName('Name').AsString := 'Value';
+
+  Assert.AreEqual('Value', MyObject.Name);
 end;
 
 procedure TPersistoDataSetTest.WhenGetABookmarkAndCallTheGoToBookmarkMustGoToThePositionHasExpected;

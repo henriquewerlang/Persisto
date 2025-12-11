@@ -66,7 +66,6 @@ type
   private
     FCursor: TPersistoCursor;
     FInsertingObject: TObject;
-    FIOBuffer: TValueBuffer;
     FManager: TPersistoManager;
     FObjectClass: TClass;
     FObjectClassName: String;
@@ -325,7 +324,7 @@ begin
     begin
       Result := CurrentTable.Field[FieldValueName].HasValue(CurrentInstance, Value);
 
-      if Result then
+      if Result and (Buffer <> nil) then
         if Field is TWideStringField then
         begin
           var StringValue := Value.AsString + #0;
@@ -498,7 +497,18 @@ end;
 
 procedure TPersistoDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer);
 begin
+  if not (State in dsWriteModes) then
+    DatabaseError(SNotEditing, Self);
 
+  var CurrentField := FObjectTable.Field[Field.FieldName];
+  var Value: TValue;
+
+  if Field is TWideStringField then
+    Value := TValue.From(String(PWideChar(Buffer)))
+  else
+    Value := TValue.From(CurrentField.FieldType.Handle, Buffer[0]);
+
+  CurrentField.Value[CurrentObject] := Value;
 end;
 
 procedure TPersistoDataSet.SetObjects(const Value: TArray<TObject>);
