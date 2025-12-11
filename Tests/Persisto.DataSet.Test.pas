@@ -156,6 +156,8 @@ type
     procedure WhenFillTheValueOfAnIntegerFieldMustLoadTheValueInTheObjectProperty;
     [Test]
     procedure WhenCheckIfTheFieldIsNullCantRaiseAnyError;
+    [Test]
+    procedure WhenFillTheValueOfAnComplexFieldMustLoadTheValueOfTheLastFieldAsExpected;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -694,6 +696,27 @@ begin
   Assert.AreEqual(0, FDataSet.RecordCount);
 
   MyObject.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenFillTheValueOfAnComplexFieldMustLoadTheValueOfTheLastFieldAsExpected;
+begin
+  var Field := TWideStringField.Create(FDataSet);
+  Field.FieldName := 'AnotherObject.AnotherObject.AnotherName';
+  var MyObject := TMyTestClass.Create;
+  MyObject.AnotherObject := TAnotherObject.Create;
+  MyObject.AnotherObject.AnotherObject := TAnotherObject.Create;
+
+  Field.SetParentComponent(FDataSet);
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  FDataSet.Edit;
+
+  FDataSet.FieldByName('AnotherObject.AnotherObject.AnotherName').AsString := 'abc';
+
+  Assert.AreEqual('abc', MyObject.AnotherObject.AnotherObject.AnotherName);
 end;
 
 procedure TPersistoDataSetTest.WhenFillTheValueOfAnIntegerFieldMustLoadTheValueInTheObjectProperty;

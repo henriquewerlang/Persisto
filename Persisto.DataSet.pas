@@ -74,6 +74,7 @@ type
 
     function GetActivePersistoBuffer: TPersistoBuffer;
     function GetActiveObject: TObject;
+    function GetFieldAndInstance(const Field: TField; var Instance: TObject; var PersistoField: Persisto.TField): Boolean;
     function GetObjects: TArray<TObject>;
 
     procedure CheckManagerLoaded;
@@ -277,6 +278,39 @@ begin
   Result := CurrentObject as T;
 end;
 
+function TPersistoDataSet.GetFieldAndInstance(const Field: TField; var Instance: TObject; var PersistoField: Persisto.TField): Boolean;
+begin
+  Result := Field.FieldKind <> fkCalculated;
+
+  if Result then
+  begin
+    var CurrentTable := FObjectTable;
+    Instance := CurrentObject;
+    var ObjectFieldNames := Field.FieldName.Split(['.']);
+    PersistoField := nil;
+    var Value: TValue;
+
+    var FieldValueName := ObjectFieldNames[High(ObjectFieldNames)];
+
+    SetLength(ObjectFieldNames, High(ObjectFieldNames));
+
+    for var FieldName in ObjectFieldNames do
+    begin
+      PersistoField := CurrentTable.Field[FieldName];
+      CurrentTable := PersistoField.ForeignKey.ParentTable;
+
+      if Assigned(Instance) then
+        if PersistoField.HasValue(Instance, Value) then
+          Instance := Value.AsObject
+        else
+          Exit(False);
+    end;
+
+    if Assigned(Instance) then
+      PersistoField := CurrentTable.Field[FieldValueName];
+  end;
+end;
+
 function TPersistoDataSet.GetFieldClass(FieldDef: TFieldDef): TFieldClass;
 begin
   if FieldDef.DataType = ftObject then
@@ -286,54 +320,26 @@ begin
 end;
 
 function TPersistoDataSet.GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean;
-var
-  Value: TValue;
-
 begin
-  Result := Field.FieldKind <> fkCalculated;
+  var CurrentField: Persisto.TField := nil;
+  var CurrentInstance: TObject := nil;
+  Result := GetFieldAndInstance(Field, CurrentInstance, CurrentField);
 
   if Result then
   begin
-    var CurrentField: Persisto.TField;
-    var CurrentInstance := CurrentObject;
-    var CurrentTable := FObjectTable;
-    var ObjectFieldNames := Field.FieldName.Split(['.']);
-    Result := False;
+    var Value: TValue;
 
-    var FieldValueName := ObjectFieldNames[High(ObjectFieldNames)];
+    Result := CurrentField.HasValue(CurrentInstance, Value);
 
-    SetLength(ObjectFieldNames, High(ObjectFieldNames));
+    if Result and (Buffer <> nil) then
+      if Field is TWideStringField then
+      begin
+        var StringValue := Value.AsString + #0;
 
-    for var FieldName in ObjectFieldNames do
-    begin
-      CurrentField := CurrentTable.Field[FieldName];
-      CurrentTable := CurrentField.ForeignKey.ParentTable;
-
-      if Assigned(CurrentInstance) then
-        if CurrentField.HasValue(CurrentInstance, Value) then
-          CurrentInstance := Value.AsObject
-        else
-        begin
-          CurrentInstance := nil;
-
-          Break;
-        end;
-    end;
-
-    if Assigned(CurrentInstance) then
-    begin
-      Result := CurrentTable.Field[FieldValueName].HasValue(CurrentInstance, Value);
-
-      if Result and (Buffer <> nil) then
-        if Field is TWideStringField then
-        begin
-          var StringValue := Value.AsString + #0;
-
-          StrLCopy(PWideChar(@Buffer[0]), @StringValue[1], StringValue.Length)
-        end
-        else
-          Value.ExtractRawData(@Buffer[0]);
-    end;
+        StrLCopy(PWideChar(@Buffer[0]), @StringValue[1], StringValue.Length)
+      end
+      else
+        Value.ExtractRawData(@Buffer[0]);
   end;
 end;
 
@@ -500,15 +506,19 @@ begin
   if not (State in dsWriteModes) then
     DatabaseError(SNotEditing, Self);
 
-  var CurrentField := FObjectTable.Field[Field.FieldName];
+  var CurrentField: Persisto.TField := nil;
+  var CurrentInstance: TObject := nil;
   var Value: TValue;
 
-  if Field is TWideStringField then
-    Value := TValue.From(String(PWideChar(Buffer)))
-  else
-    Value := TValue.From(CurrentField.FieldType.Handle, Buffer[0]);
+  if GetFieldAndInstance(Field, CurrentInstance, CurrentField) then
+  begin
+    if Field is TWideStringField then
+      Value := TValue.From(String(PWideChar(Buffer)))
+    else
+      Value := TValue.From(CurrentField.FieldType.Handle, Buffer[0]);
 
-  CurrentField.Value[CurrentObject] := Value;
+    CurrentField.Value[CurrentInstance] := Value;
+  end;
 end;
 
 procedure TPersistoDataSet.SetObjects(const Value: TArray<TObject>);
