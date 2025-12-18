@@ -260,6 +260,8 @@ end;
 
 function TPersistoDataSet.GetActiveObject: TObject;
 begin
+  CheckActive;
+
   Result := ActivePersistoBuffer.CurrentObject;
 end;
 

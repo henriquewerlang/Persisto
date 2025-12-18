@@ -164,6 +164,8 @@ type
     procedure WhenPostTheDataSetMustTheCurrentRecordBeInTheCorrectPosition;
     [Test]
     procedure WhenTryToGetTheValueOfAFieldAndTheDataSetIsEmptyCantRaiseAnyError;
+    [Test]
+    procedure WhenTryToGetTheCurrentObjectInAnInactiveDataSetMustRaiseNotOpenError;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -1303,6 +1305,15 @@ begin
     begin
       FDataSet.FieldByName('Name').AsString;
     end);
+end;
+
+procedure TPersistoDataSetTest.WhenTryToGetTheCurrentObjectInAnInactiveDataSetMustRaiseNotOpenError;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      FDataSet.GetCurrentObject<TObject>;
+    end, EDatabaseError);
 end;
 
 procedure TPersistoDataSetTest.WhenTryToGetTheValueOfAFieldAndTheDataSetIsEmptyCantRaiseAnyError;
