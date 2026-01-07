@@ -29,9 +29,17 @@ type
 
   TPersistoObjectField = class(TField)
   private
+    FIOBuffer: TValueBuffer;
+
+    function GetAsNativeInt: NativeInt;
     function GetAsObject: TObject;
 
     procedure SetAsObject(const Value: TObject);
+    procedure SetAsNativeInt(const Value: NativeInt);
+  protected
+    function GetAsVariant: Variant; override;
+
+    procedure SetVarValue(const Value: Variant); override;
   public
     constructor Create(AOwner: TComponent); override;
 
@@ -161,7 +169,7 @@ type
 
 implementation
 
-uses System.Math, Persisto.Mapping, Data.DBConsts, {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF};
+uses System.Math, System.Variants, Persisto.Mapping, Data.DBConsts, {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF};
 
 type
   TFieldHelper = class helper for TField
@@ -519,7 +527,7 @@ begin
     if Field is TWideStringField then
       Value := TValue.From(String(PWideChar(Buffer)))
     else
-      Value := TValue.From(CurrentField.FieldType.Handle, Buffer[0]);
+      Value := TValue.From(CurrentField.PropertyInfo.PropertyType.Handle, Buffer[0]);
 
     CurrentField.Value[CurrentInstance] := Value;
   end;
@@ -543,7 +551,16 @@ constructor TPersistoObjectField.Create(AOwner: TComponent);
 begin
   inherited;
 
+  SetLength(FIOBuffer, SizeOf(NativeInt));
+
   SetDataType(ftObject);
+end;
+
+function TPersistoObjectField.GetAsNativeInt: NativeInt;
+begin
+  GetData(FIOBuffer, True);
+
+  Result := PNativeInt(@FIOBuffer[0])^;
 end;
 
 function TPersistoObjectField.GetAsObject: TObject;
@@ -551,8 +568,25 @@ begin
   Result := nil;
 end;
 
+function TPersistoObjectField.GetAsVariant: Variant;
+begin
+  Result := GetAsNativeInt;
+end;
+
+procedure TPersistoObjectField.SetAsNativeInt(const Value: NativeInt);
+begin
+  Move(Value, FIOBuffer[0], SizeOf(Value));
+
+  SetData(FIOBuffer, True);
+end;
+
 procedure TPersistoObjectField.SetAsObject(const Value: TObject);
 begin
+end;
+
+procedure TPersistoObjectField.SetVarValue(const Value: Variant);
+begin
+  SetAsNativeInt(Value);
 end;
 
 { EDataSetWithoutObjectDefinition }

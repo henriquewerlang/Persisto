@@ -166,6 +166,12 @@ type
     procedure WhenTryToGetTheValueOfAFieldAndTheDataSetIsEmptyCantRaiseAnyError;
     [Test]
     procedure WhenTryToGetTheCurrentObjectInAnInactiveDataSetMustRaiseNotOpenError;
+    [Test]
+    procedure WhenFillTheObjectFieldWithTheVariantValueCantRaiseAnyError;
+    [Test]
+    procedure WhenTryToGetTheValueTheObjectFieldCantRaiseAnyError;
+    [Test]
+    procedure WhenFillTheObjectFieldMustLoadTheValueInTheFieldHasExpected;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -645,6 +651,40 @@ begin
   Assert.IsFalse(FDataSetLink.Events.IsEmpty);
 
   Assert.AreEqual(deRecordChange, FDataSetLink.Events.First);
+end;
+
+procedure TPersistoDataSetTest.WhenFillTheObjectFieldMustLoadTheValueInTheFieldHasExpected;
+begin
+  FDataSet.ObjectClass := TMyTestClassTypes;
+  var AObject := TMyTestClass.Create;
+
+  FDataSet.Open;
+
+  FDataSet.Edit;
+
+  FDataSet.FieldByName('Class').AsVariant := NativeInt(AObject);
+
+  Assert.AreEqual(NativeInt(AObject), FDataSet.FieldByName('Class').AsVariant);
+
+  AObject.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenFillTheObjectFieldWithTheVariantValueCantRaiseAnyError;
+begin
+  var AObject := TMyTestClass.Create;
+  FDataSet.ObjectClass := TMyTestClassTypes;
+
+  FDataSet.Open;
+
+  FDataSet.Edit;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FDataSet.FieldByName('Class').AsVariant := NativeInt(AObject);
+    end);
+
+  AObject.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenFillTheObjectListAndOpenTheDataSetTheRecordCountMustBeEqualTheLengthOfTheObjectList;
@@ -1326,6 +1366,19 @@ begin
     procedure
     begin
       FDataSet.Fields[0].AsString;
+    end);
+end;
+
+procedure TPersistoDataSetTest.WhenTryToGetTheValueTheObjectFieldCantRaiseAnyError;
+begin
+  FDataSet.ObjectClass := TMyTestClassTypes;
+
+  FDataSet.Open;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FDataSet.FieldByName('Class').AsVariant;
     end);
 end;
 
