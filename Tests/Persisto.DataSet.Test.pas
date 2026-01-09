@@ -172,6 +172,14 @@ type
     procedure WhenTryToGetTheValueTheObjectFieldCantRaiseAnyError;
     [Test]
     procedure WhenFillTheObjectFieldMustLoadTheValueInTheFieldHasExpected;
+    [Test]
+    procedure TheFieldClassOfDataSetFieldMustBeThePersistoMasterField;
+    [Test]
+    procedure WhenOpenANestedDataSetCantRaiseAnyError;
+    [Test]
+    procedure WhenOpenANestedDataSetMustLoadAllFieldFromTheArrayTypeField;
+    [Test]
+    procedure WhenOpenTheNestedDataSetMustLoadAllObjectsFromTheArrayInTheDataSet;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -364,6 +372,15 @@ end;
 procedure TPersistoDataSetTest.TheBookmarkValidMustReturnTrue;
 begin
   Assert.IsTrue(FDataSet.BookmarkValid(nil));
+end;
+
+procedure TPersistoDataSetTest.TheFieldClassOfDataSetFieldMustBeThePersistoMasterField;
+begin
+  FDataSet.ObjectClass := TMyManyValue;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(TDataSetField, FDataSet.FieldByName('Childs').ClassType);
 end;
 
 procedure TPersistoDataSetTest.WhenAFieldIsSeparatedByAPointItHasToLoadTheSubPropertiesOfTheObject;
@@ -1018,6 +1035,36 @@ begin
   Assert.IsTrue(FDataSet.Eof);
 end;
 
+procedure TPersistoDataSetTest.WhenOpenANestedDataSetCantRaiseAnyError;
+begin
+  var ChildsField := TDataSetField.Create(FDataSet);
+  ChildsField.FieldName := 'Childs';
+  FDataSet.ObjectClass := TMyManyValue;
+  var NestedDataSet := TPersistoDataSet.Create(FDataSet);
+
+  ChildsField.SetParentComponent(FDataSet);
+
+  NestedDataSet.DataSetField := ChildsField;
+
+  Assert.WillNotRaise(FDataSet.Open);
+end;
+
+procedure TPersistoDataSetTest.WhenOpenANestedDataSetMustLoadAllFieldFromTheArrayTypeField;
+begin
+  var ChildsField := TDataSetField.Create(FDataSet);
+  ChildsField.FieldName := 'Childs';
+  FDataSet.ObjectClass := TMyManyValue;
+  var NestedDataSet := TPersistoDataSet.Create(FDataSet);
+
+  ChildsField.SetParentComponent(FDataSet);
+
+  NestedDataSet.DataSetField := ChildsField;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(4, NestedDataSet.FieldCount);
+end;
+
 procedure TPersistoDataSetTest.WhenOpenTheDataSetWithOneObjectMustReturnFalseInTheEOFProperty;
 begin
   var MyObject := TMyTestClass.Create;
@@ -1027,6 +1074,27 @@ begin
   FDataSet.Open;
 
   Assert.IsFalse(FDataSet.Eof);
+end;
+
+procedure TPersistoDataSetTest.WhenOpenTheNestedDataSetMustLoadAllObjectsFromTheArrayInTheDataSet;
+begin
+  var AObject := TMyManyValue.Create;
+  AObject.Childs := [TMyChildLink.Create, TMyChildLink.Create, TMyChildLink.Create];
+  var ChildsField := TDataSetField.Create(FDataSet);
+  ChildsField.FieldName := 'Childs';
+  FDataSet.Objects := [AObject];
+  var NestedDataSet := TPersistoDataSet.Create(FDataSet);
+
+  ChildsField.SetParentComponent(FDataSet);
+
+  NestedDataSet.DataSetField := ChildsField;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(3, NestedDataSet.RecordCount);
+
+  for var Child in AObject.Childs do
+    Child.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenPostTheDataSetMustLoadTheInsertingObjectInTheObjectList;

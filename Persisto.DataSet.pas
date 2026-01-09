@@ -246,16 +246,21 @@ end;
 
 procedure TPersistoDataSet.LoadObjectTable;
 begin
-  CheckManagerLoaded;
-
-  if not ObjectClassName.IsEmpty then
-    FObjectTable := Manager.Mapper.GetTable(ObjectClassName)
-  else if Assigned(ObjectClass) then
-    FObjectTable := Manager.Mapper.GetTable(ObjectClass)
+  if Assigned(DataSetField) then
+    FObjectTable := (DataSetField.DataSet as TPersistoDataSet).FObjectTable.Field[DataSetField.FieldName].ManyValueAssociation.ChildTable
   else
-    raise EDataSetWithoutClassDefinitionLoaded.Create;
+  begin
+    CheckManagerLoaded;
 
-  CheckObjectTypeLoaded;
+    if not ObjectClassName.IsEmpty then
+      FObjectTable := Manager.Mapper.GetTable(ObjectClassName)
+    else if Assigned(ObjectClass) then
+      FObjectTable := Manager.Mapper.GetTable(ObjectClass)
+    else
+      raise EDataSetWithoutClassDefinitionLoaded.Create;
+
+    CheckObjectTypeLoaded;
+  end;
 end;
 
 procedure TPersistoDataSet.FreeRecordBuffer(var Buffer: TRecordBuffer);
@@ -325,10 +330,10 @@ end;
 
 function TPersistoDataSet.GetFieldClass(FieldDef: TFieldDef): TFieldClass;
 begin
-  if FieldDef.DataType = ftObject then
-    Result := TPersistoObjectField
-  else
-    Result := inherited GetFieldClass(FieldDef);
+  case FieldDef.DataType of
+    ftObject: Result := TPersistoObjectField;
+    else Result := inherited GetFieldClass(FieldDef);
+  end;
 end;
 
 function TPersistoDataSet.GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean;
@@ -357,7 +362,25 @@ end;
 
 function TPersistoDataSet.GetObjects: TArray<TObject>;
 begin
-  Result := FObjectList.ToArray;
+  if Assigned(DataSetField) then
+  begin
+    var Instance: TObject := nil;
+    var PersistoField: Persisto.TField := nil;
+
+    if DataSetField.DataSet.Active and (DataSetField.DataSet as TPersistoDataSet).GetFieldAndInstance(DataSetField, Instance, PersistoField) then
+    begin
+      var FieldValue := PersistoField.Value[Instance];
+
+      SetLength(Result, FieldValue.ArrayLength);
+
+      for var A := 0 to Pred(FieldValue.ArrayLength) do
+        Result[A] := FieldValue.GetReferenceToRawArrayElement(A);
+    end
+    else
+      Result := nil;
+  end
+  else
+    Result := FObjectList.ToArray;
 end;
 
 function TPersistoDataSet.GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
@@ -366,7 +389,7 @@ var
 
   procedure UpdateBuffer(const Update: Boolean; const ResultValue: TGetResult);
   begin
-    if Update and not FObjectList.IsEmpty then
+    if Update and (Objects <> nil) then
     begin
       PersistoBuffer.CurrentObject := FCursor.CurrentObject;
       Result := grOk;
@@ -614,12 +637,12 @@ end;
 
 function TPersistoCursor.GetCurrentObject: TObject;
 begin
-  Result := FDataSet.FObjectList[FCurrentPosition];
+  Result := FDataSet.Objects[FCurrentPosition];
 end;
 
 function TPersistoCursor.GetObjectCount: NativeInt;
 begin
-  Result := FDataSet.FObjectList.Count;
+  Result := Length(FDataSet.Objects);
 end;
 
 procedure TPersistoCursor.Last;
