@@ -180,6 +180,8 @@ type
     procedure WhenOpenANestedDataSetMustLoadAllFieldFromTheArrayTypeField;
     [Test]
     procedure WhenOpenTheNestedDataSetMustLoadAllObjectsFromTheArrayInTheDataSet;
+    [Test]
+    procedure WhenChangeAFieldValueMustTriggerTheChangeFieldEvent;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -473,6 +475,25 @@ begin
     begin
       FDataSet.Cancel;
     end);
+end;
+
+procedure TPersistoDataSetTest.WhenChangeAFieldValueMustTriggerTheChangeFieldEvent;
+begin
+  var MyObject1 := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject1];
+
+  FDataSet.Open;
+
+  FDataSet.Edit;
+
+  FDataSetLink.ClearEvents;
+
+  FDataSet.Fields[0].AsInteger := 1;
+
+  Assert.IsFalse(FDataSetLink.Events.IsEmpty);
+
+  Assert.AreEqual(deFieldChange, FDataSetLink.Events.First);
 end;
 
 procedure TPersistoDataSetTest.WhenCheckIfTheFieldIsNullCantRaiseAnyError;

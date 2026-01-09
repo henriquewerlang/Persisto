@@ -553,6 +553,8 @@ begin
       Value := TValue.From(CurrentField.PropertyInfo.PropertyType.Handle, Buffer[0]);
 
     CurrentField.Value[CurrentInstance] := Value;
+
+    DataEvent(deFieldChange, IntPtr(Field));
   end;
 end;
 
