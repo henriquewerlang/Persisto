@@ -185,8 +185,6 @@ type
     [Test]
     procedure WhenEditARecordCantInsertThisValueInTheDatSet;
     [Test]
-    procedure WhenInsertingARecordMustInsertTheNewRecordInTheCurrentPositionOfTheDataSet;
-    [Test]
     procedure WhenGetTheObjectFromTheObjectFieldMustReturnTheObjectHasExpected;
     [Test]
     procedure WhenGetValueFromALazyFieldCantRaiseAnyError;
@@ -194,6 +192,10 @@ type
     procedure WhenGetValueFromALazyFieldMustLoadTheValueFromDatabase;
     [Test]
     procedure WhenUseAComposeFieldNameWithALazyFieldCantRaiseAnyError;
+    [Test]
+    procedure WhenInsertingARecordMustInsertTheNewRecordInTheCurrentPositionOfTheDataSet;
+    [Test]
+    procedure WhenAppendARecordMustLoadThisRecordInTheLastPositionOfTheDataSet;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -439,6 +441,25 @@ begin
     end);
 
   DataSource.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenAppendARecordMustLoadThisRecordInTheLastPositionOfTheDataSet;
+begin
+  FDataSet.Objects := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  FDataSet.Open;
+
+  FDataSet.Next;
+
+  FDataSet.Append;
+
+  var InsertingObject := FDataSet.CurrentObject;
+
+  FDataSet.Post;
+
+  FDataSet.Last;
+
+  Assert.AreEqual(InsertingObject, FDataSet.CurrentObject);
 end;
 
 procedure TPersistoDataSetTest.WhenTheClassHasAnArrayPropertyMustLoadTheFieldAsADataSetField;

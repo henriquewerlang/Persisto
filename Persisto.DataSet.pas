@@ -24,7 +24,9 @@ type
 
   TPersistoBuffer = class
   public
+    BookmarkFlag: TBookmarkFlag;
     CurrentObject: TObject;
+    Position: NativeInt;
   end;
 
   TPersistoObjectField = class(TField)
@@ -94,6 +96,7 @@ type
     procedure SetObjects(const Value: TArray<TObject>);
   protected
     function AllocRecordBuffer: TRecordBuffer; override;
+    function GetBookmarkFlag(Buffer: TRecordBuffer): TBookmarkFlag; override;
     function GetFieldClass(FieldDef: TFieldDef): TFieldClass; overload; override;
     function GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function GetRecordCount: Integer; override;
@@ -116,8 +119,8 @@ type
     procedure InternalLast; override;
     procedure InternalOpen; override;
     procedure InternalPost; override;
-    procedure InternalSetToRecord(Buffer: TRecBuf); override;
-    procedure SetDataSetField(const DataSetField: TDataSetField); override;
+    procedure SetBookmarkData(Buffer: TRecordBuffer; Data: TBookmark); override;
+    procedure SetBookmarkFlag(Buffer: TRecordBuffer; Value: TBookmarkFlag); override;
     procedure SetFieldData(Field: TField; Buffer: TValueBuffer); override;
 
     property ActivePersistoBuffer: TPersistoBuffer read GetActivePersistoBuffer;
@@ -208,15 +211,25 @@ begin
 end;
 
 function TPersistoDataSet.CompareBookmarks(Bookmark1, Bookmark2: TBookmark): Integer;
+const
+  RetCodes: array[Boolean, Boolean] of ShortInt = ((2, -1),(1, 0));
+
+var
+  BookmarkData1: PNativeInt absolute Bookmark1;
+  BookmarkData2: PNativeInt absolute Bookmark2;
+
 begin
-  Result := PInteger(@Bookmark1[0])^ - PInteger(@Bookmark2[0])^;
+  Result := RetCodes[Bookmark1 = nil, Bookmark2 = nil];
+
+  if Result = 2 then
+    Result := BookmarkData1^ - BookmarkData2^;
 end;
 
 constructor TPersistoDataSet.Create(AOwner: TComponent);
 begin
   inherited;
 
-  BookmarkSize := SizeOf(Integer);
+  BookmarkSize := SizeOf(NativeInt);
   FObjectList := TList<TObject>.Create;
 {$IFDEF DCC}
   ObjectView := True;
@@ -285,8 +298,20 @@ begin
 end;
 
 procedure TPersistoDataSet.GetBookmarkData(Buffer: TRecBuf; Data: TBookmark);
+var
+  BookmarkData: PNativeInt absolute Data;
+  PersistoBuffer: TPersistoBuffer absolute Buffer;
+
 begin
-  PInteger(@Data[0])^ := FCursor.CurrentPosition;
+  BookmarkData^ := PersistoBuffer.Position;
+end;
+
+function TPersistoDataSet.GetBookmarkFlag(Buffer: TRecordBuffer): TBookmarkFlag;
+var
+  PersistoBuffer: TPersistoBuffer absolute Buffer;
+
+begin
+  Result := PersistoBuffer.BookmarkFlag;
 end;
 
 function TPersistoDataSet.GetCurrentObject<T>: T;
@@ -392,7 +417,9 @@ var
   begin
     if Update and (Objects <> nil) then
     begin
+      PersistoBuffer.BookmarkFlag := bfCurrent;
       PersistoBuffer.CurrentObject := FCursor.CurrentObject;
+      PersistoBuffer.Position := FCursor.CurrentPosition;
       Result := grOk;
     end
     else
@@ -467,8 +494,11 @@ begin
 end;
 
 procedure TPersistoDataSet.InternalGotoBookmark(Bookmark: TBookmark);
+var
+  BookmarkData: PNativeInt absolute Bookmark;
+
 begin
-  FCursor.CurrentPosition := PInteger(@Bookmark[0])^;
+  FCursor.CurrentPosition := BookmarkData^;
 end;
 
 procedure TPersistoDataSet.InternalHandleException{$IFDEF PAS2JS}(E: Exception){$ENDIF};
@@ -519,12 +549,10 @@ begin
   inherited;
 
   if Assigned(FInsertingObject) then
-    FObjectList.Insert(FCursor.CurrentPosition, FInsertingObject);
-end;
-
-procedure TPersistoDataSet.InternalSetToRecord(Buffer: TRecBuf);
-begin
-
+    if GetBookmarkFlag(ActiveBuffer) <> bfCurrent then
+      FCursor.CurrentPosition := FObjectList.Add(FInsertingObject)
+    else
+      FObjectList.Insert(FCursor.CurrentPosition, FInsertingObject);
 end;
 
 function TPersistoDataSet.IsCursorOpen: Boolean;
@@ -540,10 +568,22 @@ begin
   DataEvent(deRecordChange, 0);
 end;
 
-procedure TPersistoDataSet.SetDataSetField(const DataSetField: TDataSetField);
-begin
+procedure TPersistoDataSet.SetBookmarkData(Buffer: TRecordBuffer; Data: TBookmark);
+var
+  BookmarkData: PNativeInt absolute Data;
+  PersistoBuffer: TPersistoBuffer absolute Buffer;
 
-  inherited;
+begin
+  PersistoBuffer.BookmarkFlag := bfCurrent;
+  PersistoBuffer.Position := BookmarkData^;
+end;
+
+procedure TPersistoDataSet.SetBookmarkFlag(Buffer: TRecordBuffer; Value: TBookmarkFlag);
+var
+  PersistoBuffer: TPersistoBuffer absolute Buffer;
+
+begin
+  PersistoBuffer.BookmarkFlag := Value;
 end;
 
 procedure TPersistoDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer);
@@ -650,7 +690,7 @@ end;
 
 function TPersistoCursor.GetCurrentObject: TObject;
 begin
-  Result := FDataSet.Objects[FCurrentPosition];
+  Result := FDataSet.Objects[CurrentPosition];
 end;
 
 function TPersistoCursor.GetObjectCount: NativeInt;
@@ -667,25 +707,25 @@ function TPersistoCursor.Next: Boolean;
 begin
   Inc(FCurrentPosition);
 
-  Result := FCurrentPosition < ObjectCount;
+  Result := CurrentPosition < ObjectCount;
 
   if not Result then
-    FCurrentPosition := Pred(ObjectCount);
+    CurrentPosition := Pred(ObjectCount);
 end;
 
 function TPersistoCursor.Prior: Boolean;
 begin
   Dec(FCurrentPosition);
 
-  Result := FCurrentPosition > -1;
+  Result := CurrentPosition > -1;
 
   if not Result then
-    FCurrentPosition := 0;
+    CurrentPosition := 0;
 end;
 
 procedure TPersistoCursor.SetCurrentObject(const Value: TObject);
 begin
-  FDataSet.FObjectList[FCurrentPosition] := Value;
+  FDataSet.FObjectList[CurrentPosition] := Value;
 end;
 
 { EDataSetWithoutManager }
