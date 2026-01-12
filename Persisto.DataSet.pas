@@ -510,7 +510,7 @@ begin
   inherited;
 
   if Assigned(FInsertingObject) then
-    FCursor.CurrentPosition := FObjectList.Add(FInsertingObject);
+    FObjectList.Insert(FCursor.CurrentPosition, FInsertingObject);
 end;
 
 procedure TPersistoDataSet.InternalSetToRecord(Buffer: TRecBuf);

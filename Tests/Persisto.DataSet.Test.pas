@@ -184,6 +184,8 @@ type
     procedure WhenChangeAFieldValueMustTriggerTheChangeFieldEvent;
     [Test]
     procedure WhenEditARecordCantInsertThisValueInTheDatSet;
+    [Test]
+    procedure WhenInsertingARecordMustInsertTheNewRecordInTheCurrentPositionOfTheDataSet;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -963,6 +965,27 @@ begin
   FDataSet.Last;
 
   Assert.AreEqual(MyObject, FDataSet.CurrentObject);
+end;
+
+procedure TPersistoDataSetTest.WhenInsertingARecordMustInsertTheNewRecordInTheCurrentPositionOfTheDataSet;
+begin
+  FDataSet.Objects := [TMyTestClass.Create, TMyTestClass.Create, TMyTestClass.Create];
+
+  FDataSet.Open;
+
+  FDataSet.Next;
+
+  FDataSet.Insert;
+
+  var InsertingObject := FDataSet.CurrentObject;
+
+  FDataSet.Post;
+
+  FDataSet.First;
+
+  FDataSet.Next;
+
+  Assert.AreEqual(InsertingObject, FDataSet.CurrentObject);
 end;
 
 procedure TPersistoDataSetTest.WhenInsertingARecordTheCurrentObjectMustReturnTheObjectBeenInserted;
