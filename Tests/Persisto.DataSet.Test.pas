@@ -186,6 +186,14 @@ type
     procedure WhenEditARecordCantInsertThisValueInTheDatSet;
     [Test]
     procedure WhenInsertingARecordMustInsertTheNewRecordInTheCurrentPositionOfTheDataSet;
+    [Test]
+    procedure WhenGetTheObjectFromTheObjectFieldMustReturnTheObjectHasExpected;
+    [Test]
+    procedure WhenGetValueFromALazyFieldCantRaiseAnyError;
+    [Test]
+    procedure WhenGetValueFromALazyFieldMustLoadTheValueFromDatabase;
+    [Test]
+    procedure WhenUseAComposeFieldNameWithALazyFieldCantRaiseAnyError;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -311,6 +319,19 @@ type
   end;
 
   TPersistoDataSetHack = class(TPersistoDataSet)
+  end;
+
+  TLazyValueMock = class(TInterfacedObject, ILazyValue)
+  private
+    FValue: TValue;
+  public
+    constructor Create(const LazyObject: TObject);
+
+    function GetKey: TValue;
+    function GetValue: TValue;
+    function HasValue: Boolean;
+
+    procedure SetValue(const Value: TValue);
   end;
 
 implementation
@@ -901,6 +922,24 @@ begin
   MyList.Free;
 end;
 
+procedure TPersistoDataSetTest.WhenGetTheObjectFromTheObjectFieldMustReturnTheObjectHasExpected;
+begin
+  FDataSet.ObjectClass := TMyTestClassTypes;
+  var AObject := TMyTestClass.Create;
+
+  FDataSet.Open;
+
+  FDataSet.Edit;
+
+  var Field := FDataSet.FieldByName('Class') as TPersistoObjectField;
+
+  Field.AsObject := AObject;
+
+  Assert.AreEqual(AObject, Field.AsObject);
+
+  AObject.Free;
+end;
+
 procedure TPersistoDataSetTest.WhenGetTheObjectListMustReturnTheObjectsFilledInTheList;
 begin
   var MyObject := TMyTestClass.Create;
@@ -909,6 +948,40 @@ begin
 
   Assert.AreEqual(3, Length(FDataSet.Objects));
   Assert.AreEqual(MyObject, FDataSet.Objects[0]);
+end;
+
+procedure TPersistoDataSetTest.WhenGetValueFromALazyFieldCantRaiseAnyError;
+begin
+  var LazyObject := TMyEntity.Create;
+  var MyObject := TLazyArrayClass.Create;
+  MyObject.Lazy.LazyValue := TLazyValueMock.Create(LazyObject);
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      TPersistoObjectField(FDataSet.FieldByName('Lazy')).AsObject;
+    end);
+
+  LazyObject.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenGetValueFromALazyFieldMustLoadTheValueFromDatabase;
+begin
+  var LazyObject := TMyEntity.Create;
+  var MyObject := TLazyArrayClass.Create;
+  MyObject.Lazy.LazyValue := TLazyValueMock.Create(LazyObject);
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  Assert.AreEqual(LazyObject, TPersistoObjectField(FDataSet.FieldByName('Lazy')).AsObject);
+
+  LazyObject.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenGoBackInAllRecordMustMarkTheBOFPropertyHasTrue;
@@ -1550,6 +1623,29 @@ begin
     end);
 end;
 
+procedure TPersistoDataSetTest.WhenUseAComposeFieldNameWithALazyFieldCantRaiseAnyError;
+begin
+  var Field := TWideStringField.Create(FDataSet);
+  Field.FieldName := 'Lazy.Name';
+  var LazyObject := TMyEntity.Create;
+  var MyObject := TLazyArrayClass.Create;
+  MyObject.Lazy.LazyValue := TLazyValueMock.Create(LazyObject);
+
+  Field.SetParentComponent(FDataSet);
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FDataSet.FieldByName('Lazy.Name').AsString;
+    end);
+
+  LazyObject.Free;
+end;
+
 { TMyTestClass }
 
 destructor TMyTestClass.Destroy;
@@ -1607,6 +1703,33 @@ begin
   FEvents.Free;
 
   inherited;
+end;
+
+{ TLazyValueMock }
+
+constructor TLazyValueMock.Create(const LazyObject: TObject);
+begin
+  FValue := LazyObject;
+end;
+
+function TLazyValueMock.GetKey: TValue;
+begin
+  Result := -1;
+end;
+
+function TLazyValueMock.GetValue: TValue;
+begin
+  Result := FValue;
+end;
+
+function TLazyValueMock.HasValue: Boolean;
+begin
+  Result := True;
+end;
+
+procedure TLazyValueMock.SetValue(const Value: TValue);
+begin
+  FValue := Value;
 end;
 
 end.

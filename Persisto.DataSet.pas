@@ -84,6 +84,7 @@ type
     function GetActiveObject: TObject;
     function GetFieldAndInstance(const Field: TField; var Instance: TObject; var PersistoField: Persisto.TField): Boolean;
     function GetObjects: TArray<TObject>;
+    function HasValue(const PersistoField: Persisto.TField; const Instance: TObject; var Value: TValue): Boolean;
 
     procedure CheckManagerLoaded;
     procedure CheckObjectTypeLoaded;
@@ -315,7 +316,7 @@ begin
       CurrentTable := PersistoField.ForeignKey.ParentTable;
 
       if Assigned(Instance) then
-        if PersistoField.HasValue(Instance, Value) then
+        if HasValue(PersistoField, Instance, Value) then
           Instance := Value.AsObject
         else
           Instance := nil;
@@ -346,7 +347,7 @@ begin
   begin
     var Value: TValue;
 
-    Result := CurrentField.HasValue(CurrentInstance, Value);
+    Result := HasValue(CurrentField, CurrentInstance, Value);
 
     if Result and (Buffer <> nil) then
       if Field is TWideStringField then
@@ -411,6 +412,14 @@ begin
   CheckActive;
 
   Result := FCursor.ObjectCount;
+end;
+
+function TPersistoDataSet.HasValue(const PersistoField: Persisto.TField; const Instance: TObject; var Value: TValue): Boolean;
+begin
+  Result := PersistoField.HasValue(Instance, Value);
+
+  if Result and PersistoField.IsLazy then
+    Value := PersistoField.LazyValue[Instance].Value;
 end;
 
 procedure TPersistoDataSet.InternalInitRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf);
@@ -591,7 +600,7 @@ end;
 
 function TPersistoObjectField.GetAsObject: TObject;
 begin
-  Result := nil;
+  Result := TObject(GetAsNativeInt);
 end;
 
 function TPersistoObjectField.GetAsVariant: Variant;
@@ -608,6 +617,7 @@ end;
 
 procedure TPersistoObjectField.SetAsObject(const Value: TObject);
 begin
+  SetAsNativeInt(NativeInt(Value));
 end;
 
 procedure TPersistoObjectField.SetVarValue(const Value: Variant);
