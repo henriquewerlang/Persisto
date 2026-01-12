@@ -509,7 +509,8 @@ procedure TPersistoDataSet.InternalPost;
 begin
   inherited;
 
-  FCursor.CurrentPosition := FObjectList.Add(FInsertingObject);
+  if Assigned(FInsertingObject) then
+    FCursor.CurrentPosition := FObjectList.Add(FInsertingObject);
 end;
 
 procedure TPersistoDataSet.InternalSetToRecord(Buffer: TRecBuf);

@@ -182,6 +182,8 @@ type
     procedure WhenOpenTheNestedDataSetMustLoadAllObjectsFromTheArrayInTheDataSet;
     [Test]
     procedure WhenChangeAFieldValueMustTriggerTheChangeFieldEvent;
+    [Test]
+    procedure WhenEditARecordCantInsertThisValueInTheDatSet;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -612,6 +614,21 @@ begin
   FDataSet.Open;
 
   Assert.AreEqual(TimeToStr(TheTime), TimeToStr(Field.AsDateTime));
+end;
+
+procedure TPersistoDataSetTest.WhenEditARecordCantInsertThisValueInTheDatSet;
+begin
+  var MyObject := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  FDataSet.Edit;
+
+  FDataSet.Post;
+
+  Assert.AreEqual(1, FDataSet.RecordCount);
 end;
 
 procedure TPersistoDataSetTest.WhenFillAFieldValueAndTheDataSetNotEditingModeMustRaiseAnError;
