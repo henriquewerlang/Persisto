@@ -57,6 +57,7 @@ type
     function GetObjectCount: NativeInt;
     function Next: Boolean;
     function Prior: Boolean;
+    function GetValidPosition: Boolean;
 
     procedure First;
     procedure Last;
@@ -65,6 +66,7 @@ type
     property CurrentObject: TObject read GetCurrentObject write SetCurrentObject;
     property CurrentPosition: NativeInt read FCurrentPosition write FCurrentPosition;
     property ObjectCount: NativeInt read GetObjectCount;
+    property ValidPosition: Boolean read GetValidPosition;
   public
     constructor Create(const DataSet: TPersistoDataSet);
   end;
@@ -418,9 +420,15 @@ var
     if Update and (Objects <> nil) then
     begin
       PersistoBuffer.BookmarkFlag := bfCurrent;
-      PersistoBuffer.CurrentObject := FCursor.CurrentObject;
-      PersistoBuffer.Position := FCursor.CurrentPosition;
-      Result := grOk;
+
+      if FCursor.ValidPosition then
+      begin
+        PersistoBuffer.CurrentObject := FCursor.CurrentObject;
+        PersistoBuffer.Position := FCursor.CurrentPosition;
+        Result := grOk;
+      end
+      else
+        Result := grError;
     end
     else
       Result := ResultValue;
@@ -696,6 +704,11 @@ end;
 function TPersistoCursor.GetObjectCount: NativeInt;
 begin
   Result := Length(FDataSet.Objects);
+end;
+
+function TPersistoCursor.GetValidPosition: Boolean;
+begin
+  Result := (CurrentPosition > -1) and (CurrentPosition < ObjectCount);
 end;
 
 procedure TPersistoCursor.Last;

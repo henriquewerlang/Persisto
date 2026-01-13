@@ -196,6 +196,8 @@ type
     procedure WhenInsertingARecordMustInsertTheNewRecordInTheCurrentPositionOfTheDataSet;
     [Test]
     procedure WhenAppendARecordMustLoadThisRecordInTheLastPositionOfTheDataSet;
+    [Test]
+    procedure WhenAppendOneRecordAndCancelTheRecordCantRaiseError;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -460,6 +462,19 @@ begin
   FDataSet.Last;
 
   Assert.AreEqual(InsertingObject, FDataSet.CurrentObject);
+end;
+
+procedure TPersistoDataSetTest.WhenAppendOneRecordAndCancelTheRecordCantRaiseError;
+begin
+  var MyObject := TMyTestClass.Create;
+
+  FDataSet.Objects := [MyObject];
+
+  FDataSet.Open;
+
+  FDataSet.Append;
+
+  Assert.WillNotRaise(FDataSet.Cancel);
 end;
 
 procedure TPersistoDataSetTest.WhenTheClassHasAnArrayPropertyMustLoadTheFieldAsADataSetField;
