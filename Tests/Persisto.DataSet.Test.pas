@@ -198,6 +198,8 @@ type
     procedure WhenAppendARecordMustLoadThisRecordInTheLastPositionOfTheDataSet;
     [Test]
     procedure WhenAppendOneRecordAndCancelTheRecordCantRaiseError;
+    [Test]
+    procedure WhenInsertARecordInTheDetailDataSetMustLoadTheObjectInTheMasterArrayAsExpected;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -1074,6 +1076,40 @@ begin
   FDataSet.Last;
 
   Assert.AreEqual(MyObject, FDataSet.CurrentObject);
+end;
+
+procedure TPersistoDataSetTest.WhenInsertARecordInTheDetailDataSetMustLoadTheObjectInTheMasterArrayAsExpected;
+begin
+  var AObject := TMyManyValue.Create;
+  var ChildsField := TDataSetField.Create(FDataSet);
+  ChildsField.FieldName := 'Childs';
+  FDataSet.Objects := [AObject];
+  var NestedDataSet := TPersistoDataSet.Create(FDataSet);
+
+  ChildsField.SetParentComponent(FDataSet);
+
+  NestedDataSet.DataSetField := ChildsField;
+
+  FDataSet.Open;
+
+  NestedDataSet.Insert;
+
+  NestedDataSet.Post;
+
+  NestedDataSet.Insert;
+
+  NestedDataSet.Post;
+
+  NestedDataSet.Insert;
+
+  NestedDataSet.Post;
+
+  FDataSet.Post;
+
+  Assert.AreEqual(3, Length(AObject.Childs));
+
+  for var Child in AObject.Childs do
+    Child.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenInsertingARecordMustInsertTheNewRecordInTheCurrentPositionOfTheDataSet;

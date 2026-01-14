@@ -87,6 +87,8 @@ type
     function GetActivePersistoBuffer: TPersistoBuffer;
     function GetActiveObject: TObject;
     function GetFieldAndInstance(const Field: TField; var Instance: TObject; var PersistoField: Persisto.TField): Boolean;
+    function GetParentDataSetField(var Instance: TObject; var PersistoField: Persisto.TField): Boolean;
+    function GetParentDataSetFieldValue(var Value: TValue): Boolean;
     function GetObjects: TArray<TObject>;
     function HasValue(const PersistoField: Persisto.TField; const Instance: TObject; var Value: TValue): Boolean;
 
@@ -106,6 +108,7 @@ type
 
     procedure ClearCalcFields({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf); override;
     procedure DataConvert(Field: TField; Source: TValueBuffer; var Dest: TValueBuffer; ToNative: Boolean); override;
+    procedure DataEvent(Event: TDataEvent; Info: NativeInt); override;
     procedure FreeRecordBuffer(var Buffer: TRecordBuffer); override;
     procedure GetBookmarkData(Buffer: TRecBuf; Data: TBookmark); override;
     procedure InternalCancel; override;
@@ -241,6 +244,32 @@ end;
 procedure TPersistoDataSet.DataConvert(Field: TField; Source: TValueBuffer; var Dest: TValueBuffer; ToNative: Boolean);
 begin
   Move(Source[0], Dest[0], Field.GetBufferSize);
+end;
+
+procedure TPersistoDataSet.DataEvent(Event: TDataEvent; Info: NativeInt);
+
+  procedure LoadDetailObjects;
+  begin
+    var FieldValue: TValue;
+
+    if GetParentDataSetFieldValue(FieldValue) then
+      for var A := 0 to Pred(FieldValue.ArrayLength) do
+        FObjectList.Add(FieldValue.GetReferenceToRawArrayElement(A));
+  end;
+
+  procedure NotifyNestedDataSets;
+  begin
+    if not NestedDataSets.IsEmpty then
+      DataEvent(deDataSetScroll, 0);
+  end;
+
+begin
+  inherited;
+
+  case Event of
+    deParentScroll: LoadDetailObjects;
+    deUpdateState: NotifyNestedDataSets;
+  end;
 end;
 
 destructor TPersistoDataSet.Destroy;
@@ -390,25 +419,22 @@ end;
 
 function TPersistoDataSet.GetObjects: TArray<TObject>;
 begin
-  if Assigned(DataSetField) then
-  begin
-    var Instance: TObject := nil;
-    var PersistoField: Persisto.TField := nil;
+  Result := FObjectList.ToArray;
+end;
 
-    if DataSetField.DataSet.Active and (DataSetField.DataSet as TPersistoDataSet).GetFieldAndInstance(DataSetField, Instance, PersistoField) then
-    begin
-      var FieldValue := PersistoField.Value[Instance];
+function TPersistoDataSet.GetParentDataSetField(var Instance: TObject; var PersistoField: Persisto.TField): Boolean;
+begin
+  Result := Assigned(DataSetField);
 
-      SetLength(Result, FieldValue.ArrayLength);
+  if Result then
+    Result := DataSetField.DataSet.Active and (DataSetField.DataSet as TPersistoDataSet).GetFieldAndInstance(DataSetField, Instance, PersistoField);
+end;
 
-      for var A := 0 to Pred(FieldValue.ArrayLength) do
-        Result[A] := FieldValue.GetReferenceToRawArrayElement(A);
-    end
-    else
-      Result := nil;
-  end
-  else
-    Result := FObjectList.ToArray;
+function TPersistoDataSet.GetParentDataSetFieldValue(var Value: TValue): Boolean;
+begin
+  var Instance: TObject := nil;
+  var PersistoField: Persisto.TField := nil;
+  Result := GetParentDataSetField(Instance, PersistoField) and HasValue(PersistoField, Instance, Value);
 end;
 
 function TPersistoDataSet.GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
@@ -553,14 +579,36 @@ begin
 end;
 
 procedure TPersistoDataSet.InternalPost;
+
+  procedure UpdateParentRecord;
+  begin
+    var Instance: TObject;
+    var PersistoField: Persisto.TField;
+
+    if GetParentDataSetField(Instance, PersistoField) then
+    begin
+      var FieldValue := PersistoField.Value[Instance];
+      FieldValue.ArrayLength := FObjectList.Count;
+
+      for var A := 0 to Pred(FObjectList.Count) do
+        FieldValue.SetArrayElement(A, FObjectList[A]);
+
+      PersistoField.Value[Instance] := FieldValue;
+    end;
+  end;
+
 begin
   inherited;
 
   if Assigned(FInsertingObject) then
+  begin
     if GetBookmarkFlag(ActiveBuffer) <> bfCurrent then
       FCursor.CurrentPosition := FObjectList.Add(FInsertingObject)
     else
       FObjectList.Insert(FCursor.CurrentPosition, FInsertingObject);
+
+    UpdateParentRecord;
+  end;
 end;
 
 function TPersistoDataSet.IsCursorOpen: Boolean;
