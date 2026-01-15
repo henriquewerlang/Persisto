@@ -1764,7 +1764,7 @@ end;
 
 function TClassLoader.Load(const ResultType: PTypeInfo): TValue;
 var
-  LoadedObjects: TDictionary<String, Boolean>;
+  LoadedObjects: TDictionary<String, TObject>;
 
   function BuildStateObjectKey(const TableName, Key: String): String; overload;
   begin
@@ -1793,17 +1793,17 @@ var
 
   function CheckManyValuePropertyLoaded(const QueryTable: TQueryBuilderTable): Boolean;
   begin
-    Result := not LoadedObjects.TryAdd(BuildStateObjectKeyForManyValueProperty(QueryTable), False);
+    Result := not LoadedObjects.TryAdd(BuildStateObjectKeyForManyValueProperty(QueryTable), nil);
   end;
 
   function CheckManyValueObjectLoaded(const QueryTable: TQueryBuilderTable): Boolean;
   begin
-    Result := not LoadedObjects.TryAdd(BuildStateObjectKeyForManyValueObject(QueryTable), False);
+    Result := not LoadedObjects.TryAdd(BuildStateObjectKeyForManyValueObject(QueryTable), nil);
   end;
 
-  function CheckObjectLoaded(const QueryTable: TQueryBuilderTable): Boolean;
+  function CheckObjectLoaded(const QueryTable: TQueryBuilderTable; const &Object: TObject): Boolean;
   begin
-    Result := not LoadedObjects.TryAdd(BuildStateObjectKeyForObject(QueryTable), False);
+    Result := not LoadedObjects.TryAdd(BuildStateObjectKeyForObject(QueryTable), &Object);
   end;
 
   function CreateObject(const QueryTable: TQueryBuilderTable): TObject;
@@ -1822,10 +1822,10 @@ var
   begin
     if LazyField.IsForeignKey then
     begin
-      var Key := BuildStateObjectKey(LazyField.ForeignKey.ParentTable.DatabaseName, KeyValue.ToString);
+      var Key := '$.' + BuildStateObjectKey(LazyField.ForeignKey.ParentTable.DatabaseName, KeyValue.ToString);
       var &Object: TObject;
 
-      if FQueryBuilder.FManager.FLoadedObjects.TryGetValue(Key, &Object) then
+      if LoadedObjects.TryGetValue(Key, &Object) then
         Exit(TLazyValue.Create(&Object.ClassInfo, @&Object));
     end;
 
@@ -1899,14 +1899,14 @@ var
 
 begin
   var Cursor := FQueryBuilder.OpenCursor;
-  LoadedObjects := TDictionary<String, Boolean>.Create;
+  LoadedObjects := TDictionary<String, TObject>.Create;
   var Objects: TArray<TObject> := nil;
 
   while Cursor.Next do
   begin
     var &Object := CreateObject(FQueryBuilder.FQueryTable);
 
-    if not CheckObjectLoaded(FQueryBuilder.FQueryTable) then
+    if not CheckObjectLoaded(FQueryBuilder.FQueryTable, &Object) then
       Objects := Objects + [&Object];
 
     LoadFieldValues(FQueryBuilder.FQueryTable, &Object);
