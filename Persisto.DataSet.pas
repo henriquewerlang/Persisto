@@ -252,6 +252,8 @@ procedure TPersistoDataSet.DataEvent(Event: TDataEvent; Info: NativeInt);
   begin
     var FieldValue: TValue;
 
+    FObjectList.Clear;
+
     if GetParentDataSetFieldValue(FieldValue) then
       for var A := 0 to Pred(FieldValue.ArrayLength) do
         FObjectList.Add(FieldValue.GetReferenceToRawArrayElement(A));

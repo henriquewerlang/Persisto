@@ -200,6 +200,8 @@ type
     procedure WhenAppendOneRecordAndCancelTheRecordCantRaiseError;
     [Test]
     procedure WhenInsertARecordInTheDetailDataSetMustLoadTheObjectInTheMasterArrayAsExpected;
+    [Test]
+    procedure WhenNavigatingBeetweenRecordosWithADataSetFieldMustLoadTheDetailWithTheValuesFromTheArrayAsExpected;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -1219,6 +1221,38 @@ begin
   end;
 
   MyList.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenNavigatingBeetweenRecordosWithADataSetFieldMustLoadTheDetailWithTheValuesFromTheArrayAsExpected;
+begin
+  var Object1 := TMyManyValue.Create;
+  var Object2 := TMyManyValue.Create;
+  var Object3 := TMyManyValue.Create;
+  Object1.Childs := [TMyChildLink.Create, TMyChildLink.Create, TMyChildLink.Create];
+  Object3.Childs := [TMyChildLink.Create];
+  var ChildsField := TDataSetField.Create(FDataSet);
+  ChildsField.FieldName := 'Childs';
+  FDataSet.Objects := [Object1, Object2, Object3];
+  var NestedDataSet := TPersistoDataSet.Create(FDataSet);
+
+  ChildsField.SetParentComponent(FDataSet);
+
+  NestedDataSet.DataSetField := ChildsField;
+
+  FDataSet.Open;
+
+  Assert.AreEqual(3, NestedDataSet.RecordCount);
+
+  FDataSet.Next;
+
+  Assert.AreEqual(0, NestedDataSet.RecordCount);
+
+  FDataSet.Next;
+
+  Assert.AreEqual(1, NestedDataSet.RecordCount);
+
+  for var Child in Object1.Childs + Object2.Childs + Object3.Childs do
+    Child.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenOpenAListOfObjectTheCurrentObjectMustBeTheFirstObjectInTheList;
