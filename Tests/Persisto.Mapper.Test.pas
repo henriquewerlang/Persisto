@@ -335,6 +335,10 @@ type
     procedure WhenTheFieldIsntFoundMustRaiseAnError;
     [Test]
     procedure WhenTryToFindAFieldMustIgnoreTheFieldNameCase;
+    [Test]
+    procedure WhenTheFieldIsAManyValueAssociationMustReturnTheDatabaseTypeBeenTheftDataSetEnumerator;
+    [Test]
+    procedure WhenTheFieldIsAnArrayOfBytesMustReturnTheFieldTypeLikeftGraphic;
   end;
 
 implementation
@@ -463,7 +467,7 @@ begin
   var Table := FMapper.GetTable(MyClass.ClassType);
   var Value: TValue;
 
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, TValue.Empty, nil);
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, TValue.Empty);
 
   Assert.IsFalse(Table.Field['Lazy'].HasValue(MyClass, Value));
 
@@ -940,7 +944,7 @@ begin
   var MyClass := TLazyClass.Create;
   var Table := FMapper.GetTable(MyClass.ClassType);
 
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 1234, nil);
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 1234);
 
   Assert.AreEqual(1234, MyClass.Lazy.LazyValue.Key.AsInteger);
 
@@ -1406,6 +1410,24 @@ begin
   Assert.AreEqual('IdLazy', Table.Field['Lazy'].DatabaseName);
 end;
 
+procedure TMapperTest.WhenTheFieldIsAManyValueAssociationMustReturnTheDatabaseTypeBeenTheftDataSetEnumerator;
+begin
+  var Table := FMapper.GetTable(TLazyArrayClass);
+
+  var Field := Table['LazyArray'];
+
+  Assert.AreEqual(ftDataSet, Field.DatabaseType);
+end;
+
+procedure TMapperTest.WhenTheFieldIsAnArrayOfBytesMustReturnTheFieldTypeLikeftGraphic;
+begin
+  var Table := FMapper.GetTable(TLazyBuildInArrayType);
+
+  var Field := Table['LazyArray'];
+
+  Assert.AreEqual(ftGraphic, Field.DatabaseType);
+end;
+
 procedure TMapperTest.WhenTheFieldIsLazyLoadingAndTheValueIsntLoadedMustReturnEmptyValueInParam;
 begin
   var MyClass := TLazyClass.Create;
@@ -1560,7 +1582,7 @@ begin
   var MyClass := TLazyClass.Create;
   var Table := FMapper.GetTable(MyClass.ClassType);
 
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 1234, nil);
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 1234);
 
   Assert.AreEqual(1234, Table.Field['Lazy'].Value[MyClass].AsInteger);
 
@@ -1590,7 +1612,7 @@ begin
   var Table := FMapper.GetTable(MyClass.ClassType);
   var Value: TValue;
 
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 1234, nil);
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 1234);
 
   Assert.IsTrue(Table.Field['Lazy'].HasValue(MyClass, Value));
 

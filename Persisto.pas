@@ -388,11 +388,10 @@ type
 
   TLazyLoader = class(TInterfacedObject, ILazyValue)
   private
-    FFilterField: TField;
     FKeyValue: TValue;
+    FLazyField: TField;
     FLazyValue: TValue;
     FManager: TPersistoManager;
-    FResultType: PTypeInfo;
 
     function GetKey: TValue;
     function GetValue: TValue;
@@ -400,9 +399,7 @@ type
 
     procedure SetValue(const Value: TValue);
   public
-    constructor Create(const Manager: TPersistoManager; const FilterField: TField; const KeyValue: TValue; const ResultType: PTypeInfo);
-
-    property FilterField: TField read FFilterField;
+    constructor Create(const Manager: TPersistoManager; const LazyField: TField; const KeyValue: TValue);
   end;
 
   TClassLoader = class
@@ -464,7 +461,6 @@ type
 
   TQueryBuilder = class
   private
-    FLoader: TClassLoader;
     FManager: TPersistoManager;
     FOrderByFields: TList<TQueryBuilderOrderByField>;
     FParams: TParams;
@@ -500,6 +496,7 @@ type
   TQueryBuilderOpen<T: class> = class
   private
     FQueryBuilder: TQueryBuilder;
+    FLoader: TClassLoader;
   public
     constructor Create(const QueryBuilder: TQueryBuilder);
 
@@ -1549,6 +1546,8 @@ begin
 
   if IsForeignKey then
     Exit(ftObject)
+  else if IsManyValueAssociation then
+    Exit(ftDataSet)
   else
     case SpecialType of
       stDate: Result := ftDate;
@@ -1609,7 +1608,7 @@ begin
 {$ENDIF}
 
           tkDynArray:
-            Result := ftDataSet;
+            Result := ftGraphic;
         end;
   end;
 end;
@@ -1701,14 +1700,13 @@ end;
 
 { TLazyLoader }
 
-constructor TLazyLoader.Create(const Manager: TPersistoManager; const FilterField: TField; const KeyValue: TValue; const ResultType: PTypeInfo);
+constructor TLazyLoader.Create(const Manager: TPersistoManager; const LazyField: TField; const KeyValue: TValue);
 begin
   inherited Create;
 
-  FFilterField := FilterField;
   FKeyValue := KeyValue;
+  FLazyField := LazyField;
   FManager := Manager;
-  FResultType := ResultType;
 end;
 
 function TLazyLoader.GetKey: TValue;
@@ -1720,9 +1718,30 @@ function TLazyLoader.GetValue: TValue;
 begin
   if not FKeyValue.IsEmpty and FLazyValue.IsEmpty then
   begin
-    FManager.Select.All.From<TObject>(FFilterField.Table).Where(Field(FFilterField.Name) = FKeyValue.AsVariant).Open;
+    var FilterField: TField;
 
-    FLazyValue := FManager.FQueryBuilder.FLoader.Load(FResultType);
+    if FLazyField.IsManyValueAssociation then
+      FilterField := FLazyField.ManyValueAssociation.ChildField
+    else if FLazyField.IsForeignKey then
+      FilterField := FLazyField.ForeignKey.ParentTable.PrimaryKey
+    else
+      FilterField := FLazyField.Table.PrimaryKey;
+
+    if FLazyField.IsManyValueAssociation or FLazyField.IsForeignKey then
+      FLazyValue := FManager.Select.All.From<TObject>(FilterField.Table).Where(Field(FilterField.Name) = FKeyValue.AsVariant).Open.FLoader.Load(FLazyField.LazyType.Handle)
+    else
+    begin
+      var Params := TParams.Create;
+
+      Params.AddParam('Value', FilterField, FKeyValue.AsVariant);
+
+      var Cursor := FManager.PrepareCursor(Format('select %s from %s where %s = :Value', [FLazyField.DatabaseName, FilterField.Table.DatabaseName, FilterField.DatabaseName]), Params);
+
+      if Cursor.Next then
+        FLazyValue := TValue.FromVariant(Cursor.GetDataSet.Fields[0].Value);
+
+      Params.Free;
+    end;
   end;
 
   Result := FLazyValue;
@@ -1750,16 +1769,7 @@ end;
 
 function TClassLoader.CreateLazyFactory(const LazyField: TField; const KeyValue: TValue): ILazyValue;
 begin
-  var FilterField: TField;
-
-  if LazyField.IsManyValueAssociation then
-    FilterField := LazyField.ManyValueAssociation.ChildField
-  else if LazyField.IsForeignKey then
-    FilterField := LazyField.ForeignKey.ParentTable.PrimaryKey
-  else
-    FilterField := nil;
-
-  Result := TLazyLoader.Create(FQueryBuilder.FManager, FilterField, KeyValue, LazyField.LazyType.Handle);
+  Result := TLazyLoader.Create(FQueryBuilder.FManager, LazyField, KeyValue);
 end;
 
 function TClassLoader.Load(const ResultType: PTypeInfo): TValue;
@@ -1786,9 +1796,14 @@ var
     Result := '*.' + BuildStateObjectKey(QueryTable);
   end;
 
-  function BuildStateObjectKeyForObject(const QueryTable: TQueryBuilderTable): String;
+  function BuildStateObjectKeyForObject(const Key: String): String; overload;
   begin
-    Result := '$.' + BuildStateObjectKey(QueryTable);
+    Result := '$.' + Key;
+  end;
+
+  function BuildStateObjectKeyForObject(const QueryTable: TQueryBuilderTable): String; overload;
+  begin
+    Result := BuildStateObjectKeyForObject(BuildStateObjectKey(QueryTable));
   end;
 
   function CheckManyValuePropertyLoaded(const QueryTable: TQueryBuilderTable): Boolean;
@@ -1822,7 +1837,7 @@ var
   begin
     if LazyField.IsForeignKey then
     begin
-      var Key := '$.' + BuildStateObjectKey(LazyField.ForeignKey.ParentTable.DatabaseName, KeyValue.ToString);
+      var Key := BuildStateObjectKeyForObject(BuildStateObjectKey(LazyField.ForeignKey.ParentTable.DatabaseName, KeyValue.ToString));
       var &Object: TObject;
 
       if LoadedObjects.TryGetValue(Key, &Object) then
@@ -2403,8 +2418,6 @@ begin
 
   FParams.Free;
 
-  FLoader.Free;
-
   inherited;
 end;
 
@@ -2441,22 +2454,22 @@ end;
 
 function TQueryBuilderOpen<T>.All: TArray<T>;
 begin
-  Result := FQueryBuilder.FLoader.Load(TypeInfo(TArray<T>)).AsType<TArray<T>>;
+  Result := FLoader.Load(TypeInfo(TArray<T>)).AsType<TArray<T>>;
 end;
 
 constructor TQueryBuilderOpen<T>.Create(const QueryBuilder: TQueryBuilder);
 begin
   inherited Create;
 
+  FLoader := TClassLoader.Create(QueryBuilder);
   FQueryBuilder := QueryBuilder;
-  FQueryBuilder.FLoader := TClassLoader.Create(QueryBuilder);
   FQueryBuilder.FQueryOpen := Self;
 end;
 
 function TQueryBuilderOpen<T>.One: T;
 begin
-  Result := FQueryBuilder.FLoader.Load(TypeInfo(T)).AsType<T>;
- end;
+  Result := FLoader.Load(TypeInfo(T)).AsType<T>;
+end;
 
 { TQueryBuilderComparison }
 

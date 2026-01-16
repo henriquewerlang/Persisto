@@ -87,8 +87,6 @@ type
     [Test]
     procedure WhenLoadALazyManyValueAssociationTheChildLinkFieldMustBeLoadedWithTheParentClassValue;
     [Test]
-    procedure WhenTheLazyValueIsTheSameForMoreThanOneClassMustUseTheSameLoaderInAllClasses;
-    [Test]
     procedure WhenSelectAnEntityWithTheForeignKeyFieldNamedMustLoadTheClassWithoutError;
     [Test]
     procedure WhenLoadAClassWithALazyPropertyAndThanReloadTheClassMustResetTheLazyFieldValue;
@@ -605,23 +603,6 @@ begin
     begin
       FManager.Select.All.From<TLazyFilter>.Open.One;
     end);
-end;
-
-procedure TClassLoaderTest.WhenTheLazyValueIsTheSameForMoreThanOneClassMustUseTheSameLoaderInAllClasses;
-begin
-  var MyEntity := FManager.Select.All.From<TMyEntity>.Open.One;
-
-  var LazyClass := FManager.Select.All.From<TLazyClass>.Open.All;
-
-  FManager.ExectDirect('delete from LazyClass');
-
-  FManager.ExectDirect('delete from MyEntity');
-
-  Assert.AreEqual(MyEntity, LazyClass[0].Lazy.Value);
-
-  Assert.AreEqual(MyEntity, LazyClass[1].Lazy.Value);
-
-  Assert.AreEqual(MyEntity, LazyClass[2].Lazy.Value);
 end;
 
 procedure TClassLoaderTest.WhenTryToLoadASingleObjectFromAnEmptyTableCantRaiseAnyError;

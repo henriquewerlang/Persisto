@@ -1257,6 +1257,30 @@ type
     property Lazy: Lazy<TNameLazyFieldAnother> read FLazy write FLazy;
   end;
 
+  [Entity]
+  TLazyBuildInType = class
+  private
+    FId: String;
+    FLazyString: Lazy<String>;
+  published
+    [Size(10)]
+    property Id: String read FId write FId;
+    [Text]
+    property LazyString: Lazy<String> read FLazyString write FLazyString;
+  end;
+
+  [Entity]
+  TLazyBuildInArrayType = class
+  private
+    FId: String;
+    FLazyArray: Lazy<TArray<Byte>>;
+  published
+    [Size(10)]
+    property Id: String read FId write FId;
+    [Binary]
+    property LazyArray: Lazy<TArray<Byte>> read FLazyArray write FLazyArray;
+  end;
+
 implementation
 
 uses System.Internal.ExcUtils;

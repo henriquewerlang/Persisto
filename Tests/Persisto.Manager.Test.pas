@@ -176,6 +176,10 @@ type
     procedure WhenDeleteAnObjectMustRemoveOnlyThisObject;
     [Test]
     procedure WhenSelectingANamedLazyFieldMustLoadTheJoinsAsExpectedAndLoadTheValueHasExpected;
+    [Test]
+    procedure WhenSaveAClassWithALazyFieldWithABuildInTypeCantRaiseAnyError;
+    [Test]
+    procedure WhenSaveAClassWithALazyFieldWithABuildInArrayTypeCantRaiseAnyError;
   end;
 
   TDatabaseConnectionMock = class(TComponent, IDatabaseConnection)
@@ -921,7 +925,7 @@ begin
   MyClass.Id := 41;
   var Table := FManager.Mapper.GetTable(MyClass.ClassType);
 
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 100, nil);
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 100);
 
   FManager.Insert([MyClass]);
 
@@ -1019,6 +1023,32 @@ begin
   Objects := FManager.Select.All.From<TLazyArrayClass>.Open.All;
 
   Assert.AreEqual(3, Length(Objects));
+end;
+
+procedure TManagerTest.WhenSaveAClassWithALazyFieldWithABuildInArrayTypeCantRaiseAnyError;
+begin
+  var AObject := TLazyBuildInArrayType.Create;
+  AObject.Id := 'Id';
+  AObject.LazyArray := [1, 2, 3, 4];
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Save([AObject]);
+    end);
+end;
+
+procedure TManagerTest.WhenSaveAClassWithALazyFieldWithABuildInTypeCantRaiseAnyError;
+begin
+  var AObject := TLazyBuildInType.Create;
+  AObject.Id := 'Id';
+  AObject.LazyString := 'abc';
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Save([AObject]);
+    end);
 end;
 
 procedure TManagerTest.WhenSaveAnObjectMoreThenOnceItMustBeSavedOnlyOnceInTheDatabase;
@@ -1582,7 +1612,7 @@ begin
 
   FManager.Insert([MyClass]);
 
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 100, nil);
+  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 100);
 
   FManager.Update([MyClass]);
 

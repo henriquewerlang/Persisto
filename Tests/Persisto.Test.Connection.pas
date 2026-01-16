@@ -117,7 +117,6 @@ function CreateFiredacConnection(const Owner: TComponent; const DatabaseName: St
 begin
   FFDGUIxSilentMode := True;
   Result := TFDConnection.Create(Owner);
-  Result.FetchOptions.Items := [];
   Result.FetchOptions.Unidirectional := True;
   Result.FormatOptions.StrsEmpty2Null := True;
   Result.ResourceOptions.SilentMode := True;

@@ -97,6 +97,27 @@ type
     procedure WhenTheValueIsntLoadedMustLoadTheValueFromDatabase;
   end;
 
+  [TestFixture]
+  TLazyLoaderBuildInTypeTest = class
+  private
+    FManager: TPersistoManager;
+
+    procedure LoadDatabase;
+  public
+    [Setup]
+    procedure Setup;
+    [TearDown]
+    procedure TearDown;
+    [Test]
+    procedure WhenLoadTheLazyFieldCantRaiseAnyError;
+    [Test]
+    procedure WhenLoadTheStringLazyFieldMustReturnTheValueFromDatabase;
+    [Test]
+    procedure WhenLoadTheLazyArrayFieldCantRaiseAnyError;
+    [Test]
+    procedure WhenLoadTheArrayLazyFieldMustReturnTheValueFromDatabase;
+  end;
+
 implementation
 
 uses System.TypInfo, Persisto.Test.Entity, Persisto.Test.Connection;
@@ -131,7 +152,7 @@ end;
 
 procedure TLazyTest.WhenFillTheLazyValuePropertyMustReturnTheValueAsExpected;
 begin
-  var LazyValue: ILazyValue := TLazyLoader.Create(nil, nil, nil, nil);
+  var LazyValue: ILazyValue := TLazyLoader.Create(nil, nil, nil);
   var MyLazy: Lazy<TMyEntity>;
 
   MyLazy.LazyValue := LazyValue;
@@ -244,7 +265,7 @@ begin
   FManager.Connection := CreateConnection(FManager);
   FManager.Manipulator := CreateDatabaseManipulator(FManager);
 
-  FManager.CreateDatabase;
+  CreateDatabase(FManager);
 
   LoadDatabaseData;
 end;
@@ -258,7 +279,7 @@ end;
 
 procedure TLazyLoaderObjectTest.WhenFillTheValueMustCleanUpTheKeyValue;
 begin
-  var LazyFactory := TLazyLoader.Create(nil, nil, 10, nil) as ILazyValue;
+  var LazyFactory := TLazyLoader.Create(nil, nil, 10) as ILazyValue;
 
   LazyFactory.Value := 20;
 
@@ -267,7 +288,7 @@ end;
 
 procedure TLazyLoaderObjectTest.WhenFillTheValueMustReturnTheLoadedValueAsExpected;
 begin
-  var LazyFactory := TLazyLoader.Create(nil, nil, nil, nil) as ILazyValue;
+  var LazyFactory := TLazyLoader.Create(nil, nil, nil) as ILazyValue;
 
   LazyFactory.Value := 10;
 
@@ -276,21 +297,21 @@ end;
 
 procedure TLazyLoaderObjectTest.WhenGetTheKeyValueFromTheLazyValueFactoryMustReturnTheValueAsExpected;
 begin
-  var LazyFactory := TLazyLoader.Create(nil, nil, 10, nil) as ILazyValue;
+  var LazyFactory := TLazyLoader.Create(nil, nil, 10) as ILazyValue;
 
   Assert.AreEqual(10, LazyFactory.Key.AsInteger);
 end;
 
 procedure TLazyLoaderObjectTest.WhenTheKeyIsLoadedTheHasValueMustReturnTrue;
 begin
-  var LazyFactory := TLazyLoader.Create(nil, nil, 10, nil) as ILazyValue;
+  var LazyFactory := TLazyLoader.Create(nil, nil, 10) as ILazyValue;
 
   Assert.IsTrue(LazyFactory.HasValue);
 end;
 
 procedure TLazyLoaderObjectTest.WhenTheLazyKeyIsEmptyCantTryToLoadTheValueFromDatabase;
 begin
-  var LazyFactory := TLazyLoader.Create(nil, nil, nil, nil) as ILazyValue;
+  var LazyFactory := TLazyLoader.Create(nil, nil, nil) as ILazyValue;
 
   Assert.WillNotRaise(
     procedure
@@ -301,7 +322,7 @@ end;
 
 procedure TLazyLoaderObjectTest.WhenTheValueIsLoadedTheHasValueMustReturnTrue;
 begin
-  var LazyFactory := TLazyLoader.Create(nil, nil, nil, nil) as ILazyValue;
+  var LazyFactory := TLazyLoader.Create(nil, nil, nil) as ILazyValue;
 
   LazyFactory.Value := 10;
 
@@ -310,7 +331,9 @@ end;
 
 procedure TLazyLoaderObjectTest.WhenTheValueIsntLoadedMustLoadTheValueFromDatabase;
 begin
-  var LazyFactory := TLazyLoader.Create(FManager, FManager.Mapper.GetTable(TMyEntity).PrimaryKey, 20, TypeInfo(TMyEntity)) as ILazyValue;
+  var Table := FManager.Mapper.GetTable(TLazyClass);
+
+  var LazyFactory := TLazyLoader.Create(FManager, Table.Field['Lazy'], 20) as ILazyValue;
 
   Assert.IsFalse(LazyFactory.Value.IsEmpty);
 
@@ -338,7 +361,7 @@ begin
   FManager.Connection := CreateConnection(FManager);
   FManager.Manipulator := CreateDatabaseManipulator(FManager);
 
-  FManager.CreateDatabase;
+  CreateDatabase(FManager);
 
   LoadDatabaseData;
 end;
@@ -352,7 +375,7 @@ end;
 
 procedure TLazyLoaderManyValueTest.WhenFillTheValueMustReturnTheLoadedValueAsExpected;
 begin
-  var LazyFactory := TLazyLoader.Create(nil, nil, nil, nil) as ILazyValue;
+  var LazyFactory := TLazyLoader.Create(nil, nil, nil) as ILazyValue;
 
   LazyFactory.Value := 20;
 
@@ -361,21 +384,102 @@ end;
 
 procedure TLazyLoaderManyValueTest.WhenGetTheKeyValueFromTheLazyValueFactoryMustReturnTheValueAsExpected;
 begin
-  var LazyFactory := TLazyLoader.Create(nil, nil, 20, nil) as ILazyValue;
+  var LazyFactory := TLazyLoader.Create(nil, nil, 20) as ILazyValue;
 
   Assert.AreEqual(20, LazyFactory.Key.AsInteger);
 end;
 
 procedure TLazyLoaderManyValueTest.WhenTheValueIsntLoadedMustLoadTheValueFromDatabase;
 begin
-  var Field := FManager.Mapper.GetTable(TLazyArrayClassChild).Field['LazyArrayClass'];
-  var LazyFactory := TLazyLoader.Create(FManager, Field, 10, TypeInfo(TArray<TObject>)) as ILazyValue;
+  var LazyField := FManager.Mapper.GetTable(TLazyArrayClass).Field['LazyArray'];
+
+  var LazyFactory := TLazyLoader.Create(FManager, LazyField, 10) as ILazyValue;
 
   Assert.IsFalse(LazyFactory.Value.IsEmpty);
 
-  var ArrayValue := LazyFactory.Value.AsType<TArray<TObject>>;
+  var ArrayValue := LazyFactory.Value.AsType<TArray<TLazyArrayClassChild>>;
 
   Assert.AreEqual(3, Length(ArrayValue));
+end;
+
+{ TLazyLoaderBuildInTypeTest }
+
+procedure TLazyLoaderBuildInTypeTest.LoadDatabase;
+begin
+  FManager.Mapper.GetTable(TLazyBuildInType);
+  FManager.Mapper.GetTable(TLazyBuildInArrayType);
+
+  FManager.UpdateDatabaseSchema;
+
+  var AObject := TLazyBuildInType.Create;
+  AObject.Id := 'LazyString';
+  AObject.LazyString := 'My text';
+
+  var AObject2 := TLazyBuildInArrayType.Create;
+  AObject2.Id := 'LazyArray';
+  AObject2.LazyArray := [1, 2, 3, 4];
+
+  FManager.Save([AObject, AObject2]);
+end;
+
+procedure TLazyLoaderBuildInTypeTest.Setup;
+begin
+  FManager := TPersistoManager.Create(nil);
+  FManager.Connection := CreateConnection(FManager);
+  FManager.Manipulator := CreateDatabaseManipulator(FManager);
+
+  CreateDatabase(FManager);
+
+  LoadDatabase;
+end;
+
+procedure TLazyLoaderBuildInTypeTest.TearDown;
+begin
+  FManager.Free;
+end;
+
+procedure TLazyLoaderBuildInTypeTest.WhenLoadTheArrayLazyFieldMustReturnTheValueFromDatabase;
+begin
+  var Table := FManager.Mapper.GetTable(TLazyBuildInArrayType);
+
+  var LazyFactory := TLazyLoader.Create(FManager, Table.Field['LazyArray'], 'LazyArray') as ILazyValue;
+
+  Assert.AreEqual(4, LazyFactory.Value.ArrayLength);
+end;
+
+procedure TLazyLoaderBuildInTypeTest.WhenLoadTheLazyArrayFieldCantRaiseAnyError;
+begin
+  var Table := FManager.Mapper.GetTable(TLazyBuildInArrayType);
+
+  var LazyFactory := TLazyLoader.Create(FManager, Table.Field['LazyArray'], 'LazyArray') as ILazyValue;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      LazyFactory.Value;
+    end);
+end;
+
+procedure TLazyLoaderBuildInTypeTest.WhenLoadTheLazyFieldCantRaiseAnyError;
+begin
+  var Table := FManager.Mapper.GetTable(TLazyBuildInType);
+
+  var LazyFactory := TLazyLoader.Create(FManager, Table.Field['LazyString'], 'LazyString') as ILazyValue;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      LazyFactory.Value;
+    end);
+end;
+
+procedure TLazyLoaderBuildInTypeTest.WhenLoadTheStringLazyFieldMustReturnTheValueFromDatabase;
+begin
+  var Table := FManager.Mapper.GetTable(TLazyBuildInType);
+
+  var LazyFactory := TLazyLoader.Create(FManager, Table.Field['LazyString'], 'LazyString') as ILazyValue;
+
+  Assert.AreEqual('My text', LazyFactory.Value.AsString);
 end;
 
 end.
