@@ -446,7 +446,7 @@ begin
   FManager.Connection := CreateConnection(FManager);
   FManager.Manipulator := CreateDatabaseManipulator(FManager);
 
-  FManager.CreateDatabase;
+  CreateDatabase(FManager);
 
   PrepareDatabase;
 end;
@@ -1610,7 +1610,7 @@ begin
   FManager.Connection := CreateConnection(FManager);
   FManager.Manipulator := CreateDatabaseManipulator(FManager);
 
-  FManager.CreateDatabase;
+  CreateDatabase(FManager);
 
   FManager.Mapper.GetTable(TMySQLiteTable);
 end;

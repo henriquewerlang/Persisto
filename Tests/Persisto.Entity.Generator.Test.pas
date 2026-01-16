@@ -150,7 +150,7 @@ begin
   FManager.Connection := CreateConnection(FManager);
   FManager.Manipulator := FManipulator;
 
-  FManager.CreateDatabase;
+  CreateDatabase(FManager);
 end;
 
 procedure TGenerateUnitTeste.TearDown;

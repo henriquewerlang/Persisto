@@ -8,6 +8,8 @@ function CreateConnection(const Owner: TComponent): IDatabaseConnection;
 function CreateConnectionNamed(const Owner: TComponent; const DatabaseName: String): IDatabaseConnection;
 function CreateDatabaseManipulator(const Owner: TComponent): IDatabaseManipulator;
 
+procedure CreateDatabase(const Manager: TPersistoManager);
+
 {$IFDEF POSTGRESQL}
 type
   EPostgreSQLConfigurationError = class(Exception)
@@ -53,6 +55,17 @@ uses
 
 const
   DATABASE_NAME = 'PersistoDatabaseTest';
+
+procedure CreateDatabase(const Manager: TPersistoManager);
+begin
+  try
+    Manager.CreateDatabase;
+  except
+    Manager.DropDatabase;
+
+    Manager.CreateDatabase;
+  end;
+end;
 
 procedure RaiseConfigurationSelectionError;
 begin

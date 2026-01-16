@@ -215,13 +215,7 @@ begin
   FManager.Connection := Connection;
   FManagerInsert.Connection := Connection;
 
-  try
-    FManager.CreateDatabase;
-  except
-    FManager.DropDatabase;
-
-    FManager.CreateDatabase;
-  end;
+  CreateDatabase(FManager);
 
   InsertDatabaseData(Connection);
 end;
