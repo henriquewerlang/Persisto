@@ -1168,7 +1168,7 @@ procedure TMapperTest.WhenLoadTheSchemaWithAClassInParamsTheMapperMustLoadOnlyTh
 begin
   FMapper.LoadAll([TMyClass]);
 
-  Assert.AreEqual(81, Length(FMapper.Tables));
+  Assert.AreEqual(83, Length(FMapper.Tables));
 end;
 
 procedure TMapperTest.WhenLoadTheTableMustLoadTheNameOfTheTableWithTheNameOfTheClassWithoutTheTChar;
