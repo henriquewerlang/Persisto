@@ -163,10 +163,6 @@ type
     [Test]
     procedure WhenUpdateAnObjectMustStartAnTransactionAndIfRaiseAnErrorMustRollback;
     [Test]
-    procedure WhenInsertingAnUnloadedLazyFieldMustInsertTheKeyValueFromLazyField;
-    [Test]
-    procedure WhenUpdatintAnUnloadedLazyFieldMustUpdateTheKeyValueFromLazyField;
-    [Test]
     procedure WhenUseALazyFieldInTheFieldMustLoadTheJoinForTheFilterWorks;
     [Test]
     procedure WhenRemoveAnObjectMustDeleteTheRecordFromDatabase;
@@ -691,6 +687,8 @@ begin
   var Value: TValue;
   var Field := FManager.Mapper.GetTable(LazyClass.ClassType).Field['LazyArray'];
 
+  LazyClass.LazyArray.Value;
+
   Field.HasValue(LazyClass, Value);
 
   Assert.AreEqual(TypeInfo(TArray<TLazyArrayClassChild>), Value.TypeInfo);
@@ -917,25 +915,6 @@ begin
   Assert.AreEqual('abc', Cursor.GetDataSet.Fields[0].AsString);
   Assert.AreEqual('123', Cursor.GetDataSet.Fields[1].AsString);
   Assert.AreEqual('123.456', FormatFloat('0.000', Cursor.GetDataSet.Fields[2].AsFloat, TFormatSettings.Invariant));
-end;
-
-procedure TManagerTest.WhenInsertingAnUnloadedLazyFieldMustInsertTheKeyValueFromLazyField;
-begin
-  var MyClass := TLazyClass.Create;
-  MyClass.Id := 41;
-  var Table := FManager.Mapper.GetTable(MyClass.ClassType);
-
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 100);
-
-  FManager.Insert([MyClass]);
-
-  var Cursor := FManager.OpenCursor('select * from LazyClass where Id = 41');
-
-  Cursor.Next;
-
-  Assert.AreEqual(100, Cursor.GetDataSet.FieldByName('IdLazy').AsInteger);
-
-  MyClass.Free;
 end;
 
 procedure TManagerTest.WhenInsertMustInsertAllTheObjectsInTheArray;
@@ -1602,27 +1581,6 @@ begin
   Object3.FK.Free;
 
   Object3.Free;
-end;
-
-procedure TManagerTest.WhenUpdatintAnUnloadedLazyFieldMustUpdateTheKeyValueFromLazyField;
-begin
-  var MyClass := TLazyClass.Create;
-  MyClass.Id := 41;
-  var Table := FManager.Mapper.GetTable(MyClass.ClassType);
-
-  FManager.Insert([MyClass]);
-
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 100);
-
-  FManager.Update([MyClass]);
-
-  var Cursor := FManager.OpenCursor('select * from LazyClass where Id = 41');
-
-  Cursor.Next;
-
-  Assert.AreEqual(100, Cursor.GetDataSet.FieldByName('IdLazy').AsInteger);
-
-  MyClass.Free;
 end;
 
 procedure TManagerTest.WhenUseALazyFieldInTheFieldMustLoadTheJoinForTheFilterWorks;

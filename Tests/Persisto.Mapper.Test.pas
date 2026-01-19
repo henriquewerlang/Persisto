@@ -216,8 +216,6 @@ type
     [Test]
     procedure WhenTheFieldIsManyValueAssociationMustLoadTheManyValuePropertyOfTheField;
     [Test]
-    procedure WhenTheLazyFieldIsntLoadedAndHaveAKeyFilledMustReturnTheKeyValueInGetValueFunction;
-    [Test]
     procedure WhenTheFieldIsRequiredMustLoadThisInfoInTheField;
 //    [TestCase('AnsiChar', 'AnsiChar')]
 //    [TestCase('Char', 'Char')]
@@ -316,7 +314,7 @@ type
     [Test]
     procedure WhenLoadATableWithInheritenceWithoutAnyFieldsCantRaiseLoadError;
     [Test]
-    procedure WhenTheLazyValueHasOnlyTheKeyLoadedMustReturnTrueInTheFieldValue;
+    procedure WhenTheLazyValueHasOnlyTheKeyLoadedMustReturnFalseInTheFieldValue;
     [Test]
     procedure IfTheLazyFieldIsNotLoadedMustReturnValueInTheHasValueFunction;
     [Test]
@@ -1577,18 +1575,6 @@ begin
   MyClass.Free;
 end;
 
-procedure TMapperTest.WhenTheLazyFieldIsntLoadedAndHaveAKeyFilledMustReturnTheKeyValueInGetValueFunction;
-begin
-  var MyClass := TLazyClass.Create;
-  var Table := FMapper.GetTable(MyClass.ClassType);
-
-  Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 1234);
-
-  Assert.AreEqual(1234, Table.Field['Lazy'].Value[MyClass].AsInteger);
-
-  MyClass.Free;
-end;
-
 procedure TMapperTest.WhenTheLazyPropertyIsLoadedMustReturnTheInternalValue;
 begin
   var MyClass := TLazyClass.Create;
@@ -1606,7 +1592,7 @@ begin
   TheClass.Free;
 end;
 
-procedure TMapperTest.WhenTheLazyValueHasOnlyTheKeyLoadedMustReturnTrueInTheFieldValue;
+procedure TMapperTest.WhenTheLazyValueHasOnlyTheKeyLoadedMustReturnFalseInTheFieldValue;
 begin
   var MyClass := TLazyClass.Create;
   var Table := FMapper.GetTable(MyClass.ClassType);
@@ -1614,7 +1600,7 @@ begin
 
   Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 1234);
 
-  Assert.IsTrue(Table.Field['Lazy'].HasValue(MyClass, Value));
+  Assert.IsFalse(Table.Field['Lazy'].HasValue(MyClass, Value));
 
   MyClass.Free;
 end;

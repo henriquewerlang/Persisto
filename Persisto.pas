@@ -1646,25 +1646,21 @@ begin
   if IsLazy then
   begin
     var Lazy := LazyValue[Instance];
+    Result := Lazy.Key.IsEmpty;
 
-    if IsManyValueAssociation then
-      Value := Lazy.Value
-    else
-    begin
-      Value := Lazy.Key;
-
-      if Value.IsEmpty then
-        Value := Lazy.Value
-      else
-        Exit(True);
-    end;
+    if Result then
+      Value := Lazy.Value;
   end
-  else if Required or IsStoredProp(Instance, PropertyInfo.PropInfo) then
-    Value := GetPropertyValue(Instance)
   else
-    Value := TValue.Empty;
+  begin
+    Result := Required or IsStoredProp(Instance, PropertyInfo.PropInfo);
 
-  Result := not Value.IsEmpty;
+    if Result then
+      Value := GetPropertyValue(Instance);
+  end;
+
+  if Result then
+    Result := not Value.IsEmpty;
 end;
 
 procedure TField.SetLazyValue(const Instance: TObject; const Value: ILazyValue);
@@ -1742,6 +1738,8 @@ begin
 
       Params.Free;
     end;
+
+    FKeyValue := TValue.Empty;
   end;
 
   Result := FLazyValue;
@@ -2926,9 +2924,9 @@ procedure TPersistoManager.InternalUpdateTable(const Table: TTable; const &Objec
         InternalUpdateTable(Table.BaseTable, &Object, LoadOldValueObject(Table.BaseTable, &Object));
 
       for var Field in Table.Fields do
-        if not Field.IsManyValueAssociation then
+        if not Field.IsManyValueAssociation and Field.HasValue(&Object, FieldValue) then
         begin
-          if Field.HasValue(&Object, FieldValue) and Field.IsForeignKey and FieldValue.IsObject then
+          if Field.IsForeignKey and FieldValue.IsObject then
           begin
             var ForeignObject := FieldValue.AsObject;
 

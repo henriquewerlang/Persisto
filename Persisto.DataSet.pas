@@ -481,7 +481,7 @@ function TPersistoDataSet.HasValue(const PersistoField: Persisto.TField; const I
 begin
   Result := PersistoField.HasValue(Instance, Value);
 
-  if Result and PersistoField.IsLazy then
+  if PersistoField.IsLazy then
     Value := PersistoField.LazyValue[Instance].Value;
 end;
 
