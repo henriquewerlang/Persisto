@@ -257,6 +257,8 @@ procedure TPersistoDataSet.DataEvent(Event: TDataEvent; Info: NativeInt);
     if GetParentDataSetFieldValue(FieldValue) then
       for var A := 0 to Pred(FieldValue.ArrayLength) do
         FObjectList.Add(FieldValue.GetReferenceToRawArrayElement(A));
+
+    DataEvent(deDataSetScroll, 0);
   end;
 
   procedure NotifyNestedDataSets;

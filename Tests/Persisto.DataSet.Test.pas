@@ -202,6 +202,8 @@ type
     procedure WhenInsertARecordInTheDetailDataSetMustLoadTheObjectInTheMasterArrayAsExpected;
     [Test]
     procedure WhenNavigatingBeetweenRecordosWithADataSetFieldMustLoadTheDetailWithTheValuesFromTheArrayAsExpected;
+    [Test]
+    procedure WhenLoadTheDataSetFieldMustTriggerTheDataSetScrollEventInTheDetail;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -1491,6 +1493,31 @@ begin
     end, EDataSetWithoutObjectDefinition);
 end;
 
+procedure TPersistoDataSetTest.WhenLoadTheDataSetFieldMustTriggerTheDataSetScrollEventInTheDetail;
+begin
+  var Object1 := TMyManyValue.Create;
+  Object1.Childs := [TMyChildLink.Create, TMyChildLink.Create, TMyChildLink.Create];
+  var ChildsField := TDataSetField.Create(FDataSet);
+  ChildsField.FieldName := 'Childs';
+  FDataSet.Objects := [Object1];
+  var NestedDataSet := TPersistoDataSet.Create(FDataSet);
+
+  ChildsField.SetParentComponent(FDataSet);
+
+  NestedDataSet.DataSetField := ChildsField;
+
+  FDataSource.DataSet := NestedDataSet;
+
+  FDataSet.Open;
+
+  Assert.IsFalse(FDataSetLink.Events.IsEmpty);
+
+  Assert.AreEqual(deDataSetScroll, FDataSetLink.Events.Last);
+
+  for var Child in Object1.Childs do
+    Child.Free;
+end;
+
 procedure TPersistoDataSetTest.WhenLoadTheObjectClassNameMustOpenWithoutAnyError;
 begin
   FDataSet.ObjectClassName := TMyTestClass.QualifiedClassName;
@@ -1820,7 +1847,7 @@ end;
 
 function TLazyValueMock.GetKey: TValue;
 begin
-  Result := -1;
+  Result := TValue.Empty;
 end;
 
 function TLazyValueMock.GetValue: TValue;
