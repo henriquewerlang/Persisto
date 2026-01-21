@@ -414,10 +414,10 @@ begin
       begin
         var StringValue := Value.AsString + #0;
 
-        StrLCopy(PWideChar(@Buffer[0]), @StringValue[1], StringValue.Length)
+        StrLCopy(PWideChar(Buffer), @StringValue[1], StringValue.Length)
       end
       else
-        Value.ExtractRawData(@Buffer[0]);
+        Value.ExtractRawData(PByte(Buffer));
   end;
 end;
 
@@ -559,7 +559,18 @@ begin
   LoadObjectTable;
 
   for var Field in FObjectTable.Fields do
-    TFieldDef.Create(FieldDefs, Field.Name, Field.DatabaseType, GetFieldSize(Field), False, FieldDefs.Count);
+  begin
+    var FieldDef := TDefCollection(FieldDefs).Find(Field.Name) as TFieldDef;
+
+    if not Assigned(FieldDef) then
+      FieldDef := TFieldDef.Create(FieldDefs);
+
+    FieldDef.Name := Field.Name;
+    FieldDef.DataType := Field.DatabaseType;
+    FieldDef.FieldNo := FieldDefs.Count;
+    FieldDef.Required := Field.Required;
+    FieldDef.Size := GetFieldSize(Field)
+  end;
 end;
 
 procedure TPersistoDataSet.InternalLast;

@@ -204,6 +204,8 @@ type
     procedure WhenNavigatingBeetweenRecordosWithADataSetFieldMustLoadTheDetailWithTheValuesFromTheArrayAsExpected;
     [Test]
     procedure WhenLoadTheDataSetFieldMustTriggerTheDataSetChangeEventInTheDetail;
+    [Test]
+    procedure WhenCreateAFieldWithTheIncorrectTypeMustRaiseError;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -660,6 +662,19 @@ begin
   FDataSet.Open;
 
   Assert.AreEqual(DateTimeToStr(TheTime), DateTimeToStr(Field.AsDateTime));
+end;
+
+procedure TPersistoDataSetTest.WhenCreateAFieldWithTheIncorrectTypeMustRaiseError;
+begin
+  var Field := TWideStringField.Create(FDataSet);
+  Field.FieldName := 'Value';
+  var MyObject := TMyTestClass.Create;
+
+  Field.SetParentComponent(FDataSet);
+
+  FDataSet.Objects := [MyObject];
+
+  Assert.WillRaise(FDataSet.Open, EDatabaseError);
 end;
 
 procedure TPersistoDataSetTest.WhenCreateATimeFieldMustReturnTheValueFromTimeHasExpected;
