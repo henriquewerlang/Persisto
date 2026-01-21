@@ -206,6 +206,8 @@ type
     procedure WhenLoadTheDataSetFieldMustTriggerTheDataSetChangeEventInTheDetail;
     [Test]
     procedure WhenCreateAFieldWithTheIncorrectTypeMustRaiseError;
+    [Test]
+    procedure WhenCloseTheMainDataSetTheNestedDataSetCantTriggerEvents;
   end;
 
   TDataLinkMock = class(TDataLink)

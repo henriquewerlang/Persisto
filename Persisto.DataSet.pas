@@ -263,7 +263,7 @@ procedure TPersistoDataSet.DataEvent(Event: TDataEvent; Info: NativeInt);
 
   procedure NotifyNestedDataSets;
   begin
-    if not NestedDataSets.IsEmpty then
+    if Active and not NestedDataSets.IsEmpty then
       DataEvent(deDataSetScroll, 0);
   end;
 
@@ -512,6 +512,10 @@ end;
 
 procedure TPersistoDataSet.InternalClose;
 begin
+  inherited;
+
+  BindFields(False);
+
   FreeAndNil(FCursor);
 end;
 
