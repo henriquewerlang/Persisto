@@ -203,7 +203,7 @@ type
     [Test]
     procedure WhenNavigatingBeetweenRecordosWithADataSetFieldMustLoadTheDetailWithTheValuesFromTheArrayAsExpected;
     [Test]
-    procedure WhenLoadTheDataSetFieldMustTriggerTheDataSetScrollEventInTheDetail;
+    procedure WhenLoadTheDataSetFieldMustTriggerTheDataSetChangeEventInTheDetail;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -1493,7 +1493,7 @@ begin
     end, EDataSetWithoutObjectDefinition);
 end;
 
-procedure TPersistoDataSetTest.WhenLoadTheDataSetFieldMustTriggerTheDataSetScrollEventInTheDetail;
+procedure TPersistoDataSetTest.WhenLoadTheDataSetFieldMustTriggerTheDataSetChangeEventInTheDetail;
 begin
   var Object1 := TMyManyValue.Create;
   Object1.Childs := [TMyChildLink.Create, TMyChildLink.Create, TMyChildLink.Create];
@@ -1512,7 +1512,7 @@ begin
 
   Assert.IsFalse(FDataSetLink.Events.IsEmpty);
 
-  Assert.AreEqual(deDataSetScroll, FDataSetLink.Events.Last);
+  Assert.AreEqual(deDataSetChange, FDataSetLink.Events.Last);
 
   for var Child in Object1.Childs do
     Child.Free;
