@@ -208,6 +208,8 @@ type
     procedure WhenCreateAFieldWithTheIncorrectTypeMustRaiseError;
     [Test]
     procedure WhenCloseTheMainDataSetTheNestedDataSetCantTriggerEvents;
+    [Test]
+    procedure WhenPostAnInsertingObjectCantDuplicateTheRecord;
   end;
 
   TDataLinkMock = class(TDataLink)
@@ -406,8 +408,11 @@ begin
 
   FDataSetLink.Free;
 
-  for var &Object in Objects do
-    &Object.Free;
+  try
+    for var &Object in Objects do
+      &Object.Free;
+  except
+  end;
 end;
 
 procedure TPersistoDataSetTest.TheBookmarkValidMustReturnTrue;
@@ -582,6 +587,33 @@ begin
     begin
       FDataSet.FieldByName('Id').IsNull;
     end);
+end;
+
+procedure TPersistoDataSetTest.WhenCloseTheMainDataSetTheNestedDataSetCantTriggerEvents;
+begin
+  var AObject := TMyManyValue.Create;
+  AObject.Childs := [TMyChildLink.Create, TMyChildLink.Create, TMyChildLink.Create];
+  var ChildsField := TDataSetField.Create(FDataSet);
+  ChildsField.FieldName := 'Childs';
+  FDataSet.Objects := [AObject];
+  var NestedDataSet := TPersistoDataSet.Create(FDataSet);
+
+  FDataSource.DataSet := NestedDataSet;
+
+  ChildsField.SetParentComponent(FDataSet);
+
+  NestedDataSet.DataSetField := ChildsField;
+
+  FDataSet.Open;
+
+  FDataSetLink.Events.Clear;
+
+  FDataSet.Close;
+
+  Assert.IsFalse(FDataSetLink.Events.Contains(deDataSetChange));
+
+  for var Child in AObject.Childs do
+    Child.Free;
 end;
 
 procedure TPersistoDataSetTest.WhenCompareTwoBookmarksAndTheFirstIsAfterTheSecondMustReturnAPositiveValueInTheComparingFunction;
@@ -1354,6 +1386,27 @@ begin
 
   for var Child in AObject.Childs do
     Child.Free;
+end;
+
+procedure TPersistoDataSetTest.WhenPostAnInsertingObjectCantDuplicateTheRecord;
+begin
+  FDataSet.ObjectClass := TMyTestClass;
+
+  FDataSet.Open;
+
+  FDataSet.Insert;
+
+  FDataSet.Post;
+
+  FDataSet.Edit;
+
+  FDataSet.Post;
+
+  FDataSet.Edit;
+
+  FDataSet.Post;
+
+  Assert.AreEqual(1, FDataSet.RecordCount);
 end;
 
 procedure TPersistoDataSetTest.WhenPostTheDataSetMustLoadTheInsertingObjectInTheObjectList;

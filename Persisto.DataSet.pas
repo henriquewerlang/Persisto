@@ -77,7 +77,6 @@ type
   TPersistoDataSet = class(TDataSet)
   private
     FCursor: TPersistoCursor;
-    FInsertingObject: TObject;
     FManager: TPersistoManager;
     FObjectClass: TClass;
     FObjectClassName: String;
@@ -120,6 +119,7 @@ type
     procedure InternalHandleException{$IFDEF PAS2JS}(E: Exception){$ENDIF}; override;
     procedure InternalInitFieldDefs; override;
     procedure InternalInitRecord({$IFDEF PAS2JS}var {$ENDIF}Buffer: TRecBuf); override;
+    procedure InternalInitRecord(Buffer: TRecordBuffer); override;
     procedure InternalInsert; override;
     procedure InternalLast; override;
     procedure InternalOpen; override;
@@ -492,16 +492,13 @@ var
   PersistoBuffer: TPersistoBuffer absolute Buffer;
 
 begin
-  PersistoBuffer.CurrentObject := nil;
+  PersistoBuffer.CurrentObject := FObjectTable.ClassTypeInfo.MetaclassType.Create;
 end;
 
 procedure TPersistoDataSet.InternalInsert;
 begin
   inherited;
 
-  FInsertingObject := FObjectTable.ClassTypeInfo.MetaclassType.Create;
-
-  ActivePersistoBuffer.CurrentObject := FInsertingObject;
 end;
 
 procedure TPersistoDataSet.InternalCancel;
@@ -577,6 +574,11 @@ begin
   end;
 end;
 
+procedure TPersistoDataSet.InternalInitRecord(Buffer: TRecordBuffer);
+begin
+  InternalInitRecord(TRecBuf(Buffer));
+end;
+
 procedure TPersistoDataSet.InternalLast;
 begin
   FCursor.Last;
@@ -624,12 +626,12 @@ procedure TPersistoDataSet.InternalPost;
 begin
   inherited;
 
-  if Assigned(FInsertingObject) then
+  if State = dsInsert then
   begin
     if GetBookmarkFlag(ActiveBuffer) <> bfCurrent then
-      FCursor.CurrentPosition := FObjectList.Add(FInsertingObject)
+      FCursor.CurrentPosition := FObjectList.Add(GetActiveObject)
     else
-      FObjectList.Insert(FCursor.CurrentPosition, FInsertingObject);
+      FObjectList.Insert(FCursor.CurrentPosition, GetActiveObject);
 
     UpdateParentRecord;
   end;
