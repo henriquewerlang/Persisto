@@ -255,8 +255,8 @@ procedure TPersistoDataSet.DataEvent(Event: TDataEvent; Info: NativeInt);
     FObjectList.Clear;
 
     if GetParentDataSetFieldValue(FieldValue) then
-      for var A := 0 to Pred(FieldValue.ArrayLength) do
-        FObjectList.Add(FieldValue.GetReferenceToRawArrayElement(A));
+      for var A := 0 to Pred(FieldValue.GetArrayLength) do
+        FObjectList.Add(FieldValue.GetArrayElement(A).AsObject);
 
     DataEvent(deDataSetChange, 0);
   end;
@@ -591,13 +591,18 @@ procedure TPersistoDataSet.InternalPost;
 
     if GetParentDataSetField(Instance, PersistoField) then
     begin
-      var FieldValue := PersistoField.Value[Instance];
-      FieldValue.ArrayLength := FObjectList.Count;
+      var FieldValue: TArray<TValue> := nil;
+
+      SetLength(FieldValue, FObjectList.Count);
 
       for var A := 0 to Pred(FObjectList.Count) do
-        FieldValue.SetArrayElement(A, FObjectList[A]);
+      begin
+        var Value := FObjectList[A];
 
-      PersistoField.Value[Instance] := FieldValue;
+        FieldValue[A] := TValue.From(PersistoField.FieldType.AsArray.ElementType.Handle, Value);
+      end;
+
+      PersistoField.Value[Instance] := TValue.FromArray(PersistoField.FieldType.Handle, FieldValue);
     end;
   end;
 
