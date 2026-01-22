@@ -124,6 +124,7 @@ type
     procedure InternalLast; override;
     procedure InternalOpen; override;
     procedure InternalPost; override;
+    procedure InternalSetToRecord(Buffer: TRecBuf); override;
     procedure SetBookmarkData(Buffer: TRecordBuffer; Data: TBookmark); override;
     procedure SetBookmarkFlag(Buffer: TRecordBuffer; Value: TBookmarkFlag); override;
     procedure SetFieldData(Field: TField; Buffer: TValueBuffer); override;
@@ -257,6 +258,8 @@ procedure TPersistoDataSet.DataEvent(Event: TDataEvent; Info: NativeInt);
     if GetParentDataSetFieldValue(FieldValue) then
       for var A := 0 to Pred(FieldValue.GetArrayLength) do
         FObjectList.Add(FieldValue.GetArrayElement(A).AsObject);
+
+    Resync([]);
 
     DataEvent(deDataSetChange, 0);
   end;
@@ -635,6 +638,16 @@ begin
 
     UpdateParentRecord;
   end;
+end;
+
+procedure TPersistoDataSet.InternalSetToRecord(Buffer: TRecBuf);
+var
+  PersistoBuffer: TPersistoBuffer absolute Buffer;
+
+begin
+  inherited;
+  FCursor.CurrentPosition := PersistoBuffer.Position;
+  PersistoBuffer.CurrentObject := FCursor.CurrentObject;
 end;
 
 function TPersistoDataSet.IsCursorOpen: Boolean;
