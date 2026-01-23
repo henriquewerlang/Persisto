@@ -140,6 +140,7 @@ type
     function GetCurrentObject<T: class>: T;
     function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean; override;
 
+    procedure ApplyUpdates;
     procedure Filter(Func: TFunc<TPersistoDataSet, Boolean>);
 
     property CurrentObject: TObject read GetActiveObject write SetActiveObject;
@@ -192,6 +193,13 @@ type
 function TPersistoDataSet.AllocRecordBuffer: TRecordBuffer;
 begin
   Result := TRecordBuffer(TPersistoBuffer.Create);
+end;
+
+procedure TPersistoDataSet.ApplyUpdates;
+begin
+  Post;
+
+  Manager.Save(FObjectList.ToArray);
 end;
 
 function TPersistoDataSet.BookmarkValid(Bookmark: TBookmark): Boolean;
