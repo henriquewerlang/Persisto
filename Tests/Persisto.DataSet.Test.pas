@@ -215,6 +215,8 @@ type
     [Test]
     procedure WhenPostAnInsertingObjectCantDuplicateTheRecord;
     [Test]
+    procedure WhenTheFieldIsAnAnsiStringFieldMustReturnTheValueTheFieldAsExpected;
+    [Test]
     procedure WhenApplyTheUpdatesMustPostTheCurrentRecord;
     [Test]
     procedure WhenApplyTheUpdatesMustUpdateTheValuesInTheDatabase;
@@ -1656,6 +1658,18 @@ begin
   FDataSet.ObjectClass := TMyTestClass;
 
   Assert.WillNotRaise(FDataSet.Open);
+end;
+
+procedure TPersistoDataSetTest.WhenTheFieldIsAnAnsiStringFieldMustReturnTheValueTheFieldAsExpected;
+begin
+  var AObject := TMyEntityWithAllTypeOfFields.Create;
+  AObject.AnsiString := 'My value';
+
+  FDataSet.Objects := [AObject];
+
+  FDataSet.Open;
+
+  Assert.AreEqual('My value', FDataSet.FieldByName('AnsiString').AsString);
 end;
 
 procedure TPersistoDataSetTest.WhenTheFieldIsCharTypeTheSizeMustBeOne;

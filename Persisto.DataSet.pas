@@ -180,7 +180,7 @@ type
 
 implementation
 
-uses System.Math, System.Variants, Persisto.Mapping, Data.DBConsts, {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF};
+uses System.Math, System.Variants, System.AnsiStrings, Persisto.Mapping, Data.DBConsts, {$IFDEF PAS2JS}JS{$ELSE}System.SysConst{$ENDIF};
 
 type
   TFieldHelper = class helper for TField
@@ -426,6 +426,12 @@ begin
         var StringValue := Value.AsString + #0;
 
         StrLCopy(PWideChar(Buffer), @StringValue[1], StringValue.Length)
+      end
+      else if Field is TStringField then
+      begin
+        var StringValue := AnsiString(Value.AsString + #0);
+
+        System.AnsiStrings.StrLCopy(PAnsiChar(Buffer), PAnsiChar(StringValue), Length(StringValue))
       end
       else
         Value.ExtractRawData(PByte(Buffer));
