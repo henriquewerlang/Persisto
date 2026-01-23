@@ -149,7 +149,7 @@ var
     var Object10 := CreateObject<TMyChildLink>;
     Object10.ManyValueAssociation := Object3;
 
-    Object7.Childs := [Object8, Object9, Object10];
+    Object7.Children := [Object8, Object9, Object10];
 
     var Object11 := CreateObject<TLazyClass>;
     Object11.Id := 1;
@@ -233,7 +233,7 @@ procedure TClassLoaderTest.TheChildOfAChildObjectMustBeLoadedAsExpected;
 begin
   var &Object := FManager.Select.All.From<TMyManyValue>.Open.One;
 
-  Assert.AreEqual(3, Length(&Object.Childs[0].ManyValueAssociation.ManyValueAssociationList));
+  Assert.AreEqual(3, Length(&Object.Children[0].ManyValueAssociation.ManyValueAssociationList));
 end;
 
 procedure TClassLoaderTest.WhenLoadAClassWithALazyPropertyAndThanReloadTheClassMustResetTheLazyFieldValue;
@@ -283,7 +283,7 @@ begin
 
   FManager.ExectDirect('delete from MyManyValue');
 
-  Assert.AreEqual(LazyClass, LazyClass.Childs[0].MyManyValue.Value);
+  Assert.AreEqual(LazyClass, LazyClass.Children[0].MyManyValue.Value);
 end;
 
 procedure TClassLoaderTest.WhenLoadAllObjectsFromAManyValueAssociationMustReturnAUniqueInstanceOfEachObject;
@@ -566,7 +566,7 @@ begin
     FManager.Select.All.From<TManyValueRecursiveChild>.Open.One;
   except
     on Erro: ERecursionSelectionError do
-      Assert.AreEqual('ManyValueRecursiveChild.ManyValueRecursive->ManyValueRecursive.Childs->ManyValueRecursiveChild.RecursiveClass->' +
+      Assert.AreEqual('ManyValueRecursiveChild.ManyValueRecursive->ManyValueRecursive.Children->ManyValueRecursiveChild.RecursiveClass->' +
         'ClassRecursiveFirst.GoingThird->ClassRecursiveThird.GoingSecond->ClassRecursiveSecond.GoingFirst->ClassRecursiveFirst.GoingThird', Erro.RecursionTree);
   end;
 end;
@@ -584,7 +584,7 @@ procedure TClassLoaderTest.WhenTheChildObjectIsRepeatedInTheReturningCursorTheVa
 begin
   var &Object := FManager.Select.All.From<TMyManyValue>.Open.One;
 
-  Assert.AreEqual(3, Length(&Object.Childs));
+  Assert.AreEqual(3, Length(&Object.Children));
 end;
 
 procedure TClassLoaderTest.WhenTheForeignKeyIsLazyCantRaiseErrorOfCircularReference;

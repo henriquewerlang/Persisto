@@ -176,10 +176,10 @@ type
 
   TManyValueRecursive = class
   private
-    FChilds: TArray<TManyValueRecursiveChild>;
+    FChildren: TArray<TManyValueRecursiveChild>;
     FId: Integer;
   published
-    property Childs: TArray<TManyValueRecursiveChild> read FChilds write FChilds;
+    property Children: TArray<TManyValueRecursiveChild> read FChildren write FChildren;
     property Id: Integer read FId write FId;
   end;
 
@@ -230,13 +230,13 @@ type
   [Entity]
   TMyManyValue = class
   private
-    FChilds: TArray<TMyChildLink>;
+    FChildren: TArray<TMyChildLink>;
     FId: String;
     FValue: Integer;
   published
     [NewUniqueIdentifier, UniqueIdentifier]
     property Id: String read FId write FId;
-    property Childs: TArray<TMyChildLink> read FChilds write FChilds;
+    property Children: TArray<TMyChildLink> read FChildren write FChildren;
     property Value: Integer read FValue write FValue;
   end;
 
@@ -731,11 +731,11 @@ type
   private
     FId: Integer;
     FChild: TManyValueChild;
-    FChilds: TArray<TManyValueChild>;
+    FChildren: TArray<TManyValueChild>;
   published
     property Child: TManyValueChild read FChild write FChild;
     [ManyValueAssociationLinkName('Parent')]
-    property Childs: TArray<TManyValueChild> read FChilds write FChilds;
+    property Children: TArray<TManyValueChild> read FChildren write FChildren;
     property Id: Integer read FId write FId;
   end;
 
@@ -763,10 +763,10 @@ type
   TManyValueParentInherited = class
   private
     FId: Integer;
-    FChilds: TArray<TManyValueChildInherited>;
+    FChildren: TArray<TManyValueChildInherited>;
   published
     [ManyValueAssociationLinkName('Parent')]
-    property Childs: TArray<TManyValueChildInherited> read FChilds write FChilds;
+    property Children: TArray<TManyValueChildInherited> read FChildren write FChildren;
     property Id: Integer read FId write FId;
   end;
 
@@ -795,7 +795,7 @@ type
   published
     property Id: Integer read FId write FId;
     property PassCount: Integer read FPassCount write FPassCount;
-    property Childs: TArray<TManyValueParentChildError> read FValues write FValues;
+    property Children: TArray<TManyValueParentChildError> read FValues write FValues;
   end;
 
   [Entity]
@@ -849,7 +849,7 @@ type
     FId: Integer;
   published
     property Id: Integer read FId write FId;
-    property Childs: TArray<TManyValueClassBaseChild> read FValues write FValues;
+    property Children: TArray<TManyValueClassBaseChild> read FValues write FValues;
   end;
 
   TManyValueClassInherited = class;

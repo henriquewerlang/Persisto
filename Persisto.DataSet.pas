@@ -77,6 +77,7 @@ type
   TPersistoDataSet = class(TDataSet)
   private
     FCursor: TPersistoCursor;
+    FDeletedObject: TList<TObject>;
     FManager: TPersistoManager;
     FObjectClass: TClass;
     FObjectClassName: String;
@@ -86,6 +87,8 @@ type
     function GetActivePersistoBuffer: TPersistoBuffer;
     function GetActiveObject: TObject;
     function GetFieldAndInstance(const Field: TField; var Instance: TObject; var PersistoField: Persisto.TField): Boolean;
+    function GetManager: TPersistoManager;
+    function GetParentDataSet: TPersistoDataSet;
     function GetParentDataSetField(var Instance: TObject; var PersistoField: Persisto.TField): Boolean;
     function GetParentDataSetFieldValue(var Value: TValue): Boolean;
     function GetObjects: TArray<TObject>;
@@ -97,6 +100,9 @@ type
     procedure LoadObjectTable;
     procedure SetActiveObject(const Value: TObject);
     procedure SetObjects(const Value: TArray<TObject>);
+    procedure UpdateParentRecord;
+
+    property ParentDataSet: TPersistoDataSet read GetParentDataSet;
   protected
     function AllocRecordBuffer: TRecordBuffer; override;
     function GetBookmarkFlag(Buffer: TRecordBuffer): TBookmarkFlag; override;
@@ -168,7 +174,7 @@ type
     property BeforeScroll;
     property DataSetField;
     property FieldOptions;
-    property Manager: TPersistoManager read FManager write FManager;
+    property Manager: TPersistoManager read GetManager write FManager;
     property ObjectClassName: String read FObjectClassName write FObjectClassName;
     property OnCalcFields;
     property OnDeleteError;
@@ -197,9 +203,18 @@ end;
 
 procedure TPersistoDataSet.ApplyUpdates;
 begin
-  Post;
+  if State in dsEditModes then
+    Post;
 
-  Manager.Save(FObjectList.ToArray);
+  Manager.Delete(FDeletedObject.ToArray);
+
+  if not Assigned(DataSetField) then
+  begin
+    Manager.Save(FObjectList.ToArray);
+
+    for var NestedDataSet in NestedDataSets do
+      TPersistoDataSet(NestedDataSet).ApplyUpdates;
+  end;
 end;
 
 function TPersistoDataSet.BookmarkValid(Bookmark: TBookmark): Boolean;
@@ -244,6 +259,7 @@ begin
   inherited;
 
   BookmarkSize := SizeOf(NativeInt);
+  FDeletedObject := TList<TObject>.Create;
   FObjectList := TList<TObject>.Create;
 {$IFDEF DCC}
   ObjectView := True;
@@ -291,6 +307,8 @@ destructor TPersistoDataSet.Destroy;
 begin
   FObjectList.Free;
 
+  FDeletedObject.Free;
+
   inherited;
 end;
 
@@ -307,7 +325,7 @@ end;
 procedure TPersistoDataSet.LoadObjectTable;
 begin
   if Assigned(DataSetField) then
-    FObjectTable := (DataSetField.DataSet as TPersistoDataSet).FObjectTable.Field[DataSetField.FieldName].ManyValueAssociation.ChildTable
+    FObjectTable := ParentDataSet.FObjectTable.Field[DataSetField.FieldName].ManyValueAssociation.ChildTable
   else
   begin
     CheckManagerLoaded;
@@ -438,9 +456,22 @@ begin
   end;
 end;
 
+function TPersistoDataSet.GetManager: TPersistoManager;
+begin
+  if Assigned(DataSetField) then
+    Result := ParentDataSet.Manager
+  else
+    Result := FManager;
+end;
+
 function TPersistoDataSet.GetObjects: TArray<TObject>;
 begin
   Result := FObjectList.ToArray;
+end;
+
+function TPersistoDataSet.GetParentDataSet: TPersistoDataSet;
+begin
+  Result := DataSetField.DataSet as TPersistoDataSet;
 end;
 
 function TPersistoDataSet.GetParentDataSetField(var Instance: TObject; var PersistoField: Persisto.TField): Boolean;
@@ -448,7 +479,7 @@ begin
   Result := Assigned(DataSetField);
 
   if Result then
-    Result := DataSetField.DataSet.Active and (DataSetField.DataSet as TPersistoDataSet).GetFieldAndInstance(DataSetField, Instance, PersistoField);
+    Result := ParentDataSet.Active and ParentDataSet.GetFieldAndInstance(DataSetField, Instance, PersistoField);
 end;
 
 function TPersistoDataSet.GetParentDataSetFieldValue(var Value: TValue): Boolean;
@@ -535,7 +566,11 @@ end;
 
 procedure TPersistoDataSet.InternalDelete;
 begin
+  FDeletedObject.Add(CurrentObject);
 
+  FObjectList.Remove(CurrentObject);
+
+  UpdateParentRecord;
 end;
 
 procedure TPersistoDataSet.InternalEdit;
@@ -617,29 +652,6 @@ begin
 end;
 
 procedure TPersistoDataSet.InternalPost;
-
-  procedure UpdateParentRecord;
-  begin
-    var Instance: TObject;
-    var PersistoField: Persisto.TField;
-
-    if GetParentDataSetField(Instance, PersistoField) then
-    begin
-      var FieldValue: TArray<TValue> := nil;
-
-      SetLength(FieldValue, FObjectList.Count);
-
-      for var A := 0 to Pred(FObjectList.Count) do
-      begin
-        var Value := FObjectList[A];
-
-        FieldValue[A] := TValue.From(PersistoField.FieldType.AsArray.ElementType.Handle, Value);
-      end;
-
-      PersistoField.Value[Instance] := TValue.FromArray(PersistoField.FieldType.Handle, FieldValue);
-    end;
-  end;
-
 begin
   inherited;
 
@@ -726,6 +738,28 @@ begin
     FObjectList.AddRange(Value);
 
     ObjectClass := FObjectList.First.ClassType
+  end;
+end;
+
+procedure TPersistoDataSet.UpdateParentRecord;
+begin
+  var Instance: TObject;
+  var PersistoField: Persisto.TField;
+
+  if GetParentDataSetField(Instance, PersistoField) then
+  begin
+    var FieldValue: TArray<TValue> := nil;
+
+    SetLength(FieldValue, FObjectList.Count);
+
+    for var A := 0 to Pred(FObjectList.Count) do
+    begin
+      var Value := FObjectList[A];
+
+      FieldValue[A] := TValue.From(PersistoField.FieldType.AsArray.ElementType.Handle, Value);
+    end;
+
+    PersistoField.Value[Instance] := TValue.FromArray(PersistoField.FieldType.Handle, FieldValue);
   end;
 end;
 

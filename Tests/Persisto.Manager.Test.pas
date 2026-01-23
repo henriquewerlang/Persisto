@@ -131,7 +131,7 @@ type
     [Test]
     procedure WhenLoadALazyManyValueAssociationTheLoadOfChildObjectsMustBeDelayed;
     [Test]
-    procedure WhenLoadALazyManyValueAssociationMustLoadAllChildsAsExpected;
+    procedure WhenLoadALazyManyValueAssociationMustLoadAllChildrenAsExpected;
     [Test]
     procedure WhenSaveAnObjectMoreThenOnceItMustBeSavedOnlyOnceInTheDatabase;
     [Test]
@@ -296,34 +296,34 @@ procedure TManagerTest.PrepareDatabase;
     FManager.Insert([NullObject]);
 
     var ManyObject := CreateObject<TMyManyValue>;
-    ManyObject.Childs := [CreateObject<TMyChildLink>, CreateObject<TMyChildLink>, CreateObject<TMyChildLink>];
-    ManyObject.Childs[0].ManyValueAssociation := CreateObject<TMyEntityWithManyValueAssociation>;
-    ManyObject.Childs[0].ManyValueAssociation.ManyValueAssociationList := [CreateObject<TMyEntityWithManyValueAssociationChild>, CreateObject<TMyEntityWithManyValueAssociationChild>];
-    ManyObject.Childs[0].ManyValueAssociation.ManyValueAssociationList[0].Value := 30;
-    ManyObject.Childs[0].ManyValueAssociation.ManyValueAssociationList[1].Value := 20;
-    ManyObject.Childs[1].ManyValueAssociation := CreateObject<TMyEntityWithManyValueAssociation>;
-    ManyObject.Childs[1].ManyValueAssociation.ManyValueAssociationList := [CreateObject<TMyEntityWithManyValueAssociationChild>];
-    ManyObject.Childs[1].ManyValueAssociation.ManyValueAssociationList[0].Value := 40;
-    ManyObject.Childs[2].ManyValueAssociation := CreateObject<TMyEntityWithManyValueAssociation>;
-    ManyObject.Childs[2].ManyValueAssociation.ManyValueAssociationList := [CreateObject<TMyEntityWithManyValueAssociationChild>, CreateObject<TMyEntityWithManyValueAssociationChild>, CreateObject<TMyEntityWithManyValueAssociationChild>];
-    ManyObject.Childs[2].ManyValueAssociation.ManyValueAssociationList[0].Value := 50;
-    ManyObject.Childs[2].ManyValueAssociation.ManyValueAssociationList[1].Value := 10;
-    ManyObject.Childs[2].ManyValueAssociation.ManyValueAssociationList[2].Value := 60;
+    ManyObject.Children := [CreateObject<TMyChildLink>, CreateObject<TMyChildLink>, CreateObject<TMyChildLink>];
+    ManyObject.Children[0].ManyValueAssociation := CreateObject<TMyEntityWithManyValueAssociation>;
+    ManyObject.Children[0].ManyValueAssociation.ManyValueAssociationList := [CreateObject<TMyEntityWithManyValueAssociationChild>, CreateObject<TMyEntityWithManyValueAssociationChild>];
+    ManyObject.Children[0].ManyValueAssociation.ManyValueAssociationList[0].Value := 30;
+    ManyObject.Children[0].ManyValueAssociation.ManyValueAssociationList[1].Value := 20;
+    ManyObject.Children[1].ManyValueAssociation := CreateObject<TMyEntityWithManyValueAssociation>;
+    ManyObject.Children[1].ManyValueAssociation.ManyValueAssociationList := [CreateObject<TMyEntityWithManyValueAssociationChild>];
+    ManyObject.Children[1].ManyValueAssociation.ManyValueAssociationList[0].Value := 40;
+    ManyObject.Children[2].ManyValueAssociation := CreateObject<TMyEntityWithManyValueAssociation>;
+    ManyObject.Children[2].ManyValueAssociation.ManyValueAssociationList := [CreateObject<TMyEntityWithManyValueAssociationChild>, CreateObject<TMyEntityWithManyValueAssociationChild>, CreateObject<TMyEntityWithManyValueAssociationChild>];
+    ManyObject.Children[2].ManyValueAssociation.ManyValueAssociationList[0].Value := 50;
+    ManyObject.Children[2].ManyValueAssociation.ManyValueAssociationList[1].Value := 10;
+    ManyObject.Children[2].ManyValueAssociation.ManyValueAssociationList[2].Value := 60;
 
     FManager.Insert([ManyObject]);
 
     var ManyValueInherited := [CreateObject<TManyValueParentInherited>, CreateObject<TManyValueParentInherited>];
-    ManyValueInherited[0].Childs := [CreateObject<TManyValueChildInherited>];
-    ManyValueInherited[0].Childs[0].Id := 45;
-    ManyValueInherited[0].Childs[0].Value := CreateObject<TClassWithPrimaryKey>;
-    ManyValueInherited[0].Childs[0].Value.Id := 11;
-    ManyValueInherited[0].Childs[0].Value.Value := 25;
+    ManyValueInherited[0].Children := [CreateObject<TManyValueChildInherited>];
+    ManyValueInherited[0].Children[0].Id := 45;
+    ManyValueInherited[0].Children[0].Value := CreateObject<TClassWithPrimaryKey>;
+    ManyValueInherited[0].Children[0].Value.Id := 11;
+    ManyValueInherited[0].Children[0].Value.Value := 25;
     ManyValueInherited[0].Id := 10;
-    ManyValueInherited[1].Childs := [CreateObject<TManyValueChildInherited>];
-    ManyValueInherited[1].Childs[0].Id := 15;
-    ManyValueInherited[1].Childs[0].Value := CreateObject<TClassWithPrimaryKey>;
-    ManyValueInherited[1].Childs[0].Value.Id := 22;
-    ManyValueInherited[0].Childs[0].Value.Value := 35;
+    ManyValueInherited[1].Children := [CreateObject<TManyValueChildInherited>];
+    ManyValueInherited[1].Children[0].Id := 15;
+    ManyValueInherited[1].Children[0].Value := CreateObject<TClassWithPrimaryKey>;
+    ManyValueInherited[1].Children[0].Value.Id := 22;
+    ManyValueInherited[0].Children[0].Value.Value := 35;
     ManyValueInherited[1].Id := 20;
 
     FManager.Insert(TArray<TObject>(ManyValueInherited));
@@ -542,10 +542,10 @@ end;
 
 procedure TManagerTest.WhenFilterAComplexFieldFromAnInheritedTableMustReturnTheObjectAsExpected;
 begin
-  var Objects := FManager.Select.All.From<TManyValueParentInherited>.Where(Field('Childs.Value.Value') = 35).Open.All;
+  var Objects := FManager.Select.All.From<TManyValueParentInherited>.Where(Field('Children.Value.Value') = 35).Open.All;
 
   Assert.AreEqual(1, Length(Objects));
-  Assert.AreEqual(35, Objects[0].Childs[0].Value.Value);
+  Assert.AreEqual(35, Objects[0].Children[0].Value.Value);
 end;
 
 procedure TManagerTest.WhenFilterAFieldMustReturnTheObjectsInTheFilterAsExpected;
@@ -568,10 +568,10 @@ end;
 
 procedure TManagerTest.WhenFilterAFieldWithComplexFieldNameInManyValueAssociationLinkMustReturnTheObjectsInTheFilterAsExpected;
 begin
-  var Objects := FManager.Select.All.From<TMyManyValue>.Where(Field('Childs.ManyValueAssociation.ManyValueAssociationList.Value') = 60).Open.All;
+  var Objects := FManager.Select.All.From<TMyManyValue>.Where(Field('Children.ManyValueAssociation.ManyValueAssociationList.Value') = 60).Open.All;
 
   Assert.AreEqual(1, Length(Objects));
-  Assert.AreEqual(60, Objects[0].Childs[0].ManyValueAssociation.ManyValueAssociationList[0].Value);
+  Assert.AreEqual(60, Objects[0].Children[0].ManyValueAssociation.ManyValueAssociationList[0].Value);
 end;
 
 procedure TManagerTest.WhenFilterAFieldWithComplexFieldNameMustReturnTheObjectsInTheFilterAsExpected;
@@ -938,7 +938,7 @@ begin
   Object3.Free;
 end;
 
-procedure TManagerTest.WhenLoadALazyManyValueAssociationMustLoadAllChildsAsExpected;
+procedure TManagerTest.WhenLoadALazyManyValueAssociationMustLoadAllChildrenAsExpected;
 begin
   var LazyClass := FManager.Select.All.From<TLazyArrayClass>.Where(Field('Id') = 10).Open.One;
 
