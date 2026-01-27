@@ -196,6 +196,7 @@
         <DCCReference Include="Persisto.Database.Schema.Updater.Test.pas"/>
         <DCCReference Include="Persisto.Manager.Test.pas"/>
         <DCCReference Include="Persisto.Test.Connection.pas"/>
+        <DCCReference Include="..\Persisto.pas"/>
         <DCCReference Include="..\Persisto.DataSet.pas"/>
         <DCCReference Include="..\Persisto.SQLServer.pas"/>
         <DCCReference Include="..\Persisto.PostgreSQL.pas"/>
@@ -1119,6 +1120,10 @@
                 <ProjectRoot Platform="Win64x" Name="$(PROJECTNAME)"/>
             </Deployment>
             <Platforms>
+                <Platform value="Android">False</Platform>
+                <Platform value="Android64">False</Platform>
+                <Platform value="iOSDevice64">False</Platform>
+                <Platform value="iOSSimARM64">False</Platform>
                 <Platform value="Win32">True</Platform>
                 <Platform value="Win64">True</Platform>
             </Platforms>

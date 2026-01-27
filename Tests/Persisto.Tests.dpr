@@ -14,6 +14,7 @@ uses
   Persisto.Database.Schema.Updater.Test in 'Persisto.Database.Schema.Updater.Test.pas',
   Persisto.Manager.Test in 'Persisto.Manager.Test.pas',
   Persisto.Test.Connection in 'Persisto.Test.Connection.pas',
+  Persisto in '..\Persisto.pas',
   Persisto.DataSet in '..\Persisto.DataSet.pas',
   Persisto.SQLServer in '..\Persisto.SQLServer.pas',
   Persisto.PostgreSQL in '..\Persisto.PostgreSQL.pas',
