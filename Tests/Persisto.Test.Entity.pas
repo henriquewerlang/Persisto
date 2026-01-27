@@ -206,7 +206,7 @@ type
   published
     [NewUniqueIdentifier, UniqueIdentifier]
     property Id: String read FId write FId;
-    [ManyValueAssociationLinkName('ManyValueAssociation')]
+    [AssociationLinkName('ManyValueAssociation')]
     property ManyValueAssociationList: TArray<TMyEntityWithManyValueAssociationChild> read FManyValueAssociation write FManyValueAssociation;
   end;
 
@@ -701,9 +701,9 @@ type
     [Size(150)]
     property AField: String read FAField write FAField;
     property Id: Integer read FId write FId;
-    [ManyValueAssociationLinkName('BForeignKey')]
+    [AssociationLinkName('BForeignKey')]
     property BManyValue: TArray<TUnorderedClass> read FBManyValue write FBManyValue;
-    [ManyValueAssociationLinkName('AForeignKey')]
+    [AssociationLinkName('AForeignKey')]
     property AManyValue: TArray<TUnorderedClass> read FAManyValue write FAManyValue;
     property BLazy: Lazy<TUnorderedClass> read FBLazy write FBLazy;
     property ALazy: Lazy<TUnorderedClass> read FALazy write FALazy;
@@ -734,7 +734,7 @@ type
     FChildren: TArray<TManyValueChild>;
   published
     property Child: TManyValueChild read FChild write FChild;
-    [ManyValueAssociationLinkName('Parent')]
+    [AssociationLinkName('Parent')]
     property Children: TArray<TManyValueChild> read FChildren write FChildren;
     property Id: Integer read FId write FId;
   end;
@@ -765,7 +765,7 @@ type
     FId: Integer;
     FChildren: TArray<TManyValueChildInherited>;
   published
-    [ManyValueAssociationLinkName('Parent')]
+    [AssociationLinkName('Parent')]
     property Children: TArray<TManyValueChildInherited> read FChildren write FChildren;
     property Id: Integer read FId write FId;
   end;

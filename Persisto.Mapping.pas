@@ -24,7 +24,7 @@ type
   SingleTableInheritanceAttribute = class(TCustomAttribute);
   TableNameAttribute = class(TCustomNameAttribute);
 
-  ManyValueAssociationLinkNameAttribute = class(TCustomNameAttribute)
+  AssociationLinkNameAttribute = class(TCustomNameAttribute)
   public
     constructor Create(const ChildFieldName: String);
   end;
@@ -499,9 +499,9 @@ begin
   Result := Self is TRttiDynamicArrayType;
 end;
 
-{ ManyValueAssociationLinkNameAttribute }
+{ AssociationLinkNameAttribute }
 
-constructor ManyValueAssociationLinkNameAttribute.Create(const ChildFieldName: String);
+constructor AssociationLinkNameAttribute.Create(const ChildFieldName: String);
 begin
   inherited;
 end;

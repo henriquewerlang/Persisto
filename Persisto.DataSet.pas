@@ -325,7 +325,7 @@ end;
 procedure TPersistoDataSet.LoadObjectTable;
 begin
   if Assigned(DataSetField) then
-    FObjectTable := ParentDataSet.FObjectTable.Field[DataSetField.FieldName].ManyValueAssociation.ChildTable
+    FObjectTable := ParentDataSet.FObjectTable.Field[DataSetField.FieldName].Association.AssociatedTable
   else
   begin
     CheckManagerLoaded;
