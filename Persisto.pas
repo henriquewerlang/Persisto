@@ -23,8 +23,8 @@ type
   TField = class;
   TForeignKey = class;
   TIndex = class;
-  TPersistoManager = class;
   TMapper = class;
+  TPersistoManager = class;
   TQueryBuilder = class;
   TQueryBuilderFieldSearch = class;
   TQueryBuilderFrom = class;
@@ -298,7 +298,7 @@ type
     property TableAlias: String read FTableAlias write FTableAlias;
   end;
 
-  TForeignKey = class(TTableObject)
+  TForeignKey = class
   private
     FDatabaseName: String;
     FField: TField;
@@ -1051,7 +1051,7 @@ procedure TMapper.AddTableForeignKey(const Table: TTable; const Field: TField; c
 begin
   if Assigned(ForeignTable.PrimaryKey) then
   begin
-    var ForeignKey := TForeignKey.Create(Table);
+    var ForeignKey := TForeignKey.Create;
     ForeignKey.FDatabaseName := GetForeignKeyName;
     ForeignKey.FField := Field;
     ForeignKey.FParentTable := ForeignTable;
@@ -2071,13 +2071,13 @@ var
     for ForeignKeyTable in QueryTable.ForeignKeyTables do
     begin
       if not RecursiveControl.TryAdd(ForeignKeyTable.ForeignKeyField.Field, False) then
-        raise ERecursionSelectionError.Create(Format('%s.%s', [ForeignKeyTable.ForeignKeyField.Table.Name, ForeignKeyTable.ForeignKeyField.Field.Name]));
+        raise ERecursionSelectionError.Create(Format('%s.%s', [ForeignKeyTable.ForeignKeyField.Field.Table.Name, ForeignKeyTable.ForeignKeyField.Field.Name]));
 
       try
         LoadFieldList(ForeignKeyTable);
       except
         on E: ERecursionSelectionError do
-          raise ERecursionSelectionError.Create(Format('%s.%s->%s', [ForeignKeyTable.ForeignKeyField.Table.Name, ForeignKeyTable.ForeignKeyField.Field.Name, E.RecursionTree]));
+          raise ERecursionSelectionError.Create(Format('%s.%s->%s', [ForeignKeyTable.ForeignKeyField.Field.Table.Name, ForeignKeyTable.ForeignKeyField.Field.Name, E.RecursionTree]));
       end;
 
       RecursiveControl.Remove(ForeignKeyTable.ForeignKeyField.Field);
