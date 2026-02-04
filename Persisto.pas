@@ -617,7 +617,7 @@ type
     property Indexes: TArray<TDatabaseIndex> read FIndexes write FIndexes;
     property PrimaryKeyIndex: TDatabaseIndex read FPrimaryKeyIndex write FPrimaryKeyIndex;
   published
-    [AssociationLinkName('Table')]
+    [Association('Table')]
     property Fields: TArray<TDatabaseField> read FFields write FFields;
     property Id: String read FId write FId;
     property Name: String read FName write FName;
@@ -660,7 +660,7 @@ type
     FName: String;
     FId: String;
   published
-    [AssociationLinkName('Index')]
+    [Association('Index')]
     property Fields: TArray<TDatabaseIndexField> read FFields write FFields;
     property Id: String read FId write FId;
     property IdTable: String read FIdTable write FIdTable;
@@ -1006,7 +1006,7 @@ procedure TMapper.AddTableAssociation(const Table: TTable; const Field: TField);
 
   function GetAssociationLinkName: String;
   begin
-    if not GetNameAttribute<AssociationLinkNameAttribute>(Field.PropertyInfo, Result) then
+    if not GetNameAttribute<AssociationAttribute>(Field.PropertyInfo, Result) then
       Result := Field.Table.Name;
   end;
 
