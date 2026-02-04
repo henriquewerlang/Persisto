@@ -176,6 +176,14 @@ type
     procedure WhenSaveAClassWithALazyFieldWithABuildInTypeCantRaiseAnyError;
     [Test]
     procedure WhenSaveAClassWithALazyFieldWithABuildInArrayTypeCantRaiseAnyError;
+    [Test]
+    procedure WhenSavingAnAssociationWithASimpleClassCanRaiseAnyError;
+    [Test]
+    procedure WhenSavingAnAssociationWithASimpleClassMustSaveTheClassInDatabaseAsExpected;
+    [Test]
+    procedure WhenLoadingTheAnObjectWithUniqueAssociationCantRaiseAnyError;
+    [Test]
+    procedure WhenLoadTheObjectWithUniqueAssociationMustLoadTheOjectAsExpected;
   end;
 
   TDatabaseConnectionMock = class(TComponent, IDatabaseConnection)
@@ -965,6 +973,34 @@ begin
   Assert.AreEqual(1, Objects[4].Id);
 end;
 
+procedure TManagerTest.WhenLoadingTheAnObjectWithUniqueAssociationCantRaiseAnyError;
+begin
+  var &Object := CreateObject<TAssociationClass>;
+
+  &Object.FieldAssociation := CreateObject<TAssociationChildClass>;
+
+  FManager.Save([&Object]);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Select.All.From<TAssociationClass>.Open.One;
+    end);
+end;
+
+procedure TManagerTest.WhenLoadTheObjectWithUniqueAssociationMustLoadTheOjectAsExpected;
+begin
+  var &Object := CreateObject<TAssociationClass>;
+
+  &Object.FieldAssociation := CreateObject<TAssociationChildClass>;
+
+  FManager.Save([&Object]);
+
+  &Object := FManager.Select.All.From<TAssociationClass>.Open.One;
+
+  Assert.IsNotNil(&Object.FieldAssociation);
+end;
+
 procedure TManagerTest.WhenMixBitwiseOrAndTheBitwiseAndOperatorMustReturnTheObjectsInTheFilterAsExpected;
 begin
   var Objects := FManager.Select.All.From<TAAAA>.Where(((Field('Id') = 10) or (Field('Id') = 3)) and (Field('Id') < 5)).OrderBy.Field('Id').Open.All;
@@ -1151,6 +1187,32 @@ begin
   Object2.Free;
 
   Object3.Free;
+end;
+
+procedure TManagerTest.WhenSavingAnAssociationWithASimpleClassCanRaiseAnyError;
+begin
+  var &Object := CreateObject<TAssociationClass>;
+
+  &Object.FieldAssociation := CreateObject<TAssociationChildClass>;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Save([&Object]);
+    end);
+end;
+
+procedure TManagerTest.WhenSavingAnAssociationWithASimpleClassMustSaveTheClassInDatabaseAsExpected;
+begin
+  var &Object := CreateObject<TAssociationClass>;
+
+  &Object.FieldAssociation := CreateObject<TAssociationChildClass>;
+
+  FManager.Save([&Object]);
+
+  var Cursor := FManager.OpenCursor('select * from AssociationChildClass');
+
+  Assert.IsTrue(Cursor.Next);
 end;
 
 procedure TManagerTest.WhenSelectAnObjectUsingAForeignKeyFieldMustFindAndFilterTheTableByThisField;

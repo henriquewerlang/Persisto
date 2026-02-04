@@ -1281,6 +1281,31 @@ type
     property LazyArray: Lazy<TArray<Byte>> read FLazyArray write FLazyArray;
   end;
 
+  TAssociationClass = class;
+
+  [Entity]
+  TAssociationChildClass = class
+  private
+    FId: String;
+    FAssociationClass: TAssociationClass;
+  published
+    [NewUniqueIdentifier, UniqueIdentifier]
+    property Id: String read FId write FId;
+    property AssociationClass: TAssociationClass read FAssociationClass write FAssociationClass;
+  end;
+
+  [Entity]
+  TAssociationClass = class
+  private
+    FId: String;
+    FFieldAssociation: TAssociationChildClass;
+  published
+    [NewUniqueIdentifier, UniqueIdentifier]
+    property Id: String read FId write FId;
+    [Association]
+    property FieldAssociation: TAssociationChildClass read FFieldAssociation write FFieldAssociation;
+  end;
+
 implementation
 
 uses System.Internal.ExcUtils;

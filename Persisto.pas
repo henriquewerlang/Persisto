@@ -822,7 +822,7 @@ type
 
     procedure InsertTable(const Table: TTable; const &Object: TObject);
     procedure InternalUpdateTable(const Table: TTable; const &Object: TObject; const OldValues: IObjectOldValue);
-    procedure SaveAssociation(const Table: TTable; const &Object: TObject);
+    procedure SaveAssociations(const Table: TTable; const &Object: TObject);
     procedure SaveTable(const Table: TTable; const &Object: TObject);
     procedure UpdateTable(const Table: TTable; const &Object: TObject; const ObjectOldValue: IObjectOldValue);
   public
@@ -1006,12 +1006,20 @@ procedure TMapper.AddTableAssociation(const Table: TTable; const Field: TField);
 
   function GetAssociationLinkName: String;
   begin
-    if not GetNameAttribute<AssociationAttribute>(Field.PropertyInfo, Result) then
-      Result := Field.Table.Name;
+    var AssociationAttribute := Field.PropertyInfo.GetAttribute<AssociationAttribute>;
+    Result := Field.Table.Name;
+
+    if Assigned(AssociationAttribute) and not AssociationAttribute.Name.IsEmpty then
+      Result := AssociationAttribute.Name;
   end;
 
 begin
-  var AssociatedTable := LoadTable(Field.FieldType.AsArray.ElementType.AsInstance);
+  var AssociatedTable: TTable;
+
+  if Field.FieldType.IsArray then
+    AssociatedTable := LoadTable(Field.FieldType.AsArray.ElementType.AsInstance)
+  else
+    AssociatedTable := LoadTable(Field.FieldType.AsInstance);
 
   if Assigned(Table.PrimaryKey) then
   begin
@@ -1254,8 +1262,8 @@ begin
     Field.FLazyType := Field.FFieldType;
   end;
 
-  Field.FIsAssociation := Field.FieldType.IsArray and Field.FieldType.AsArray.ElementType.IsInstance;
-  Field.FIsForeignKey := Field.FieldType.IsInstance;
+  Field.FIsAssociation := Field.PropertyInfo.HasAttribute(AssociationAttribute) or Field.FieldType.IsArray and Field.FieldType.AsArray.ElementType.IsInstance;
+  Field.FIsForeignKey := Field.FieldType.IsInstance and not Field.IsAssociation;
   Field.FRequired := PropertyInfo.HasAttribute<RequiredAttribute> or ((UIntPtr(PropertyInfo.PropInfo^.StoredProc) and (not NativeUInt($FF))) = 0) and not Field.FieldType.IsInstance and not IsArrayType;
 
   Field.FDatabaseName := GetFieldDatabaseName(Field);
@@ -1897,10 +1905,15 @@ var
         begin
           FieldValue := AssociationTable.AssociationField.Field.Value[&Object];
 
-          ArrayLength := FieldValue.ArrayLength;
-          FieldValue.ArrayLength := ArrayLength + 1;
+          if AssociationTable.AssociationField.Field.FieldType.IsArray then
+          begin
+            ArrayLength := FieldValue.ArrayLength;
+            FieldValue.ArrayLength := ArrayLength + 1;
 
-          FieldValue.SetArrayElement(ArrayLength, AssociationObject);
+            FieldValue.SetArrayElement(ArrayLength, AssociationObject);
+          end
+          else
+            FieldValue := AssociationObject;
 
           AssociationTable.AssociationField.AssociatedField.Value[AssociationObject] := &Object;
           AssociationTable.AssociationField.Field.Value[&Object] := FieldValue;
@@ -2886,7 +2899,7 @@ var
         Inc(FieldIndex);
       end;
 
-      SaveAssociation(Table, &Object);
+      SaveAssociations(Table, &Object);
     finally
       Params.Free;
     end;
@@ -2946,7 +2959,7 @@ procedure TPersistoManager.InternalUpdateTable(const Table: TTable; const &Objec
         PrepareCursor(Manipulator.MakeUpdateStatement(Table, Params), Params).Next;
       end;
 
-      SaveAssociation(Table, &Object);
+      SaveAssociations(Table, &Object);
     finally
       Params.Free;
     end;
@@ -2984,18 +2997,27 @@ begin
   Transaction.Commit;
 end;
 
-procedure TPersistoManager.SaveAssociation(const Table: TTable; const &Object: TObject);
+procedure TPersistoManager.SaveAssociations(const Table: TTable; const &Object: TObject);
+var
+  Association: TAssociation;
+
+  procedure SaveAssociation(const AssociationObject: TObject);
+  begin
+    Association.AssociatedField.Value[AssociationObject] := &Object;
+
+    SaveTable(Association.AssociatedTable, AssociationObject);
+  end;
+
 begin
   var FieldValue: TValue;
 
-  for var Field in Table.Fields do
-    if Field.IsAssociation and Field.HasValue(&Object, FieldValue) then
-      for var A := 0 to Pred(FieldValue.ArrayLength) do
-      begin
-        Field.Association.AssociatedField.Value[FieldValue.ArrayElement[A].AsObject] := &Object;
-
-        SaveTable(Field.Association.AssociatedTable, FieldValue.ArrayElement[A].AsObject)
-      end
+  for Association in Table.Associations do
+    if Association.Field.HasValue(&Object, FieldValue) then
+      if Association.Field.FieldType.IsArray then
+        for var A := 0 to Pred(FieldValue.ArrayLength) do
+          SaveAssociation(FieldValue.ArrayElement[A].AsObject)
+      else
+        SaveAssociation(FieldValue.AsObject);
 end;
 
 procedure TPersistoManager.SaveTable(const Table: TTable; const &Object: TObject);

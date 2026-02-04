@@ -337,6 +337,12 @@ type
     procedure WhenTheFieldIsAManyValueAssociationMustReturnTheDatabaseTypeBeenTheftDataSetEnumerator;
     [Test]
     procedure WhenTheFieldIsAnArrayOfBytesMustReturnTheFieldTypeLikeftGraphic;
+    [Test]
+    procedure WhenAPropertyHasTheAssociationAttributeAndIsAClassTypeCantLoadTheFieldAsAForeignKey;
+    [Test]
+    procedure WhenAPropertyHasTheAssociationAttributeTheFieldMustBeMarkedAsAssociation;
+    [Test]
+    procedure WhenTheAssociationIsAnClassMustLoadTheAssociationInformationAboutItAsExpected;
   end;
 
 implementation
@@ -891,6 +897,20 @@ begin
   Assert.IsTrue(Table.Field['RequiredObject'].Required);
 end;
 
+procedure TMapperTest.WhenAPropertyHasTheAssociationAttributeAndIsAClassTypeCantLoadTheFieldAsAForeignKey;
+begin
+  var Table := FMapper.GetTable(TAssociationClass);
+
+  Assert.IsFalse(Table.Field['FieldAssociation'].IsForeignKey);
+end;
+
+procedure TMapperTest.WhenAPropertyHasTheAssociationAttributeTheFieldMustBeMarkedAsAssociation;
+begin
+  var Table := FMapper.GetTable(TAssociationClass);
+
+  Assert.IsTrue(Table.Field['FieldAssociation'].IsAssociation);
+end;
+
 procedure TMapperTest.WhenAPropertyIsAnArrayMustLoadAManyValueLink;
 begin
   var Table := FMapper.GetTable(TMyEntityWithManyValueAssociation);
@@ -1166,7 +1186,7 @@ procedure TMapperTest.WhenLoadTheSchemaWithAClassInParamsTheMapperMustLoadOnlyTh
 begin
   FMapper.LoadAll([TMyClass]);
 
-  Assert.AreEqual(83, Length(FMapper.Tables));
+  Assert.AreEqual(85, Length(FMapper.Tables));
 end;
 
 procedure TMapperTest.WhenLoadTheTableMustLoadTheNameOfTheTableWithTheNameOfTheClassWithoutTheTChar;
@@ -1222,6 +1242,13 @@ begin
   MyClass.Free;
 
   MyEntity.Free;
+end;
+
+procedure TMapperTest.WhenTheAssociationIsAnClassMustLoadTheAssociationInformationAboutItAsExpected;
+begin
+  var Table := FMapper.GetTable(TAssociationClass);
+
+  Assert.AreEqual(1, Length(Table.Associations));
 end;
 
 procedure TMapperTest.WhenTheAttributeIsASequenceMustLoadTheNameOfTheSequenceInTheDefaultConstraint;

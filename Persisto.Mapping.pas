@@ -26,7 +26,8 @@ type
 
   AssociationAttribute = class(TCustomNameAttribute)
   public
-    constructor Create(const LinkName: String);
+    constructor Create; overload;
+    constructor Create(const LinkName: String); overload;
   end;
 
   IndexAttribute = class(TCustomNameAttribute)
@@ -500,6 +501,11 @@ begin
 end;
 
 { AssociationAttribute }
+
+constructor AssociationAttribute.Create;
+begin
+  Create(EmptyStr);
+end;
 
 constructor AssociationAttribute.Create(const LinkName: String);
 begin
