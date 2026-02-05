@@ -2937,19 +2937,28 @@ procedure TPersistoManager.InternalUpdateTable(const Table: TTable; const &Objec
         InternalUpdateTable(Table.BaseTable, &Object, LoadOldValueObject(Table.BaseTable, &Object));
 
       for var Field in Table.Fields do
-        if not Field.IsAssociation and Field.HasValue(&Object, FieldValue) then
+        if not Field.IsAssociation then
         begin
-          if Field.IsForeignKey and FieldValue.IsObject then
+          var ValueToCompare: Variant;
+
+          if not Field.HasValue(&Object, FieldValue) then
+            ValueToCompare := NULL
+          else
           begin
-            var ForeignObject := FieldValue.AsObject;
+            ValueToCompare := FieldValue.AsVariant;
 
-            SaveTable(Field.ForeignKey.ParentTable, ForeignObject);
+            if Field.IsForeignKey and FieldValue.IsObject then
+            begin
+              var ForeignObject := FieldValue.AsObject;
 
-            FieldValue := Field.ForeignKey.ParentTable.PrimaryKey.Value[ForeignObject];
+              SaveTable(Field.ForeignKey.ParentTable, ForeignObject);
+
+              ValueToCompare := Field.ForeignKey.ParentTable.PrimaryKey.Value[ForeignObject].AsVariant;
+            end;
           end;
 
-          if OldValues[Field] <> FieldValue.AsVariant then
-            Params.AddParam(Field, FieldValue.AsVariant);
+          if OldValues[Field] <> ValueToCompare then
+            Params.AddParam(Field, ValueToCompare);
         end;
 
       if Params.Count > 0 then

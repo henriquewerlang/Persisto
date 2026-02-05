@@ -184,6 +184,12 @@ type
     procedure WhenLoadingTheAnObjectWithUniqueAssociationCantRaiseAnyError;
     [Test]
     procedure WhenLoadTheObjectWithUniqueAssociationMustLoadTheOjectAsExpected;
+    [Test]
+    procedure WhenSaveAnObjectWithStoredPropertyAndTheValueIsntStoredMustSaveTheValueHasNullInDatabase;
+    [Test]
+    procedure WhenSaveAnObjectWithStoredPropertyAndTheValueIsStoredMustSaveTheValueInTheDatabase;
+    [Test]
+    procedure WhenSaveAnObjectWithStoredPropertyAndTheValueIsChangedAndClearedMustSaveTheFieldWithNullValueInDatabase;
   end;
 
   TDatabaseConnectionMock = class(TComponent, IDatabaseConnection)
@@ -1166,6 +1172,55 @@ begin
   Cursor.Next;
 
   Assert.AreEqual(1, Cursor.GetDataSet.Fields[0].AsInteger);
+end;
+
+procedure TManagerTest.WhenSaveAnObjectWithStoredPropertyAndTheValueIsChangedAndClearedMustSaveTheFieldWithNullValueInDatabase;
+begin
+  var &Object := CreateObject<TClassWithNullableProperty>;
+  &Object.Id := 400;
+  &Object.NullableField := 200;
+  &Object.NullableFieldStored := True;
+
+  FManager.Save([&Object]);
+
+  &Object.NullableFieldStored := False;
+
+  FManager.Save([&Object]);
+
+  var Cursor := FManager.OpenCursor('select NullableField from ClassWithNullableProperty where Id = 400');
+
+  Cursor.Next;
+
+  Assert.IsTrue(Cursor.GetDataSet.Fields[0].IsNull);
+end;
+
+procedure TManagerTest.WhenSaveAnObjectWithStoredPropertyAndTheValueIsntStoredMustSaveTheValueHasNullInDatabase;
+begin
+  var &Object := CreateObject<TClassWithNullableProperty>;
+  &Object.Id := 200;
+
+  FManager.Save([&Object]);
+
+  var Cursor := FManager.OpenCursor('select Nullable from ClassWithNullableProperty where Id = 200');
+
+  Cursor.Next;
+
+  Assert.IsTrue(Cursor.GetDataSet.Fields[0].IsNull);
+end;
+
+procedure TManagerTest.WhenSaveAnObjectWithStoredPropertyAndTheValueIsStoredMustSaveTheValueInTheDatabase;
+begin
+  var &Object := CreateObject<TClassWithNullableProperty>;
+  &Object.Id := 300;
+  &Object.Nullable := 150;
+
+  FManager.Save([&Object]);
+
+  var Cursor := FManager.OpenCursor('select Nullable from ClassWithNullableProperty where Id = 300');
+
+  Cursor.Next;
+
+  Assert.AreEqual(150, Cursor.GetDataSet.Fields[0].AsInteger);
 end;
 
 procedure TManagerTest.WhenSaveMustSaveAllTheObjectsInTheList;
