@@ -151,6 +151,8 @@ type
     [Test]
     procedure WhenUpdateALazyClassCantRaiseAnyError;
     [Test]
+    procedure WhenUpdateALazyClassMustSaveTheLazyKeyInDatabase;
+    [Test]
     procedure WhenSaveMustSaveAllTheObjectsInTheList;
     [Test]
     procedure WhenSaveAnObjectMustStartAnTransactionAndIfIsRaisedAnErrorMustRollback;
@@ -1372,6 +1374,19 @@ begin
     begin
       FManager.Update([LazyClass]);
     end);
+end;
+
+procedure TManagerTest.WhenUpdateALazyClassMustSaveTheLazyKeyInDatabase;
+begin
+  var LazyClass := FManager.Select.All.From<TLazyClass>.Where(Field('Id') = 10).Open.One;
+
+  FManager.Update([LazyClass]);
+
+  var Cursor := FManager.OpenCursor('select * from LazyClass where Id = 10');
+
+  Cursor.Next;
+
+  Assert.AreEqual(100, Cursor.GetDataSet.FieldByName('IdLazy').AsInteger);
 end;
 
 procedure TManagerTest.WhenUpdateAnInheritedObjectMustUpdateAllClassLevelsToo;

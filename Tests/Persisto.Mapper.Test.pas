@@ -314,7 +314,7 @@ type
     [Test]
     procedure WhenLoadATableWithInheritenceWithoutAnyFieldsCantRaiseLoadError;
     [Test]
-    procedure WhenTheLazyValueHasOnlyTheKeyLoadedMustReturnFalseInTheFieldValue;
+    procedure WhenTheLazyValueHasOnlyTheKeyLoadedMustReturnTrueInTheFieldValue;
     [Test]
     procedure IfTheLazyFieldIsNotLoadedMustReturnValueInTheHasValueFunction;
     [Test]
@@ -1619,7 +1619,7 @@ begin
   TheClass.Free;
 end;
 
-procedure TMapperTest.WhenTheLazyValueHasOnlyTheKeyLoadedMustReturnFalseInTheFieldValue;
+procedure TMapperTest.WhenTheLazyValueHasOnlyTheKeyLoadedMustReturnTrueInTheFieldValue;
 begin
   var MyClass := TLazyClass.Create;
   var Table := FMapper.GetTable(MyClass.ClassType);
@@ -1627,7 +1627,7 @@ begin
 
   Table.Field['Lazy'].LazyValue[MyClass] := TLazyLoader.Create(nil, nil, 1234);
 
-  Assert.IsFalse(Table.Field['Lazy'].HasValue(MyClass, Value));
+  Assert.IsTrue(Table.Field['Lazy'].HasValue(MyClass, Value));
 
   MyClass.Free;
 end;

@@ -1651,12 +1651,14 @@ end;
 
 function TField.HasValue(const Instance: TObject; var Value: TValue): Boolean;
 begin
-  if IsLazy then
+  Result := IsLazy;
+
+  if Result then
   begin
     var Lazy := LazyValue[Instance];
-    Result := Lazy.Key.IsEmpty;
+    Value := Lazy.Key;
 
-    if Result then
+    if Value.IsEmpty then
       Value := Lazy.Value;
   end
   else
@@ -2943,19 +2945,16 @@ procedure TPersistoManager.InternalUpdateTable(const Table: TTable; const &Objec
 
           if not Field.HasValue(&Object, FieldValue) then
             ValueToCompare := NULL
-          else
+          else if Field.IsForeignKey and FieldValue.IsObject then
           begin
+            var ForeignObject := FieldValue.AsObject;
+
+            SaveTable(Field.ForeignKey.ParentTable, ForeignObject);
+
+            ValueToCompare := Field.ForeignKey.ParentTable.PrimaryKey.Value[ForeignObject].AsVariant;
+          end
+          else
             ValueToCompare := FieldValue.AsVariant;
-
-            if Field.IsForeignKey and FieldValue.IsObject then
-            begin
-              var ForeignObject := FieldValue.AsObject;
-
-              SaveTable(Field.ForeignKey.ParentTable, ForeignObject);
-
-              ValueToCompare := Field.ForeignKey.ParentTable.PrimaryKey.Value[ForeignObject].AsVariant;
-            end;
-          end;
 
           if OldValues[Field] <> ValueToCompare then
             Params.AddParam(Field, ValueToCompare);
