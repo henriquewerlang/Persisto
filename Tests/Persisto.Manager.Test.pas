@@ -192,6 +192,8 @@ type
     procedure WhenSaveAnObjectWithStoredPropertyAndTheValueIsStoredMustSaveTheValueInTheDatabase;
     [Test]
     procedure WhenSaveAnObjectWithStoredPropertyAndTheValueIsChangedAndClearedMustSaveTheFieldWithNullValueInDatabase;
+    [Test]
+    procedure WhenSaveAnObjectWithALazyAssociationUnloadedCantRaiseAnyError;
   end;
 
   TDatabaseConnectionMock = class(TComponent, IDatabaseConnection)
@@ -1174,6 +1176,23 @@ begin
   Cursor.Next;
 
   Assert.AreEqual(1, Cursor.GetDataSet.Fields[0].AsInteger);
+end;
+
+procedure TManagerTest.WhenSaveAnObjectWithALazyAssociationUnloadedCantRaiseAnyError;
+begin
+  var &Object := CreateObject<TAssociationClass>;
+
+  &Object.LazyFieldAssociation := CreateObject<TAssociationChildClass>;
+
+  FManager.Save([&Object]);
+
+  &Object := FManager.Select.All.From<TAssociationClass>.Open.One;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Save([&Object]);
+    end);
 end;
 
 procedure TManagerTest.WhenSaveAnObjectWithStoredPropertyAndTheValueIsChangedAndClearedMustSaveTheFieldWithNullValueInDatabase;

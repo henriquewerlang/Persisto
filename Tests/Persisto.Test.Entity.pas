@@ -1299,11 +1299,14 @@ type
   private
     FId: String;
     FFieldAssociation: TAssociationChildClass;
+    FLazyFieldAssociation: Lazy<TAssociationChildClass>;
   published
     [NewUniqueIdentifier, UniqueIdentifier]
     property Id: String read FId write FId;
     [Association]
     property FieldAssociation: TAssociationChildClass read FFieldAssociation write FFieldAssociation;
+    [Association]
+    property LazyFieldAssociation: Lazy<TAssociationChildClass> read FLazyFieldAssociation write FLazyFieldAssociation;
   end;
 
 implementation

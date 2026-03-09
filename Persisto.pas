@@ -3024,7 +3024,7 @@ begin
       if Association.Field.FieldType.IsArray then
         for var A := 0 to Pred(FieldValue.ArrayLength) do
           SaveAssociation(FieldValue.ArrayElement[A].AsObject)
-      else
+      else if FieldValue.IsObject then
         SaveAssociation(FieldValue.AsObject);
 end;
 
