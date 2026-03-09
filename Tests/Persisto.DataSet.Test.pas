@@ -372,6 +372,7 @@ type
     function GetKey: TValue;
     function GetValue: TValue;
     function HasValue: Boolean;
+    function IsValueLoaded: Boolean;
 
     procedure SetValue(const Value: TValue);
   end;
@@ -2168,6 +2169,11 @@ begin
 end;
 
 function TLazyValueMock.HasValue: Boolean;
+begin
+  Result := True;
+end;
+
+function TLazyValueMock.IsValueLoaded: Boolean;
 begin
   Result := True;
 end;

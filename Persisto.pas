@@ -396,6 +396,7 @@ type
     function GetKey: TValue;
     function GetValue: TValue;
     function HasValue: Boolean;
+    function IsValueLoaded: Boolean;
 
     procedure SetValue(const Value: TValue);
   public
@@ -1757,7 +1758,12 @@ end;
 
 function TLazyLoader.HasValue: Boolean;
 begin
-  Result := not FKeyValue.IsEmpty or not FLazyValue.IsEmpty;
+  Result := not FKeyValue.IsEmpty or IsValueLoaded;
+end;
+
+function TLazyLoader.IsValueLoaded: Boolean;
+begin
+  Result := not FLazyValue.IsEmpty;
 end;
 
 procedure TLazyLoader.SetValue(const Value: TValue);
@@ -3020,12 +3026,13 @@ begin
   var FieldValue: TValue;
 
   for Association in Table.Associations do
-    if Association.Field.HasValue(&Object, FieldValue) then
-      if Association.Field.FieldType.IsArray then
-        for var A := 0 to Pred(FieldValue.ArrayLength) do
-          SaveAssociation(FieldValue.ArrayElement[A].AsObject)
-      else if FieldValue.IsObject then
-        SaveAssociation(FieldValue.AsObject);
+    if not Association.Field.IsLazy or Association.Field.LazyValue[&Object].IsValueLoaded then
+      if Association.Field.HasValue(&Object, FieldValue) then
+        if Association.Field.FieldType.IsArray then
+          for var A := 0 to Pred(FieldValue.ArrayLength) do
+            SaveAssociation(FieldValue.ArrayElement[A].AsObject)
+        else
+          SaveAssociation(FieldValue.AsObject);
 end;
 
 procedure TPersistoManager.SaveTable(const Table: TTable; const &Object: TObject);

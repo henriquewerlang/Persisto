@@ -49,6 +49,10 @@ type
     procedure WhenCreateTheLazyValueWithOneValueMustReturnThisValue;
     [Test]
     procedure WhenTheValueIsFilledTheHasValueFunctionMustReturnTrue;
+    [Test]
+    procedure WhenTheLazyValueIsntLoadedTheIsValueLoadedMustReturnFalse;
+    [Test]
+    procedure WhenTheLazyValueIsLoadedTheIsValueLodadedMustReturnTrue;
   end;
 
   [TestFixture]
@@ -88,6 +92,10 @@ type
     procedure WhenLoadTheLazyArrayFieldCantRaiseAnyError;
     [Test]
     procedure WhenLoadTheArrayLazyFieldMustReturnTheValueFromDatabase;
+    [Test]
+    procedure WhenTheLazyValueIsntLoadedTheIsValueLoadedMustReturnFalse;
+    [Test]
+    procedure WhenTheLazyValueIsLoadedTheIsValueLodadedMustReturnTrue;
   end;
 
 implementation
@@ -202,6 +210,18 @@ end;
 procedure TLazyValueTest.WhenGetTheKeyOfAnUnloadedLazyFieldMustReturnEmpty;
 begin
   Assert.IsTrue(FLazyValue.Key.IsEmpty);
+end;
+
+procedure TLazyValueTest.WhenTheLazyValueIsLoadedTheIsValueLodadedMustReturnTrue;
+begin
+  FLazyValue.Value := 1234;
+
+  Assert.IsTrue(FLazyValue.IsValueLoaded);
+end;
+
+procedure TLazyValueTest.WhenTheLazyValueIsntLoadedTheIsValueLoadedMustReturnFalse;
+begin
+  Assert.IsFalse(FLazyValue.IsValueLoaded);
 end;
 
 procedure TLazyValueTest.WhenTheLazyValueIsUnloadedMustReturnTheValueEmptyButWithTheTypeInfoLoaded;
@@ -321,6 +341,22 @@ begin
     begin
       LazyFactory.Value;
     end);
+end;
+
+procedure TLazyLoaderTest.WhenTheLazyValueIsLoadedTheIsValueLodadedMustReturnTrue;
+begin
+  var LazyFactory := TLazyLoader.Create(nil, nil, nil) as ILazyValue;
+
+  LazyFactory.Value := 1234;
+
+  Assert.IsTrue(LazyFactory.IsValueLoaded);
+end;
+
+procedure TLazyLoaderTest.WhenTheLazyValueIsntLoadedTheIsValueLoadedMustReturnFalse;
+begin
+  var LazyFactory := TLazyLoader.Create(nil, nil, nil) as ILazyValue;
+
+  Assert.IsFalse(LazyFactory.IsValueLoaded);
 end;
 
 procedure TLazyLoaderTest.WhenTheValueIsLoadedTheHasValueMustReturnTrue;

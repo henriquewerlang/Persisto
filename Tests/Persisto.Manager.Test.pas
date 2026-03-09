@@ -194,6 +194,8 @@ type
     procedure WhenSaveAnObjectWithStoredPropertyAndTheValueIsChangedAndClearedMustSaveTheFieldWithNullValueInDatabase;
     [Test]
     procedure WhenSaveAnObjectWithALazyAssociationUnloadedCantRaiseAnyError;
+    [Test]
+    procedure WhenSaveALazyArrayNotLoadedCantRaiseAnyError;
   end;
 
   TDatabaseConnectionMock = class(TComponent, IDatabaseConnection)
@@ -1068,6 +1070,17 @@ begin
   var AObject := TLazyBuildInType.Create;
   AObject.Id := 'Id';
   AObject.LazyString := 'abc';
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Save([AObject]);
+    end);
+end;
+
+procedure TManagerTest.WhenSaveALazyArrayNotLoadedCantRaiseAnyError;
+begin
+  var AObject := FManager.Select.All.From<TLazyArrayClass>.Where(Field('Id') = 30).Open.One;
 
   Assert.WillNotRaise(
     procedure

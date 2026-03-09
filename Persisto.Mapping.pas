@@ -139,6 +139,7 @@ type
     function GetKey: TValue;
     function GetValue: TValue;
     function HasValue: Boolean;
+    function IsValueLoaded: Boolean;
 
     procedure SetValue(const Value: TValue);
 
@@ -194,6 +195,7 @@ type
     function GetKey: TValue;
     function GetValue: TValue;
     function HasValue: Boolean;
+    function IsValueLoaded: Boolean;
 
     procedure SetValue(const Value: TValue);
   public
@@ -262,6 +264,11 @@ begin
 end;
 
 function TLazyValue.HasValue: Boolean;
+begin
+  Result := IsValueLoaded;
+end;
+
+function TLazyValue.IsValueLoaded: Boolean;
 begin
   Result := not FValue.IsEmpty;
 end;
