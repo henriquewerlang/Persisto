@@ -57,6 +57,7 @@ begin
 
   FQuery := TFDQuery.Create(nil);
   FQuery.Connection := Connection;
+  FQuery.FetchOptions.Unidirectional := True;
   FQuery.SQL.Text := SQL;
 end;
 
