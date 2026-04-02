@@ -246,6 +246,7 @@ type
     FScale: Word;
     FSize: Word;
     FSpecialType: TDatabaseSpecialType;
+    FStoredField: TRttiField;
 
     function GetDatabaseType: TFieldType;
     function GetIsLazy: Boolean;
@@ -284,6 +285,7 @@ type
     property Scale: Word read FScale;
     property Size: Word read FSize;
     property SpecialType: TDatabaseSpecialType read FSpecialType;
+    property StoredField: TRttiField read FStoredField;
     property Value[const Instance: TObject]: TValue read GetValue write SetValue;
   end;
 
@@ -1248,13 +1250,24 @@ procedure TMapper.LoadFieldInfo(const Table: TTable; const PropertyInfo: TRttiIn
     Result := (Field.FieldType is TRttiArrayType) or (Field.FieldType is TRttiDynamicArrayType) or (Field.FieldType is TRttiStringType);
   end;
 
+  function LoadStoredField: TRttiField;
+  begin
+    Result := nil;
+    var StoredAttribute := PropertyInfo.GetAttribute<StoredAttribute>;
+
+    if Assigned(StoredAttribute) and not StoredAttribute.Name.IsEmpty then
+      Result := Table.ClassTypeInfo.GetField(StoredAttribute.Name);
+  end;
+
 begin
   Field.FFieldType := PropertyInfo.PropertyType;
   Field.FIndex := Length(Table.FFields);
   Field.FIsReadOnly := not PropertyInfo.IsWritable;
   Field.FName := PropertyInfo.Name;
   Field.FPropertyInfo := PropertyInfo;
+  Field.FStoredField := LoadStoredField;
   Field.FTable := Table;
+
   Table.FFields := Table.FFields + [Field];
 
   if IsLazy(Field.FieldType) then
@@ -1684,7 +1697,12 @@ begin
   if IsLazy then
     LazyValue[Instance].Value := Value
   else
+  begin
     PropertyInfo.SetValue(Instance, Value);
+
+    if Assigned(StoredField) then
+      StoredField.SetValue(Instance, not Value.IsEmpty);
+  end
 end;
 
 { TTableObject }
@@ -1880,7 +1898,7 @@ var
 
       if Field.IsLazy then
         Field.LazyValue[&Object] := CheckLazyFactory(Field, FieldValue)
-      else if Field.Required or not FieldValue.IsEmpty then
+      else
         Field.Value[&Object] := FieldValue;
     end;
 

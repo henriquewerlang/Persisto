@@ -620,7 +620,9 @@ type
     property NullableStored: Boolean read FNullableStored write FNullableStored;
   published
     property Id: Integer read FId write FId;
+    [Stored('FNullableStored')]
     property Nullable: Integer read FNullable write SetNullable stored FNullableStored;
+    [Stored('FNullableFieldStored')]
     property NullableField: Integer read FNullableField write FNullableField stored FNullableFieldStored;
     property NullableProcedure: Integer read FNullableProcedure write FNullableProcedure stored GetNullableProcedureStored;
   end;

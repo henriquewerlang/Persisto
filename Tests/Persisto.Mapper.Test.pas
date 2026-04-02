@@ -343,6 +343,18 @@ type
     procedure WhenAPropertyHasTheAssociationAttributeTheFieldMustBeMarkedAsAssociation;
     [Test]
     procedure WhenTheAssociationIsAnClassMustLoadTheAssociationInformationAboutItAsExpected;
+    [Test]
+    procedure WhenTheFieldIsNullableAndTheValueIsEmptyMustChangeTheStoredFieldWithFalse;
+    [Test]
+    procedure WhenTheFieldHasTheStoreAttributeMustLoadTheStoredFieldInformationInTheFieldClass;
+    [Test]
+    procedure TheStoredFieldMustBeTheFieldUsedInTheStoredProperty;
+    [Test]
+    procedure WhenFillTheValueFromNullableFieldMustLoadTheValueAsExpected;
+    [Test]
+    procedure WhenFillTheValueFromNullableFieldMustLoadTheStoredFieldValueWithTrue;
+    [Test]
+    procedure WhenFillTheValueOfANullableFieldMustFillTheStoredValueAfterSetTheFieldValue;
   end;
 
 implementation
@@ -787,6 +799,13 @@ begin
   Mapper.Free;
 end;
 
+procedure TMapperTest.TheStoredFieldMustBeTheFieldUsedInTheStoredProperty;
+begin
+  var Table := FMapper.GetTable(TClassWithNullableProperty);
+
+  Assert.AreEqual('FNullableFieldStored', Table.Field['NullableField'].StoredField.Name);
+end;
+
 procedure TMapperTest.TheTableOfManyValueAssociationMustBeTheChildTableOfThisLink;
 begin
   var AssociatedTable := FMapper.GetTable(TMyEntityWithManyValueAssociationChild);
@@ -986,6 +1005,48 @@ begin
   MyClass.Free;
 
   MyEntity.Free;
+end;
+
+procedure TMapperTest.WhenFillTheValueFromNullableFieldMustLoadTheStoredFieldValueWithTrue;
+begin
+  var MyClass := TClassWithNullableProperty.Create;
+  var Table := FMapper.GetTable(MyClass.ClassType);
+
+  var Field := Table.Field['NullableField'];
+
+  Field.Value[MyClass] := 123456;
+
+  Assert.IsTrue(MyClass.NullableFieldStored);
+
+  MyClass.Free;
+end;
+
+procedure TMapperTest.WhenFillTheValueFromNullableFieldMustLoadTheValueAsExpected;
+begin
+  var MyClass := TClassWithNullableProperty.Create;
+  var Table := FMapper.GetTable(MyClass.ClassType);
+
+  var Field := Table.Field['NullableField'];
+
+  Field.Value[MyClass] := 123456;
+
+  Assert.AreEqual(123456, Field.Value[MyClass].AsInteger);
+
+  MyClass.Free;
+end;
+
+procedure TMapperTest.WhenFillTheValueOfANullableFieldMustFillTheStoredValueAfterSetTheFieldValue;
+begin
+  var MyClass := TClassWithNullableProperty.Create;
+  var Table := FMapper.GetTable(MyClass.ClassType);
+
+  var Field := Table.Field['Nullable'];
+
+  Field.Value[MyClass] := TValue.Empty;
+
+  Assert.IsFalse(MyClass.NullableStored);
+
+  MyClass.Free;
 end;
 
 procedure TMapperTest.WhenGetTableByNameAndTheClassNameNotExistsCantRaiseAnyError;
@@ -1248,7 +1309,7 @@ procedure TMapperTest.WhenTheAssociationIsAnClassMustLoadTheAssociationInformati
 begin
   var Table := FMapper.GetTable(TAssociationClass);
 
-  Assert.AreEqual(1, Length(Table.Associations));
+  Assert.AreEqual(2, Length(Table.Associations));
 end;
 
 procedure TMapperTest.WhenTheAttributeIsASequenceMustLoadTheNameOfTheSequenceInTheDefaultConstraint;
@@ -1407,6 +1468,13 @@ begin
   Assert.AreEqual('''MyValue''', Table.Field['FixedValue'].DefaultConstraint.FixedValue);
 end;
 
+procedure TMapperTest.WhenTheFieldHasTheStoreAttributeMustLoadTheStoredFieldInformationInTheFieldClass;
+begin
+  var Table := FMapper.GetTable(TClassWithNullableProperty);
+
+  Assert.IsNotNil(Table.Field['NullableField'].StoredField);
+end;
+
 procedure TMapperTest.WhenTheFieldHaveTheFieldNameAttributeMustLoadThisNameInTheDatabaseName;
 begin
   var Table := FMapper.GetTable(TMyEntityWithFieldNameAttribute);
@@ -1526,6 +1594,16 @@ begin
     begin
       Table.Field['AnotherFieldInvalid'];
     end, EFieldNotFound);
+end;
+
+procedure TMapperTest.WhenTheFieldIsNullableAndTheValueIsEmptyMustChangeTheStoredFieldWithFalse;
+begin
+  var MyObject := TClassWithNullableProperty.Create;
+  var Table := FMapper.GetTable(TClassWithNullableProperty);
+
+  Table.Field['NullableField'].Value[MyObject] := TValue.Empty;
+
+  Assert.IsFalse(MyObject.NullableStored);
 end;
 
 procedure TMapperTest.WhenTheFieldIsOfDateTimeTypeMustLoadTheSpecialTypeWithDateTime;

@@ -167,6 +167,9 @@ var
 
     var Object12 := CreateObject<TClassWithNullableProperty>;
     Object12.Id := 20;
+    Object12.Nullable := 35;
+    Object12.NullableField := 25;
+    Object12.NullableFieldStored := True;
 
     var Object13 := CreateObject<TMyEntityWithAllTypeOfFields>;
     Object13.AnsiChar := 'a';
@@ -539,7 +542,13 @@ procedure TClassLoaderTest.WhenLoadAnObjectWithNullableFieldMustLoadTheFieldAsEx
 begin
   var &Object := FManager.Select.All.From<TClassWithNullableProperty>.Open.One;
 
-  Assert.IsFalse(&Object.NullableStored);
+  Assert.AreEqual(25, &Object.NullableField);
+
+  FManager.ExectDirect('update ClassWithNullableProperty set NullableField = null');
+
+  &Object := FManager.Select.All.From<TClassWithNullableProperty>.Open.One;
+
+  Assert.IsFalse(&Object.NullableFieldStored);
 end;
 
 procedure TClassLoaderTest.WhenSelectAnEntityWithTheForeignKeyFieldNamedMustLoadTheClassWithoutError;
