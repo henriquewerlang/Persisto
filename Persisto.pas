@@ -530,8 +530,8 @@ type
     function Open: TQueryBuilderOpen<T>;
   end;
 
-  TQueryBuilderComparisonOperation = (qbcoNone, qbcoAnd, qbcoOr, qbcoEqual, qbcoNotEqual, qbcoGreaterThan, qbcoGreaterThanOrEqual, qbcoLessThan, qbcoLessThanOrEqual, qbcoIsNull,
-    qbcoBetween, qbcoLike, qbcoValue, qbcoFieldName, qbcoLogicalNot);
+  TQueryBuilderComparisonOperation = (qbcoNone, qbcoAnd, qbcoOr, qbcoEqual, qbcoNotEqual, qbcoGreaterThan, qbcoGreaterThanOrEqual, qbcoLessThan, qbcoLessThanOrEqual, qbcoIsNull, qbcoBetween, qbcoLike, qbcoValue, qbcoFieldName,
+    qbcoLogicalNot);
 
   TQueryBuilderComparison = class
   private
@@ -2200,17 +2200,28 @@ var
           Exit(FindTable(QueryTable.InheritedTable, FieldName));
 
         for var FindTable in QueryTable.LazyTables do
-          if FindTable.ForeignKeyField.Field.Name = FieldName then
+          if Assigned(FindTable.ForeignKeyField) and (FindTable.ForeignKeyField.Field.Name = FieldName) or Assigned(FindTable.AssociationField) and (FindTable.AssociationField.Field.Name = FieldName) then
             Exit(FindTable);
 
         for var Field in QueryTable.Table.Fields do
           if Field.Name = FieldName then
           begin
-            var LazyTable := MakeTableAlias(TQueryBuilderTable.Create(Field.ForeignKey));
+            var LazyTable: TQueryBuilderTable;
+
+            if Assigned(Field.ForeignKey) then
+            begin
+              LazyTable := MakeTableAlias(TQueryBuilderTable.Create(Field.ForeignKey));
+
+              MakeJoin(QueryTable, Field, LazyTable, Field.ForeignKey.ParentTable.PrimaryKey);
+            end
+            else
+            begin
+              LazyTable := MakeTableAlias(TQueryBuilderTable.Create(Field.Association));
+
+              MakeJoin(QueryTable, Field.Association.AssociatedTable.PrimaryKey, LazyTable, Field.Association.AssociatedField);
+            end;
 
             QueryTable.LazyTables.Add(LazyTable);
-
-            MakeJoin(QueryTable, Field, LazyTable, Field.ForeignKey.ParentTable.PrimaryKey);
 
             Exit(LazyTable);
           end;
@@ -4372,5 +4383,4 @@ begin
 end;
 
 end.
-
 

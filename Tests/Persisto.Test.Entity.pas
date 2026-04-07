@@ -1290,10 +1290,12 @@ type
   private
     FId: String;
     FAssociationClass: TAssociationClass;
+    FValue: Integer;
   published
     [NewUniqueIdentifier, UniqueIdentifier]
     property Id: String read FId write FId;
     property AssociationClass: TAssociationClass read FAssociationClass write FAssociationClass;
+    property Value: Integer read FValue write FValue;
   end;
 
   [Entity]
