@@ -23,8 +23,6 @@ type
     [Test]
     procedure WhenGetLazyTypeMustReturnTheRttiTypeAsExpected;
     [Test]
-    procedure WhenTheLazyValueIsntLoadedMustReturnTheTypeInfoFromTheTypeAsExpected;
-    [Test]
     procedure WhenFillTheLazyValuePropertyMustReturnTheValueAsExpected;
     [Test]
     procedure WhenTheLazyValueIsFilledTheHasValueFunctionMustReturnTrue;
@@ -168,15 +166,6 @@ begin
   Assert.IsTrue(MyLazy.HasValue);
 end;
 
-procedure TLazyTest.WhenTheLazyValueIsntLoadedMustReturnTheTypeInfoFromTheTypeAsExpected;
-begin
-  var LazyClass := TLazyClass.Create;
-
-  Assert.AreEqual(TypeInfo(TMyEntity), LazyClass.Lazy.LazyValue.Value.TypeInfo);
-
-  LazyClass.Free;
-end;
-
 { TLazyValueTest }
 
 procedure TLazyValueTest.Setup;
@@ -272,7 +261,7 @@ begin
   LazyArrayClass.LazyArray := [TLazyArrayClassChild.Create, TLazyArrayClassChild.Create, TLazyArrayClassChild.Create];
 
   var AObject := TLazyBuildInType.Create;
-  AObject.Id := 'LazyString';
+  AObject.Key := 'LazyString';
   AObject.LazyString := 'My text';
 
   var AObject2 := TLazyBuildInArrayType.Create;

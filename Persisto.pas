@@ -2085,7 +2085,10 @@ var
       end
       else
       begin
-        DatabaseField := TQueryBuilderTableField.Create(Field, FieldIndex);
+        if Field.IsLazy and not Field.IsForeignKey then
+          DatabaseField := TQueryBuilderTableField.Create(QueryTable.Table.PrimaryKey, FieldIndex)
+        else
+          DatabaseField := TQueryBuilderTableField.Create(Field, FieldIndex);
 
         if Field.InPrimaryKey then
           QueryTable.PrimaryKeyField := DatabaseField;
@@ -2093,7 +2096,7 @@ var
         if FieldIndex > 1 then
           SQL.Append(',');
 
-        AppendFieldName(QueryTable, Field);
+        AppendFieldName(QueryTable, DatabaseField.Field);
 
         SQL.Append(' ').Append(DatabaseField.FieldAlias);
 
@@ -2976,7 +2979,7 @@ procedure TPersistoManager.InternalUpdateTable(const Table: TTable; const &Objec
         InternalUpdateTable(Table.BaseTable, &Object, LoadOldValueObject(Table.BaseTable, &Object));
 
       for var Field in Table.Fields do
-        if not Field.IsAssociation then
+        if not Field.IsAssociation and (not Field.IsLazy or Field.LazyValue[&Object].IsValueLoaded) then
         begin
           var IsBinary := Field.SpecialType = stBinary;
           var ValueToCompare: Variant;

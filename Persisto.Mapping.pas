@@ -180,7 +180,7 @@ type
 
     procedure SetLazyValue(const Value: ILazyValue);
   public
-    constructor Create(const AType: PTypeInfo);
+    constructor Create;
   end;
 
   TLazyValue = class(TInterfacedObject, ILazyValue)
@@ -278,7 +278,7 @@ end;
 function Lazy<T>.GetLazyManager: ILazyManager;
 begin
   if not Assigned(FLazyManager) then
-    FLazyManager := TLazyManager.Create(TypeInfo(T));
+    FLazyManager := TLazyManager.Create;
 
   Result := FLazyManager;
 end;
@@ -516,9 +516,9 @@ end;
 
 { TLazyManager }
 
-constructor TLazyManager.Create(const AType: PTypeInfo);
+constructor TLazyManager.Create;
 begin
-  FLazyValue := TLazyValue.Create(AType, nil);
+  FLazyValue := TLazyValue.Create(nil, nil);
 end;
 
 function TLazyManager.GetLazyValue: ILazyValue;

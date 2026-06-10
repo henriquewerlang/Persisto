@@ -1260,13 +1260,14 @@ type
   end;
 
   [Entity]
+  [PrimaryKey('Key')]
   TLazyBuildInType = class
   private
-    FId: String;
+    FKey: String;
     FLazyString: Lazy<String>;
   published
     [Size(10)]
-    property Id: String read FId write FId;
+    property Key: String read FKey write FKey;
     [Text]
     property LazyString: Lazy<String> read FLazyString write FLazyString;
   end;

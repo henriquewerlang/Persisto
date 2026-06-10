@@ -213,6 +213,12 @@ type
     procedure WhenUpdateAClassWithAnArrayOfByteCantRaiseAnyError;
     [Test]
     procedure WhenUpdateTheClassWithAnArrayOfByteMustLoadTheValueInDatabase;
+    [Test]
+    procedure WhenUpdateAnLazyBuildInTypeMustChangeTheValueInDatabaseOnlyIfTheValueHasChanged;
+    [Test]
+    procedure WhenUpdateAnLazyBuildInTypeMustUpdateTheValueInDatabaseHasExpected;
+    [Test]
+    procedure WhenSelectAClassWithBuildInTypeLazyFieldMustLoadThePrimaryKeyFieldNameInTheLazyFieldPosition;
   end;
 
   TDatabaseConnectionMock = class(TComponent, IDatabaseConnection)
@@ -1123,7 +1129,7 @@ end;
 procedure TManagerTest.WhenSaveAClassWithALazyFieldWithABuildInTypeCantRaiseAnyError;
 begin
   var AObject := TLazyBuildInType.Create;
-  AObject.Id := 'Id';
+  AObject.Key := 'Id';
   AObject.LazyString := 'abc';
 
   Assert.WillNotRaise(
@@ -1358,6 +1364,17 @@ begin
   Assert.IsTrue(Cursor.Next);
 end;
 
+procedure TManagerTest.WhenSelectAClassWithBuildInTypeLazyFieldMustLoadThePrimaryKeyFieldNameInTheLazyFieldPosition;
+begin
+  var DatabaseConnection := TDatabaseConnectionMock.Create(FManager, CreateConnection(FManager));
+  var Manager := CreateManager;
+  Manager.Connection := DatabaseConnection;
+
+  Manager.Select.All.From<TLazyBuildInType>.Where(Field('Key') = 'Id').Open.One;
+
+  Assert.AreEqual('select T1.Key F1,T1.Key F2 from LazyBuildInType T1 where T1.Key=:P1', DatabaseConnection.LastCommandExecuted);
+end;
+
 procedure TManagerTest.WhenSelectAnObjectUsingAForeignKeyFieldMustFindAndFilterTheTableByThisField;
 begin
   var Open := FManager.Select.All.From<TInsertTestWithForeignKey>.Where(Field('FK1').IsNull and (Field('Value') = 200)).Open;
@@ -1525,18 +1542,39 @@ end;
 procedure TManagerTest.WhenUpdateAnLazyBuildInTypeMustChangeTheValueInDatabaseOnlyIfTheValueHasChanged;
 begin
   var AObject := TLazyBuildInType.Create;
-  AObject.Id := 'Id';
+  AObject.Key := 'Id';
   AObject.LazyString := 'abc';
 
   FManager.Save([AObject]);
 
-  var DatabaseObject := FManager.Select.All.From<TLazyBuildInType>.Where(Field('Id') = 'Id').Open.One;
+  var DatabaseObject := FManager.Select.All.From<TLazyBuildInType>.Where(Field('Key') = 'Id').Open.One;
 
-  FManager.ExectDirect('update LazyBuildInType set LazyString = ''another'' where Id = ''Id''');
+  FManager.ExectDirect('update LazyBuildInType set LazyString = ''another'' where Key = ''Id''');
 
   FManager.Update([DatabaseObject]);
 
-  var Cursor := FManager.OpenCursor('select * from LazyBuildInType where Id = ''Id''');
+  var Cursor := FManager.OpenCursor('select * from LazyBuildInType where Key = ''Id''');
+
+  Cursor.Next;
+
+  var LazyValue := Cursor.GetDataSet.FieldByName('LazyString').AsString;
+
+  Assert.AreEqual('another', LazyValue);
+end;
+
+procedure TManagerTest.WhenUpdateAnLazyBuildInTypeMustUpdateTheValueInDatabaseHasExpected;
+begin
+  var AObject := TLazyBuildInType.Create;
+  AObject.Key := 'Id';
+  AObject.LazyString := 'abc';
+
+  FManager.Insert([AObject]);
+
+  AObject.LazyString := 'another';
+
+  FManager.Update([AObject]);
+
+  var Cursor := FManager.OpenCursor('select * from LazyBuildInType where Key = ''Id''');
 
   Cursor.Next;
 
@@ -1902,7 +1940,7 @@ begin
 
   Manager.Select.All.From<TLazyFilter>.Where((Field('LazyField.Field') = 'Value') and (Field('LazyField.Field') = 'Value') and (Field('LazyField.Field') = 'Value')).Open.One;
 
-  Assert.AreEqual('select T1.Id F1,T1.IdLazyField F2,T1.LazyString F3 from LazyFilter T1 left join LazyFilterChild T2 on T2.Id=T1.IdLazyField where T2.Field=:P1 and T2.Field=:P2 and T2.Field=:P3', DatabaseConnection.LastCommandExecuted);
+  Assert.AreEqual('select T1.Id F1,T1.IdLazyField F2,T1.Id F3 from LazyFilter T1 left join LazyFilterChild T2 on T2.Id=T1.IdLazyField where T2.Field=:P1 and T2.Field=:P2 and T2.Field=:P3', DatabaseConnection.LastCommandExecuted);
 end;
 
 { TManagerDatabaseManipulationTest }
