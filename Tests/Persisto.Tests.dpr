@@ -20,7 +20,8 @@ uses
   Persisto.PostgreSQL in '..\Persisto.PostgreSQL.pas',
   Persisto.Interbase in '..\Persisto.Interbase.pas',
   Persisto.SQLite in '..\Persisto.SQLite.pas',
-  Persisto.Entity.Generator.Test in 'Persisto.Entity.Generator.Test.pas';
+  Persisto.Entity.Generator.Test in 'Persisto.Entity.Generator.Test.pas',
+  Persisto.Mapping in '..\Persisto.Mapping.pas';
 
 begin
   ReportMemoryLeaksOnShutdown := True;

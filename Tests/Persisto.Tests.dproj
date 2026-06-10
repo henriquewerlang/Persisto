@@ -1,7 +1,7 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{496DBF54-CF41-42FB-BC0A-3C405F2D847C}</ProjectGuid>
-        <ProjectVersion>20.3</ProjectVersion>
+        <ProjectVersion>20.4</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <MainSource>Persisto.Tests.dpr</MainSource>
         <Base>True</Base>
@@ -203,6 +203,7 @@
         <DCCReference Include="..\Persisto.Interbase.pas"/>
         <DCCReference Include="..\Persisto.SQLite.pas"/>
         <DCCReference Include="Persisto.Entity.Generator.Test.pas"/>
+        <DCCReference Include="..\Persisto.Mapping.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -263,6 +264,12 @@
                 <DeployFile LocalName="Win32\Debug\Delphi.ORM.Tests.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployFile LocalName="Win32\Debug\Persisto.Tests.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployFile LocalName="Win32\PostgreSQL\Persisto.Tests.exe" Configuration="PostgreSQL" Class="ProjectOutput"/>
+                <DeployFile LocalName="Win32\PostgreSQL\Persisto.Tests.exe" Configuration="PostgreSQL" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>Persisto.Tests.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployFile LocalName="Win32\SQLite\Persisto.Tests.exe" Configuration="SQLite" Class="ProjectOutput"/>
                 <DeployFile LocalName="Win64\Debug\Delphi.ORM.Tests.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployFile LocalName="Win64\Debug\Persisto.Tests.exe" Configuration="Debug" Class="ProjectOutput"/>
@@ -856,6 +863,9 @@
                     <Platform Name="Win64x">
                         <Operation>1</Operation>
                     </Platform>
+                    <Platform Name="WinARM64EC">
+                        <Operation>1</Operation>
+                    </Platform>
                 </DeployClass>
                 <DeployClass Name="ProjectiOSDeviceDebug">
                     <Platform Name="iOSDevice32">
@@ -894,6 +904,10 @@
                         <RemoteDir>Assets</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
+                    <Platform Name="WinARM64EC">
+                        <RemoteDir>Assets</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
                 </DeployClass>
                 <DeployClass Name="UWP_DelphiLogo44">
                     <Platform Name="Win32">
@@ -901,6 +915,10 @@
                         <Operation>1</Operation>
                     </Platform>
                     <Platform Name="Win64">
+                        <RemoteDir>Assets</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="WinARM64EC">
                         <RemoteDir>Assets</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
@@ -1118,6 +1136,7 @@
                 <ProjectRoot Platform="Win32" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="Win64" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="Win64x" Name="$(PROJECTNAME)"/>
+                <ProjectRoot Platform="WinARM64EC" Name="$(PROJECTNAME)"/>
             </Deployment>
             <Platforms>
                 <Platform value="Android">False</Platform>
