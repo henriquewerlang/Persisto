@@ -208,7 +208,11 @@ type
     [Test]
     procedure WhenFilterALazyAssociationUsingTheSameFieldMoreThanOnceCantRaiseAnyError;
     [Test]
-    procedure WhenUsarALazyAssociationInTheFilterMustLoadTheTableJoinOnlyOnce;
+    procedure WhenUseAnALazyAssociationInTheFilterMustLoadTheTableJoinOnlyOnce;
+    [Test]
+    procedure WhenUpdateAClassWithAnArrayOfByteCantRaiseAnyError;
+    [Test]
+    procedure WhenUpdateTheClassWithAnArrayOfByteMustLoadTheValueInDatabase;
   end;
 
   TDatabaseConnectionMock = class(TComponent, IDatabaseConnection)
@@ -1447,6 +1451,23 @@ begin
     end);
 end;
 
+procedure TManagerTest.WhenUpdateAClassWithAnArrayOfByteCantRaiseAnyError;
+begin
+  var MyClass := TMyClassWithByteArray.Create;
+  MyClass.Id := 25;
+  MyClass.MyArray := [1, 2, 3, 4];
+
+  FManager.Save([MyClass]);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Save([MyClass]);
+    end);
+
+  MyClass.Free;
+end;
+
 procedure TManagerTest.WhenUpdateALazyClassCantRaiseAnyError;
 begin
   var LazyClass := FManager.Select.All.From<TLazyClass>.Where(Field('Id') = 10).Open.One;
@@ -1499,6 +1520,29 @@ begin
   Cursor.Next;
 
   Assert.AreEqual(222, Cursor.GetDataSet.Fields[0].AsInteger);
+end;
+
+procedure TManagerTest.WhenUpdateAnLazyBuildInTypeMustChangeTheValueInDatabaseOnlyIfTheValueHasChanged;
+begin
+  var AObject := TLazyBuildInType.Create;
+  AObject.Id := 'Id';
+  AObject.LazyString := 'abc';
+
+  FManager.Save([AObject]);
+
+  var DatabaseObject := FManager.Select.All.From<TLazyBuildInType>.Where(Field('Id') = 'Id').Open.One;
+
+  FManager.ExectDirect('update LazyBuildInType set LazyString = ''another'' where Id = ''Id''');
+
+  FManager.Update([DatabaseObject]);
+
+  var Cursor := FManager.OpenCursor('select * from LazyBuildInType where Id = ''Id''');
+
+  Cursor.Next;
+
+  var LazyValue := Cursor.GetDataSet.FieldByName('LazyString').AsString;
+
+  Assert.AreEqual('another', LazyValue);
 end;
 
 procedure TManagerTest.WhenUpdateAnObjectMustInsertTheNewObjectInTheForeignKey;
@@ -1796,7 +1840,33 @@ begin
   Object3.Free;
 end;
 
-procedure TManagerTest.WhenUsarALazyAssociationInTheFilterMustLoadTheTableJoinOnlyOnce;
+procedure TManagerTest.WhenUpdateTheClassWithAnArrayOfByteMustLoadTheValueInDatabase;
+begin
+  var MyClass := TMyClassWithByteArray.Create;
+  MyClass.Id := 35;
+  MyClass.MyArray := [1, 2, 3, 4];
+
+  FManager.Insert([MyClass]);
+
+  MyClass.MyArray := [5, 6, 7, 8];
+
+  FManager.Update([MyClass]);
+
+  var Cursor := FManager.OpenCursor('select * from MyClassWithByteArray where Id = 35');
+
+  Cursor.Next;
+
+  var ArrayValue := Cursor.GetDataSet.FieldByName('MyArray').AsBytes;
+
+  Assert.AreEqual(5, ArrayValue[0]);
+  Assert.AreEqual(6, ArrayValue[1]);
+  Assert.AreEqual(7, ArrayValue[2]);
+  Assert.AreEqual(8, ArrayValue[3]);
+
+  MyClass.Free;
+end;
+
+procedure TManagerTest.WhenUseAnALazyAssociationInTheFilterMustLoadTheTableJoinOnlyOnce;
 begin
   var DatabaseConnection := TDatabaseConnectionMock.Create(FManager, CreateConnection(FManager));
   var Manager := CreateManager;

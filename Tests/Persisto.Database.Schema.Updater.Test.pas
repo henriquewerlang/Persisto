@@ -255,7 +255,7 @@ begin
 
   FManager.Mapper.LoadAll;
 
-  FManager.CreateDatabase;
+  CreateDatabase(FManager);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.TearDown;

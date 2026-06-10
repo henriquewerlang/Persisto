@@ -1317,7 +1317,9 @@ begin
     else if Field.FieldType.Handle = TypeInfo(TTime) then
       Field.FSpecialType := stTime
     else if Field.FieldType.Handle = TypeInfo(Boolean) then
-      Field.FSpecialType := stBoolean;
+      Field.FSpecialType := stBoolean
+    else if Field.FieldType.Handle = TypeInfo(TArray<Byte>) then
+      Field.FSpecialType := stBinary;
   end;
 end;
 
@@ -2976,6 +2978,7 @@ procedure TPersistoManager.InternalUpdateTable(const Table: TTable; const &Objec
       for var Field in Table.Fields do
         if not Field.IsAssociation then
         begin
+          var IsBinary := Field.SpecialType = stBinary;
           var ValueToCompare: Variant;
 
           if not Field.HasValue(&Object, FieldValue) then
@@ -2991,7 +2994,7 @@ procedure TPersistoManager.InternalUpdateTable(const Table: TTable; const &Objec
           else
             ValueToCompare := FieldValue.AsVariant;
 
-          if OldValues[Field] <> ValueToCompare then
+          if IsBinary or (OldValues[Field] <> ValueToCompare) then
             Params.AddParam(Field, ValueToCompare);
         end;
 

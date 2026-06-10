@@ -1132,7 +1132,6 @@ type
   published
     property Boolean: Boolean read FBoolean write FBoolean;
     property Bigint: Int64 read FBigint write FBigint;
-    [Binary]
     property BinaryField: TArray<Byte> read FBinaryField write FBinaryField;
     property Byte: Byte read FByte write FByte;
     property Char: Char read FChar write FChar;
@@ -1189,6 +1188,7 @@ type
     property Error: Integer read GetError write FError;
   end;
 
+  [Entity]
   TMyClassWithByteArray = class
   private
     FId: Integer;
@@ -1279,7 +1279,6 @@ type
   published
     [Size(10)]
     property Id: String read FId write FId;
-    [Binary]
     property LazyArray: Lazy<TArray<Byte>> read FLazyArray write FLazyArray;
   end;
 

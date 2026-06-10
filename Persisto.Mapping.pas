@@ -70,11 +70,6 @@ type
     constructor Create;
   end;
 
-  BinaryAttribute = class(FieldInfoAttribute)
-  public
-    constructor Create;
-  end;
-
   SizeAttribute = class(FieldInfoAttribute)
   public
     constructor Create(const Size: Word);
@@ -517,13 +512,6 @@ end;
 constructor AssociationAttribute.Create(const LinkName: String);
 begin
   inherited;
-end;
-
-{ BinaryAttribute }
-
-constructor BinaryAttribute.Create;
-begin
-  inherited Create(stBinary, 0, 0);
 end;
 
 { TLazyManager }
