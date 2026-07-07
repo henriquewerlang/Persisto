@@ -1899,7 +1899,10 @@ var
       FieldValue := GetFieldValue(Field, QueryField.DataSetField);
 
       if Field.IsLazy then
-        Field.LazyValue[&Object] := CheckLazyFactory(Field, FieldValue)
+        if Field.IsForeignKey then
+          Field.LazyValue[&Object] := CheckLazyFactory(Field, FieldValue)
+        else
+          Field.LazyValue[&Object] := CheckLazyFactory(Field, Field.Table.PrimaryKey.GetValue(&Object))
       else
         Field.Value[&Object] := FieldValue;
     end;
@@ -2062,10 +2065,11 @@ var
 
   procedure LoadFieldList(const QueryTable: TQueryBuilderTable; const ForeignFieldToIgnore: TField = nil);
   var
+    AssociationTable: TQueryBuilderTable;
     DatabaseField: TQueryBuilderTableField;
     Field: TField;
+    FieldToAppend: TField;
     ForeignKeyTable: TQueryBuilderTable;
-    AssociationTable: TQueryBuilderTable;
 
   begin
     MakeTableAlias(QueryTable);
@@ -2085,10 +2089,12 @@ var
       end
       else
       begin
+        DatabaseField := TQueryBuilderTableField.Create(Field, FieldIndex);
+
         if Field.IsLazy and not Field.IsForeignKey then
-          DatabaseField := TQueryBuilderTableField.Create(QueryTable.Table.PrimaryKey, FieldIndex)
+          FieldToAppend := QueryTable.Table.PrimaryKey
         else
-          DatabaseField := TQueryBuilderTableField.Create(Field, FieldIndex);
+          FieldToAppend := Field;
 
         if Field.InPrimaryKey then
           QueryTable.PrimaryKeyField := DatabaseField;
@@ -2096,7 +2102,7 @@ var
         if FieldIndex > 1 then
           SQL.Append(',');
 
-        AppendFieldName(QueryTable, DatabaseField.Field);
+        AppendFieldName(QueryTable, FieldToAppend);
 
         SQL.Append(' ').Append(DatabaseField.FieldAlias);
 
