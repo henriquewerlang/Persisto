@@ -92,11 +92,15 @@ type
     procedure WhenLoadAClassWithALazyPropertyAndThanReloadTheClassMustResetTheLazyFieldValue;
     [Test]
     procedure WhenLoadAClassWithALazyFieldWithABuildInTypeMustLoadTheValueAsExpected;
+    [Test]
+    procedure WhenThePropertyIsBCDTypeCantRaiseAnyErrorWhenLoading;
+    [Test]
+    procedure WhenThePropertyIsBCDTypeMustLoadTheFieldValueAsExpected;
   end;
 
 implementation
 
-uses System.SysUtils, System.Variants, Persisto.Test.Connection, Persisto.Test.Entity;
+uses System.SysUtils, System.Variants, Data.FMTBcd, Persisto.Test.Connection, Persisto.Test.Entity;
 
 { TClassLoaderTest }
 
@@ -187,7 +191,11 @@ var
     LazyBuildIn.Key := 'Lazy';
     LazyBuildIn.LazyString := 'Value';
 
-    Objects := [Object1, Object2, Object3, Object7, Object11, Object12, Object13, Object14, Object15, Object16, LazyBuildIn];
+    var BcdObject := TBcdClass.Create;
+    BcdObject.Id := 10;
+    BcdObject.Bcd := TBCD(123456) * 1000000 + (TBCD(123456) * 1000000) * 1000000 + 123456 + 0.123456;
+
+    Objects := [Object1, Object2, Object3, Object7, Object11, Object12, Object13, Object14, Object15, Object16, LazyBuildIn, BcdObject];
   end;
 
 begin
@@ -206,6 +214,8 @@ begin
   FManagerInsert.Mapper.GetTable(TNameLazyField);
 
   FManagerInsert.Mapper.GetTable(TLazyBuildInType);
+
+  FManagerInsert.Mapper.GetTable(TBcdClass);
 
   LoadObjects;
 
@@ -627,6 +637,22 @@ begin
     begin
       FManager.Select.All.From<TLazyFilter>.Open.One;
     end);
+end;
+
+procedure TClassLoaderTest.WhenThePropertyIsBCDTypeCantRaiseAnyErrorWhenLoading;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Select.All.From<TBcdClass>.Where(Field('Id') = 10).Open.One;
+    end);
+end;
+
+procedure TClassLoaderTest.WhenThePropertyIsBCDTypeMustLoadTheFieldValueAsExpected;
+begin
+  var Value := FManager.Select.All.From<TBcdClass>.Where(Field('Id') = 10).Open.One;
+
+  Assert.AreEqual(BcdToStr(TBCD(123456) * 1000000 + (TBCD(123456) * 1000000) * 1000000 + 123456 + 0.123456), BcdToStr(Value.BCD));
 end;
 
 procedure TClassLoaderTest.WhenTryToLoadASingleObjectFromAnEmptyTableCantRaiseAnyError;

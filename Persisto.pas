@@ -539,7 +539,7 @@ type
     FLeft: TQueryBuilderComparison;
     FOperarion: TQueryBuilderComparisonOperation;
     FRight: TQueryBuilderComparison;
-    FValue: Variant;
+    FValue: TValue;
   public
     destructor Destroy; override;
 
@@ -547,7 +547,7 @@ type
     property Left: TQueryBuilderComparison read FLeft;
     property Operarion: TQueryBuilderComparisonOperation read FOperarion;
     property Right: TQueryBuilderComparison read FRight;
-    property Value: Variant read FValue write FValue;
+    property Value: TValue read FValue write FValue;
   end;
 
   TQueryBuilderFieldSearch = class
@@ -861,7 +861,7 @@ const
 
 implementation
 
-uses System.Variants, System.SysConst, System.Math, System.IOUtils;
+uses System.Variants, System.SysConst, System.Math, System.IOUtils, Data.FMTBcd;
 
 type
   TNameComparer = class(TOrdinalIStringComparer)
@@ -886,6 +886,8 @@ function GetFieldValue(const Field: TField; const DataSetField: Data.DB.TField):
 begin
   if DataSetField.IsNull then
     Result := TValue.Empty
+  else if Field.SpecialType = stBCD then
+    Result := TValue.From(DataSetField.AsBCD)
   else
     case DataSetField.DataType of
       ftFMTBcd, ftBCD:
@@ -912,8 +914,8 @@ end;
 type
   TParamsHelper = class helper for TParams
   public
-    procedure AddParam(const Field: TField; const Value: Variant); overload;
-    procedure AddParam(const ParamName: String; Field: TField; const Value: Variant); overload;
+    procedure AddParam(const Field: TField; const Value: TValue); overload;
+    procedure AddParam(const ParamName: String; Field: TField; const Value: TValue); overload;
   end;
 
 { EFieldNotInCurrentSelection }
@@ -1308,7 +1310,11 @@ begin
     begin
       Field.FScale := FieldInfo.Scale;
       Field.FSize := FieldInfo.Size;
-      Field.FSpecialType := FieldInfo.SpecialType;
+
+      if Field.FieldType.Handle = TypeInfo(TBCD) then
+        Field.FSpecialType := stBCD
+      else
+        Field.FSpecialType := FieldInfo.SpecialType;
     end
     else if Field.FieldType.Handle = TypeInfo(TDate) then
       Field.FSpecialType := stDate
@@ -1760,7 +1766,7 @@ begin
     begin
       var Params := TParams.Create;
 
-      Params.AddParam('Value', FilterField, FKeyValue.AsVariant);
+      Params.AddParam('Value', FilterField, FKeyValue);
 
       var Cursor := FManager.PrepareCursor(Format('select %s from %s where %s = :Value', [FLazyField.DatabaseName, FilterField.Table.DatabaseName, FilterField.DatabaseName]), Params);
 
@@ -2578,7 +2584,7 @@ end;
 class function TQueryBuilderComparisonHelper.Create(const Value: Variant): TQueryBuilderComparisonHelper;
 begin
   Result := Create(qbcoValue);
-  Result.FComparison.Value := Value;
+  Result.FComparison.Value := TValue.FromVariant(Value);
 end;
 
 class function TQueryBuilderComparisonHelper.Create(const Operation: TQueryBuilderComparisonOperation): TQueryBuilderComparisonHelper;
@@ -2822,7 +2828,7 @@ begin
 
       Params.Clear;
 
-      Params.AddParam('Key', Table.PrimaryKey, Table.PrimaryKey.GetValue(&Object).AsVariant);
+      Params.AddParam('Key', Table.PrimaryKey, Table.PrimaryKey.GetValue(&Object));
 
       SQL.Clear;
 
@@ -2931,7 +2937,7 @@ var
             FieldValue := Field.ForeignKey.ParentTable.PrimaryKey.Value[FieldValue.AsObject];
           end;
 
-          Params.AddParam(Field, FieldValue.AsVariant);
+          Params.AddParam(Field, FieldValue);
         end;
 
       var Cursor := PrepareCursor(Manipulator.MakeInsertStatement(Table, Params), Params);
@@ -2974,7 +2980,21 @@ procedure TPersistoManager.InternalUpdateTable(const Table: TTable; const &Objec
 
   procedure DoUpdateTable(const Table: TTable; const &Object: TObject);
   var
+    Field: TField;
     Params: TParams;
+    ValueToCompare: TValue;
+
+    function SameValue: Boolean;
+    begin
+      var Value: Variant;
+
+      if Field.SpecialType = stBCD then
+        Value := VarFMTBcdCreate(ValueToCompare.AsType<TBCD>)
+      else
+        Value := ValueToCompare.AsVariant;
+
+      Result := OldValues[Field] = Value;
+    end;
 
   begin
     Params := TParams.Create(nil);
@@ -2984,32 +3004,29 @@ procedure TPersistoManager.InternalUpdateTable(const Table: TTable; const &Objec
       if Assigned(Table.BaseTable) then
         InternalUpdateTable(Table.BaseTable, &Object, LoadOldValueObject(Table.BaseTable, &Object));
 
-      for var Field in Table.Fields do
+      for Field in Table.Fields do
         if not Field.IsAssociation and (not Field.IsLazy or Field.LazyValue[&Object].IsValueLoaded) then
         begin
-          var IsBinary := Field.SpecialType = stBinary;
-          var ValueToCompare: Variant;
-
           if not Field.HasValue(&Object, FieldValue) then
-            ValueToCompare := NULL
+            ValueToCompare := TValue.Empty
           else if Field.IsForeignKey and FieldValue.IsObject then
           begin
             var ForeignObject := FieldValue.AsObject;
 
             SaveTable(Field.ForeignKey.ParentTable, ForeignObject);
 
-            ValueToCompare := Field.ForeignKey.ParentTable.PrimaryKey.Value[ForeignObject].AsVariant;
+            ValueToCompare := Field.ForeignKey.ParentTable.PrimaryKey.Value[ForeignObject];
           end
           else
-            ValueToCompare := FieldValue.AsVariant;
+            ValueToCompare := FieldValue;
 
-          if IsBinary or (OldValues[Field] <> ValueToCompare) then
+          if (Field.SpecialType = stBinary) or not SameValue then
             Params.AddParam(Field, ValueToCompare);
         end;
 
       if Params.Count > 0 then
       begin
-        Params.AddParam(Table.PrimaryKey, Table.PrimaryKey.Value[&Object].AsVariant);
+        Params.AddParam(Table.PrimaryKey, Table.PrimaryKey.Value[&Object]);
 
         PrepareCursor(Manipulator.MakeUpdateStatement(Table, Params), Params).Next;
       end;
@@ -3107,7 +3124,7 @@ begin
   var PrimaryKey := Table.PrimaryKey;
   var SQL := TStringBuilder.Create(STRING_BUILDER_START_CAPACITY);
 
-  Params.AddParam(PrimaryKey, PrimaryKey.Value[&Object].AsVariant);
+  Params.AddParam(PrimaryKey, PrimaryKey.Value[&Object]);
 
   SQL.Append('select ');
 
@@ -3241,12 +3258,12 @@ end;
 
 { TParamsHelper }
 
-procedure TParamsHelper.AddParam(const Field: TField; const Value: Variant);
+procedure TParamsHelper.AddParam(const Field: TField; const Value: TValue);
 begin
   AddParam(Field.DatabaseName, Field, Value);
 end;
 
-procedure TParamsHelper.AddParam(const ParamName: String; Field: TField; const Value: Variant);
+procedure TParamsHelper.AddParam(const ParamName: String; Field: TField; const Value: TValue);
 var
   Param: TParam;
 
@@ -3256,12 +3273,14 @@ begin
 
   Param := CreateParam(Field.DatabaseType, ParamName, ptInput);
 
-  if VarIsClear(Value) or VarIsStr(Value) and (Value = EmptyStr) then
+  if Value.IsEmpty or Value.IsType<String> and (Value.AsString = EmptyStr) then
     Param.Value := NULL
   else if Field.SpecialType = stUniqueIdentifier then
-    Param.AsGuid := StringToGUID(Value)
+    Param.AsGuid := StringToGUID(Value.AsString)
+  else if Field.SpecialType = stBCD then
+    Param.AsFMTBCD := Value.AsType<TBcd>
   else
-    Param.Value := Value;
+    Param.Value := Value.AsVariant;
 end;
 
 { TNameComparer }
@@ -3369,7 +3388,7 @@ end;
 procedure TEntityGenerator.GenerateUnit(const FileName: String; FormatName: TFunc<String, String>);
 const
   FIELD_TYPE: array[TTypeKind] of String = ('', 'Integer', 'Char', 'Integer', 'Double', 'String', '', '', '', 'Char', 'String', 'String', '', '', '', '', 'Int64', '', 'String', '', '', '', '');
-  SPECIAL_FIELD_TYPE: array[TDatabaseSpecialType] of String = ('', 'TDate', 'TDateTime', 'TTime', 'Lazy<String>', 'String', 'Boolean', 'Lazy<TArray<Byte>>');
+  SPECIAL_FIELD_TYPE: array[TDatabaseSpecialType] of String = ('', 'TDate', 'TDateTime', 'TTime', 'Lazy<String>', 'String', 'Boolean', 'Lazy<TArray<Byte>>', 'TBCD');
 
 var
   Field: TDatabaseField;
@@ -4248,8 +4267,7 @@ var
     Tables := TDictionary<String, TTable>.Create(Comparer);
 
     for var Table in FManager.Mapper.Tables do
-      if Table.ClassTypeInfo.HasAttribute<EntityAttribute> then
-        Tables.Add(Table.DatabaseName, Table);
+      Tables.Add(Table.DatabaseName, Table);
 
     FDatabaseSchema.LoadTables;
 

@@ -355,6 +355,8 @@ type
     procedure WhenFillTheValueOfANullableFieldMustFillTheStoredValueAfterSetTheFieldValue;
     [Test]
     procedure WhenTheFieldIsAnArrayByteMustLoadTheSpecialTypeBinaryHasExpected;
+    [Test]
+    procedure WhenTheFieldIsBCDTypeMustLoadTheSpecialTypeBCD;
   end;
 
 implementation
@@ -1247,7 +1249,7 @@ procedure TMapperTest.WhenLoadTheSchemaWithAClassInParamsTheMapperMustLoadOnlyTh
 begin
   FMapper.LoadAll([TMyClass]);
 
-  Assert.AreEqual(86, Length(FMapper.Tables));
+  Assert.AreEqual(87, Length(FMapper.Tables));
 end;
 
 procedure TMapperTest.WhenLoadTheTableMustLoadTheNameOfTheTableWithTheNameOfTheClassWithoutTheTChar;
@@ -1543,6 +1545,13 @@ begin
   Assert.IsFalse(Table.Field['Lazy'].HasValue(MyClass, Value));
 
   MyClass.Free;
+end;
+
+procedure TMapperTest.WhenTheFieldIsBCDTypeMustLoadTheSpecialTypeBCD;
+begin
+  var Table := FMapper.GetTable(TBCDClass);
+
+  Assert.AreEqual(stBCD, Table.Field['BCD'].SpecialType);
 end;
 
 procedure TMapperTest.WhenTheFieldIsBinaryCantBeRequiredByDefault;

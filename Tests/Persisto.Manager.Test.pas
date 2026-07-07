@@ -219,6 +219,12 @@ type
     procedure WhenUpdateAnLazyBuildInTypeMustUpdateTheValueInDatabaseHasExpected;
     [Test]
     procedure WhenSelectAClassWithBuildInTypeLazyFieldMustLoadThePrimaryKeyFieldNameInTheLazyFieldPosition;
+    [Test]
+    procedure WhenInsertAClassWithABCDFieldCantRaiseAnyError;
+    [Test]
+    procedure WhenInsertAClassWithABCDFieldMustSaveTheValueAsExpected;
+    [Test]
+    procedure MustUpdateTheBCDFieldValueWhenUpdateTheClass;
   end;
 
   TDatabaseConnectionMock = class(TComponent, IDatabaseConnection)
@@ -257,7 +263,7 @@ type
 
 implementation
 
-uses System.SysUtils, System.Variants, System.Rtti, System.TypInfo, Persisto.Test.Entity, Persisto.Test.Connection;
+uses System.SysUtils, System.Variants, System.Rtti, System.TypInfo, Data.FMTBcd, Persisto.Test.Entity, Persisto.Test.Connection;
 
 { TManagerTest }
 
@@ -284,6 +290,25 @@ begin
   Result := T.Create;
 
   FGarbage.Add(Result);
+end;
+
+procedure TManagerTest.MustUpdateTheBCDFieldValueWhenUpdateTheClass;
+begin
+  var BCDClass := TBCDClass.Create;
+  BCDClass.Id := 200;
+  BCDClass.BCD := 123;
+
+  FManager.Insert([BCDClass]);
+
+  BCDClass.BCD := 456;
+
+  FManager.Update([BCDClass]);
+
+  var Cursor := FManager.OpenCursor('select BCD from BCDClass where Id = 200');
+
+  Assert.IsTrue(Cursor.Next);
+
+  Assert.AreEqual('456', Cursor.GetDataSet.Fields[0].AsString);
 end;
 
 procedure TManagerTest.PrepareDatabase;
@@ -793,6 +818,41 @@ begin
           ;
       end;
     end);
+end;
+
+procedure TManagerTest.WhenInsertAClassWithABCDFieldCantRaiseAnyError;
+begin
+  var BCDClass := TBCDClass.Create;
+  BCDClass.Id := 123;
+  BCDClass.BCD := 123;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FManager.Insert([BCDClass]);
+    end);
+end;
+
+procedure TManagerTest.WhenInsertAClassWithABCDFieldMustSaveTheValueAsExpected;
+begin
+  var BCDClass := TBCDClass.Create;
+  BCDClass.Id := 100;
+  var BCDValue: TBcd := 123456;
+
+  BCDValue := BCDValue * 1000000 + 123456;
+  BCDValue := BCDValue * 1000000 + 123456;
+
+  BCDValue := BCDValue + 0.123456;
+
+  BCDClass.BCD := BCDValue;
+
+  FManager.Insert([BCDClass]);
+
+  var Cursor := FManager.OpenCursor('select BCD from BCDClass where Id = 100');
+
+  Assert.IsTrue(Cursor.Next);
+
+  Assert.IsTrue(BCDValue = Cursor.GetDataSet.Fields[0].AsBCD);
 end;
 
 procedure TManagerTest.WhenInsertAManyValueAssociationClassWithALazyForeignKeyMustInsertTheChildObjectsWithTheLinkToTheParentClassFilled;

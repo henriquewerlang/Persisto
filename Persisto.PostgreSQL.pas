@@ -292,7 +292,7 @@ end;
 
 function TPersistoManipulatorPostgreSQL.GetSpecialFieldType(const SpecialType: TDatabaseSpecialType): String;
 const
-  SPECIAL_TYPE_MAPPING: array[TDatabaseSpecialType] of String = ('', 'date', 'timestamp without time zone', 'time without time zone', 'text', 'uuid', 'boolean', 'bytea');
+  SPECIAL_TYPE_MAPPING: array[TDatabaseSpecialType] of String = ('', 'date', 'timestamp without time zone', 'time without time zone', 'text', 'uuid', 'boolean', 'bytea', 'numeric');
 
 begin
   Result := SPECIAL_TYPE_MAPPING[SpecialType];

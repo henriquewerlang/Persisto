@@ -235,7 +235,7 @@ end;
 
 function TPersistoManipulatorSQLServer.GetSpecialFieldType(const SpecialType: TDatabaseSpecialType): String;
 const
-  FIELD_SPECIAL_TYPE_MAPPING: array [TDatabaseSpecialType] of String = ('', 'date', 'datetime', 'time', 'varchar(max)', 'uniqueidentifier', 'bit', 'varbinary(max)');
+  FIELD_SPECIAL_TYPE_MAPPING: array [TDatabaseSpecialType] of String = ('', 'date', 'datetime', 'time', 'varchar(max)', 'uniqueidentifier', 'bit', 'varbinary(max)', 'numeric');
 
 begin
   Result := FIELD_SPECIAL_TYPE_MAPPING[SpecialType];

@@ -216,7 +216,7 @@ end;
 
 function TPersistoManipulatorSQLite.GetSpecialFieldType(const SpecialType: TDatabaseSpecialType): String;
 const
-  SPECIAL_TYPE_MAPPING: array [TDatabaseSpecialType] of String = ('', 'date', 'datetime', 'time', 'text', 'uniqueidentifierchar', 'boolean', 'blob');
+  SPECIAL_TYPE_MAPPING: array [TDatabaseSpecialType] of String = ('', 'date', 'datetime', 'time', 'text', 'uniqueidentifierchar', 'boolean', 'blob', 'numeric');
 
 begin
   Result := SPECIAL_TYPE_MAPPING[SpecialType];

@@ -2,7 +2,7 @@
 
 interface
 
-uses System.SysUtils, Persisto.Mapping;
+uses System.SysUtils, Data.FMTBcd, Persisto.Mapping;
 
 type
 {$M+}
@@ -1311,6 +1311,17 @@ type
     property FieldAssociation: TAssociationChildClass read FFieldAssociation write FFieldAssociation;
     [Association]
     property LazyFieldAssociation: Lazy<TAssociationChildClass> read FLazyFieldAssociation write FLazyFieldAssociation;
+  end;
+
+  [Entity]
+  TBCDClass = class
+  private
+    FBCD: TBcd;
+    FId: Integer;
+  published
+    property Id: Integer read FId write FId;
+    [Precision(18, 6)]
+    property BCD: TBcd read FBCD write FBCD;
   end;
 
 implementation

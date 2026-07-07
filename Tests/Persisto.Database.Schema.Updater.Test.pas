@@ -10,11 +10,13 @@ type
   private
     FManager: TPersistoManager;
 
+    function CreateManager: TPersistoManager;
     function LoadForeignKeys(const TableName: String): TArray<TDatabaseForeignKey>;
     function LoadIndexes(const TableName: String): TArray<TDatabaseIndex>;
     function LoadTable(const Name: String): TDatabaseTable;
 
     procedure LoadSchemaTables;
+    procedure UpdateDatabaseSchema;
   public
     [Setup]
     procedure Setup;
@@ -96,6 +98,8 @@ type
     procedure TheFakeDefaultConstraintMustBeCleanedUpFromTheField;
     [Test]
     procedure CanOnlyCreateTableWithEntityAttribute;
+    [Test]
+    procedure WhenAClassHasABCDFieldCantRaiseAnyError;
   end;
 
   TDatabaseManiupulatorMock = class(TComponent, IDatabaseManipulator)
@@ -134,8 +138,6 @@ uses System.Rtti, Persisto.Test.Entity, Persisto.Test.Connection;
 
 procedure TDatabaseSchemaUpdaterTest.CanOnlyCreateTableWithEntityAttribute;
 begin
-  FManager.Mapper.GetTable(TClassWithoutEntityAttribute);
-
   FManager.UpdateDatabaseSchema;
 
   LoadSchemaTables;
@@ -143,6 +145,13 @@ begin
   var Table := FManager.Select.All.From<TDatabaseTable>.Where(Field('Name') = 'ClassWithoutEntityAttribute').Open.One;
 
   Assert.IsNil(Table);
+end;
+
+function TDatabaseSchemaUpdaterTest.CreateManager: TPersistoManager;
+begin
+  Result := TPersistoManager.Create(nil);
+  Result.Connection := CreateConnection(Result);
+  Result.Manipulator := CreateDatabaseManipulator(Result);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.IfTheForeignKeyExistsInDatabaseButNotExistsInTheMapperTheForeignKeyMustBeRemoved;
@@ -198,7 +207,7 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.IfTheTableExistsInTheDatabaseMustCreateTheFieldThatDontExists;
 begin
-  FManager.UpdateDatabaseSchema;
+  UpdateDatabaseSchema;
 
   FManager.ExectDirect('alter table MyTestClass drop column Value');
 
@@ -249,9 +258,7 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.Setup;
 begin
-  FManager := TPersistoManager.Create(nil);
-  FManager.Connection := CreateConnection(FManager);
-  FManager.Manipulator := CreateDatabaseManipulator(FManager);
+  FManager := CreateManager;
 
   FManager.Mapper.LoadAll;
 
@@ -285,6 +292,24 @@ begin
   Cursor.Next;
 
   Assert.IsNil(Cursor.GetDataSet.FindField('Childs'));
+end;
+
+procedure TDatabaseSchemaUpdaterTest.UpdateDatabaseSchema;
+begin
+  var Manager := CreateManager;
+
+  Manager.Mapper.LoadAll;
+
+  Manager.UpdateDatabaseSchema;
+
+  Manager.Free;
+end;
+
+procedure TDatabaseSchemaUpdaterTest.WhenAClassHasABCDFieldCantRaiseAnyError;
+begin
+  FManager.Mapper.GetTable(TBCDClass);
+
+  Assert.WillNotRaise(FManager.UpdateDatabaseSchema);
 end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenAddAFieldToATableCantAddTheManyValueAssociationField;
@@ -558,7 +583,7 @@ begin
   MyClass3.Name := 'C';
   MyClass3.Value := 30;
 
-  FManager.UpdateDatabaseSchema;
+  UpdateDatabaseSchema;
 
   FManager.ExectDirect('insert into MyClass values (''A'', 1)');
 
@@ -607,7 +632,7 @@ end;
 
 procedure TDatabaseSchemaUpdaterTest.WhenTheSequenceNotExistsInTheMapperMustBeDroped;
 begin
-  FManager.UpdateDatabaseSchema;
+  UpdateDatabaseSchema;
 
   var Sequence := TSequence.Create('AnySequence');
 
